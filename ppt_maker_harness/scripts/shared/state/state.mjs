@@ -125,6 +125,11 @@ function nowIso() { return new Date().toISOString(); }
 function newExecutionId() { return `exec-${randomUUID()}`; }
 function sha256(bytes) { return createHash("sha256").update(bytes).digest("hex"); }
 function deepClone(value) { return value == null ? value : structuredClone(value); }
+function deepFreeze(value) {
+  if (!value || typeof value !== "object" || Object.isFrozen(value)) return value;
+  for (const child of Object.values(value)) deepFreeze(child);
+  return Object.freeze(value);
+}
 function isPlainObject(value) { return Boolean(value && typeof value === "object" && !Array.isArray(value)); }
 function isReservedNode(id) { return RESERVED_NODE_IDS.includes(id) || LEGACY_RESERVED_NODE_IDS.includes(id); }
 function controllerEntries(nodes = {}) { return Object.entries(nodes).filter(([id]) => !isReservedNode(id)); }
@@ -385,6 +390,16 @@ function markStateRepaired(state, repair) {
   return state;
 }
 
+function markDurableStatePresent(state) {
+  Object.defineProperty(state, "durable_state_present", {
+    value: true,
+    enumerable: false,
+    configurable: false,
+    writable: false,
+  });
+  return state;
+}
+
 function readProductionModeMirror(deckDir) {
   const path = join(deckDir, "project-metadata.yaml");
   if (!existsSync(path)) return null;
@@ -431,18 +446,9 @@ function metadataMirrorDrift(mirror, runVersion, authoritativeMode) {
 export function inspectRunProductionMode(deckDir, { runVersion, runDir, purpose = "observe" } = {}) {
   const exactVersion = normalizeRunVersion(runVersion ?? runDir);
   if (!exactVersion) return Object.freeze({ ok: false, code: "RUN_VERSION_INVALID", runDir, runVersion });
-  const state = readState(deckDir, { purpose, heal: false, runVersion: exactVersion });
-  if (state?.unsupported_protocol) {
-    return Object.freeze({ ok: false, code: UNSUPPORTED_PROTOCOL_CODE, run_version: exactVersion, state, identity: state.identity });
-  }
-  if (state?.replacement_required || state?.corrupted) {
-    return Object.freeze({ ok: false, code: "STATE_UNAVAILABLE", run_version: exactVersion, state });
-  }
-  if (state?.execution_run_version_mismatch) return Object.freeze({ ok: false, ...state, run_version: exactVersion });
-  const sourceMarker = probeSourceMarkerForVersion(deckDir, exactVersion);
-  if (sourceMarker.ok === false) {
-    return Object.freeze({ ok: false, code: sourceMarker.code, run_version: exactVersion, marker: sourceMarker });
-  }
+  const execution = resolveExactExecution(deckDir, { runVersion: exactVersion, purpose });
+  if (!execution.ok) return execution;
+  const { state, source_marker: sourceMarker } = execution;
   const inspection = inspectProductionMode({ state, runVersion: exactVersion, sourceMarker });
   if (!inspection.ok) return Object.freeze({ ...inspection, run_version: exactVersion });
   const mirror = readProductionModeMirror(deckDir);
@@ -539,15 +545,14 @@ export function recordEffectiveStyleMasterSelection(deckDir, {
 } = {}) {
   const exactVersion = normalizeRunVersion(runVersion ?? runDir);
   if (!exactVersion) throw new Error("RUN_VERSION_INVALID");
+  const execution = requireExactExecution(deckDir, { runVersion: exactVersion });
   // This mutation is always CAS-bound to the state bytes it inspected. Callers
   // may supply an earlier explicit precondition when their owning transaction
-  // already has one; otherwise capture the durable bytes before observation.
-  const stateBytes = existsSync(statePath(deckDir)) ? readFileSync(statePath(deckDir)) : Buffer.alloc(0);
-  const stateSha = expectedStateSha ?? sha256(stateBytes);
+  // already has one; otherwise retain the exact resolver's byte identity.
+  const stateSha = expectedStateSha ?? execution.state_sha256;
   const source = styleMasterSourceWorkflow(deckDir, exactVersion);
   if (!source.ok) throw new Error(source.code);
-  const state = readState(deckDir, { purpose: "execute", heal: false });
-  if (state?.replacement_required || state?.corrupted) throw new Error("STATE_UNAVAILABLE");
+  const state = execution.state;
   const expectedWorkflow = styleMasterSelectionExpectedWorkflow(state, exactVersion) || source.workflow;
   if (expectedWorkflow !== source.workflow) throw new Error("STYLE_MASTER_SELECTION_SCOPE_MISMATCH");
   const checked = validateStyleMasterSelectionRecord(selection, {
@@ -838,16 +843,9 @@ export function activateCleanPageImageTargetDraft(deckDir, {
   const filesystemConflict = cleanTargetFilesystemConflict(targetDir);
   if (filesystemConflict) throw new Error(`CLEAN_TARGET_FILESYSTEM_NOT_CLEAN:${filesystemConflict}`);
 
-  const stateFile = statePath(deckDir);
-  const stateBytes = existsSync(stateFile) ? readFileSync(stateFile) : Buffer.alloc(0);
-  const stateSha = expectedStateSha ?? sha256(stateBytes);
-  const state = readState(deckDir, { purpose: "observe", heal: false, runVersion: sourceVersion });
-  if (state?.replacement_required || state?.corrupted) throw new Error("STATE_UNAVAILABLE");
-  if (state?.playbook && (
-    state.execution_run_version_mismatch || normalizeRunVersion(state.run_version) !== sourceVersion
-  )) {
-    throw new Error("CLEAN_TARGET_SOURCE_EXECUTION_REQUIRED");
-  }
+  const execution = requireExactExecution(deckDir, { runVersion: sourceVersion }, "observe");
+  const stateSha = expectedStateSha ?? execution.state_sha256;
+  const state = execution.state;
   if (Array.isArray(state.playbook_stack) && state.playbook_stack.length > 0) {
     throw new Error("CLEAN_TARGET_SOURCE_EXECUTION_STACKED");
   }
@@ -1100,16 +1098,16 @@ function progressiveLocalRebindFacts({
 function targetEvidenceContext(deckDir, { runVersion, runDir, purpose = "execute" } = {}) {
   const exactVersion = normalizeRunVersion(runVersion ?? runDir);
   if (!exactVersion) throw new Error("RUN_VERSION_INVALID");
+  const execution = requireExactExecution(deckDir, { runVersion: exactVersion }, purpose);
   const inspection = inspectRunProductionMode(deckDir, { runVersion: exactVersion, purpose });
   if (!inspection.ok) throw new Error(inspection.code || "TARGET_STATE_UNAVAILABLE");
   if (inspection.mode !== "image2-page-workflow-v1" || !["framed", "pure"].includes(inspection.workflow)) {
     throw new Error("TARGET_MODE_REQUIRED");
   }
-  const state = readState(deckDir, { purpose, heal: false, runVersion: exactVersion });
-  if (state?.replacement_required || state?.corrupted) throw new Error("STATE_UNAVAILABLE");
+  const state = execution.state;
   const modeRecord = state.production_mode?.by_version?.[canonicalVersionKey(exactVersion)];
   if (!isProductionModeRecord(modeRecord) || modeRecord.mode !== "image2-page-workflow-v1") throw new Error("PAGE_IMAGE_STATE_INVALID");
-  return Object.freeze({ exactVersion, inspection, state, modeRecord, record: targetEvidenceRecord(state, exactVersion) });
+  return Object.freeze({ exactVersion, inspection, state, stateSha: execution.state_sha256, sourceIdentity: execution.source_identity, modeRecord, record: targetEvidenceRecord(state, exactVersion) });
 }
 
 function targetEvidenceFailure(code, nextAction) {
@@ -1123,9 +1121,8 @@ export function initializeTargetPageImageState(deckDir, { runVersion, runDir, so
   const source = targetSourceFacts(sourceReceipt);
   const { marker } = assertTargetSourceReceiptMatchesCanonicalBytes(deckDir, exactVersion, source);
 
-  const state = readState(deckDir, { purpose: "execute", heal: false, runVersion: exactVersion });
-  if (state?.replacement_required || state?.corrupted) throw new Error("STATE_UNAVAILABLE");
-  if (state?.execution_run_version_mismatch) throw new Error("TARGET_SOURCE_EXECUTION_MISMATCH");
+  const execution = requireExactExecution(deckDir, { runVersion: exactVersion });
+  const state = execution.state;
   const versionKey = canonicalVersionKey(exactVersion);
   const existingMode = state.production_mode?.by_version?.[versionKey];
   if (existingMode) {
@@ -1173,7 +1170,7 @@ export function initializeTargetPageImageState(deckDir, { runVersion, runDir, so
   }
   ensureTargetEvidenceContainer(next);
   next.page_image_target_evidence.by_version[versionKey] = record;
-  writeState(deckDir, next, { expectedStateSha, updatedAt: nowIso() });
+  writeState(deckDir, next, { expectedStateSha: expectedStateSha ?? execution.state_sha256, updatedAt: nowIso() });
   appendHistory(deckDir, { type: "page_image_target_state_initialized", run_version: exactVersion, source_epoch: record.source_epoch, at: nowIso() });
   return Object.freeze({ ok: true, status: "initialized", run_version: exactVersion, record: Object.freeze(structuredClone(record)) });
 }
@@ -1195,9 +1192,8 @@ export function advanceTargetPageImageSourceEpoch(deckDir, {
   if (!exactVersion) throw new Error("RUN_VERSION_INVALID");
   const source = targetSourceFacts(sourceReceipt);
   const { marker } = assertTargetSourceReceiptMatchesCanonicalBytes(deckDir, exactVersion, source);
-  const state = readState(deckDir, { purpose: "execute", heal: false, runVersion: exactVersion });
-  if (state?.replacement_required || state?.corrupted) throw new Error("STATE_UNAVAILABLE");
-  if (state?.execution_run_version_mismatch) throw new Error("TARGET_SOURCE_EXECUTION_MISMATCH");
+  const execution = requireExactExecution(deckDir, { runVersion: exactVersion });
+  const state = execution.state;
   const versionKey = canonicalVersionKey(exactVersion);
   const modeRecord = state.production_mode?.by_version?.[versionKey];
   const inspection = inspectProductionMode({ state, runVersion: exactVersion, sourceMarker: marker });
@@ -1247,7 +1243,7 @@ export function advanceTargetPageImageSourceEpoch(deckDir, {
     delete next.page_image_progressive_handoff.by_version[versionKey];
   }
   const at = nowIso();
-  writeState(deckDir, next, { expectedStateSha, updatedAt: at });
+  writeState(deckDir, next, { expectedStateSha: expectedStateSha ?? execution.state_sha256, updatedAt: at });
   appendHistory(deckDir, {
     type: "page_image_target_source_epoch_advanced",
     run_version: exactVersion,
@@ -1294,9 +1290,8 @@ export function validateTargetAcceptedRawEvidenceLocalComposeRebind(deckDir, {
     nextAcceptedRawEvidence,
   });
   const { marker } = assertTargetSourceReceiptMatchesCanonicalBytes(deckDir, exactVersion, facts.nextSource);
-  const state = readState(deckDir, { purpose: "execute", heal: false, runVersion: exactVersion });
-  if (state?.replacement_required || state?.corrupted) throw new Error("STATE_UNAVAILABLE");
-  if (state?.execution_run_version_mismatch) throw new Error("TARGET_SOURCE_EXECUTION_MISMATCH");
+  const execution = requireExactExecution(deckDir, { runVersion: exactVersion });
+  const state = execution.state;
   const versionKey = canonicalVersionKey(exactVersion);
   const modeRecord = state.production_mode?.by_version?.[versionKey];
   const inspection = inspectProductionMode({ state, runVersion: exactVersion, sourceMarker: marker });
@@ -1336,6 +1331,7 @@ export function validateTargetAcceptedRawEvidenceLocalComposeRebind(deckDir, {
     source_epoch: existing.source_epoch,
     facts,
     state: Object.freeze(structuredClone(state)),
+    state_sha256: execution.state_sha256,
   });
 }
 
@@ -1362,7 +1358,7 @@ export function rebindTargetAcceptedRawEvidenceForLocalCompose(deckDir, args = {
   record.delivery_receipt_sha256 = null;
   if (!validTargetEvidenceRecord(record, exactVersion)) throw new Error("TARGET_STATE_RECORD_INVALID");
   const at = nowIso();
-  writeState(deckDir, next, { expectedStateSha: args.expectedStateSha ?? null, updatedAt: at });
+  writeState(deckDir, next, { expectedStateSha: args.expectedStateSha ?? checked.state_sha256, updatedAt: at });
   appendHistory(deckDir, {
     type: "page_image_target_local_compose_rebound",
     run_version: exactVersion,
@@ -1414,9 +1410,8 @@ export function rebindTargetProgressiveRawEvidenceForLocalCompose(deckDir, {
     throw new Error("TARGET_PROGRESSIVE_LOCAL_REBIND_VERSION_MISMATCH");
   }
   const { marker } = assertTargetSourceReceiptMatchesCanonicalBytes(deckDir, exactVersion, facts.nextSource);
-  const state = readState(deckDir, { purpose: "execute", heal: false, runVersion: exactVersion });
-  if (state?.replacement_required || state?.corrupted) throw new Error("STATE_UNAVAILABLE");
-  if (state?.execution_run_version_mismatch) throw new Error("TARGET_SOURCE_EXECUTION_MISMATCH");
+  const execution = requireExactExecution(deckDir, { runVersion: exactVersion });
+  const state = execution.state;
   const versionKey = canonicalVersionKey(exactVersion);
   const modeRecord = state.production_mode?.by_version?.[versionKey];
   const inspection = inspectProductionMode({ state, runVersion: exactVersion, sourceMarker: marker });
@@ -1467,7 +1462,7 @@ export function rebindTargetProgressiveRawEvidenceForLocalCompose(deckDir, {
   };
   if (!validProgressiveHandoffRecord(handoffs[versionKey], exactVersion)) throw new Error("TARGET_PROGRESSIVE_HANDOFF_INVALID");
   const at = nowIso();
-  writeState(deckDir, next, { expectedStateSha, updatedAt: at });
+  writeState(deckDir, next, { expectedStateSha: expectedStateSha ?? execution.state_sha256, updatedAt: at });
   appendHistory(deckDir, {
     type: "page_image_progressive_local_rebind",
     run_version: exactVersion,
@@ -1516,10 +1511,8 @@ export function registerTargetPageImageStructuralPublication(deckDir, {
     throw new Error("TARGET_SOURCE_RECEIPT_STALE");
   }
 
-  const state = readState(deckDir, { purpose: "execute", heal: false, runVersion: sourceVersion });
-  if (state?.replacement_required || state?.corrupted) throw new Error("STATE_UNAVAILABLE");
-  const executionMismatch = selectedExecutionMismatch(state, { runVersion: sourceVersion });
-  if (executionMismatch) throw new Error("TARGET_STRUCTURAL_SOURCE_EXECUTION_MISMATCH");
+  const execution = requireExactExecution(deckDir, { runVersion: sourceVersion });
+  const state = execution.state;
   const sourceKey = canonicalVersionKey(sourceVersion);
   const targetKey = canonicalVersionKey(targetVersion);
   const sourceMode = state.production_mode?.by_version?.[sourceKey];
@@ -1579,7 +1572,7 @@ export function registerTargetPageImageStructuralPublication(deckDir, {
   next.playbook_stack = [];
   next.continuation_target_version = targetVersion;
   const at = nowIso();
-  writeState(deckDir, next, { expectedStateSha, updatedAt: at });
+  writeState(deckDir, next, { expectedStateSha: expectedStateSha ?? execution.state_sha256, updatedAt: at });
   appendHistory(deckDir, {
     type: "page_image_target_structural_publication",
     source_version: sourceVersion,
@@ -1682,7 +1675,7 @@ function mutateTargetEvidenceRecord(deckDir, { runVersion, runDir, expectedState
   const record = next.page_image_target_evidence.by_version[canonicalVersionKey(context.exactVersion)];
   mutate(record, context);
   if (!validTargetEvidenceRecord(record, context.exactVersion)) throw new Error("TARGET_STATE_RECORD_INVALID");
-  writeState(deckDir, next, { expectedStateSha, updatedAt: nowIso() });
+  writeState(deckDir, next, { expectedStateSha: expectedStateSha ?? context.stateSha, updatedAt: nowIso() });
   return Object.freeze({ run_version: context.exactVersion, record: Object.freeze(structuredClone(record)) });
 }
 
@@ -1748,7 +1741,7 @@ function mutateProgressiveHandoff(deckDir, {
   handoffs[versionKey] = record;
   mutate(record, facts, context);
   if (!validProgressiveHandoffRecord(record, context.exactVersion)) throw new Error("TARGET_PROGRESSIVE_HANDOFF_INVALID");
-  writeState(deckDir, next, { expectedStateSha, updatedAt: nowIso() });
+  writeState(deckDir, next, { expectedStateSha: expectedStateSha ?? context.stateSha, updatedAt: nowIso() });
   return Object.freeze({
     run_version: context.exactVersion,
     record: Object.freeze(structuredClone(record)),
@@ -2102,11 +2095,9 @@ export function recordPageImageRawProviderAuthorization(deckDir, { runVersion, r
   if (inspection.mode !== "image2-page-workflow-v1" || inspection.workflow !== targetPlan.workflow) {
     throw new Error("Page Image target raw authorization requires the exact v2 workflow pair");
   }
-  const state = readState(deckDir, { purpose: "execute", heal: false, runVersion: exactVersion });
-  if (state?.replacement_required || state?.corrupted) throw new Error("replacement_required: Page Image authorization state is unavailable");
+  const execution = requireExactExecution(deckDir, { runVersion: exactVersion });
+  const state = execution.state;
   assertLegacyRawLifecycleAvailable(state, exactVersion);
-  const executionMismatch = selectedExecutionMismatch(state, { runVersion: exactVersion });
-  if (executionMismatch) throw new Error(`execution_run_version_mismatch: active=${executionMismatch.active_run_version || "none"} requested=${exactVersion}`);
   const sourceEpoch = state.production_mode?.by_version?.[canonicalVersionKey(exactVersion)]?.source_epoch;
   if (!Number.isInteger(sourceEpoch) || sourceEpoch <= 0) throw new Error("PAGE_IMAGE_STATE_INVALID: authoritative source_epoch is unavailable");
   const record = {
@@ -2143,7 +2134,7 @@ export function recordPageImageRawProviderAuthorization(deckDir, { runVersion, r
   targetEvidence.accepted_raw_evidence_sha256 = null;
   targetEvidence.final_manifest_sha256 = null;
   targetEvidence.delivery_receipt_sha256 = null;
-  writeState(deckDir, next, { expectedStateSha, updatedAt: record.decided_at });
+  writeState(deckDir, next, { expectedStateSha: expectedStateSha ?? execution.state_sha256, updatedAt: record.decided_at });
   appendHistory(deckDir, { type: "page_image_raw_provider_authorization", run_version: exactVersion, source_epoch: sourceEpoch, at: record.decided_at });
   return Object.freeze({ ok: true, run_version: exactVersion, record: Object.freeze(structuredClone(record)) });
 }
@@ -2160,8 +2151,9 @@ export function inspectPageImageRawProviderAuthorization(deckDir, { runVersion, 
   if (inspection.mode !== "image2-page-workflow-v1" || inspection.workflow !== targetPlan.workflow) {
     return Object.freeze({ ok: false, code: "AUTHORIZATION_NOT_APPLICABLE", run_version: exactVersion, mode: inspection.mode });
   }
-  const state = readState(deckDir, { purpose: "execute", heal: false, runVersion: exactVersion });
-  if (state?.replacement_required || state?.corrupted) return Object.freeze({ ok: false, code: "STATE_UNAVAILABLE", run_version: exactVersion });
+  const execution = resolveExactExecution(deckDir, { runVersion: exactVersion, purpose: "execute" });
+  if (!execution.ok) return Object.freeze({ ...execution, run_version: exactVersion });
+  const state = execution.state;
   if (hasCurrentProgressiveRawHandoff(state, exactVersion)) {
     return Object.freeze({ ok: false, code: "TARGET_PROGRESSIVE_RAW_OWNER_REQUIRED", run_version: exactVersion });
   }
@@ -2252,13 +2244,176 @@ export function readState(deckDir, opts = {}) {
       return currentRepairRequired(`current state repair must be retried through its owning execution path at ${repair.repair.field}`,
         pipelineFromSourceMarker(sourceMarker).pipeline);
     }
-    const repaired = { ...repair.state, durable_state_present: true };
-    const mismatch = selectedExecutionMismatch(repaired, opts);
-    return markStateRepaired(mismatch ? { ...repaired, ...mismatch } : repaired, repair.repair);
+    return markStateRepaired(markDurableStatePresent({ ...repair.state }), repair.repair);
   }
-  const mismatch = selectedExecutionMismatch(parsed.value, opts);
-  const state = { ...parsed.value, durable_state_present: true };
-  return mismatch ? Object.freeze({ ...state, ...mismatch }) : state;
+  return markDurableStatePresent({ ...parsed.value });
+}
+
+/**
+ * Resolve the only execution that may mutate a run-scoped Page Image record.
+ * This intentionally returns a separate discriminated result: callers never
+ * receive an execution diagnostic disguised as a writable state object.
+ */
+export function resolveExactExecution(deckDir, { runVersion, runDir, purpose = "observe" } = {}) {
+  const requested = selectedRunVersion({ runVersion, runDir });
+  if (!requested) return Object.freeze({ ok: false, code: "RUN_VERSION_INVALID" });
+
+  const state = readState(deckDir, { purpose, heal: false });
+  if (state?.unsupported_protocol) {
+    return Object.freeze({
+      ok: false,
+      code: UNSUPPORTED_PROTOCOL_CODE,
+      run_version: requested,
+      state,
+      identity: state.identity,
+    });
+  }
+  if (state?.replacement_required || state?.corrupted) {
+    return Object.freeze({ ok: false, code: "STATE_UNAVAILABLE", run_version: requested, state });
+  }
+
+  const active = state?.playbook ? normalizeRunVersion(state.run_version) : null;
+  if (!active || active !== requested) {
+    return Object.freeze({
+      ok: false,
+      code: "execution_run_version_mismatch",
+      requested_run_version: requested,
+      active_run_version: active,
+    });
+  }
+
+  const sourceMarker = probeSourceMarkerForVersion(deckDir, requested);
+  if (sourceMarker.ok === false) {
+    return Object.freeze({ ok: false, code: sourceMarker.code, run_version: requested, marker: sourceMarker });
+  }
+  const sourcePipeline = pipelineFromSourceMarker(sourceMarker);
+  if (!sourcePipeline.ok) {
+    return Object.freeze({
+      ok: false,
+      code: sourceMarker.code || sourcePipeline.code || "MARKER_INVALID",
+      run_version: requested,
+      marker: sourceMarker,
+    });
+  }
+  const path = statePath(deckDir);
+  const stateBytes = existsSync(path) ? readFileSync(path) : Buffer.alloc(0);
+  return Object.freeze({
+    ok: true,
+    run_version: requested,
+    active_run_version: active,
+    state: deepFreeze(deepClone(state)),
+    state_sha256: sha256(stateBytes),
+    source_identity: sourceMarker.identity ? deepFreeze(deepClone(sourceMarker.identity)) : null,
+    source_marker: deepFreeze(deepClone(sourceMarker)),
+  });
+}
+
+/** Direct workflow-owner boundary for exported run-scoped mutation APIs. */
+export function requireExactExecutionForRun(runDir, { purpose = "execute" } = {}) {
+  const canonicalRunDir = resolve(runDir || "");
+  return requireExactExecution(resolve(canonicalRunDir, "..", ".."), { runDir: canonicalRunDir }, purpose);
+}
+
+function requireExactExecution(deckDir, selected, purpose = "execute") {
+  const execution = resolveExactExecution(deckDir, { ...selected, purpose });
+  if (!execution.ok) {
+    const error = new Error(execution.code || "EXECUTION_RESOLUTION_FAILED");
+    error.code = execution.code || "EXECUTION_RESOLUTION_FAILED";
+    error.execution = execution;
+    throw error;
+  }
+  return execution;
+}
+
+const KNOWN_EXECUTION_MISMATCH_KEYS = Object.freeze([
+  "code",
+  "requested_run_version",
+  "active_run_version",
+]);
+
+function repairHardStop(code, { requestedRunVersion = null, activeRunVersion = null } = {}) {
+  return Object.freeze({
+    ok: false,
+    code,
+    ...(requestedRunVersion ? { requested_run_version: requestedRunVersion } : {}),
+    ...(activeRunVersion ? { active_run_version: activeRunVersion } : {}),
+  });
+}
+
+/**
+ * Repair only the three top-level keys emitted by BUG-066. This deliberately
+ * reads raw bytes because the record is otherwise invalid and cannot enter the
+ * ordinary state reader. Every other malformed record remains untouched.
+ */
+export function repairKnownExecutionMismatch(deckDir, { runVersion, runDir } = {}) {
+  const requested = selectedRunVersion({ runVersion, runDir });
+  if (!requested) return repairHardStop("RUN_VERSION_INVALID");
+  const path = statePath(deckDir);
+  if (!existsSync(path)) return repairHardStop("STATE_UNAVAILABLE", { requestedRunVersion: requested });
+
+  let rawBytes;
+  try {
+    rawBytes = readFileSync(path);
+  } catch {
+    return repairHardStop("STATE_UNAVAILABLE", { requestedRunVersion: requested });
+  }
+  const stateIdentity = evaluateReplacementIdentity({ stateBytes: rawBytes, statePath: path });
+  if (!stateIdentity.ok) return repairHardStop(stateIdentity.code, { requestedRunVersion: requested });
+  const parsed = parseStateYaml(rawBytes.toString("utf8"));
+  if (!parsed.ok || parsed.hadErrors || !isPlainObject(parsed.value)) {
+    return repairHardStop("REPAIR_STATE_PARSE_INVALID", { requestedRunVersion: requested });
+  }
+  const state = parsed.value;
+  const active = state.playbook ? normalizeRunVersion(state.run_version) : null;
+  if (!active || active !== requested) {
+    return repairHardStop("execution_run_version_mismatch", {
+      requestedRunVersion: requested,
+      activeRunVersion: active,
+    });
+  }
+
+  const sourceMarker = probeSourceMarkerForVersion(deckDir, active);
+  if (sourceMarker.ok === false) return repairHardStop(sourceMarker.code, { requestedRunVersion: requested, activeRunVersion: active });
+  if (!pipelineFromSourceMarker(sourceMarker).ok) {
+    return repairHardStop(sourceMarker.code || "MARKER_INVALID", { requestedRunVersion: requested, activeRunVersion: active });
+  }
+
+  const unknownKeys = Object.keys(state).filter((key) => !STATE_TOP_LEVEL_KEYS.has(key));
+  const hasKnownSignature = KNOWN_EXECUTION_MISMATCH_KEYS.some((key) => Object.hasOwn(state, key));
+  if (!hasKnownSignature) {
+    const valid = validateState(state).valid && inspectProductionMode({ state, runVersion: active, sourceMarker }).ok;
+    return valid
+      ? Object.freeze({ ok: true, status: "no-repair-needed", run_version: active })
+      : repairHardStop("REPAIR_SIGNATURE_REQUIRED", { requestedRunVersion: requested, activeRunVersion: active });
+  }
+  if (unknownKeys.length !== KNOWN_EXECUTION_MISMATCH_KEYS.length ||
+    !KNOWN_EXECUTION_MISMATCH_KEYS.every((key) => unknownKeys.includes(key)) ||
+    state.code !== "execution_run_version_mismatch" ||
+    state.requested_run_version !== requested ||
+    state.active_run_version !== active) {
+    return repairHardStop("REPAIR_SIGNATURE_INVALID", { requestedRunVersion: requested, activeRunVersion: active });
+  }
+
+  const repaired = deepClone(state);
+  for (const key of KNOWN_EXECUTION_MISMATCH_KEYS) delete repaired[key];
+  const validation = validateState(repaired);
+  if (!validation.valid || !inspectProductionMode({ state: repaired, runVersion: active, sourceMarker }).ok) {
+    return repairHardStop("REPAIR_CANDIDATE_INVALID", { requestedRunVersion: requested, activeRunVersion: active });
+  }
+  try {
+    writeState(deckDir, repaired, { expectedStateSha: sha256(rawBytes) });
+  } catch (error) {
+    return repairHardStop(error?.code || (/^CONFLICT:/.test(error?.message || "") ? "CONFLICT" : "REPAIR_WRITE_FAILED"), {
+      requestedRunVersion: requested,
+      activeRunVersion: active,
+    });
+  }
+  appendHistory(deckDir, {
+    type: "state_known_execution_mismatch_repaired",
+    run_version: active,
+    repaired_keys: KNOWN_EXECUTION_MISMATCH_KEYS,
+  });
+  return Object.freeze({ ok: true, status: "repaired", run_version: active });
 }
 
 export function appendHistory(deckDir, event) {
@@ -2325,11 +2480,13 @@ export function writeState(deckDir, state, opts = {}) {
   if (journal.record) {
     if (!opts.journalOwnerToken || opts.journalOwnerToken !== journal.record.owner_token) throw new Error("CONFLICT: gate approval journal fences state writes");
   }
-  const bindingErrors = executionBindingErrors(state);
-  if (bindingErrors.length > 0) throw new Error(`execution_run_version_mismatch: ${bindingErrors[0]}`);
-  const continuationTargetError = continuationTargetVisibilityError(state, deckDir);
-  if (continuationTargetError) throw new Error(`continuation_target_invalid: ${continuationTargetError}`);
   const prepared = prepareStateWrite(state, { updatedAt: opts.updatedAt || nowIso() });
+  // The writer is the final grammar admission boundary. In particular, caller
+  // diagnostics must never be cleaned into an otherwise durable state record.
+  const validation = validateState(prepared.persist);
+  if (!validation.valid) throw new Error(`STATE_CANDIDATE_INVALID: ${validation.errors[0]}`);
+  const continuationTargetError = continuationTargetVisibilityError(prepared.persist, deckDir);
+  if (continuationTargetError) throw new Error(`continuation_target_invalid: ${continuationTargetError}`);
   if (journal.record && prepared.sha256 !== journal.record.new_state_sha256) throw new Error("CONFLICT: journal owner attempted unbound state bytes");
   ensureStateDirHints(deckDir);
   const dir = dirname(path);

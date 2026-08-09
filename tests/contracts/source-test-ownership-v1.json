@@ -243,12 +243,15 @@
       "executables": [],
       "unit_integration": [
         "tests/shared/state/test_clean_page_authority_target_draft.mjs",
+        "tests/shared/state/test_inactive_execution_state_writes.mjs",
         "tests/shared/state/test_md_controller_reader.mjs",
         "tests/shared/state/test_state_yaml.mjs",
         "tests/shared/state/test_target_authoring_draft_route.mjs",
         "tests/shared/state/test_target_page_authority_state.mjs"
       ],
-      "e2e": []
+      "e2e": [
+        "tests_e2e/shared/state/test_mock_inactive_run_state_writes.mjs"
+      ]
     },
     {
       "owner": "shared/workflow",

@@ -81,6 +81,7 @@ import {
   reconcileProgressiveRawAttempt,
 } from "../shared/image2/page_image_progressive_raw_owner.mjs";
 import {
+  requireExactExecutionForRun,
   recordTargetProgressiveAcceptedRawEvidence,
   recordTargetProgressiveCompleteRawReview,
   recordTargetProgressiveDeliveryReceipt,
@@ -109,12 +110,56 @@ export const PURE_IMAGE_APPROVED_SHARED_INTERFACES = Object.freeze([
   "shared/page-image/page_image_invalidation.mjs",
 ]);
 
+/** Public run-scoped API inventory. Keep read-only inspection distinct from
+ * lifecycle entries that must cross the State execution fence. */
+export const PURE_IMAGE_OPERATION_MAP = Object.freeze({
+  read_only: Object.freeze([
+    "resolvePureTargetSource",
+    "resolvePureTargetCandidateSource",
+    "resolvePureStyleMasterScope",
+    "readPureTargetStoredPlanContext",
+    "pureTargetRawPlanProjection",
+    "readPureProgressiveTargetPlanCandidate",
+    "readPureProgressiveTargetStoredPlanContext",
+    "pureProgressiveRawPlanProjection",
+    "inspectPureProgressivePilotPageReview",
+    "inspectPureProgressiveCompletePageReview",
+    "inspectPureProgressiveCurrentCompletePageReview",
+  ]),
+  side_effecting: Object.freeze([
+    "buildPureTargetRawPlan",
+    "authorizePureTargetRawPlan",
+    "generatePureTargetRawPlan",
+    "preparePureTargetRawReview",
+    "decidePureTargetRawReview",
+    "buildPureProgressiveTargetRawPlan",
+    "planPureTargetPilot",
+    "planPureTargetExpansion",
+    "authorizePureProgressiveRawBatch",
+    "generatePureProgressiveRawItem",
+    "preparePureProgressivePilotReview",
+    "acceptPureProgressivePilot",
+    "preparePureProgressiveRawReview",
+    "acceptPureProgressiveRawReview",
+    "reconcilePureProgressiveRawAttempt",
+    "buildPureProgressiveTargetDelivery",
+    "buildPureTargetDelivery",
+    "refreshPureTargetNotes",
+  ]),
+});
+
 export class PureImageWorkflowError extends Error {
   constructor(code, message) {
     super(message);
     this.name = "PureImageWorkflowError";
     this.code = code;
   }
+}
+
+// Every exported mutation enters through State before it can inspect source,
+// publish a derived record, or make provider work reachable.
+function preflightPureMutation(runDir) {
+  return requireExactExecutionForRun(runDir);
 }
 
 const PURE_RAW_CONTRACT_KEYS = Object.freeze([
@@ -690,6 +735,7 @@ function compilePureTargetRawPlanCandidate(context) {
 }
 
 export function buildPureTargetRawPlan(runDir, { allowSourceRebuild = false } = {}) {
+  preflightPureMutation(runDir);
   const candidate = compilePureTargetRawPlanCandidate(resolvePureTargetCandidateSource(runDir));
   const context = materializeTargetSourceCandidateContext(candidate, { allowSourceRebuild });
   writeTargetRawWorkPlan(context, candidate.raw_work_plan);
@@ -716,11 +762,13 @@ export function pureTargetRawPlanProjection(plan) {
 }
 
 export function authorizePureTargetRawPlan(runDir, { planHash } = {}) {
+  preflightPureMutation(runDir);
   const plan = readPureTargetStoredPlanContext(runDir);
   return authorizeTargetRawWork(plan, plan.raw_work_plan, { planHash });
 }
 
 export async function generatePureTargetRawPlan(runDir, { planHash, submit } = {}) {
+  preflightPureMutation(runDir);
   const plan = readPureTargetStoredPlanContext(runDir);
   return generateTargetRawWork(plan, plan.raw_work_plan, {
     planHash,
@@ -730,6 +778,7 @@ export async function generatePureTargetRawPlan(runDir, { planHash, submit } = {
 }
 
 export async function preparePureTargetRawReview(runDir) {
+  preflightPureMutation(runDir);
   const plan = readPureTargetStoredPlanContext(runDir);
   return prepareTargetRawReview(plan, plan.raw_work_plan, {
     reviewContribution: createPureTargetRawReviewContribution({ receipt: plan.receipt, rawWorkPlan: plan.raw_work_plan }),
@@ -749,6 +798,7 @@ export async function preparePureTargetRawReview(runDir) {
 }
 
 export function decidePureTargetRawReview(runDir, { decision } = {}) {
+  preflightPureMutation(runDir);
   const plan = readPureTargetStoredPlanContext(runDir);
   return decideTargetRawReview(plan, plan.raw_work_plan, {
     decision,
@@ -789,6 +839,7 @@ export function readPureProgressiveTargetPlanCandidate(runDir, { sourceEpoch = n
 
 /** Compile and publish the provider-free v3 full plan through the selected Pure adapter. */
 export function buildPureProgressiveTargetRawPlan(runDir, { allowSourceRebuild = false } = {}) {
+  preflightPureMutation(runDir);
   const prior = inspectProgressiveRawLifecycle({ runDir, workflow: PURE_IMAGE_WORKFLOW });
   assertNoUnresolvedProgressiveRawSubmission({ runDir, workflow: PURE_IMAGE_WORKFLOW });
   const candidate = compilePureTargetRawPlanCandidate(resolvePureTargetCandidateSource(runDir));
@@ -849,6 +900,7 @@ export function pureProgressiveRawPlanProjection(plan) {
 }
 
 export async function planPureTargetPilot(runDir, { planHash, slideIds } = {}) {
+  preflightPureMutation(runDir);
   const plan = readPureProgressiveTargetStoredPlanContext(runDir);
   return planProgressiveRawPilot({
     runDir: plan.run_dir,
@@ -861,6 +913,7 @@ export async function planPureTargetPilot(runDir, { planHash, slideIds } = {}) {
 }
 
 export async function planPureTargetExpansion(runDir, { planHash } = {}) {
+  preflightPureMutation(runDir);
   const plan = readPureProgressiveTargetStoredPlanContext(runDir);
   return planProgressiveRawExpansion({
     runDir: plan.run_dir,
@@ -872,11 +925,13 @@ export async function planPureTargetExpansion(runDir, { planHash } = {}) {
 }
 
 export async function authorizePureProgressiveRawBatch(runDir, { planHash, batchHash } = {}) {
+  preflightPureMutation(runDir);
   const plan = readPureProgressiveTargetStoredPlanContext(runDir);
   return authorizeProgressiveRawBatch({ runDir: plan.run_dir, workflow: PURE_IMAGE_WORKFLOW, plan_hash: planHash, batch_hash: batchHash, expected_plan: plan.progressive_raw_work_plan });
 }
 
 export async function generatePureProgressiveRawItem(runDir, { planHash, batchHash, preflight = null, submit } = {}) {
+  preflightPureMutation(runDir);
   const plan = readPureProgressiveTargetStoredPlanContext(runDir);
   return generateProgressiveRawItem({
     runDir: plan.run_dir,
@@ -957,6 +1012,7 @@ function validatePureProgressivePilot({ context, plan, batch, batch_sha256, cove
 }
 
 export async function preparePureProgressivePilotReview(runDir, { planHash, batchHash } = {}) {
+  preflightPureMutation(runDir);
   const context = readPureProgressiveTargetStoredPlanContext(runDir);
   return prepareProgressiveRawPilotEvidence({
     runDir: context.run_dir,
@@ -991,6 +1047,7 @@ export function inspectPureProgressivePilotPageReview(runDir) {
 }
 
 export async function acceptPureProgressivePilot(runDir, { planHash, batchHash, decision } = {}) {
+  preflightPureMutation(runDir);
   const plan = readPureProgressiveTargetStoredPlanContext(runDir);
   const accepted = await acceptProgressiveRawPilot({
     runDir: plan.run_dir,
@@ -1041,6 +1098,7 @@ function validatePureProgressiveCompletePageReview({ context, plan, materializat
 }
 
 export async function preparePureProgressiveRawReview(runDir, { planHash } = {}) {
+  preflightPureMutation(runDir);
   const context = readPureProgressiveTargetStoredPlanContext(runDir);
   const prepared = await prepareProgressiveRawCompleteReview({
     runDir: context.run_dir,
@@ -1068,6 +1126,7 @@ export async function preparePureProgressiveRawReview(runDir, { planHash } = {})
 }
 
 export async function acceptPureProgressiveRawReview(runDir, { planHash, decision } = {}) {
+  preflightPureMutation(runDir);
   const plan = readPureProgressiveTargetStoredPlanContext(runDir);
   const accepted = await acceptProgressiveRawCompleteReview({
     runDir: plan.run_dir,
@@ -1097,6 +1156,7 @@ export async function acceptPureProgressiveRawReview(runDir, { planHash, decisio
 }
 
 export async function reconcilePureProgressiveRawAttempt(runDir, { planHash, attemptSha256, lookup = null } = {}) {
+  preflightPureMutation(runDir);
   return reconcileProgressiveRawAttempt({
     runDir,
     workflow: PURE_IMAGE_WORKFLOW,
@@ -1146,6 +1206,7 @@ export function inspectPureProgressiveCurrentCompletePageReview(runDir) {
 
 /** Publish final and delivery projections from exact v3 accepted raw evidence only. */
 export async function buildPureProgressiveTargetDelivery(runDir) {
+  preflightPureMutation(runDir);
   const plan = readPureProgressiveTargetStoredPlanContext(runDir);
   const raw = readProgressiveAcceptedRawWork({
     runDir: plan.run_dir,
@@ -1204,6 +1265,7 @@ export async function buildPureProgressiveTargetDelivery(runDir) {
 
 /** Pure finalization publishes accepted raw bytes, then joins shared delivery. */
 export async function buildPureTargetDelivery(runDir) {
+  preflightPureMutation(runDir);
   const progressive = inspectProgressiveRawLifecycle({ runDir, workflow: PURE_IMAGE_WORKFLOW });
   if (progressive.ok && progressive.plan) return buildPureProgressiveTargetDelivery(runDir);
   const plan = readPureTargetStoredPlanContext(runDir);
@@ -1236,6 +1298,7 @@ export async function buildPureTargetDelivery(runDir) {
 
 /** Notes-only target refresh remains a shared delivery operation. */
 export async function refreshPureTargetNotes(runDir) {
+  preflightPureMutation(runDir);
   const refresh = resolveTargetLocalComposeContext(runDir, {
     workflow: PURE_IMAGE_WORKFLOW,
     parseReceipt: parsePureTargetReceipt,

@@ -90,6 +90,7 @@ import {
   reconcileProgressiveRawAttempt,
 } from "../shared/image2/page_image_progressive_raw_owner.mjs";
 import {
+  requireExactExecutionForRun,
   recordTargetProgressiveAcceptedRawEvidence,
   recordTargetProgressiveCompleteRawReview,
   recordTargetProgressiveDeliveryReceipt,
@@ -119,6 +120,46 @@ export const FRAMED_IMAGE_APPROVED_SHARED_INTERFACES = Object.freeze([
   "shared/page-image/page_image_invalidation.mjs",
 ]);
 
+/** Public run-scoped API inventory. The mutation list is guarded directly so
+ * imported workflow owners cannot bypass CLI route preflight. */
+export const FRAMED_IMAGE_OPERATION_MAP = Object.freeze({
+  read_only: Object.freeze([
+    "resolveFramedTargetSource",
+    "resolveFramedTargetCandidateSource",
+    "resolveFramedStyleMasterScope",
+    "readFramedTargetStoredPlanContext",
+    "framedTargetRawPlanProjection",
+    "readFramedProgressiveTargetPlanCandidate",
+    "inspectFramedProgressiveLocalRebind",
+    "readFramedProgressiveTargetStoredPlanContext",
+    "framedProgressiveRawPlanProjection",
+    "inspectFramedProgressivePilotPageReview",
+    "inspectFramedProgressiveCompletePageReview",
+    "inspectFramedProgressiveCurrentCompletePageReview",
+  ]),
+  side_effecting: Object.freeze([
+    "buildFramedTargetRawPlan",
+    "authorizeFramedTargetRawPlan",
+    "generateFramedTargetRawPlan",
+    "prepareFramedTargetRawReview",
+    "decideFramedTargetRawReview",
+    "buildFramedProgressiveTargetRawPlan",
+    "planFramedTargetPilot",
+    "planFramedTargetExpansion",
+    "authorizeFramedProgressiveRawBatch",
+    "generateFramedProgressiveRawItem",
+    "prepareFramedProgressivePilotReview",
+    "acceptFramedProgressivePilot",
+    "prepareFramedProgressiveRawReview",
+    "acceptFramedProgressiveRawReview",
+    "reconcileFramedProgressiveRawAttempt",
+    "buildFramedProgressiveTargetDelivery",
+    "buildFramedTargetDelivery",
+    "refreshFramedTargetText",
+    "refreshFramedTargetNotes",
+  ]),
+});
+
 export {
   FRAMED_HEADER_OVERLAY_PRESET,
   FRAMED_HEADER_OVERLAY_STANDARD_V1,
@@ -133,6 +174,12 @@ export class FramedImageWorkflowError extends Error {
     this.name = "FramedImageWorkflowError";
     this.code = code;
   }
+}
+
+// Direct imports of this workflow owner use the same State-owned execution
+// fence as CLI routing, before source, artifact, or provider side effects.
+function preflightFramedMutation(runDir) {
+  return requireExactExecutionForRun(runDir);
 }
 
 const FRAMED_RAW_CONTRACT_KEYS = Object.freeze([
@@ -873,6 +920,7 @@ function compileFramedTargetRawPlanCandidate(context) {
  * materialization. The state owner rechecks the exact candidate bytes.
  */
 export async function buildFramedTargetRawPlan(runDir, { allowSourceRebuild = false } = {}) {
+  preflightFramedMutation(runDir);
   const candidate = compileFramedTargetRawPlanCandidate(resolveFramedTargetCandidateSource(runDir));
   const proof = await verifyFramedHeaderOverlays(candidate.receipt.slides.map(framedHeaderOverlayInput));
   if (proof.render_profile_digest !== candidate.render_profile_digest) {
@@ -903,11 +951,13 @@ export function framedTargetRawPlanProjection(plan) {
 }
 
 export async function authorizeFramedTargetRawPlan(runDir, { planHash } = {}) {
+  preflightFramedMutation(runDir);
   const plan = readFramedTargetStoredPlanContext(runDir);
   return authorizeTargetRawWork(plan, plan.raw_work_plan, { planHash });
 }
 
 export async function generateFramedTargetRawPlan(runDir, { planHash, submit } = {}) {
+  preflightFramedMutation(runDir);
   const plan = readFramedTargetStoredPlanContext(runDir);
   return generateTargetRawWork(plan, plan.raw_work_plan, {
     planHash,
@@ -917,6 +967,7 @@ export async function generateFramedTargetRawPlan(runDir, { planHash, submit } =
 }
 
 export async function prepareFramedTargetRawReview(runDir) {
+  preflightFramedMutation(runDir);
   const plan = readFramedTargetStoredPlanContext(runDir);
   return prepareTargetRawReview(plan, plan.raw_work_plan, {
     reviewContribution: createFramedTargetRawReviewContribution({ receipt: plan.receipt, rawWorkPlan: plan.raw_work_plan }),
@@ -936,6 +987,7 @@ export async function prepareFramedTargetRawReview(runDir) {
 }
 
 export async function decideFramedTargetRawReview(runDir, { decision } = {}) {
+  preflightFramedMutation(runDir);
   const plan = readFramedTargetStoredPlanContext(runDir);
   return decideTargetRawReview(plan, plan.raw_work_plan, {
     decision,
@@ -1022,6 +1074,7 @@ export function inspectFramedProgressiveLocalRebind(runDir, { planHash, candidat
 
 /** Compile/prove selected Framed source then publish only its provider-free v3 full plan. */
 export async function buildFramedProgressiveTargetRawPlan(runDir, { allowSourceRebuild = false } = {}) {
+  preflightFramedMutation(runDir);
   const prior = inspectProgressiveRawLifecycle({ runDir, workflow: FRAMED_IMAGE_WORKFLOW });
   assertNoUnresolvedProgressiveRawSubmission({ runDir, workflow: FRAMED_IMAGE_WORKFLOW });
   let rebindContext = null;
@@ -1150,21 +1203,25 @@ export function framedProgressiveRawPlanProjection(plan) {
 }
 
 export async function planFramedTargetPilot(runDir, { planHash, slideIds } = {}) {
+  preflightFramedMutation(runDir);
   const plan = readFramedProgressiveTargetStoredPlanContext(runDir);
   return planProgressiveRawPilot({ runDir: plan.run_dir, workflow: FRAMED_IMAGE_WORKFLOW, plan_hash: planHash, slide_ids: slideIds, display_by_slide: progressiveFramedDisplayBySlide(plan.receipt), expected_plan: plan.progressive_raw_work_plan });
 }
 
 export async function planFramedTargetExpansion(runDir, { planHash } = {}) {
+  preflightFramedMutation(runDir);
   const plan = readFramedProgressiveTargetStoredPlanContext(runDir);
   return planProgressiveRawExpansion({ runDir: plan.run_dir, workflow: FRAMED_IMAGE_WORKFLOW, plan_hash: planHash, display_by_slide: progressiveFramedDisplayBySlide(plan.receipt), expected_plan: plan.progressive_raw_work_plan });
 }
 
 export async function authorizeFramedProgressiveRawBatch(runDir, { planHash, batchHash } = {}) {
+  preflightFramedMutation(runDir);
   const plan = readFramedProgressiveTargetStoredPlanContext(runDir);
   return authorizeProgressiveRawBatch({ runDir: plan.run_dir, workflow: FRAMED_IMAGE_WORKFLOW, plan_hash: planHash, batch_hash: batchHash, expected_plan: plan.progressive_raw_work_plan });
 }
 
 export async function generateFramedProgressiveRawItem(runDir, { planHash, batchHash, preflight = null, submit } = {}) {
+  preflightFramedMutation(runDir);
   const plan = readFramedProgressiveTargetStoredPlanContext(runDir);
   return generateProgressiveRawItem({
     runDir: plan.run_dir,
@@ -1262,6 +1319,7 @@ function requireFramedProgressivePilotReviewInput(input) {
 
 export async function prepareFramedProgressivePilotReview(runDir, input = {}) {
   const { planHash, batchHash } = requireFramedProgressivePilotReviewInput(input);
+  preflightFramedMutation(runDir);
   const context = readFramedProgressiveTargetStoredPlanContext(runDir);
   return prepareProgressiveRawPilotEvidence({
     runDir: context.run_dir,
@@ -1296,6 +1354,7 @@ export function inspectFramedProgressivePilotPageReview(runDir) {
 }
 
 export async function acceptFramedProgressivePilot(runDir, { planHash, batchHash, decision } = {}) {
+  preflightFramedMutation(runDir);
   const plan = readFramedProgressiveTargetStoredPlanContext(runDir);
   const accepted = await acceptProgressiveRawPilot({
     runDir: plan.run_dir,
@@ -1346,6 +1405,7 @@ function validateFramedProgressiveCompletePageReview({ context, plan, materializ
 }
 
 export async function prepareFramedProgressiveRawReview(runDir, { planHash } = {}) {
+  preflightFramedMutation(runDir);
   const context = readFramedProgressiveTargetStoredPlanContext(runDir);
   const prepared = await prepareProgressiveRawCompleteReview({
     runDir: context.run_dir,
@@ -1373,6 +1433,7 @@ export async function prepareFramedProgressiveRawReview(runDir, { planHash } = {
 }
 
 export async function acceptFramedProgressiveRawReview(runDir, { planHash, decision } = {}) {
+  preflightFramedMutation(runDir);
   const plan = readFramedProgressiveTargetStoredPlanContext(runDir);
   const accepted = await acceptProgressiveRawCompleteReview({
     runDir: plan.run_dir,
@@ -1402,6 +1463,7 @@ export async function acceptFramedProgressiveRawReview(runDir, { planHash, decis
 }
 
 export async function reconcileFramedProgressiveRawAttempt(runDir, { planHash, attemptSha256, lookup = null } = {}) {
+  preflightFramedMutation(runDir);
   return reconcileProgressiveRawAttempt({
     runDir,
     workflow: FRAMED_IMAGE_WORKFLOW,
@@ -1451,6 +1513,7 @@ export function inspectFramedProgressiveCurrentCompletePageReview(runDir) {
 
 /** Compose, publish, and deliver only from exact current accepted raw evidence. */
 export async function buildFramedProgressiveTargetDelivery(runDir) {
+  preflightFramedMutation(runDir);
   const plan = readFramedProgressiveTargetStoredPlanContext(runDir);
   const raw = readProgressiveAcceptedRawWork({
     runDir: plan.run_dir,
@@ -1509,6 +1572,7 @@ export async function buildFramedProgressiveTargetDelivery(runDir) {
 
 /** Framed finalization then shared delivery through the one target delivery owner. */
 export async function buildFramedTargetDelivery(runDir) {
+  preflightFramedMutation(runDir);
   const progressive = inspectProgressiveRawLifecycle({ runDir, workflow: FRAMED_IMAGE_WORKFLOW });
   if (progressive.ok && progressive.plan) return buildFramedProgressiveTargetDelivery(runDir);
   const plan = readFramedTargetStoredPlanContext(runDir);
@@ -1621,6 +1685,7 @@ async function refreshFramedProgressiveTargetNotes(runDir) {
  * delivery all remain bound to the selected Framed owner.
  */
 export async function refreshFramedTargetText(runDir, { slideIds = null } = {}) {
+  preflightFramedMutation(runDir);
   const progressive = await refreshFramedProgressiveTargetText(runDir, { slideIds });
   if (progressive) return progressive;
   const refresh = resolveTargetLocalComposeContext(runDir, {
@@ -1688,6 +1753,7 @@ export async function refreshFramedTargetText(runDir, { slideIds = null } = {}) 
 
 /** Notes-only target refresh remains a shared delivery operation. */
 export async function refreshFramedTargetNotes(runDir) {
+  preflightFramedMutation(runDir);
   const progressive = await refreshFramedProgressiveTargetNotes(runDir);
   if (progressive) return progressive;
   const refresh = resolveTargetLocalComposeContext(runDir, {
