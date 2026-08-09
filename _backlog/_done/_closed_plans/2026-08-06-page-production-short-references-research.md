@@ -1,6 +1,6 @@
 # Page Production Short References Research
 
-Date: 2026-08-06
+> 类型: 已关闭研究 / 设计记录 | 状态: 已完成（CLS-024） | 初始日期: 2026-08-06 | 关闭: 2026-08-09
 
 ## Question
 
@@ -126,3 +126,70 @@ the two blockers above are resolved in the plan. The recommended first change
 is deliberately narrow: typed, card-scoped display references only; complete
 digests remain in all authority and direct CLI surfaces; no migration and no
 short-selector resolver.
+
+## Current-HEAD Addendum (2026-08-09)
+
+### Status
+
+**Resolved for the agreed human-facing Page Image artifact path.** The original
+display-only conclusion was superseded and implemented by
+`introduce-short-physical-human-artifact-paths`, committed as
+[`d8b9389`](../../openspec/changes/archive/2026-08-09-introduce-short-physical-human-artifact-paths/tasks.md).
+The supported human entry is now a real, short physical copy tree, rather than
+a short label referring a person back to a SHA-heavy locator.
+
+This is intentionally **not** a rename of every internal generated directory
+or immutable owner record. SHA-named storage remains in place below internal
+owner roots. That is an explicit, current contract boundary rather than an
+unnoticed incomplete migration.
+
+### Evidence
+
+- [`run-bundle-layout`](../../openspec/specs/run-bundle-layout/spec.md)
+  requires `_generated/nav/index.md` as the sole canonical human entry and
+  limits every component below `_generated/nav/` to 1--24 safe ASCII
+  characters with no full SHA-256. Its immutable-owner scenario explicitly
+  preserves the canonical SHA directory while keeping it out of the human
+  path.
+- The [Human Navigation Path writer](../../ppt_maker_harness/scripts/shared/image2/page_image_human_artifact_reference.mjs)
+  assigns typed eight-hex display bases, bounded collision/occurrence suffixes,
+  validates the resulting filename component, and writes regular copies to
+  `nav/art/`; it neither creates links nor exposes the original locator.
+  The [display-reference module](../../ppt_maker_harness/scripts/shared/workflow/page_production_display_references.mjs)
+  fixes the digest portion at eight characters and handles collisions with a
+  deterministic suffix.
+- [`image2 artifact-view`](../../openspec/specs/cli-surface/spec.md) returns
+  only the short index/root for a current supported run. The
+  [Agent contract](../../ppt_maker_harness/charter/AGENT_CONTRACT.md) requires
+  inspection handoffs to cite that index and forbids SHA-named storage
+  locators.
+- The delivered run has the physical tree at
+  [`deck_dark_factory_current/3_versions/v1/_generated/nav/index.md`](../../deck_dark_factory_current/3_versions/v1/_generated/nav/index.md):
+  for example, its PPTX is `art/x-2a110293.pptx` and its page images are
+  `art/m-5a67bff4-{1,2,3}.png`. No 64-hex token occurs in that `nav/` tree.
+- The [navigation writer tests](../../tests/shared/image2/test_human_artifact_reference.mjs)
+  cover 24-character components, eight-character collision names, regular
+  copies, regenerated edited copies, no full SHA/source locator in the index,
+  and failed-publication preservation. They passed at current HEAD on
+  2026-08-09. The [CLI contract suite](../../tests/contracts/test_human_artifact_reference_cli.mjs)
+  covers current Pure/Framed/Pilot/review/delivery views, no state/provider
+  mutation, and the unsupported-v2 hard-stop.
+
+### Remaining Boundary And Recommendation
+
+The same delivered run still contains SHA-named directories below
+`_generated/page_image_workflow/review/complete-page/`; the archived change
+lists renaming immutable directories, CAS naming, receipts, and state records
+as non-goals. Those paths are protocol/internal storage, not supported human
+navigation.
+
+Therefore this research item needs no active follow-up plan for the stated
+human usability outcome: humans should use `_generated/nav/index.md` and its
+`nav/art/` files exclusively, and that behavior is implemented and verified.
+By explicit owner decision, this resolved research record is archived as
+`CLS-024` under `_done/_closed_plans/`.
+If the intended requirement is instead that **every** directory and filename
+inside a deck, including immutable internal owner storage, must be short, that
+is unresolved by design and requires a new OpenSpec proposal. It would change
+the current SHA-addressed integrity and recovery boundary, so it should not be
+treated as a follow-up patch to the completed navigation feature.

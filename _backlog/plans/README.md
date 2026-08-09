@@ -21,7 +21,7 @@
 |---|---|
 | — | 当前没有活跃 plan。 |
 
-**Next available plan ID: CLS-024**（移入 `_closed_plans/` 时分配；CLS-001…023 已用）
+**Next available plan ID: CLS-025**（移入 `_closed_plans/` 时分配；CLS-001…024 已用）
 
 ---
 
