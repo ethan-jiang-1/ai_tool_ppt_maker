@@ -43,8 +43,9 @@ intentionally not reconstructed from guesswork.
 
 ### Open Decisions That Must Not Be Assumed
 
-- The exact nesting of the version-level configuration: class-first versus
-  workflow-first, and its final filename/path.
+- Whether to accept the recommended fixed presentation package below: its
+  human-facing control map is class-first, while Pure and Framed profile facts
+  live in separate fixed documents rather than one large cross-workflow YAML.
 - Exact closed fields in Deck Baseline and in each Pure/Framed class profile.
 - Whether Framed publishes a structured Header Controller JSON beside its
   rendered Header HTML.
@@ -154,53 +155,109 @@ and Pure-visual-system designs.
     typed differences. The resolved projection must expose inherited values so
     a human never has to reconstruct the merge mentally.
 
-## Design Question Deferred From Q8
+## Recommended Q8 Topology, Pending Acceptance
 
-The remaining decision is not whether Page Class is needed; it is the safe
-data topology for its supporting version-owned design system.
+The remaining decision is not whether Page Class is needed; it is how to make
+the version-owned design system both human-readable and safely isolated by
+workflow. The original single-file candidate is no longer the leading shape:
+it would make a human reconstruct too much unrelated configuration in one
+place, which conflicts with the stated requirement for independently
+inspectable configuration.
 
-The current leading candidate is:
+The recommendation is class-first at the human control surface, with a fixed
+small package of renderer-isolated configuration documents rather than one
+large cross-workflow YAML:
 
 1. Add one closed per-slide `PAGE CLASS` source fact, normalized into the
    receipt and Page Image Core.
-2. Add one new, version-resolved shared presentation-system source record under
-   `visual-style/`, provisionally named
-   `page-image-presentation-system.yaml`. It owns the class catalog and
-   class-to-workflow projection selection, but no slide literals, provider
-   prompts, lifecycle state, or generated evidence.
-3. Keep concrete Framed and Pure profiles in their respective owned sections
-   or records. Adapters receive an immutable selected projection plus digest,
-   not an arbitrary configuration object.
+2. Add one fixed version-resolved package under
+   `visual-style/page-image-presentation/`: `page-classes.yaml`,
+   `deck-baseline.yaml`, `pure-profiles.yaml`, and
+   `framed-header-profiles.yaml`. These are fixed owned filenames, not
+   user-configurable imports or paths. Each resolves through ordinary
+   override-first/backbone-default selection, and the resolver validates the
+   complete selected package before it emits one immutable presentation
+   snapshot.
+3. Let `page-classes.yaml` own only the closed class catalog and the mapping
+   from one Page Class to one Pure profile identifier and one Framed Header
+   Profile identifier. Keep concrete Pure and Framed profile facts in their
+   respective files. Adapters receive an immutable selected projection plus
+   digest, not an arbitrary configuration object or the sibling subtree.
 4. Bind the selected per-slide projection digest into raw semantics and
    provider-input bindings. An edit to an unrelated class or profile must not
    stale the page; a selected class/profile change must force raw rebuild and
    review.
 
-This is a candidate to test, not a settled implementation schema. A
-class-first layout is shown only to make the decision concrete; a workflow-first
-layout remains a valid alternative until the next grilling decision.
+| Document | Owns | Must not contain |
+| --- | --- | --- |
+| `page-classes.yaml` | Closed class catalog, `standard` default, and class-to-profile identifiers | slide literals, geometry, provider prose, lifecycle facts |
+| `deck-baseline.yaml` | Workflow-neutral typography, colour-role, and density tokens inherited by all classes | per-slide facts, renderer geometry, raw prompts |
+| `pure-profiles.yaml` | Pure-only full-page layout/treatment deltas selected by a Page Class | Framed Header Profiles or local-renderer facts |
+| `framed-header-profiles.yaml` | Framed-only allowed header fields, Reserved Header Region, local typography, colour, spacing, and contrast | Pure zones, provider prose, slide-local overrides |
+
+The small class catalog is the primary human entry point. It maps each
+canonical class to exactly one Pure profile identifier and exactly one Framed
+Header Profile identifier; those identifiers select closed profile definitions
+from their respective files. The resolver returns only the active workflow's
+projection, so a Pure adapter never receives Framed geometry and a Framed
+adapter never receives Pure layout facts.
 
 ```yaml
-schema: pptmaker-page-image-presentation-system-v1
+# page-classes.yaml (proposed shape)
+schema: pptmaker-page-image-class-catalog-v1
 revision: 1
 default_page_class: standard
-deck_baseline: ...
-page_classes:
+classes:
   standard:
-    pure: ...
-    framed: ...
+    pure_profile: standard
+    framed_header_profile: standard
   opening:
-    pure: ...
-    framed: ...
+    pure_profile: opening
+    framed_header_profile: opening
+  transition:
+    pure_profile: transition
+    framed_header_profile: transition
+  closing:
+    pure_profile: closing
+    framed_header_profile: closing
 ```
 
-`pure` would contain only full-page provider typography/zones/families;
-`framed` would contain only fixed header field policy, geometry, typography,
-colour, and contrast. Class entries inherit `deck_baseline` and declare only
-their typed differences. The parser would resolve one selected class/workflow
-projection. Neither adapter would receive the sibling subtree. This remains a
-recommendation to grill, not an implementation commitment; it must not
-repurpose the current Pure record merely to avoid a new file.
+`deck-baseline.yaml` supplies only shared named tokens. Each selected profile
+inherits those tokens and declares its typed difference: a Pure profile can
+change provider-owned layout treatment, while a Framed Header Profile can
+change its fixed field set and Reserved Header Region. The exact closed token
+and profile fields still need to be settled, but no field may create a
+slide-local coordinate or a free-form prompt escape hatch.
+
+The source-facing counterpart is one closed field:
+
+```markdown
+**PAGE CLASS**: opening
+```
+
+Omission normalizes to `standard`; any non-standard value is explicit. In the
+target schema `FRAME PRESET` is not another source control. The resolver derives
+Framed Header Rendering Policy from the selected Page Class and Header Profile,
+then binds the resulting selected projection into Core, raw contract,
+compiled-provider-input binding, and invalidation.
+
+```text
+Page Source + selected package
+          |
+          v
+Source Receipt (page class + provenance)
+          |
+          v
+Resolved Page Presentation (one workflow projection)
+          |
+          v
+Page Image Core -> selected adapter controller(s) -> raw-plan binding
+```
+
+This is an evidence-backed recommendation, not an implementation commitment.
+Acceptance still needs to settle the exact closed fields, whether the Framed
+HTML also gets a structured sibling JSON, the derived view path, and the
+owner-issued migration boundary.
 
 ### Required Pre-Production View
 
@@ -256,6 +313,36 @@ downstream controller projections and raw/review impact of each scope.
 | Page Source | content facts, visual selection, or an existing `PAGE CLASS` selection | one stable slide identity |
 | Controller Projection | none; derived inspection only | exposes the exact resulting controller input |
 
+### Recommended Pre-Production Data Layout, Pending Acceptance
+
+The view should publish from `image2 plan` into one derived root that is not a
+Human Navigation Path and is never read as a lifecycle input:
+
+```text
+_generated/page_image_workflow/pre-production-data/
+  presentation-control-map.json
+  slides/<slide_id>/
+    source-receipt.json
+    resolved-presentation.json
+    image2-controller.json
+    framed-header.html                 # Framed only
+```
+
+Each file is independently readable. `source-receipt.json` shows canonical
+page facts and whether Page Class was explicit or defaulted;
+`resolved-presentation.json` shows the inherited Deck Baseline and the one
+selected workflow profile; `image2-controller.json` exposes the non-secret
+adapter controller JSON; and `framed-header.html` is the exact deterministic
+local controller projection. The separate existing provider-input inspection
+remains the exact audit sidecar; it is not copied into Human Navigation.
+
+The Control Map is an index, not a configuration dump. It identifies the
+selected workflow, source package snapshot, Page Class assignments, affected
+slides for each scope, per-page artifact paths, and the resulting raw/review
+impact. Every published artifact carries the same source receipt and selected
+presentation binding so a stale or missing data view can be rebuilt by
+`image2 plan` without becoming an authorization gate.
+
 ### Existing Projection And Gap
 
 Both current adapters already compile one immutable provider request per slide
@@ -280,6 +367,24 @@ Existing provider-input inspection remains the exact byte/audit evidence rather
 than being replaced by a friendlier display. The new per-page Image2 controller
 projection is directly inspectable outside Human Navigation; it is not a
 wholesale navigation copy of raw prompt prose.
+
+### Migration Direction, Pending Acceptance
+
+The repository's existing `--new-version` operation copies only
+`slide-specifications.md` and `overrides/`, while it deliberately resets
+`_generated/`. That makes a successor Work Version the natural safe boundary
+for schema migration. The recommended recovery route is therefore `v3 -> v4`:
+v3 remains byte-preserved production evidence, while v4 receives the
+owner-issued Page Class source snapshot and presentation package before any
+new raw plan is built.
+
+This is more than a naming preference. Editing v3 in place would make it
+impossible to preserve its historical source/state pair and still claim that
+the new class/profile facts were canonical. A v4 recovery version can retain
+v3 as its explicit predecessor, copy no generated evidence, and make its
+first `image2 plan` the sole source of its new bindings. The user must accept
+that successor-version boundary before implementation; the Harness must not
+silently rewrite v3 merely because it has no accepted raw evidence.
 
 ## Required Design Work
 

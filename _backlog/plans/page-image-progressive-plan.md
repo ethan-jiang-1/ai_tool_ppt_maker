@@ -162,22 +162,26 @@ semantic implementation.
 **Output:** green current-Framed regression coverage and a parsed-source to
 bound-provider-input test seam; no new provider promise and no v3 mutation.
 
-- [ ] Replace retired Text Frame imports, `VISUAL SCENE`, text-free clauses,
+- [x] Replace retired Text Frame imports, `VISUAL SCENE`, text-free clauses,
   and invalid receipt fixtures in `tests/03-framed-image/test_framed_workflow.mjs`
   with current `page-image-workflow-v1` Framed source.
-- [ ] Preserve the existing current behavior in the repaired fixtures, then
+- [x] Preserve the existing current behavior in the repaired fixtures, then
   prove the path from parsed source through Core/raw contract to the exact
   adapter-compiled provider input.
-- [ ] Add focused red-test cases for the known omissions: lost
-  `subject_restrictions`, ambiguous protected-region coordinate semantics, and
-  a missing body-safe region. They define the later Framed hardening work; they
-  do not silently change the current provider promise.
-- [ ] Run the repaired focused suite together with the existing parser,
+- [x] Record three focused pending (`it.todo`) cases for the known omissions:
+  lost `subject_restrictions`, ambiguous protected-region coordinate semantics,
+  and a missing body-safe region. They define the later Framed hardening work;
+  they do not silently change the current provider promise.
+- [x] Run the repaired focused suite together with the existing parser,
   render-contract, review-contribution, binding, and invalidation suites.
 
-**Exit evidence:** the old 11 stale failures are gone, the current Framed
-contract has direct regression coverage, and later semantic changes have a
-credible red/green starting point.
+**Exit evidence (2026-08-10):** `restore-framed-contract-baseline` restores
+16 passing workflow tests and retains three explicitly named `it.todo` cases;
+the parser, Framed render/review, plan-lifecycle binding, Core, and
+invalidation suites pass, as do strict OpenSpec validation and `npm test`.
+The old 11 stale failures are gone. The three pending cases remain owned by
+the later protected-composition change rather than being treated as current
+provider promises.
 
 ### Track A: Align Task Mandate With Exact-Grant Runtime
 

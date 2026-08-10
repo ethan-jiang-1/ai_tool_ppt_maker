@@ -67,9 +67,8 @@ file path, migration, or authorization behavior.
 Still to decide here: the provider capability result and the exact compiled
 protected-region semantics. The page-schema ownership decision is intentionally
 deferred to the linked plan before this plan proposes protected-composition
-implementation. The current-contract test-baseline repair may proceed first as
-Progressive Phase 0.5 because it does not define Page Class or Header Profile
-semantics.
+implementation. The current-contract test-baseline repair completed as
+Progressive Phase 0.5 without defining Page Class or Header Profile semantics.
 
 ### Reproduced symptom
 
@@ -165,12 +164,15 @@ npx vitest run tests/03-framed-image/test_framed_workflow.mjs \
   tests/01-content/test_page_authority_source.mjs
 ```
 
-Result: 26 passed, 11 failed. The failing cases in
-`test_framed_workflow.mjs` still use retired Text Frame / `VISUAL SCENE` APIs
-and old source grammar. The header-render-contract, review-contribution, and
-source-parser tests pass, but there is no current end-to-end Framed compilation
-test asserting the provider prompt contains a meaningful normalized protected
-region or source subject restrictions.
+Historical result before Progressive Phase 0.5: 26 passed, 11 failed. Those
+failures came from retired Text Frame / `VISUAL SCENE` APIs and old source
+grammar, not the current Framed contract. The completed
+`restore-framed-contract-baseline` change now restores 16 passing executable
+workflow tests, keeps three named `it.todo` cases for the known semantic gaps,
+and adds an exact parsed-source -> adapter request -> shared transport seam.
+The pending cases deliberately do not claim that current provider input has a
+normalized protected region, a body-safe region, or retained source subject
+restrictions.
 
 ## Constraints From Current Specifications
 
@@ -238,27 +240,28 @@ no mask/region field, that result also opens a narrow transport-change task.
 After the shared schema and provider-path decisions are accepted, create one
 OpenSpec change named `harden-framed-provider-protected-composition`. It must
 update specs before implementation and retain the current ownership boundaries.
-The smaller current-contract baseline change is intentionally separate.
+The completed smaller current-contract baseline change is intentionally
+separate.
 
-### Progressive Phase 0.5: Establish current tests and a real compilation seam
+### Progressive Phase 0.5: Completed current-test baseline and compilation seam
 
-This is the prerequisite baseline change named in the progressive plan. It
-repairs current-contract coverage only; it does not introduce Page Class,
-Header Profile storage, or a new provider capability claim.
+`restore-framed-contract-baseline` repaired current-contract coverage only; it
+did not introduce Page Class, Header Profile storage, or a new provider
+capability claim.
 
-1. Replace the stale fixtures and removed API imports in
+1. Replaced stale fixtures and removed API imports in
    `tests/03-framed-image/test_framed_workflow.mjs` with current
-   `page-image-workflow-v1` Framed source. Restore the baseline before adding
-   behavior.
-2. Add a focused Framed adapter test that starts with parsed source and
-   inspects the bound compiled provider input. It must prove the provider
-   request is adapter-owned and the shared transport submits those same bytes.
-3. Add red tests for the three confirmed omissions:
-   missing coordinate-space/canvas facts, absence of a normalized body-safe
-   region, and loss of `subject_restrictions`.
-4. Add contract-shape and invalidation tests: a protected-region or subject
-   restriction change changes the compiled-input digest and routes to raw
-   rebuild, never a local header refresh.
+   `page-image-workflow-v1` Framed source.
+2. Added a focused Framed adapter test from parsed source through the bound
+   compiled provider input to shared transport; the fake provider receives the
+   exact adapter-owned bytes.
+3. Recorded three named pending tests for the confirmed omissions: missing
+   coordinate-space/canvas facts, absence of a normalized body-safe region,
+   and loss of `subject_restrictions`. They remain `it.todo` until runtime and
+   specifications change; a permanently red baseline would not be useful.
+4. The protected-composition change must add the actual contract-shape and
+   invalidation tests: a protected-region or subject-restriction change changes
+   the compiled-input digest and routes to raw rebuild, never local refresh.
 5. After the linked page-schema plan has an accepted model, add only the
    Framed-specific integration coverage that proves the selected canonical
    class reaches the chosen local Header Profile. Cross-workflow source/Core
@@ -355,8 +358,8 @@ Header Profile storage, or a new provider capability claim.
 
 ## Landing Association
 
-This plan is not an active change. Its current-contract baseline repair can
-become the small Progressive Phase 0.5 OpenSpec change immediately; its
+This plan is not an active change. Its current-contract baseline repair is
+complete as the small Progressive Phase 0.5 OpenSpec change; its
 protected-composition implementation cannot begin until
 `page-image-presentation-schema.md` has settled the source/Core/config
 ownership that it consumes and its provider capability gate is answered. It
