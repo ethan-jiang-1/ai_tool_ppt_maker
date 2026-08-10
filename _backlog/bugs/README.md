@@ -1,6 +1,6 @@
 # Active Bugs — 活跃 bug 列表
 
-> 最后更新: 2026-08-09 | `_backlog/bugs/` — 活跃 bug 在此
+> 最后更新: 2026-08-10 | `_backlog/bugs/` — 活跃 bug 在此
 >
 > **bug 编号归档索引在 `_done/_fixed_bugs/`；新 bug 必须取所有已分配 BUG 编号后的下一个值，避免与活跃条目冲突。** 本文件只列活跃 bug。
 
@@ -15,17 +15,15 @@
 
 ## 活跃列表
 
-### P3（体验 — 1 个）
-
-- **[BUG-062](BUG-062-long-hash-leaks-in-cli-stdout-despite-short-refs.md)** — 短引用只覆盖 task-projection，一般 CLI stdout 仍输出完整 64 位哈希
+当前无活跃 bug。
 
 ---
 
-**Next available bug ID: BUG-065**
+**Next available bug ID: BUG-067**
 
 ## 类别分布
 
-P0: 0 | P1: 0 | P2: 0 | P3: 1
+P0: 0 | P1: 0 | P2: 0 | P3: 0
 
 ---
 

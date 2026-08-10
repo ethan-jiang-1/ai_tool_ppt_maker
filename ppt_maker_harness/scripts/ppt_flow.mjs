@@ -112,6 +112,7 @@ import {
 import { pageImageOrdinalImageFilename } from "./shared/image2/page_image_artifacts.mjs";
 import { inspectCurrentFinalSlideManifestFromRun } from "./shared/image2/page_image_final_manifest.mjs";
 import { writeHumanArtifactNavigation } from "./shared/image2/page_image_human_artifact_reference.mjs";
+import { resolveContentAddressName } from "./shared/image2/content_address_store.mjs";
 import { validateBoundPageImageProviderRequest } from "./shared/image2/page_image_target_runtime.mjs";
 import {
   deliveryReceiptSha256,
@@ -281,6 +282,34 @@ function emitUnsupportedProtocol(where, resolved, code = UNSUPPORTED_PROTOCOL_CO
   });
 }
 
+function emitExecutionRunVersionMismatch(where, resolved, result) {
+  const requested = result?.requested_run_version || null;
+  const active = result?.active_run_version || null;
+  const activeRunDir = active ? join(deckRoot(resolved), VERSIONS_DIR, active) : resolved;
+  emitCliError({
+    code: CLI_ERROR_CODES.FAILED,
+    message: "The selected run is not the active Page Image execution.",
+    hint: "Inspect the active execution before selecting a mutation target; this command made no changes.",
+    where,
+    diagnostic: {
+      version: 1,
+      category: "gate",
+      operation: "select-active-execution",
+      source: { path: resolved },
+      reason: {
+        kind: "execution_run_version_mismatch",
+        actual: requested,
+        expected: active,
+      },
+      next: createCliNext("inspect", {
+        requiresHuman: false,
+        inspect: [{ path: activeRunDir }],
+        default: "Inspect the active run before selecting another Page Image mutation target.",
+      }),
+    },
+  });
+}
+
 function emitUnsupportedHarnessBinding(where, resolved, binding) {
   emitCliError({
     code: CLI_ERROR_CODES.FAILED,
@@ -322,6 +351,10 @@ async function resolveRunAdapter(runDir, where) {
   const route = resolveRunProductionAdapter(deckDir, { runDir: resolved, purpose: "observe" });
   if (route.ok && route.adapter === "page-image-workflow-v1") {
     return Object.freeze({ ...route, run_dir: resolved, deck_dir: deckDir, harness_dir: harnessDir });
+  }
+  if (route.code === "execution_run_version_mismatch") {
+    emitExecutionRunVersionMismatch(where, resolved, route);
+    return null;
   }
   emitUnsupportedProtocol(where, resolved, route.code);
   return null;
@@ -2571,7 +2604,7 @@ async function rebuildTargetPageImageArtifactView(route) {
 
   const pilotReview = operations.inspectPilotReview(route.run_dir);
   if (pilotReview.available) {
-    const reviewRoot = join(paths.review_root, "pilot", pilotReview.batch.sha256);
+    const reviewRoot = join(paths.review_root, "pilot", resolveContentAddressName(join(paths.review_root, "pilot"), pilotReview.batch.sha256));
     for (const slideId of pilotReview.batch.review_sample_slide_ids) {
       const position = stored.progressive_raw_work_plan.ordered_slide_ids.indexOf(slideId) + 1;
       const filename = pageImageOrdinalImageFilename(position, slideId);
@@ -2620,7 +2653,7 @@ async function rebuildTargetPageImageArtifactView(route) {
       : null;
   if (completeReview) {
     const review = completeReview.presentation;
-    const reviewRoot = join(paths.review_root, "complete-page", completeReview.raw.plan.sha256);
+    const reviewRoot = join(paths.review_root, "complete-page", resolveContentAddressName(join(paths.review_root, "complete-page"), completeReview.raw.plan.sha256));
     const isCurrentReview = currentReview.available;
     for (const [index, slideId] of completeReview.raw.plan.ordered_slide_ids.entries()) {
       const filename = pageImageOrdinalImageFilename(index + 1, slideId);
@@ -3441,16 +3474,23 @@ Examples:
     .argument("<runDir>", "Path to version directory")
     .option("--json", "JSON output")
     .option("--validate-state", "Validate persisted state and evidence without writing")
+    .option("--repair-known-execution-mismatch", "Repair only the exact BUG-066 execution-mismatch state signature")
     .action(async (runDir, opts) => {
-      if (opts.json) setCliOutputMode("json");
       // Validate the closed state grammar before resolving a run, importing a
       // state owner, or probing source. Mixed forms must be a zero-read/zero-
       // write USAGE failure.
-      if (opts.validateState && opts.json) {
-        emitUsage("ppt_flow.state", "--validate-state is mutually exclusive with --json", "Run one state projection at a time.");
+      if ((opts.validateState && opts.json) || (opts.repairKnownExecutionMismatch && (opts.json || opts.validateState))) {
+        emitUsage(
+          "ppt_flow.state",
+          opts.repairKnownExecutionMismatch
+            ? "--repair-known-execution-mismatch is mutually exclusive with --json and --validate-state"
+            : "--validate-state is mutually exclusive with --json",
+          "Run exactly one closed state operation at a time.",
+        );
         process.exitCode = 1;
         return;
       }
+      if (opts.json) setCliOutputMode("json");
       const binding = resolveRunHarnessBinding(runDir, "ppt_flow.state.binding");
       if (!binding) {
         process.exitCode = 1;
@@ -3460,8 +3500,40 @@ Examples:
       const {
         readState,
         buildResumeCard,
+        repairKnownExecutionMismatch,
         statePath,
       } = await import("./shared/state/state.mjs");
+      if (opts.repairKnownExecutionMismatch) {
+        const repaired = repairKnownExecutionMismatch(deckDir, { runDir: resolved });
+        if (!repaired.ok) {
+          if (repaired.code === "execution_run_version_mismatch") {
+            emitExecutionRunVersionMismatch("ppt_flow.state.repair-known-execution-mismatch", resolved, repaired);
+          } else {
+            emitCliError({
+              code: CLI_ERROR_CODES.FAILED,
+              message: "The state record is not eligible for the exact known execution-mismatch repair.",
+              hint: "Preserve the state bytes and use the named owner action for the reported integrity condition.",
+              where: "ppt_flow.state.repair-known-execution-mismatch",
+              diagnostic: {
+                version: 1,
+                category: "gate",
+                operation: "repair-known-execution-mismatch",
+                source: { path: resolved },
+                reason: { kind: repaired.code },
+                next: createCliNext("inspect", {
+                  requiresHuman: false,
+                  inspect: [{ path: resolved }],
+                  default: "Inspect the retained active-run state before taking another owner-authorized action.",
+                }),
+              },
+            });
+          }
+          process.exitCode = 1;
+          return;
+        }
+        console.log(`State repair: ${repaired.status}`);
+        return;
+      }
       if (opts.validateState) {
         // This closed diagnostic operation always returns its bounded report,
         // including when the failure envelope makes the process exit non-zero.

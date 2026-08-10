@@ -114,6 +114,7 @@ import {
   validateFramedRawContract,
 } from "../../ppt_maker_harness/scripts/03-framed-image/index.mjs";
 import { canonicalJsonSha256 } from "../../ppt_maker_harness/scripts/shared/identity/canonical_json.mjs";
+import { resolveContentAddressName } from "../../ppt_maker_harness/scripts/shared/image2/content_address_store.mjs";
 import { pageImageOrdinalImageFilename } from "../../ppt_maker_harness/scripts/shared/image2/page_image_artifacts.mjs";
 import { pageImageWorkflowPaths } from "../../ppt_maker_harness/scripts/shared/run-bundle/page_image_paths.mjs";
 import {
@@ -502,7 +503,7 @@ describe("Framed proof-before-materialization lifecycle", () => {
         .page_image_raw_provider_authorization.by_version["3_versions/v1"];
       const review = JSON.parse(readFileSync(fixture.paths.target_raw_review, "utf8"));
       const acceptedRawEvidence = JSON.parse(readFileSync(fixture.paths.target_raw_evidence, "utf8"));
-      const completeReviewRoot = join(fixture.paths.review_root, "complete-page", planHash);
+      const completeReviewRoot = join(fixture.paths.review_root, "complete-page", resolveContentAddressName(join(fixture.paths.review_root, "complete-page"), planHash));
       const completePresentation = JSON.parse(readFileSync(join(completeReviewRoot, "complete-page-review-evidence-v1.json"), "utf8"));
       expect(authorization.raw_work_plan_sha256).toBe(planHash);
       expect(review).toMatchObject({
@@ -658,7 +659,7 @@ describe("Framed proof-before-materialization lifecycle", () => {
       const acceptedPlan = await buildAcceptedRawWork(fixture, { onSubmit: () => { providerSubmissions += 1; } });
       await buildFramedTargetDelivery(fixture.runDir);
       const reviewBytes = readFileSync(fixture.paths.target_raw_review);
-      const completeReviewRoot = join(fixture.paths.review_root, "complete-page", acceptedPlan.raw_work_plan.sha256);
+      const completeReviewRoot = join(fixture.paths.review_root, "complete-page", resolveContentAddressName(join(fixture.paths.review_root, "complete-page"), acceptedPlan.raw_work_plan.sha256));
       const completePresentationPath = join(completeReviewRoot, "complete-page-review-evidence-v1.json");
       const completePresentationBytes = readFileSync(completePresentationPath);
       const projectionPath = join(completeReviewRoot, "complete-page-review.png");

@@ -1164,6 +1164,7 @@ function persistSucceededAttempt(context, submitted, transportResult) {
     provenance,
     validateStyleMasterGeneratedProvenance,
     { plan: context.current.plan, attempt: succeeded },
+    paths.deck_root,
   );
   return terminalAttemptOrFail(
     context.scope,
@@ -1296,6 +1297,7 @@ export async function authorizeStyleMasterCandidates({ scope, planSha256, refres
     grant,
     validateStyleMasterCandidateGrantRecord,
     { plan: current.plan },
+    grantPaths.deck_root,
   );
 
   // A grant created during a lost head/input race remains unreferenced history,
@@ -1636,6 +1638,7 @@ function createStyleMasterAbandonment(context, attempt, reason, reasonSha256) {
       grant: context.grant.record,
       attempt: attempt.record,
     },
+    context.records.paths.deck_root,
   );
   return Object.freeze({ ...persisted, abandonment_sha256: checked.abandonment_sha256 });
 }
@@ -2264,6 +2267,7 @@ export async function acceptStyleMasterCandidateReview({
     decisionRecord.record,
     validateStyleMasterReviewDecisionRecord,
     { plan: review.plan },
+    paths.deck_root,
   );
 
   if (requested.decision !== "proceed") {

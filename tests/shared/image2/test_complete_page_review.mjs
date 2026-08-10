@@ -7,6 +7,7 @@ import { encode as encodePng } from "fast-png";
 import { describe, expect, it } from "vitest";
 
 import { pageImageOrdinalImageFilename } from "../../../ppt_maker_harness/scripts/shared/image2/page_image_artifacts.mjs";
+import { resolveContentAddressName } from "../../../ppt_maker_harness/scripts/shared/image2/content_address_store.mjs";
 import {
   publishCompletePageReviewPresentation,
   publishPilotPageReviewPresentation,
@@ -50,11 +51,11 @@ function binding(workflow, rawBytes, completeBytes = null) {
 }
 
 function reviewRoot(runDir) {
-  return join(pageImageWorkflowPaths(runDir).review_root, "complete-page", PLAN_DIGEST);
+  return join(pageImageWorkflowPaths(runDir).review_root, "complete-page", resolveContentAddressName(join(pageImageWorkflowPaths(runDir).review_root, "complete-page"), PLAN_DIGEST));
 }
 
 function pilotReviewRoot(runDir) {
-  return join(pageImageWorkflowPaths(runDir).review_root, "pilot", BATCH_DIGEST);
+  return join(pageImageWorkflowPaths(runDir).review_root, "pilot", resolveContentAddressName(join(pageImageWorkflowPaths(runDir).review_root, "pilot"), BATCH_DIGEST));
 }
 
 function validate({ runDir, workflow, rawBytes, bindingDigest }) {

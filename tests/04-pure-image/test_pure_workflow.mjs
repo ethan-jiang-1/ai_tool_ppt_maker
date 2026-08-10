@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createCanvas } from "@napi-rs/canvas";
 import { createAcceptedRawEvidence } from "../../ppt_maker_harness/scripts/shared/image2/page_image_artifacts.mjs";
+import { resolveContentAddressName } from "../../ppt_maker_harness/scripts/shared/image2/content_address_store.mjs";
 
 const pureResolverControls = vi.hoisted(() => ({ null_provider_clauses: false }));
 
@@ -310,7 +311,7 @@ negative_constraints:
         accepted_raw_evidence: { workflow: "pure" },
       });
       const paths = pageImageWorkflowPaths(runDir);
-      const reviewEvidencePath = join(paths.review_root, "complete-page", projection, "complete-page-review-evidence-v1.json");
+      const reviewEvidencePath = join(paths.review_root, "complete-page", resolveContentAddressName(join(paths.review_root, "complete-page"), projection), "complete-page-review-evidence-v1.json");
       const reviewEvidence = readFileSync(reviewEvidencePath);
       writeFileSync(reviewEvidencePath, "{}\n");
       await expect(buildPureTargetDelivery(runDir)).rejects.toMatchObject({ code: "target_complete_page_review_stale" });
@@ -687,7 +688,7 @@ negative_constraints:
         submit: async () => rawBytes,
       });
       const paths = pageImageWorkflowPaths(runDir);
-      const pilotRoot = join(paths.review_root, "pilot", pilot.batch.batch_hash);
+      const pilotRoot = join(paths.review_root, "pilot", resolveContentAddressName(join(paths.review_root, "pilot"), pilot.batch.batch_hash));
       await expect(prepareFramedProgressivePilotReview(runDir, {
         planHash,
         batchHash: pilot.batch.batch_hash,
@@ -859,7 +860,7 @@ negative_constraints:
       expect(rebuilt.finalization.final_manifest_sha256).toBe(delivery.finalization.final_manifest_sha256);
       expect(existsSync(paths.target_raw_plan)).toBe(true);
       expect(existsSync(paths.target_raw_review)).toBe(false);
-      expect(existsSync(join(paths.review_root, "complete-page", planHash, "complete-page-review-evidence-v1.json"))).toBe(true);
+      expect(existsSync(join(paths.review_root, "complete-page", resolveContentAddressName(join(paths.review_root, "complete-page"), planHash), "complete-page-review-evidence-v1.json"))).toBe(true);
       expect(existsSync(paths.target_final_manifest)).toBe(true);
 
       const directAfter = readProgressiveRawPlanDirectRecords(runDir, { plan_sha256: planHash });

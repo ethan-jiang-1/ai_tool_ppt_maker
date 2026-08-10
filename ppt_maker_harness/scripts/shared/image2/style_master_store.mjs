@@ -14,7 +14,13 @@ import {
   validateStyleMasterAttemptTransition,
   validateStyleMasterCandidateAttemptRecord,
   validateStyleMasterHeadRecord,
+  validateStyleMasterPlanRecord,
 } from "./style_master_schema.mjs";
+import {
+  assertNoActiveMigration,
+  resolveContentAddressName,
+  shortName,
+} from "./content_address_store.mjs";
 
 const SHA256_RE = /^[0-9a-f]{64}$/;
 const GENERATED_CANDIDATE_ID_RE = /^candidate-[0-9]{3}$/;
@@ -161,6 +167,16 @@ function readBytesOrNull(path) {
   }
 }
 
+function styleMasterPlanAddress(pathname) {
+  try {
+    const parsed = parseStyleMasterCanonicalBytes(readFileSync(join(pathname, "candidate-plan.json")), "Style Master candidate plan");
+    const checked = validateStyleMasterPlanRecord(parsed);
+    return checked.ok ? checked.plan_sha256 : null;
+  } catch {
+    return null;
+  }
+}
+
 function assertExpectedBytes(value) {
   if (value === null) return null;
   if (!Buffer.isBuffer(value) && !(value instanceof Uint8Array)) {
@@ -214,7 +230,9 @@ export function styleMasterStorePaths(runDir, { workflow = null, plan_sha256 = n
   if (candidate_id !== null) assertCandidateId(candidate_id);
   if (candidate_media_type !== null) assertMediaType(candidate_media_type);
   const scopeRoot = workflow === null ? null : join(root.scopes_root, root.run_version, workflow);
-  const planRoot = plan_sha256 === null ? null : join(root.plans_root, plan_sha256);
+  const planRoot = plan_sha256 === null ? null : join(root.plans_root, resolveContentAddressName(root.plans_root, plan_sha256, {
+    recordHashReader: styleMasterPlanAddress,
+  }));
   const candidateRoot = planRoot === null || candidate_id === null ? null : join(planRoot, "candidates", candidate_id);
   const imageExtension = candidate_media_type === "image/png" ? "png" : candidate_media_type === "image/jpeg" ? "jpg" : null;
   return Object.freeze({
@@ -272,7 +290,7 @@ export function readCanonicalStyleMasterRecord(path, validator, options = undefi
 }
 
 /** Create one immutable record or exact-replay its canonical bytes. */
-export function createOrExactMatchStyleMasterRecord(path, record, validator, options = undefined) {
+export function createOrExactMatchStyleMasterRecord(path, record, validator, options = undefined, deckRoot = null) {
   if (typeof validator !== "function") fail("style_master_store_invalid", "record writer requires a validator");
   const desiredBytes = styleMasterCanonicalBytes(record);
   const checkedDesired = validator(record, options);
@@ -280,6 +298,7 @@ export function createOrExactMatchStyleMasterRecord(path, record, validator, opt
   const target = resolve(path);
   const lock = join(dirname(target), `.${basename(target)}.lock`);
   return withExclusiveDirectoryLock(lock, () => {
+    if (deckRoot != null) assertNoActiveMigration(deckRoot);
     const existing = readBytesOrNull(target);
     if (existing !== null) {
       const parsed = readCanonicalStyleMasterRecord(target, validator, options);
@@ -317,6 +336,7 @@ export function writeStyleMasterCandidateAttemptCas(runDir, {
   const desired = styleMasterCanonicalBytes(attempt);
   const lock = join(dirname(paths.candidate_attempt), ".attempt.lock");
   return withExclusiveDirectoryLock(lock, () => {
+    assertNoActiveMigration(paths.deck_root);
     const actual = readBytesOrNull(paths.candidate_attempt);
     if ((expected === null && actual !== null) || (expected !== null && !equalBytes(expected, actual))) {
       fail("style_master_attempt_conflict", "Style Master candidate attempt changed before compare-and-swap");
@@ -372,6 +392,7 @@ export function placeStyleMasterCandidateImage(runDir, {
   if (!paths.candidate_image) fail("style_master_store_invalid", "candidate image path requires exact media type");
   const lock = join(dirname(paths.candidate_image), ".image.lock");
   return withExclusiveDirectoryLock(lock, () => {
+    assertNoActiveMigration(paths.deck_root);
     const existing = readBytesOrNull(paths.candidate_image);
     if (existing !== null) {
       if (!equalBytes(existing, payload)) {
@@ -394,6 +415,7 @@ export function writeStyleMasterScopeHeadCas(runDir, { workflow, head, plan, exp
   const desired = styleMasterCanonicalBytes(head);
   ensureRealDirectoryBelowDeck(paths.deck_root, paths.scope_root, "Style Master scope root");
   return withExclusiveDirectoryLock(paths.scope_lock, () => {
+    assertNoActiveMigration(paths.deck_root);
     const actual = readBytesOrNull(paths.scope_head);
     if ((expected === null && actual !== null) || (expected !== null && !equalBytes(expected, actual))) {
       fail("style_master_head_conflict", "Style Master scope head changed before compare-and-swap");
@@ -418,18 +440,21 @@ export function publishStyleMasterStagedPlan(runDir, { staging_path, plan_sha256
   }
   validate_bundle(staging);
   ensureRealDirectoryBelowDeck(paths.deck_root, paths.plans_root, "Style Master plans root");
-  if (readBytesOrNull(paths.candidate_plan) !== null) {
-    validate_bundle(paths.plan_root);
-    cleanupStyleMasterStagingDirectory(runDir, staging);
-    return Object.freeze({ published: false, replay: true, plan_root: paths.plan_root });
-  }
-  try {
-    renameSync(staging, paths.plan_root);
-  } catch (error) {
-    if (readBytesOrNull(paths.candidate_plan) === null) throw error;
-    validate_bundle(paths.plan_root);
-    cleanupStyleMasterStagingDirectory(runDir, staging);
-    return Object.freeze({ published: false, replay: true, plan_root: paths.plan_root });
-  }
-  return Object.freeze({ published: true, replay: false, plan_root: paths.plan_root });
+  return withExclusiveDirectoryLock(join(paths.plans_root, `.${shortName(plan_sha256)}.lock`), () => {
+    assertNoActiveMigration(paths.deck_root);
+    if (readBytesOrNull(paths.candidate_plan) !== null) {
+      validate_bundle(paths.plan_root);
+      cleanupStyleMasterStagingDirectory(runDir, staging);
+      return Object.freeze({ published: false, replay: true, plan_root: paths.plan_root });
+    }
+    try {
+      renameSync(staging, paths.plan_root);
+    } catch (error) {
+      if (readBytesOrNull(paths.candidate_plan) === null) throw error;
+      validate_bundle(paths.plan_root);
+      cleanupStyleMasterStagingDirectory(runDir, staging);
+      return Object.freeze({ published: false, replay: true, plan_root: paths.plan_root });
+    }
+    return Object.freeze({ published: true, replay: false, plan_root: paths.plan_root });
+  });
 }
