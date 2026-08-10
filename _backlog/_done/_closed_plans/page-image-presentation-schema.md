@@ -1,6 +1,27 @@
 # Plan: Page Image presentation schema recovery
 
-> Type: investigation and schema design prerequisite | Updated: 2026-08-10
+> Type: settled schema design prerequisite | Updated: 2026-08-11
+> Status: **partially superseded** by
+> [schema-first-page-image-recovery.md](schema-first-page-image-recovery.md).
+
+**What still holds.** The Q2–Q13 decision ledger, the class-first package
+shape, the four-document split, inheritance, selected-only invalidation, and
+the per-page artifact reasoning are all carried forward into change **C4** of
+the successor plan.
+
+**What is withdrawn.**
+
+- Every `-v1` schema identifier in this file. Schema identifiers no longer
+  carry version suffixes ([ADR 0006](../../docs/adr/0006-define-production-schemas-in-yaml.md)).
+- The names `Resolved Page Presentation`, `Rendering Controller Projection`,
+  `Pre-Production Data View`, `Presentation Control Map`, `Deck Baseline`,
+  `Page Class Profile`, and `Header Profile`. `CONTEXT.md` no longer defines
+  them; the successor plan's 19-schema table gives the current names.
+- The `v3 -> v4` migration framed as a protocol change. There is one protocol.
+- "Header Profile Set" as a catalog of selectable members. The implementation
+  has exactly one hardcoded `standard-v1` overlay preset and rejects any
+  caller-supplied alternative (`header_overlay.mjs:6,64`). `CONTEXT.md` calls
+  the real thing **Header Overlay Preset**.
 
 > Coordinated by [page-image-progressive-plan.md](page-image-progressive-plan.md).
 > This work package owns the shared presentation schema and data-exposure
@@ -34,27 +55,32 @@ intentionally not reconstructed from guesswork.
 | Q5 | settled | `standard` is the default; every special class is explicit in source. |
 | Q6 | settled | A Framed Header Profile owns its allowed kicker/title/subtitle set; a special class may be title-only. |
 | Q7 | settled | A human may redirect a page only to an existing named class through source; that invalidates raw work and requires a new review. |
-| Q8 | in this plan | Page-definition schema and profile-data ownership are a separate cross-workflow design problem; current Pure configuration cannot be repurposed. |
-| Q9 | settled at principle | One version-level configuration system must resolve Page Class into strictly isolated Pure and Framed projections. Exact nesting and filename remain open. |
-| Q10 | settled at principle | Before production, each page exposes the resolved configuration and its Image2 JSON; Framed also exposes its deterministic Header HTML. |
+| Q8 | settled | Page-definition schema and profile-data ownership are a separate cross-workflow design problem; current Pure configuration cannot be repurposed. The selected design is the fixed `page-image-presentation/` package described below. |
+| Q9 | settled | One version-level configuration system resolves Page Class into strictly isolated Pure and Framed projections through four fixed source documents, not one cross-workflow YAML. |
+| Q10 | settled | Before production, each page exposes source, resolved configuration, and a structured Image2 controller; Framed also exposes its exact deterministic Header HTML. A duplicate Header Controller JSON is not introduced. |
 | Q11 | settled | These layers publish as independent, human-readable artifacts, with an index rather than one giant document. |
 | Q12 | settled | A deck-level Control Map helps human and Agent understand purpose, adjustment scope, downstream controllers, and rebuild/review impact. |
 | Q13 | settled | Page Class Profiles inherit Deck Baseline and declare only typed differences; the resolved view shows the inherited result. |
 
-### Open Decisions That Must Not Be Assumed
+### Design Decisions Reached From Q2-Q13
 
-- Whether to accept the recommended fixed presentation package below: its
-  human-facing control map is class-first, while Pure and Framed profile facts
-  live in separate fixed documents rather than one large cross-workflow YAML.
-- Exact closed fields in Deck Baseline and in each Pure/Framed class profile.
-- Whether Framed publishes a structured Header Controller JSON beside its
-  rendered Header HTML.
-- Exact pre-production artifact paths and schemas. Missing or stale derived
-  artifacts must be rebuilt or reported as a planning failure; they must not
-  become a new human authorization gate.
-- Migration of current `pure-deck-visual-system.yaml` and code-only
-  `FRAME PRESET`, including the explicit source/configuration migration for
-  current v3 without silent adoption or reinterpretation of old runs.
+- The class-first package below is accepted. It gives a human one small class
+  catalog to inspect first while retaining separate, typed Pure and Framed
+  profile sources. It avoids both the one-giant-file problem and one workflow
+  becoming the other workflow's configuration owner.
+- The initial v1 fields, inheritance, profile restrictions, controller
+  projections, and paths are closed in this plan. A missing or stale derived
+  view is rebuilt by `image2 plan` or reported as a planning failure; it never
+  becomes a second approval or authorization state.
+- Framed publishes Header HTML only. `resolved-presentation.json` already
+  carries the structured Header Profile and `framed-header.html` is the exact
+  deterministic local controller. A sibling JSON copy would add a shallow,
+  duplicate controller with no additional decision value.
+- The old Pure visual-system source and code-only `FRAME PRESET` are retired
+  only through the explicit current-v3-to-v4 migration defined below. v3 stays
+  byte-preserved; historical v2 or otherwise unsupported source/state pairs
+  remain `unsupported-protocol/export` inputs rather than candidates for
+  inferred adoption.
 
 ## Research Record
 
@@ -155,7 +181,7 @@ and Pure-visual-system designs.
     typed differences. The resolved projection must expose inherited values so
     a human never has to reconstruct the merge mentally.
 
-## Recommended Q8 Topology, Pending Acceptance
+## Accepted Q8 Topology
 
 The remaining decision is not whether Page Class is needed; it is how to make
 the version-owned design system both human-readable and safely isolated by
@@ -225,9 +251,9 @@ classes:
 `deck-baseline.yaml` supplies only shared named tokens. Each selected profile
 inherits those tokens and declares its typed difference: a Pure profile can
 change provider-owned layout treatment, while a Framed Header Profile can
-change its fixed field set and Reserved Header Region. The exact closed token
-and profile fields still need to be settled, but no field may create a
-slide-local coordinate or a free-form prompt escape hatch.
+change its fixed field set and Reserved Header Region. The closed fields are
+defined below; no field may create a slide-local coordinate or a free-form
+prompt escape hatch.
 
 The source-facing counterpart is one closed field:
 
@@ -254,10 +280,125 @@ Resolved Page Presentation (one workflow projection)
 Page Image Core -> selected adapter controller(s) -> raw-plan binding
 ```
 
-This is an evidence-backed recommendation, not an implementation commitment.
-Acceptance still needs to settle the exact closed fields, whether the Framed
-HTML also gets a structured sibling JSON, the derived view path, and the
-owner-issued migration boundary.
+This is the accepted design for the implementation change. Its fixed package
+prevents the declaration of a path or filename from becoming yet another
+per-deck configuration decision. The resolver reads every selected document,
+validates them as one package, and returns only the caller's selected workflow
+projection. It does not expose a mutable universal configuration object.
+
+### Closed Source Package And Inheritance
+
+Each document is a direct, alias-free YAML mapping with exact keys and
+`revision: 1`. The four fixed files resolve independently through normal
+override-first / backbone-default selection, then form one validated package
+digest. A version may override one document, but a malformed, missing, or
+cross-file-inconsistent selected document prevents planning; the resolver never
+falls back to an earlier generated projection.
+
+```text
+2_backbone/visual-style/page-image-presentation/
+  page-classes.yaml
+  deck-baseline.yaml
+  pure-profiles.yaml
+  framed-header-profiles.yaml
+
+3_versions/vN/overrides/visual-style/page-image-presentation/
+  (optional same-name source overrides)
+```
+
+`page-classes.yaml` is exactly `schema`, `revision`,
+`default_page_class`, and `classes`. Its class keys are exactly `standard`,
+`opening`, `transition`, and `closing`; each class maps exactly to
+`pure_profile` and `framed_header_profile`. `default_page_class` is exactly
+`standard`, and every referenced profile ID must resolve in the corresponding
+workflow document.
+
+`deck-baseline.yaml` is exactly `schema`, `revision`,
+`provider_typography`, `provider_colour_use`, and `provider_density`. It owns
+the content-neutral provider-wide facts common to both selected workflows:
+
+```yaml
+provider_typography:
+  voices: { display: editorial-serif, text: editorial-sans }
+  hierarchy:
+    kicker: eyebrow
+    title: display
+    subtitle: supporting
+    body: body
+    label: label
+    metric: metric
+    diagram_text: diagram
+    quote: quote
+    callout: callout
+    supporting_copy: supporting
+provider_colour_use:
+  palette_source: style-master
+  roles:
+    primary_text: primary
+    secondary_text: secondary
+    accent: accent
+    surface: neutral
+provider_density: generous
+```
+
+These use the existing closed enum sets. A resolved projection includes the
+entire baseline; both adapters compile its provider-facing facts, so a baseline
+change is a real Deck Baseline change rather than decorative unused metadata.
+
+`pure-profiles.yaml` is exactly `schema`, `revision`, and `profiles`. Each
+profile is exactly `title_zone`, `content_zone`, and `layout_families`.
+Both zones are normalized non-overlapping rectangles and each family is one of
+the existing closed Pure layout families. The selected Pure profile inherits
+all baseline provider typography, colour, and density facts; it contributes
+only its class-specific full-page treatment.
+
+`framed-header-profiles.yaml` is exactly `schema`, `revision`, and `profiles`.
+Each Header Profile is exactly `allowed_fields`, `required_fields`, `canvas`,
+`reserved_header_region`, `font_families`, `theme`, and `fields`:
+
+- `allowed_fields` is a non-empty ordered subset of `kicker`, `title`, and
+  `subtitle`; `required_fields` is an ordered subset of it and always includes
+  `title`.
+- `canvas` fixes CSS and capture dimensions; `reserved_header_region` and each
+  field rectangle use normalized `x`, `y`, `width`, and `height` values in
+  that canvas. The Header compiler converts only at its local renderer edge.
+- `font_families`, `theme` (three six-digit colours plus the existing bounded
+  text-shadow contrast), and each allowed field's `font_size_css_px`,
+  `line_height_css_px`, `weight`, and `max_lines` define the fixed local
+  treatment. `fields` contains exactly the allowed field keys and no source
+  literals, body fields, or provider instruction.
+
+The standard profile therefore fixes the same kicker/title/subtitle regions,
+sizes, fonts, colours, and contrast for all `standard` Framed pages. An
+`opening` profile may allow and require only `title`; it is a named alternate
+Header Profile, not a per-slide adjustment. The profile's Reserved Header
+Region is the source fact from which later Framed work derives a normalized
+Provider Avoidance Constraint and Body-Safe Region; neither is authored in a
+slide.
+
+The source parser accepts one optional `**PAGE CLASS**` field. Omission
+normalizes to `standard`; only `opening`, `transition`, and `closing` may be
+explicitly authored. An explicit `standard`, an unknown value, a duplicate, or
+a field in the wrong workflow/source protocol is a source repair. For Framed,
+the resolved Header Profile validates that every supplied header literal is
+allowed and that each required field is non-empty. `FRAME PRESET` is forbidden
+in a migrated source: Page Class is the only source selection for local header
+treatment.
+
+The resolver is the deep module at this seam:
+
+```text
+resolvePageImagePresentation({ runDir, sourceReceipt })
+  -> { package, slides: [{ slide_id, page_class, selected_projection,
+                          selected_presentation_sha256 }] }
+```
+
+It owns source-package selection, cross-file validation, default normalization,
+baseline/profile inheritance, selected projection construction, and digests.
+The parser owns source grammar, Core owns semantic binding, adapters own their
+renderer controller compilation, and the data-view writer only publishes
+already-bound results. No adapter accepts the full package or reaches across
+the resolver seam to read sibling-workflow configuration.
 
 ### Required Pre-Production View
 
@@ -313,7 +454,7 @@ downstream controller projections and raw/review impact of each scope.
 | Page Source | content facts, visual selection, or an existing `PAGE CLASS` selection | one stable slide identity |
 | Controller Projection | none; derived inspection only | exposes the exact resulting controller input |
 
-### Recommended Pre-Production Data Layout, Pending Acceptance
+### Accepted Pre-Production Data Layout
 
 The view should publish from `image2 plan` into one derived root that is not a
 Human Navigation Path and is never read as a lifecycle input:
@@ -328,13 +469,18 @@ _generated/page_image_workflow/pre-production-data/
     framed-header.html                 # Framed only
 ```
 
-Each file is independently readable. `source-receipt.json` shows canonical
-page facts and whether Page Class was explicit or defaulted;
-`resolved-presentation.json` shows the inherited Deck Baseline and the one
-selected workflow profile; `image2-controller.json` exposes the non-secret
-adapter controller JSON; and `framed-header.html` is the exact deterministic
-local controller projection. The separate existing provider-input inspection
-remains the exact audit sidecar; it is not copied into Human Navigation.
+Each file is independently readable. `source-receipt.json` is the exact
+per-slide receipt slice with field-level Page Class provenance;
+`resolved-presentation.json` has schema
+`pptmaker-resolved-page-presentation-v1`, the source/package bindings, the
+full inherited Deck Baseline, exactly one selected workflow profile, and its
+`selected_presentation_sha256`; `image2-controller.json` has schema
+`pptmaker-image2-controller-v1`, the structured non-secret adapter controller
+object, its selected-presentation binding, and the digest of the exact compiled
+provider input. `framed-header.html` is the exact deterministic local
+controller projection with no provider raster underlay. The separate existing
+provider-input inspection remains the exact byte/audit sidecar; it is not
+copied into Human Navigation.
 
 The Control Map is an index, not a configuration dump. It identifies the
 selected workflow, source package snapshot, Page Class assignments, affected
@@ -368,49 +514,72 @@ than being replaced by a friendlier display. The new per-page Image2 controller
 projection is directly inspectable outside Human Navigation; it is not a
 wholesale navigation copy of raw prompt prose.
 
-### Migration Direction, Pending Acceptance
+### Accepted Current-v3 Migration Direction
 
 The repository's existing `--new-version` operation copies only
 `slide-specifications.md` and `overrides/`, while it deliberately resets
-`_generated/`. That makes a successor Work Version the natural safe boundary
-for schema migration. The recommended recovery route is therefore `v3 -> v4`:
-v3 remains byte-preserved production evidence, while v4 receives the
-owner-issued Page Class source snapshot and presentation package before any
-new raw plan is built.
+`_generated/`. The accepted recovery route is therefore `v3 -> v4`: v3 remains
+byte-preserved production evidence, while v4 receives a new canonical source
+snapshot and the presentation package before any new raw plan is built.
 
-This is more than a naming preference. Editing v3 in place would make it
-impossible to preserve its historical source/state pair and still claim that
-the new class/profile facts were canonical. A v4 recovery version can retain
-v3 as its explicit predecessor, copy no generated evidence, and make its
-first `image2 plan` the sole source of its new bindings. The user must accept
-that successor-version boundary before implementation; the Harness must not
-silently rewrite v3 merely because it has no accepted raw evidence.
+This keeps the focus on the current v3 content without pretending the broken
+v3 source/state pair already speaks the new schema. The explicit migration is
+an owner-issued, provider-free operation with these rules:
 
-## Required Design Work
+1. It starts only from the exact current v3 Framed source under the normal
+   `new-version` successor path; it never scans or adopts a sibling version.
+2. It preserves v3 source, state, receipts, review records, and `_generated/`
+   bytes. v4 receives no raw evidence, grant, review decision, or final media.
+3. It writes the fixed presentation package and updates only v4 canonical
+   source: remove `FRAME PRESET`; retain header/body/visual literals exactly;
+   normalize omitted Page Class as `standard`. The observed v3 pages `DkfGo`,
+   `TwoMet`, and `PlatGo` all become `standard`, so the migration makes no
+   content or special-class judgment.
+4. Its first v4 `image2 plan` resolves the new package and writes the first
+   source receipt, selected presentations, controller projections, and raw
+   bindings. The old pair is never parsed as if it already contained them.
 
-1. Define the exact external authoring view: source field spelling, default
-   behavior, resolved-page inspection, controller projections, and the
-   smallest files a human must read to understand one page.
-2. Define a closed, version-resolved schema that distinguishes shared class
-   taxonomy from workflow-specific profiles without allowing prompt prose or
-   slide-local geometry to enter.
-3. Specify the normalized receipt/Core facts and selected projection/digest
-   shapes. Preserve version workflow homogeneity and content authority.
-4. Enumerate invalidation semantics for class reassignment, selected-profile
-   changes, unrelated profile changes, and workflow transitions.
-5. Test the model against concrete pages: a standard content slide, an
-   opening title-only Framed slide, a Pure transition page, and a closing page
-   redirected by a human before regeneration.
-6. Define the owner-issued migration of current v3's
-   `page-image-workflow-v1` source/configuration pair to the selected current
-   schema. It creates a new canonical snapshot for resumed work and preserves
-   the historical pair byte-for-byte; it cannot infer a current protocol from
-   old state.
-7. Only after those decisions are accepted, create a dedicated OpenSpec change
-   for parser/Core/Visual Config/adapter/binding changes. Its implementation
-   is split into bound presentation semantics first and data-view publication
-   from `image2 plan` second. The Framed protected-composition plan can then
-   consume the resulting Header Profile contract.
+Historical v2 and any non-exact/unresolved source-state pair do not enter this
+route. They retain the existing `unsupported-protocol/export` result.
+
+## Design Evidence Complete
+
+- [x] Define the external authoring view: optional `PAGE CLASS`, default
+  normalization, the four fixed presentation files, per-page projections, and
+  the smallest inspection path for one page.
+- [x] Define a closed, version-resolved schema that keeps the shared class
+  taxonomy separate from Pure full-page treatment and Framed local-header
+  treatment, without admitting prompt prose or slide-local geometry.
+- [x] Specify receipt/Core facts and selected-presentation digest boundaries:
+  receipt preserves Page Class provenance; Core and raw semantics bind only the
+  selected workflow projection and digest; adapter input carries no sibling
+  configuration subtree.
+- [x] Set invalidation semantics: a Page Class reassignment, Deck Baseline
+  edit, or selected profile edit changes selected presentation and requires raw
+  rebuild plus Complete Page Review; an unselected class/profile edit does not
+  invalidate the page; a workflow transition resolves a fresh selected
+  projection and never reuses an old raw contract.
+- [x] Walk the model through the required examples. A standard Framed content
+  page selects `standard`; an opening Framed page selects the named title-only
+  profile; a Pure transition receives only its Pure profile; a human redirect
+  to `closing` changes only the page source selector and invalidates that page.
+- [x] Define the owner-issued v3-to-v4 source/configuration migration and
+  prove it matches the actual current v3 source: all three observed slides
+  normalize to `standard`, so no content or special-class assumption is hidden
+  in migration.
+- [x] Split the future implementation change into bound presentation semantics
+  first and Pre-Production Data View publication by `image2 plan` second. The
+  Framed hardening change consumes the landed Header Profile rather than
+  creating a private substitute.
+
+### Guided Checkpoint A: Ready To Propose
+
+The schema has one fixed topology, closed source/configuration fields, one
+clear resolver seam, defined controller artifacts, selected-only invalidation,
+and a non-destructive path for the current v3 content. It is ready for a
+dedicated OpenSpec implementation proposal. No new human authorization is
+needed for that provider-free repository-maintenance work; the later synthetic
+provider probe and v3 repair remain in their explicitly later phases.
 
 ## Risks / Trade-offs
 
@@ -428,8 +597,8 @@ silently rewrite v3 merely because it has no accepted raw evidence.
 
 ## Landing Association
 
-This is a prerequisite design plan, not an active OpenSpec change. It closes
-only when its schema topology and external control surface have been grilled,
-documented, and accepted. Its result will become a dedicated OpenSpec proposal;
-`framed-provider-protected-composition.md` remains blocked from defining Header
-Profile storage until then.
+This prerequisite design plan is now settled. Its result is the immediate
+input to a dedicated OpenSpec proposal for the shared presentation resolver and
+Pre-Production Data View. `framed-provider-protected-composition.md` remains
+blocked from defining protected-composition semantics until that implementation
+lands and Phase 3 selects an evidence-backed provider path.

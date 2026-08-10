@@ -1,10 +1,52 @@
 # Plan: Framed provider protected-composition hardening
 
-> Type: investigation and design | Updated: 2026-08-10
+> Type: investigation and design | Updated: 2026-08-11 | Status: **active**
+>
+> Owned by change **C6** of
+> [schema-first-page-image-recovery.md](schema-first-page-image-recovery.md),
+> which is the only route document. This plan owns the Framed-specific
+> diagnosis, provider capability question, protection semantics, and the v3
+> repair path. It does not own schema design: the vocabulary comes from C1/C2,
+> the Page Class and layout config from C4, and the per-page derived data from
+> C5.
+>
+> Vocabulary in force here (see `CONTEXT.md`):
+>
+> - **Header Overlay Preset** — the deterministic local geometry the Framed
+>   renderer actually implements. Today exactly one exists, `standard-v1`,
+>   hardcoded in `header_overlay.mjs`; a caller supplying any other value is
+>   rejected. The earlier "Header Profile Set" in this plan named a catalog that
+>   has never existed.
+> - **framed header profile** — the version-level configuration a Page Class
+>   resolves to, defined by C4's `layout-config`. C4 is what makes the preset
+>   selectable; until then a profile has exactly one preset to select.
+> - **Reserved Header Region** — the geometry the local overlay owns.
+> - **Provider Avoidance Constraint** — what the request asks the provider to
+>   keep out of that region. It is a request, not a guarantee.
 
-> Coordinated by [page-image-progressive-plan.md](page-image-progressive-plan.md).
-> This work package owns the Framed-specific diagnosis, provider capability,
-> protection semantics, and v3 repair path; it does not own shared schema design.
+## Before You Start
+
+If you arrived here first, stop and read the route document's
+"Read This First" and "The Seven Changes In Detail" sections. Three things from
+there govern this plan and are not repeated below:
+
+1. **C6 is sixth.** C1–C5 land first. This plan is a design and diagnosis
+   document that was written before that ordering existed; nothing in it
+   authorizes starting now.
+2. **Only `CONTEXT.md` and `docs/adr/` may be edited directly.** Everything in
+   `ppt_maker_harness/`, `openspec/`, `tests/`, `tests_e2e/` goes through an
+   OpenSpec change. Production `deck_*` bundles are never source or fixtures.
+3. **Do not rename any schema identifier here.** `page-image-workflow-v1` and
+   `standard-v1` appear throughout this document as quoted implementation
+   facts. They are frozen literals — `page-image-workflow-v1` is computed into
+   the provider idempotency key and compared for exact equality, so renaming it
+   makes 27 paid attempt records unreadable.
+
+The one decision this plan cannot make locally is whether the provider has a
+native protected-region primitive. Until a paid probe answers it, every
+protection claim here is bounded best effort. That probe needs its own explicit
+work request; the Task Mandate alignment that makes it legal has landed, the
+request has not.
 
 ## Background / Current State
 
@@ -26,20 +68,22 @@ This is a Harness-maintenance problem, not a run-bundle hand-edit problem.
    occupy a Reserved Header Region that provider-rendered body text and key
    subjects must not enter. This is stronger than the current prompt-only
    `Protected Zone` term.
-3. A current version needs a closed Header Profile Set rather than one
-   universal profile. The initial Page Classes are `standard`, `opening`,
+3. A current version needs a closed set of framed header profiles rather than
+   one universal treatment. The Page Classes are `standard`, `opening`,
    `transition`, and `closing`; each class can select a different fixed
-   Reserved Header Region and header treatment.
+   Reserved Header Region and header treatment. **C4 owns this.** Until C4
+   lands there is exactly one Header Overlay Preset and every class resolves
+   to it.
 4. Page Class is a canonical, workflow-neutral source fact. It is shared by
-   Framed and Pure: Framed maps it to Header Profile; Pure consumes the same
-   class through its whole-page visual system. It must not be introduced as a
-   Framed-only source field.
+   Framed and Pure: Framed maps it to a framed header profile; Pure consumes
+   the same class through its whole-page visual system. It must not be
+   introduced as a Framed-only source field. **C4 owns this.**
 5. A human owns the choice of Page Class before provider work. A review must
    not invent an unplanned class or silently modify geometry after generation.
 6. `standard` is the canonical source default. `opening`, `transition`, and
    `closing` are explicit source selections, shared unchanged by Framed and
    Pure.
-7. A Framed Header Profile declares its fixed allowed set of kicker, title,
+7. A framed header profile declares its fixed allowed set of kicker, title,
    and subtitle. A special Page Class may therefore be title-only, but a slide
    cannot add, remove, or reposition a header field ad hoc.
 8. An owner may redirect a page to another existing named Page Class, but only
@@ -47,28 +91,28 @@ This is a Harness-maintenance problem, not a run-bundle hand-edit problem.
    the provider input, rebuilds raw work, and requires a new Complete Page
    Review; a reviewer cannot `proceed` the already-violating output by applying
    an after-the-fact layout override.
-9. Q8 (the concrete page-definition and profile-data schema) is deliberately
-   removed from this repair plan. Research established that it is a cross-
-   workflow domain-model problem, not a Framed configuration detail. Its
-   evidence and unresolved design choices now live in
-   [`page-image-presentation-schema.md`](page-image-presentation-schema.md).
-   This plan must consume the accepted outcome of that plan; it must not create
-   a private `FRAME PRESET` extension or repurpose Pure configuration.
+9. The concrete page-definition and profile-data schema is deliberately outside
+   this plan. It is a cross-workflow domain-model problem, not a Framed
+   configuration detail. Its decisions are absorbed into the route document's
+   "Absorbed Design Decisions" section and implemented by C4. This plan must
+   consume C4's accepted outcome; it must not create a private `FRAME PRESET`
+   extension or repurpose Pure configuration.
 10. Before any paid production, a human must be able to inspect the resolved
-    page configuration and its controller projections. Framed exposes the
-    Image2 JSON projection and the deterministic local Header HTML projection;
-    both derive from and bind the same canonical page facts. The linked schema
-    plan owns this observability contract.
+    page layout and its controller projections. Framed exposes the `image2-request`
+    projection and the deterministic `framed-header-html` projection; both
+    derive from and bind the same canonical page facts. **C5 owns this
+    observability contract.**
 
-The linked schema plan contains the Q2-Q13 decision ledger. Its explicit open
-decisions are prerequisites, not implied approval for a configuration tree,
-file path, migration, or authorization behavior.
+C4 and C5 own the shared configuration tree, source path, version succession,
+and controller-artifact contract; the route document records those decisions.
+This plan consumes them; it does not reinterpret them as a provider guarantee
+or reopen them in a private Framed configuration path.
 
 Still to decide here: the provider capability result and the exact compiled
-protected-region semantics. The page-schema ownership decision is intentionally
-deferred to the linked plan before this plan proposes protected-composition
-implementation. The current-contract test-baseline repair completed as
-Progressive Phase 0.5 without defining Page Class or Header Profile semantics.
+protected-region semantics. Page-layout ownership is intentionally deferred to
+C4 before this plan proposes protected-composition implementation. The
+current-contract test-baseline repair completed as `restore-framed-contract-baseline`
+without defining Page Class or header-profile semantics.
 
 ### Reproduced symptom
 
@@ -164,7 +208,7 @@ npx vitest run tests/03-framed-image/test_framed_workflow.mjs \
   tests/01-content/test_page_authority_source.mjs
 ```
 
-Historical result before Progressive Phase 0.5: 26 passed, 11 failed. Those
+Historical result before the baseline repair: 26 passed, 11 failed. Those
 failures came from retired Text Frame / `VISUAL SCENE` APIs and old source
 grammar, not the current Framed contract. The completed
 `restore-framed-contract-baseline` change now restores 16 passing executable
@@ -181,7 +225,7 @@ restrictions.
 - **Target constraint, not current behavior:** Page Class belongs to canonical
   source and Page Image Core. Framed and Pure may project it differently, but
   neither workflow owns a private page-class vocabulary. Current source has no
-  such field, so this constraint depends on the linked page-schema plan.
+  such field, so this constraint depends on C4.
 - The protected area is a composition constraint, not an opaque local panel or
   a generic local body renderer.
 - Adapter-owned compiled bytes are immutable, bound into raw lineage, and sent
@@ -209,12 +253,15 @@ official OpenAI documentation fetch was attempted for image generation but
 returned HTTP 403 in this environment, and this endpoint cannot be assumed to
 implement an official OpenAI mask contract.
 
-Track P may prepare the synthetic Framed stress page and provider-surface
-record using the current `standard-v1` fixture. A paid capability probe occurs
-only after Track A has aligned the Task Mandate with the exact-grant runtime:
-the Agent then creates the same exact plan/batch grant, scope, cost, and
-provenance records without asking the human to replay a routine approval.
-Record only safe capability facts, not credentials or provider bodies.
+The synthetic Framed stress page, provider-surface record, and result template
+are already prepared against the current `standard-v1` preset — see
+[framed-provider-capability-discovery-research.md](framed-provider-capability-discovery-research.md).
+The Task Mandate is aligned with the exact-grant runtime as of `17bb9f5`, so a
+paid capability probe is now *mechanically* possible: the Agent creates the same
+exact plan/batch grant, scope, cost, and provenance records without asking the
+human to replay a routine approval. It still requires an explicit work request
+for the bounded probe, and a dedicated synthetic run — never v3. Record only
+safe capability facts, not credentials or provider bodies.
 
 Choose the implementation path from its result:
 
@@ -237,16 +284,16 @@ no mask/region field, that result also opens a narrow transport-change task.
 
 ## Proposed Protected-Composition OpenSpec Change
 
-After the shared schema and provider-path decisions are accepted, create one
+After C1–C5 have landed and the provider-path decision is answered, create one
 OpenSpec change named `harden-framed-provider-protected-composition`. It must
 update specs before implementation and retain the current ownership boundaries.
-The completed smaller current-contract baseline change is intentionally
-separate.
+The already-completed current-contract baseline change is intentionally
+separate. The steps below are internal to C6; they are not route phases.
 
-### Progressive Phase 0.5: Completed current-test baseline and compilation seam
+### Prerequisite, already complete: current-test baseline and compilation seam
 
 `restore-framed-contract-baseline` repaired current-contract coverage only; it
-did not introduce Page Class, Header Profile storage, or a new provider
+did not introduce Page Class, header-profile storage, or a new provider
 capability claim.
 
 1. Replaced stale fixtures and removed API imports in
@@ -262,17 +309,16 @@ capability claim.
 4. The protected-composition change must add the actual contract-shape and
    invalidation tests: a protected-region or subject-restriction change changes
    the compiled-input digest and routes to raw rebuild, never local refresh.
-5. After the linked page-schema plan has an accepted model, add only the
-   Framed-specific integration coverage that proves the selected canonical
-   class reaches the chosen local Header Profile. Cross-workflow source/Core
-   schema tests belong to that plan's implementation change.
+5. Once C4 has landed its resolver, add only the Framed-specific integration
+   coverage that proves the selected canonical class reaches the chosen framed
+   header profile. Cross-workflow source/Core schema tests belong to C2 and C4.
 
-### Phase 2: Specify and implement selected protected-region semantics
+### Step 1: Specify and implement selected protected-region semantics
 
 1. Extend the Framed raw contract with one closed, typed protected-composition
    field. Express it in normalized coordinates so non-default provider image
-   dimensions remain valid. Derive it from the closed header preset; do not
-   accept slide-authored coordinates.
+   dimensions remain valid. Derive it from the resolved Header Overlay Preset;
+   do not accept slide-authored coordinates.
 2. Compile provider-facing instructions from that field with explicit canvas
    semantics, a body-safe region, and non-overlap requirements for readable
    body text and key subjects. Preserve the existing full-canvas provider-page
@@ -280,18 +326,19 @@ capability claim.
 3. Propagate source `subject_restrictions` through Page Image Core/Framed raw
    contract into the selected provider request. Validate the closed enum at
    every boundary.
-4. Consume the closed, workflow-neutral Page Class fact and Framed Header
-   Profile projection defined by the linked page-schema plan. Do not define
-   those source fields or their shared configuration root in this change.
+4. Consume the closed, workflow-neutral Page Class fact and the framed header
+   profile projection defined by C4. Do not define those source fields or their
+   shared configuration root in this change.
 5. Update the Header Rendering Policy specification for whatever replaces or
    narrows exact literal `context_not_to_render`. Do not leave literal header
    exposure as an untested negative prompt requirement.
 6. Keep all provider prompt semantics in the Framed adapter; shared transport
-   remains opaque and unchanged unless Phase 3 selected a verified native
-   primitive. In that case, implement only its narrowly specified transport
-   extension and prove the adapter's bound exact bytes reach it unchanged.
+   remains opaque and unchanged unless the capability probe selected a verified
+   native primitive. In that case, implement only its narrowly specified
+   transport extension and prove the adapter's bound exact bytes reach it
+   unchanged.
 
-### Phase 3: Deterministic contract proof and empirical quality evidence
+### Step 2: Deterministic contract proof and empirical quality evidence
 
 1. Preserve the existing single Complete Page Review decision and its exact
    raw/composite binding.
@@ -306,22 +353,23 @@ capability claim.
 4. Retain human inspection of both raw and composite pages, especially for
    provider compliance that raster-only code cannot prove.
 5. Keep deterministic proof separate from empirical evidence: tests can prove
-   Header Profile geometry, normalized body-safe instructions, exact bindings,
-   and local composition, but not where a provider placed rasterized text.
+   header geometry, normalized body-safe instructions, exact bindings, and
+   local composition, but not where a provider placed rasterized text.
 
-### Phase 4: Verification and controlled production restart
+### Step 3: Verification, then hand the repair to C7
 
 1. Run focused adapter/parser/review tests, architecture validation, then the
    complete repository regression suite.
-2. After Track A is landed, run the synthetic Framed stress-page probe at least
-   three times under the active Task Mandate. Each submission retains its exact
-   grant, scope, cost, and lineage automatically. The empirical rubric is: no
-   header literal or readable provider body text in the normalized protected
-   area; no forbidden subject; source body is wholly in the defined body-safe
-   region; and the local composite remains legible.
-3. Only after this conformance check passes, record `repair` for v3's current
-   Complete Page Review through its owner-issued action, replan from current
-   source/Style Master, and seek a new authorization for v3 raw generation.
+2. Run the synthetic Framed stress-page probe at least three times under the
+   active Task Mandate. Each submission retains its exact grant, scope, cost,
+   and lineage automatically. The empirical rubric is: no header literal or
+   readable provider body text in the normalized protected area; no forbidden
+   subject; source body is wholly in the defined body-safe region; and the
+   local composite remains legible.
+3. Only after this conformance check passes does C7 begin: record `repair` for
+   v3's current Complete Page Review through its owner-issued action, replan
+   from current source/Style Master, and seek a new authorization for v3 raw
+   generation.
 4. Inspect the new v3 provider and complete pages before `proceed`. No prior
    raw page, authorization, or acceptance may be copied forward.
 
@@ -341,8 +389,9 @@ capability claim.
   as a prerequisite, not an unrelated cleanup; the new behavior otherwise has
   no credible regression coverage.
 - **Provider capability probing costs money and produces nondeterministic
-  output** -> cap it to the stated synthetic sample count and require Track A's
-  Task-Mandate runtime alignment before the first paid submission.
+  output** -> cap it to the stated synthetic sample count. The Task-Mandate
+  runtime alignment that makes this legal has landed; an explicit work request
+  for the probe has not.
 
 ## Out of Scope
 
@@ -353,17 +402,16 @@ capability claim.
   design decision.
 - Assuming masks or an official provider capability without a successful
   provider-specific probe.
-- Designing, naming, or placing the shared Page Class and presentation-system
-  schema; that is the explicit predecessor plan.
+- Designing, naming, or placing the Page Class vocabulary and layout config —
+  that is C4. Defining schema identifiers at all — that is C1/C2.
 
 ## Landing Association
 
 This plan is not an active change. Its current-contract baseline repair is
-complete as the small Progressive Phase 0.5 OpenSpec change; its
-protected-composition implementation cannot begin until
-`page-image-presentation-schema.md` has settled the source/Core/config
-ownership that it consumes and its provider capability gate is answered. It
-then becomes the design input for
-`openspec/changes/harden-framed-provider-protected-composition/`. The plan is
-closed only after that change has landed, the conformance evidence is recorded,
-and the v3 repair path has completed a new human review.
+already complete. Its protected-composition implementation cannot begin until
+C4 has landed the source/Core/config ownership it consumes and the provider
+capability gate is answered. The route document's "Absorbed Design Decisions"
+section is the design input for
+`openspec/changes/harden-framed-provider-protected-composition/`. This plan
+closes only after that change has landed, the conformance evidence is recorded,
+and C7's v3 repair path has completed a new human review.
