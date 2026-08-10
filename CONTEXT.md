@@ -12,6 +12,14 @@ _Avoid_: a generic system label or `ppt_maker_harness` when naming the conceptua
 The external orchestrator that turns human presentation intent and Refinement Requests into evidence-backed navigation and normal in-scope work. An Agent is not Harness source, Run Bundle identity, or implicit authority for a different goal.
 _Avoid_: A component of the Harness, a persisted Deck identity, a human schema debugger
 
+**Deck Author**:
+The human who owns a Deck's content and judgment while knowing none of the PPT
+Maker Harness's vocabulary, commands, fields, or lifecycle. Being able to name a
+schema, controller, or workflow node is never a precondition for making
+progress: the Agent supplies process knowledge and the Harness supplies
+evidence. Learning the system is not part of the work.
+_Avoid_: An operator, a schema debugger, a person expected to learn the CLI
+
 **Ownership Model**:
 The division in which the human owns Deck content and genuinely new consequential directions, the Agent owns process navigation, impact analysis, and normal Task Mandate execution, the PPT Maker Harness owns reusable methods and tools, and the Run Bundle owns one Deck's working facts. Harness evidence and cost records support the work without becoming repeated human approval chores.
 _Avoid_: Harness ownership of Deck content, Agent ownership of human content, per-step permission prompts
@@ -295,6 +303,14 @@ _Avoid_: A generic gate, a blank blocked status, a new Task Mandate
 **Hard Stop**:
 A non-bypassable control outcome for an operation whose identity, integrity, attributable execution, security, or recoverability cannot be established. It stops only that unsafe operation while the Agent may perform safe diagnosis and prepare the owning recovery route.
 _Avoid_: A generic gate, a repeated permission prompt, a total loss of assistance
+
+**Repair Guidance**:
+What every refusal must carry beside the reason it refused: the next action
+stated in the Deck Author's terms. A validation result that names only the
+violated rule is incomplete, because it hands the author a vocabulary problem
+instead of a content decision. Correctness of the refusal is not the standard;
+the author being able to act on it is.
+_Avoid_: A rule citation, a field-name error, a stack trace, a bare rejection
 
 **Authority-Read-Only Observation**:
 An observation that cannot modify lifecycle authority facts, even when it may rebuild an explicitly named non-authoritative collaboration projection.

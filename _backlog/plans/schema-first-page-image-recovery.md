@@ -28,7 +28,7 @@ That reverses the usual order and it is the point of the whole plan. C1 ships
 *no runtime change at all*. If you find yourself editing `.mjs` during C1, you
 have misread the plan.
 
-### The five constraints the owner set, in their own words
+### The six constraints the owner set, in their own words
 
 1. **Schema lives outside code, in YAML** — "这样三个角色都容易沟通，人、prompt
    和传统的JS". Three consumers must read the same definition: the human, the
@@ -45,9 +45,12 @@ have misread the plan.
    novices. This is why C5 exists as its own change.
 5. **Keep the existing structure** — "结构尽量别动了，结构已经调出来，感觉还可以".
    The 00→06 pipeline stays. Only the schema and dataflow change.
+6. **An assistant, not a strict tool** — "整个 agent flow 是一个很重交互的过程，
+   用户是小白，主要是要帮助他按照流程把事做对。是助手而不是机械的严苛的工具".
+   Strict rules, helpful responses. See "Who is on the other side" below; this
+   constrains how every rule written in C1 and enforced in C2/C4 refuses.
 
 ### Why derived data is designed for the Agent, not the human
-
 "上下文一旦第一次结构出来了之后，所有的打磨都是借助哈密斯打磨，对话来不断的控制" —
 after the first generation, the human never hand-writes a source file again. All
 refinement is conversational.
@@ -56,6 +59,43 @@ The consequence is easy to get backwards: derived files are **not** optimized to
 be human-writable. They are optimized so an Agent can answer "where do I change
 this, and what else changes with it?" That is why every derived value must carry
 provenance. A pretty file that cannot answer that question has failed.
+
+### Who is on the other side: a Deck Author, not an operator
+
+"整个 agent flow 是一个很重交互的过程，用户是小白，主要是要帮助他按照流程把事
+做对。是助手而不是机械的严苛的工具。"
+
+The person using this system knows their content and knows nothing about the
+Harness. They cannot name a schema, a controller, a field, or a lifecycle node —
+and **being able to is never a precondition for making progress.** The whole
+thing is driven through conversation. `CONTEXT.md` now names this role
+**Deck Author**.
+
+This constrains the schema work more than it looks, because schema-first has a
+specific and seductive failure mode: 19 written schemas plus a drift test make
+it easy to build a validator that is entirely correct and completely unhelpful.
+The rules should be strict — the Harness's value is that its evidence can be
+trusted. The *response to a violation* must not be.
+
+Concretely, for every rule you write in C1 and enforce in C2/C4:
+
+- A refusal names the next action **in the author's terms**, not the rule it
+  violated. `**PAGE CLASS**` must be one of four values → the author sees "this
+  page reads like a section divider — mark it as a transition?" `CONTEXT.md`
+  calls this obligation **Repair Guidance**; it is part of the schema
+  definition, authored next to the rule, not bolted on by the Agent afterwards.
+- Never make the author supply a fact the system can derive or the Agent can
+  ask for conversationally. An omitted Page Class normalizes to `standard`; it
+  does not error.
+- Never make correctness depend on the author learning vocabulary. If a
+  message only makes sense to someone who has read the schema, rewrite it.
+- Guidance is a Collaboration Projection: it helps the author decide, and it
+  never authorizes, records, or gates anything.
+
+This does **not** soften a Hard Stop. Identity, integrity, attributable
+execution, security, and recoverability failures still refuse without
+exception — they just also say what to do next. Recorded as
+[ADR 0007](../../docs/adr/0007-refusals-carry-repair-guidance.md).
 
 ### The process rule that overrides your instincts
 
@@ -360,6 +400,7 @@ changes rather than one "schema" change.
 ppt_maker_harness/schema/
   README.md          authority boundary: YAML authoritative, code is mirror
   META.yaml          how to write one definition + naming rules
+                     + the required on_violation shape (Repair Guidance)
   flow.yaml          the dataflow: each transformation, owner, invalidation
   stages/            19 field-level definitions, one file each
   frozen-identifiers.yaml  the 15 record schemas + 3 protocol/mode/identity
@@ -381,6 +422,34 @@ list. Its two entry kinds differ:
 Every entry carries a `reason:` naming the specific data that would become
 unreadable. Without it a future reader sees only a `-v1` suffix and re-proposes
 the rename this plan already rejected.
+
+### Every rule carries its Repair Guidance
+
+`META.yaml` must require it, so it cannot be skipped one field at a time. A
+stage definition states, for each constrained field:
+
+```yaml
+page_class:
+  rule: one of standard | opening | transition | closing
+  default: standard          # omission normalizes; it does not error
+  on_violation:
+    means: this page's narrative role is not one the deck knows how to lay out
+    ask: which of these four roles does this page play in the argument?
+    never: name the field or the schema file in what the author sees
+```
+
+`rule` is for the JS. `means` and `ask` are for the Deck Author, routed through
+the Agent. The `never` line exists because the natural failure is to emit the
+rule text as the message — correct, and useless to someone who has never read a
+schema.
+
+Three tests make this real rather than aspirational, and they belong to C1 and
+C2 respectively: every constrained field in `stages/` has an `on_violation`
+block (C1); no author-facing message contains a schema identifier or a source
+field name (C2); every default that exists in `META.yaml` is applied rather
+than validated against (C2).
+
+Rationale in [ADR 0007](../../docs/adr/0007-refusals-carry-repair-guidance.md).
 
 ## Already Landed
 
@@ -514,6 +583,10 @@ right. It is also risk-free to land: nothing executes it yet.
 - `frozen-identifiers.yaml` needs the two entry kinds described above, and every
   entry needs a `reason:` naming the specific data at risk. Without the reason a
   future reader sees only a `-v1` suffix and re-proposes the rename.
+- **Every constrained field needs its `on_violation` block** — see "Every rule
+  carries its Repair Guidance". `META.yaml` requires it, so it cannot be skipped
+  one field at a time. This is the single easiest thing to omit in C1 and the
+  most expensive to retrofit, because retrofitting means reopening all 19 files.
 - `page-render-model` vs `page-generation-spec` is the pair most easily
   confused. Each definition must carry an explicit "does not contain" clause
   naming the other.
@@ -553,6 +626,15 @@ one semantic change is not, and the semantic change hides.
   identifier without rewriting records.
 - Expect the count to be roughly 89 identifiers against 19 definitions. Most map
   as "internal projection of stage X". Resist the urge to rename them all.
+- **Wire the `on_violation` guidance into the actual refusal path.** C1 writes
+  the guidance; if C2 does not route it, the author still sees a rule citation
+  and the whole obligation is decorative. Two tests belong here: no
+  author-facing message contains a schema identifier or a source field name, and
+  every `META.yaml` default is applied rather than validated against.
+- The Harness already has the seam for this — `AGENT_CONTRACT.md` §"Human-facing
+  CLI success handoff" and §"Diagnostic Recovery Handoff" define how results
+  reach a person, and `next_action` already exists across 13 modules. Extend
+  those; do not add a second message channel.
 
 **Exit evidence.** `npm test` green; the drift test present and failing when a
 constant is deliberately renamed in a scratch commit; every frozen identifier
@@ -618,6 +700,10 @@ specification. Read it before proposing. In particular:
   source already has a `**FRAME PRESET**` field carrying `standard-v1` on every
   Framed slide — decide explicitly whether `**PAGE CLASS**` supersedes it,
   coexists with it, or subsumes it. That interaction is unresolved.
+- **A Deck Author must never have to name a class to make progress.** Omission
+  normalizes to `standard` silently. When a page looks like it wants a different
+  class, that is a suggestion the Agent raises conversationally — never a
+  blocking prompt and never a validation error.
 
 **Exit evidence.** A page resolves to exactly one workflow projection; the
 resolved view shows inherited values; unselected-profile edits provably
@@ -652,6 +738,10 @@ exactly the owner's "我都能指正起来".
 - **The trap:** a friendly projection must never become a new gate or a second
   authority. Keep `test_complete_page_review.mjs` passing so publication cannot
   create a second acceptance state.
+- The audience for these files is the Agent, not the Deck Author — the author
+  reads them *through* the Agent, in conversation. Optimize for provenance and
+  traceability, not for someone hand-editing YAML. See "Why derived data is
+  designed for the Agent, not the human".
 
 **Exit evidence.** For one page, a human can read every stage from source to
 exact provider bytes without running anything, and each derived file names what
@@ -856,3 +946,160 @@ Check a task only when its named evidence exists. When a change lands, record
 its exit evidence here and in the owning specialist plan. If a decision changes
 the ordering or the ownership of a boundary, revise this plan before starting
 the affected downstream change.
+
+The Execution Tracker below is the single progress surface for this route. It
+is a Collaboration Projection, not a state of record: it helps a human and an
+Agent coordinate, and it cannot prove that work happened. The proof is always
+the named evidence — a test run, an archived OpenSpec change, a file on disk.
+If the tracker and the evidence disagree, the evidence wins and the tracker is
+wrong.
+
+## Execution Tracker
+
+**How to use this.** Tick a box only when its evidence line is true and you
+can name where the evidence is. `[~]` means started. Leave the evidence column
+filled in when you tick — a bare `[x]` six weeks later tells the next agent
+nothing. Every change ends with an archived OpenSpec change except C7.
+
+Legend: `[ ]` not started · `[~]` in progress · `[x]` done with evidence
+· `[-]` dropped, with a reason recorded in the change's proposal.
+
+### Landed before this route began
+
+- [x] Baseline confirmed — v3 collision is provider content entering the local header area
+- [x] Framed contract test baseline restored — `restore-framed-contract-baseline`, 16 pass + 3 `it.todo`
+- [x] Task Mandate aligned with exact-grant runtime — commit `17bb9f5`
+- [x] Provider transport surface recorded — no mask/region field; probe not run
+- [x] `CONTEXT.md` rewritten + [ADR 0006](../../docs/adr/0006-define-production-schemas-in-yaml.md) — 2026-08-11
+- [x] `Deck Author` + `Repair Guidance` added to `CONTEXT.md`; [ADR 0007](../../docs/adr/0007-refusals-carry-repair-guidance.md) — 2026-08-11
+- [x] Three superseded plans closed as CLS-025/026/027 — 2026-08-11
+- [x] `introduce-page-image-presentation-system` deleted — commit `c05a502`
+
+### C1 — `publish-production-schema-definitions`
+
+- [ ] Confirm the capability name against `openspec/config.yaml`; do not invent one
+- [ ] Write the OpenSpec proposal — schema-only scope, zero runtime change
+- [ ] `schema/README.md` — authority boundary: YAML authoritative, code is mirror
+- [ ] `schema/META.yaml` — how a definition file is shaped
+- [ ] `schema/META.yaml` requires an `on_violation` block on every constrained field
+- [ ] `schema/flow.yaml` — per transformation: input, output, owning module, invalidator
+- [ ] `schema/stages/` — all 19 definitions written
+- [ ] Every constrained field carries `means` / `ask` / `never` in the author's terms
+- [ ] Every field that can be defaulted has a `default:` rather than an error path
+- [ ] Test: every constrained field in `stages/` has an `on_violation` block
+- [ ] `page-render-model` and `page-generation-spec` each carry a "does not contain" clause naming the other
+- [ ] `schema/frozen-identifiers.yaml` — both entry kinds, every entry has a `reason:`
+- [ ] Verify the diff touches no `.mjs` file at all
+- [ ] Archive the change
+- [ ] **Checkpoint 1** — the owner has read `flow.yaml` and the 19 stage files and agrees the flow is right
+
+> Evidence: _(archived change path; owner's confirmation)_
+
+### C2 — `conform-code-to-schema-definitions`
+
+- [ ] Re-derive the identifier inventory with the two commands in "How to reproduce the inventory" — do not trust this plan's counts
+- [ ] Classify all ~89 identifiers: rename / internal-projection-of-stage-X / frozen
+- [ ] Read `page_image_workflow_identity.mjs` and `harness_architecture.mjs:88` before designing enforcement
+- [ ] Extend the existing `harness_architecture.mjs` contract; do not build a parallel mechanism
+- [ ] Rename non-frozen constants to C1 vocabulary
+- [ ] Add `// anchor: schema/stages/<name>.yaml` comments
+- [ ] Add the drift test — fails on any constant with no definition and no frozen entry
+- [ ] Enforce `frozen-identifiers.yaml` at runtime
+- [ ] Route `on_violation` guidance to the author through the existing `next_action` / handoff seam — no second message channel
+- [ ] Test: no author-facing message contains a schema identifier or a source field name
+- [ ] Test: every `META.yaml` default is applied, not validated against
+- [ ] Prove no semantic change: the diff is renames, anchors, and the new tests only
+- [ ] Archive the change
+- [ ] **Checkpoint 2** — `npm test` green; drift test fails on a deliberately renamed constant; an existing v3 attempt record still validates
+
+> Evidence: _(archived change path; test output; the record that was re-validated)_
+
+### C3 — `close-upstream-narrative-gap`
+
+- [ ] **Grill the owner on what a Story Outline actually contains** — this is the least-specified change in the plan and its proposal cannot be written without that round
+- [ ] Decide whether C3 runs before or after C4 — the ordering here is preference, not dependency
+- [ ] Write the proposal
+- [ ] `story-outline` as Source Data — editable, not recomputable from pages
+- [ ] `design-constraints` as Source Data
+- [ ] The pagination step: story → page list, carrying provenance
+- [ ] Archive the change
+- [ ] **Checkpoint 3** — a deck expresses its argument and constraints in source, and a page list derives from them
+
+> Evidence: _(archived change path; the derived page list and its provenance)_
+
+### C4 — `land-page-class-and-layout-config`
+
+- [ ] Read all of "Absorbed Design Decisions" Q2–Q13 — that is this change's specification
+- [ ] **Resolve the unresolved one:** does `**PAGE CLASS**` supersede, coexist with, or subsume the existing `**FRAME PRESET**` source field? Nobody has decided this
+- [ ] Write the proposal — rated `XL`; expect common contracts, both adapters, paths, regression suites
+- [ ] `**PAGE CLASS**` source field — closed set `standard | opening | transition | closing`, omission normalizes to `standard`
+- [ ] Omission never errors and never blocks; a better-fitting class is an Agent suggestion, not a prompt
+- [ ] The four-document config package
+- [ ] The resolver — deterministic, one projection per page, provenance on every inherited value
+- [ ] Framed adapter consumes the resolved profile
+- [ ] Pure adapter consumes the same class through its whole-page visual system
+- [ ] Invalidation: editing a *selected* profile forces raw rebuild and new review
+- [ ] Invalidation: editing an *unselected* profile invalidates nothing — prove it
+- [ ] `pure-deck-visual-system.yaml` stays Pure-only; its digest stays forbidden for Framed
+- [ ] Archive the change
+- [ ] **Checkpoint 4** — a page resolves exactly one workflow projection; inherited values show their origin
+
+> Evidence: _(archived change path; one resolved page showing inheritance; the unselected-profile invalidation proof)_
+
+### C5 — `publish-per-page-derived-data`
+
+- [ ] Write the proposal — provider-free scope, no new gate
+- [ ] Publish at `image2 plan` — after the plan exists, before authorization
+- [ ] Write each per-page file: `page-source-receipt`, `page-layout`, `page-render-model`, `page-generation-spec`, `image2-request`, `page-artifact-index`
+- [ ] Framed additionally publishes `framed-header-html` — HTML only, no sibling JSON
+- [ ] The deck-level index
+- [ ] Every derived file names what produced it and what invalidates it
+- [ ] Use an independent directory, **not** a Human Navigation copy — navigation forbids raw prompt prose in its tree
+- [ ] Confirm no second acceptance state was created: `test_complete_page_review.mjs` still passes
+- [ ] Archive the change
+- [ ] **Checkpoint 5** — for one page, a human reads source → receipt → layout → render model → generation spec → provider bytes on disk, without running anything
+
+> Evidence: _(archived change path; the one page's directory listing)_
+
+### C6 — `harden-framed-provider-protected-composition`
+
+Full specification: [framed-provider-protected-composition.md](framed-provider-protected-composition.md).
+Probe fixture and rubric: [framed-provider-capability-discovery-research.md](framed-provider-capability-discovery-research.md).
+
+- [ ] Obtain an explicit work request for the paid probe — the Task Mandate alignment landed, the request has not
+- [ ] Run the probe against the **synthetic fixture**, capped at three samples — never against v3
+- [ ] Record the answer: native primitive, or bounded best effort
+- [ ] Write the proposal, shaped by that answer
+- [ ] Fix `subject_restrictions` dropped at `page_image_core.mjs:183` — clears `it.todo` #1
+- [ ] Fix bare `protected_geometry` at `03-framed-image/index.mjs:821` — normalized geometry with explicit canvas and unit semantics; clears `it.todo` #2
+- [ ] Add the body-safe region — clears `it.todo` #3
+- [ ] If a native primitive exists, land the separate transport change it needs
+- [ ] Archive the change
+- [ ] **Checkpoint 6** — the provider promise is honest: verified primitive, or a written bounded-best-effort statement
+- [ ] Close `framed-provider-protected-composition.md` and `framed-provider-capability-discovery-research.md` as CLS-NNN
+
+> Evidence: _(archived change path; three probe results; the three `it.todo` cases now passing)_
+
+### C7 — v3 repair (Task Mandate, not OpenSpec)
+
+Entered through `BOOTSTRAP.md` and the controller playbook. Production data
+only — this is not Harness maintenance.
+
+- [ ] Confirm the current v3 review decision is `repair`, not `proceed`
+- [ ] Create the successor with `--new-version` — copies only `slide-specifications.md` and `overrides/`, resets `_generated/`
+- [ ] Verify v3 is byte-preserved with its evidence intact
+- [ ] Verify the successor inherited no raw evidence, grant, review decision, or final media
+- [ ] Generate under the new config package
+- [ ] Inspect both the provider page and the Production-Equivalent Composite before deciding
+- [ ] Complete Page Review returns `proceed`
+- [ ] Deliver
+- [ ] Update the `deck_dark_factory_current` memory entry
+
+> Evidence: _(successor version number; the review decision record; the delivery receipt)_
+
+### Route closeout
+
+- [ ] All six OpenSpec changes archived
+- [ ] `VERSION` bump judged against `openspec/config.yaml` `rules: version:` and confirmed with the owner
+- [ ] `VERSION_LOG.md`, `ppt_maker_harness/README.md`, `package.json` updated in step
+- [ ] This plan closed: `git mv` to `_backlog/_done/_closed_plans/`, assigned CLS-NNN, three index files updated per `_backlog/plans/README.md`
