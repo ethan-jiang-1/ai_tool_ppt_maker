@@ -15,9 +15,7 @@
 
 ## 活跃列表
 
-### P1（数据完整性 — 1 个）
-
-- **[BUG-066](BUG-066-build-on-inactive-run-pollutes-state-with-mismatch-keys.md)** — `ppt_flow build` 针对非 active run 会把 `execution_run_version_mismatch` 三键写进 `_state/state.yaml`，使整个 deck 的 state 被判损坏
+当前无活跃 bug。
 
 ---
 
@@ -25,7 +23,7 @@
 
 ## 类别分布
 
-P0: 0 | P1: 1 | P2: 0 | P3: 0
+P0: 0 | P1: 0 | P2: 0 | P3: 0
 
 ---
 
