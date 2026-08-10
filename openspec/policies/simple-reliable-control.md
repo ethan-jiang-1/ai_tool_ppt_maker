@@ -19,7 +19,7 @@ Reliability comes from a short, visible loop:
 
 ```text
 direct fact -> one deterministic check -> earliest root cause
-  -> one legal next action -> rerun the same checkpoint
+  -> Agent-owned next action -> rerun the same checkpoint
 ```
 
 "Simple" means few authority translations, visible branches, early failure,
@@ -27,6 +27,12 @@ and bounded feedback. It does not mean fewer necessary checks. A checker may
 read several required direct facts, but it SHALL NOT derive pass/fail by
 chaining projections, summaries, caches, and competing validators when a
 canonical source already owns the fact.
+
+A Task Mandate covers normal in-scope execution once. Exact provider scope,
+cost, receipts, and evidence are recorded by the owning runtime as part of the
+loop, not surfaced as repeated questions for the human. A control point asks a
+new question only when the goal, an explicit limit, or a consequential content
+or design decision is genuinely new.
 
 ## Quality-Control Rules
 
@@ -45,12 +51,17 @@ canonical source already owns the fact.
   Formatting preferences are advisory or parsed tolerantly unless an accepted
   contract makes them semantically necessary.
 - **Fail clearly.** If the checker cannot determine a result reliably, fail
-  closed or report `unknown`; do not guess through a longer fallback chain.
-- **Same-check repair.** Repair through the owning interface and rerun the same
-  checkpoint. Recovery is either repair-and-rerun or explicit terminalization
-  followed by one new legal attempt.
+  closed or report `unknown`, name the missing fact, and let the Agent pursue
+  the safe discovery or repair path; do not guess through a longer fallback
+  chain.
+- **Same-check repair.** The Agent repairs through the owning interface and
+  reruns the same checkpoint under the Task Mandate. Recovery is either
+  repair-and-rerun or explicit terminalization followed by one new legal
+  attempt.
 - **One next action.** Every independent root cause gets one nearest legal
-  action. Do not offer a menu of competing recovery routes.
+  action that the Agent performs when it is in scope. When a genuinely new
+  human decision is needed, show the recommended option and the precise
+  decision; do not offer a menu of competing technical recovery routes.
 - **Test the control itself.** Focused negative tests SHALL cover prerequisite
   short-circuiting, bounded diagnostics, fail-closed behavior, wrong-owner
   mutation prevention, and successful same-check reruns.

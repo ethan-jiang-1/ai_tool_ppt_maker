@@ -15,7 +15,7 @@ import {
   createFramedRawWorkPlan,
   publishFramedFinalSlideManifest,
   readFramedTargetStoredPlanContext,
-  resolveFramedTextFramePreset,
+  resolveFramedHeaderOverlayPreset,
   authorizeFramedTargetRawPlan,
   authorizeFramedProgressiveRawBatch,
   acceptFramedProgressivePilot,
@@ -36,7 +36,7 @@ import {
   resolveFramedStyleMasterScope,
   validateFramedRawContract,
 } from "../../ppt_maker_harness/scripts/03-framed-image/index.mjs";
-import { verifyFramedRenderContracts } from "../../ppt_maker_harness/scripts/03-framed-image/internal/framed_render_contract.mjs";
+import { verifyFramedHeaderOverlays } from "../../ppt_maker_harness/scripts/03-framed-image/internal/framed_render_contract.mjs";
 import { targetPageImageSubmitFactory } from "../../ppt_maker_harness/scripts/ppt_flow.mjs";
 import { initBundle } from "../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
 import { pageImageWorkflowPaths } from "../../ppt_maker_harness/scripts/shared/run-bundle/page_image_paths.mjs";
@@ -72,42 +72,26 @@ const NATIVE_PROVIDER_PNG = (() => {
   return image.toBuffer("image/png");
 })();
 
-function runFlow(args) {
-  return spawnSync("node", [FLOW, ...args], { encoding: "utf8", timeout: 30_000 });
-}
+const DEFAULT_PROVIDER_BODY = `items:
+  - role: label
+    literal: "Provider-owned content remains readable."`;
+const DEFAULT_VISUAL_BRIEF = `recipe: editorial-systems
+composition: centered-constellation
+motifs: []
+negative_constraints:
+  - no-logo`;
 
-const receipt = {
-  schema: "page-image-workflow-source-v1", pipeline: "page-image-workflow-v1", workflow: "framed", source_sha256: digest("a"),
-  slides: [{ slide_id: "DeckGo", workflow: "framed", text_frame: { preset: "standard-v1", kicker: null, title: "A title", subtitle: null, callout: null } }],
-};
-
-describe("Framed target workflow", () => {
-  it("normalizes standard-v1 to only rendered frame facts", () => {
-    const preset = resolveFramedTextFramePreset("standard-v1");
-    expect(preset).toMatchObject({
-      canvas: { css_width: 1000, css_height: 562.5, capture_width: 2000, capture_height: 1125 },
-      theme: { panel: "#f5f0eb", panel_opacity: 0.96, text: "#2d1b11" },
-      variants: {
-        callout_absent: { id: "callout_absent", panels: [{ id: "header", x: 40, y: 28, width: 920, height: 238 }] },
-        callout_present: { id: "callout_present", panels: [{ id: "header" }, { id: "callout", x: 40, y: 482, width: 920, height: 48 }] },
-      },
-    });
-    expect(preset.theme).not.toHaveProperty("border");
-    for (const variant of Object.values(preset.variants)) {
-      for (const panel of variant.panels) {
-        expect(panel).not.toHaveProperty("opacity");
-        expect(panel).not.toHaveProperty("padding");
-      }
-    }
-  });
-
-  it("compiles provider_clauses text and VISUAL SCENE into the Framed raw contract", async () => {
-    const root = mkdtempSync(join(tmpdir(), "framed-scene-contract-"));
-    const deck = join(root, "deck_framed_scene");
-    const runDir = join(deck, "3_versions", "v1");
-    const image = createCanvas(2000, 1125);
-    image.getContext("2d").fillRect(0, 0, 2000, 1125);
-    const source = `---
+function framedSource({
+  slideId = "DeckGo",
+  title = "Framed target fact",
+  kicker = "Operations",
+  subtitle = "A current Framed source fixture",
+  bodyYaml = DEFAULT_PROVIDER_BODY,
+  visualYaml = DEFAULT_VISUAL_BRIEF,
+  note = "Framed source-owned note.",
+  subjectRestrictions = null,
+} = {}) {
+  return `---
 identity:
   scheme: mnemonic-v1
 production:
@@ -115,23 +99,79 @@ production:
   workflow: framed
 ---
 
-## Slide 01: \`DeckGo\`
+## Slide 01: \`${slideId}\`
 
-**TITLE**: Framed target fact
-**VISUAL SCENE**: two agents at a shared desk calm work setting
+**KICKER**: ${kicker}
+**TITLE**: ${title}
+**SUBTITLE**: ${subtitle}
+**FRAME PRESET**: standard-v1
+${subjectRestrictions ? `**SUBJECT RESTRICTIONS**: ${subjectRestrictions}
+` : ""}**SLIDE BODY**:
+\`\`\`yaml
+${bodyYaml}
+\`\`\`
 **VISUAL BRIEF**:
 \`\`\`yaml
-recipe: editorial-systems
+${visualYaml}
+\`\`\`
+
+> **SPEAKER NOTE**: ${note}
+`;
+}
+
+function runFlow(args) {
+  return spawnSync("node", [FLOW, ...args], { encoding: "utf8", timeout: 30_000 });
+}
+
+const receipt = {
+  schema: "page-image-workflow-source-v1",
+  pipeline: "page-image-workflow-v1",
+  workflow: "framed",
+  source_sha256: digest("a"),
+  slides: [{
+    slide_id: "DeckGo",
+    position: 1,
+    provider_content: { items: [{ role: "label", literal: "Provider-owned content remains readable.", copy_policy: "exact" }] },
+    header_policy: {
+      frame_preset: "standard-v1",
+      local_header: { kicker: null, title: "A title", subtitle: null },
+      context_not_to_render: { kicker: null, title: "A title", subtitle: null },
+    },
+  }],
+};
+
+describe("Framed target workflow", () => {
+  it("normalizes standard-v1 to only closed header-overlay facts", () => {
+    const preset = resolveFramedHeaderOverlayPreset("standard-v1");
+    expect(preset).toMatchObject({
+      canvas: { css_width: 1000, css_height: 562.5, capture_width: 2000, capture_height: 1125 },
+      protected_geometry: [{ id: "header", x: 40, y: 28, width: 920, height: 238 }],
+      fields: {
+        kicker: { x: 64, y: 54, width: 872, height: 22, max_lines: 1 },
+        title: { x: 64, y: 82, width: 872, height: 104, max_lines: 2 },
+        subtitle: { x: 64, y: 194, width: 872, height: 46, max_lines: 1 },
+      },
+    });
+    expect(preset).not.toHaveProperty("variants");
+    expect(preset).not.toHaveProperty("callout");
+  });
+
+  it("compiles resolved visual and provider-content facts into the Framed raw contract", async () => {
+    const root = mkdtempSync(join(tmpdir(), "framed-scene-contract-"));
+    const deck = join(root, "deck_framed_scene");
+    const runDir = join(deck, "3_versions", "v1");
+    const image = createCanvas(2000, 1125);
+    image.getContext("2d").fillRect(0, 0, 2000, 1125);
+    const source = framedSource({
+      title: "Framed target fact",
+      visualYaml: `recipe: editorial-systems
 composition: centered-constellation
 motifs: []
 negative_constraints:
-  - no-readable-text
-  - no-labels
-relationship: layer-stack
-\`\`\`
-
-> **SPEAKER NOTE**: Framed scene source-owned note.
-`;
+  - no-logo
+relationship: layer-stack`,
+      note: "Framed scene source-owned note.",
+    });
     try {
       initBundle(deck, null, "keynote", "dark-executive");
       writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
@@ -157,9 +197,9 @@ relationship: layer-stack
         expect(validateFramedRawContract({ ...structuredClone(contract), provider_clauses: providerClauses }))
           .toMatchObject({ ok: false, code: "framed_raw_contract_invalid" });
       }
-      expect(contract.visual_scene).toBe("two agents at a shared desk calm work setting");
+      expect(contract.visual_scene).toBeNull();
       expect(contract.visual_identity_role_clause).toBeNull();
-      expect(contract.framed.text_free).toBe(true);
+      expect(contract.framed).not.toHaveProperty("text_free");
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
@@ -171,29 +211,16 @@ relationship: layer-stack
     const runDir = join(deck, "3_versions", "v1");
     const image = createCanvas(2000, 1125);
     image.getContext("2d").fillRect(0, 0, 2000, 1125);
-    const source = `---
-identity:
-  scheme: mnemonic-v1
-production:
-  pipeline: page-image-workflow-v1
-  workflow: framed
----
-
-## Slide 01: \`DeckGo\`
-
-**TITLE**: Framed clause delivery
-**VISUAL BRIEF**:
-\`\`\`yaml
-recipe: editorial-systems
+    const source = framedSource({
+      title: "Framed clause delivery",
+      visualYaml: `recipe: editorial-systems
 composition: centered-constellation
 motifs:
   - connected-nodes
 negative_constraints:
-  - no-readable-text
-  - no-labels
-relationship: causal-flow
-\`\`\`
-`;
+  - no-logo
+relationship: causal-flow`,
+    });
     try {
       initBundle(deck, null, "keynote", "dark-executive");
       writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
@@ -236,16 +263,14 @@ relationship: causal-flow
   });
 
   it("rejects the 28-W regression through the canonical browser render contract", async () => {
-    const textFrame = {
-      preset: "standard-v1",
-      kicker: null,
-      title: "W".repeat(28),
-      subtitle: null,
-      callout: null,
-    };
-    await expect(verifyFramedRenderContracts([{
+    await expect(verifyFramedHeaderOverlays([{
       slide_id: "WideW",
-      text_frame: textFrame,
+      frame_preset: "standard-v1",
+      local_header: {
+        kicker: null,
+        title: "W".repeat(28),
+        subtitle: null,
+      },
     }])).rejects.toMatchObject({
       code: "framed_text_fit_failed",
       message: expect.stringContaining("scroll overflow"),
@@ -261,29 +286,10 @@ relationship: causal-flow
     try {
       initBundle(deck, null, "keynote", "dark-executive");
       writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
-      writeFileSync(join(runDir, "slide-specifications.md"), `---
-identity:
-  scheme: mnemonic-v1
-production:
-  pipeline: page-image-workflow-v1
-  workflow: framed
----
-
-## Slide 01: \`DeckGo\`
-
-**TITLE**: ${"W".repeat(28)}
-**VISUAL BRIEF**:
-\`\`\`yaml
-recipe: editorial-systems
-composition: centered-constellation
-motifs: []
-negative_constraints:
-  - no-readable-text
-  - no-labels
-\`\`\`
-
-> **SPEAKER NOTE**: Candidate proof must fail before materialization.
-`);
+      writeFileSync(join(runDir, "slide-specifications.md"), framedSource({
+        title: "W".repeat(28),
+        note: "Candidate proof must fail before materialization.",
+      }));
       await acceptLocalStyleMasterFixture(resolveFramedStyleMasterScope(runDir));
       const paths = pageImageWorkflowPaths(runDir);
       const derived = [paths.target_source_receipt, paths.target_raw_plan, paths.target_raw_evidence, paths.target_raw_review, paths.target_final_manifest];
@@ -310,29 +316,10 @@ negative_constraints:
     try {
       initBundle(deck, null, "keynote", "dark-executive");
       writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
-      writeFileSync(join(runDir, "slide-specifications.md"), `---
-identity:
-  scheme: mnemonic-v1
-production:
-  pipeline: page-image-workflow-v1
-  workflow: framed
----
-
-## Slide 01: \`DeckGo\`
-
-**TITLE**: Recover the exact plan checkpoint
-**VISUAL BRIEF**:
-\`\`\`yaml
-recipe: editorial-systems
-composition: centered-constellation
-motifs: []
-negative_constraints:
-  - no-readable-text
-  - no-labels
-\`\`\`
-
-> **SPEAKER NOTE**: A failed plan write must remain unauthorizable.
-`);
+      writeFileSync(join(runDir, "slide-specifications.md"), framedSource({
+        title: "Recover the exact plan checkpoint",
+        note: "A failed plan write must remain unauthorizable.",
+      }));
       await acceptLocalStyleMasterFixture(resolveFramedStyleMasterScope(runDir));
       const paths = pageImageWorkflowPaths(runDir);
       mkdirSync(paths.target_raw_plan, { recursive: true });
@@ -395,11 +382,18 @@ negative_constraints:
     }
   });
 
-  it("keeps text-only refresh provider-free only with exact accepted underlay evidence", () => {
+  it("requires a raw rebuild when a Framed header literal changes its compiled input", () => {
     const next = {
       ...receipt,
       source_sha256: digest("f"),
-      slides: [{ ...receipt.slides[0], text_frame: { ...receipt.slides[0].text_frame, title: "Updated stable heading" } }],
+      slides: [{
+        ...receipt.slides[0],
+        header_policy: {
+          ...receipt.slides[0].header_policy,
+          local_header: { kicker: null, title: "Updated stable heading", subtitle: null },
+          context_not_to_render: { kicker: null, title: "Updated stable heading", subtitle: null },
+        },
+      }],
     };
     const rawWorkPlan = createFramedRawWorkPlan({
       receipt,
@@ -423,11 +417,11 @@ negative_constraints:
       items: [{
         slide_id: "DeckGo",
         raw_contract_sha256: digest("d"),
-        provider_input_binding: framedProviderInputBinding(),
+        provider_input_binding: framedProviderInputBinding("g"),
       }],
     });
     expect(classifyFramedRefresh({ previousReceipt: receipt, nextReceipt: next, rawWorkPlan, acceptedRawEvidence, nextRawWorkPlan }))
-      .toMatchObject({ kind: "local_compose", provider_required: false });
+      .toMatchObject({ kind: "rebuild_raw", provider_required: true, reason: "compiled_provider_input_drift" });
     const styleMasterDrift = createRawWorkPlan({
       source_receipt_sha256: next.source_sha256,
       workflow: "framed",
@@ -446,17 +440,11 @@ negative_constraints:
       rawWorkPlan,
       acceptedRawEvidence,
       nextRawWorkPlan: styleMasterDrift,
-    })).toMatchObject({ kind: "rebuild_raw", provider_required: true, reason: "raw_contract_or_profile_drift" });
+    })).toMatchObject({ kind: "rebuild_raw", provider_required: true, reason: "generation_profile_drift" });
     expect(classifyFramedRefresh({ previousReceipt: receipt, nextReceipt: next }))
       .toMatchObject({ kind: "raw_evidence_required", provider_required: true });
     expect(classifyFramedRefresh({ previousReceipt: receipt, nextReceipt: next, rawWorkPlan, acceptedRawEvidence }))
-      .toMatchObject({ kind: "rebuild_raw", provider_required: true, reason: "raw_contract_or_profile_drift" });
-    expect(classifyFramedRefresh({
-      previousReceipt: receipt,
-      nextReceipt: { ...next, slides: [{ ...next.slides[0], visual_brief: { recipe: "changed" } }] },
-      rawWorkPlan,
-      acceptedRawEvidence,
-    })).toMatchObject({ kind: "rebuild_raw", provider_required: true });
+      .toMatchObject({ kind: "raw_evidence_required", provider_required: true });
   });
 
   it("runs the selected Framed receipt through local composition and shared delivery with a provider fake", async () => {
@@ -470,29 +458,10 @@ negative_constraints:
     try {
       initBundle(deck, null, "keynote", "dark-executive");
       writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
-      writeFileSync(join(runDir, "slide-specifications.md"), `---
-identity:
-  scheme: mnemonic-v1
-production:
-  pipeline: page-image-workflow-v1
-  workflow: framed
----
-
-## Slide 01: \`DeckGo\`
-
-**TITLE**: Framed target fact
-**VISUAL BRIEF**:
-\`\`\`yaml
-recipe: editorial-systems
-composition: centered-constellation
-motifs: []
-negative_constraints:
-  - no-readable-text
-  - no-labels
-\`\`\`
-
-> **SPEAKER NOTE**: Framed target source-owned note.
-`);
+      writeFileSync(join(runDir, "slide-specifications.md"), framedSource({
+        title: "Framed target fact",
+        note: "Framed target source-owned note.",
+      }));
       await acceptLocalStyleMasterFixture(resolveFramedStyleMasterScope(runDir));
       const plan = await buildFramedTargetRawPlan(runDir);
       const paths = pageImageWorkflowPaths(runDir);

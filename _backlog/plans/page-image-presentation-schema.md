@@ -48,10 +48,12 @@ intentionally not reconstructed from guesswork.
 - Exact closed fields in Deck Baseline and in each Pure/Framed class profile.
 - Whether Framed publishes a structured Header Controller JSON beside its
   rendered Header HTML.
-- Exact pre-production artifact paths, schemas, and whether absent/stale
-  publication hard-stops authorization.
+- Exact pre-production artifact paths and schemas. Missing or stale derived
+  artifacts must be rebuilt or reported as a planning failure; they must not
+  become a new human authorization gate.
 - Migration of current `pure-deck-visual-system.yaml` and code-only
-  `FRAME PRESET` without silent adoption of old runs.
+  `FRAME PRESET`, including the explicit source/configuration migration for
+  current v3 without silent adoption or reinterpretation of old runs.
 
 ## Research Record
 
@@ -133,7 +135,7 @@ and Pure-visual-system designs.
 6. The eventual design must let a human inspect one page's class and its
    resolved workflow projection without chasing configuration across unrelated
    files or reading implementation code.
-7. Before production authorization, the system must expose the complete
+7. At the pre-submit `image2 plan` point, the system must expose the complete
    configuration chain for every page: canonical source -> Resolved Page
    Presentation -> Rendering Controller Projection. Pure exposes one Image2
    JSON controller projection; Framed exposes the provider's Image2 JSON and
@@ -203,7 +205,8 @@ repurpose the current Pure record merely to avoid a new file.
 ### Required Pre-Production View
 
 The configuration chain, rather than the origin of individual values, is the
-human control surface. Before any provider authorization the system must make
+human control surface. At the existing pre-submit `image2 plan` point, before
+any provider submission, the system must make
 every non-secret fact in these three layers inspectable for each selected page:
 
 | Layer | Meaning | Required projection |
@@ -223,11 +226,13 @@ therefore needs its normalized structured values, its schema identity, and its
 binding to the preceding layer. A digest is a verifier beside the data, not a
 substitute for showing the data.
 
-Each page publishes each layer as an independent artifact in its own
-pre-production directory. A deck-level index provides human navigation but
-does not aggregate the layer data into one large opaque document. This keeps
-source facts, resolved configuration, and each controller input separately
-readable and locally comparable.
+Each page publishes each layer as an independent artifact in its own dedicated,
+non-navigation pre-production directory. A deck-level index provides direct
+paths but does not aggregate the layer data into one large opaque document.
+This keeps source facts, resolved configuration, and each controller input
+separately readable and locally comparable. `artifact-view` may add safe links
+or summaries, but it does not create these artifacts or copy raw Image2 prompt
+prose into Human Navigation.
 
 In addition, the view publishes one deck-level Presentation Control Map for
 the Agent and human to orient before opening individual page files. It is a
@@ -267,12 +272,14 @@ The existing provider inspection is also lifecycle/audit-shaped: it does not
 put the source selection, Resolved Page Presentation, Image2 JSON, and Header
 HTML beside one another for the same page.
 
-The presentation-schema change must close that gap with one provider-free
-derived view. It must be regenerated only from canonical source, selected
-version configuration, and adapter compilers; it must never become an input,
-selector, authorization, or review decision. Existing provider-input
-inspection remains the exact byte/audit evidence rather than being replaced by
-a friendlier display.
+The presentation-schema change must close that gap with one non-secret,
+derived view, published by `image2 plan`. It must be regenerated only from
+canonical source, selected version configuration, and adapter compilers; it
+must never become an input, selector, authorization, or review decision.
+Existing provider-input inspection remains the exact byte/audit evidence rather
+than being replaced by a friendlier display. The new per-page Image2 controller
+projection is directly inspectable outside Human Navigation; it is not a
+wholesale navigation copy of raw prompt prose.
 
 ## Required Design Work
 
@@ -289,9 +296,16 @@ a friendlier display.
 5. Test the model against concrete pages: a standard content slide, an
    opening title-only Framed slide, a Pure transition page, and a closing page
    redirected by a human before regeneration.
-6. Only after those decisions are accepted, create a dedicated OpenSpec change
-   for parser/Core/Visual Config/adapter/binding changes. The Framed protected-
-   composition plan can then consume the resulting Header Profile contract.
+6. Define the owner-issued migration of current v3's
+   `page-image-workflow-v1` source/configuration pair to the selected current
+   schema. It creates a new canonical snapshot for resumed work and preserves
+   the historical pair byte-for-byte; it cannot infer a current protocol from
+   old state.
+7. Only after those decisions are accepted, create a dedicated OpenSpec change
+   for parser/Core/Visual Config/adapter/binding changes. Its implementation
+   is split into bound presentation semantics first and data-view publication
+   from `image2 plan` second. The Framed protected-composition plan can then
+   consume the resulting Header Profile contract.
 
 ## Risks / Trade-offs
 

@@ -66,7 +66,10 @@ file path, migration, or authorization behavior.
 
 Still to decide here: the provider capability result and the exact compiled
 protected-region semantics. The page-schema ownership decision is intentionally
-deferred to the linked plan before this plan proposes implementation.
+deferred to the linked plan before this plan proposes protected-composition
+implementation. The current-contract test-baseline repair may proceed first as
+Progressive Phase 0.5 because it does not define Page Class or Header Profile
+semantics.
 
 ### Reproduced symptom
 
@@ -196,7 +199,7 @@ Primary specifications to change or reconfirm:
 - potentially `openspec/specs/run-bundle-layout/spec.md` if review evidence
   gains a typed advisory diagnostic artifact.
 
-## Decision Required Before Implementation
+## Decision Required Before Protected-Composition Semantics
 
 The local endpoint/model is recorded as `gpt-image-2`; its documented support
 for masks, layout guides, or protected regions has not been established. An
@@ -204,10 +207,12 @@ official OpenAI documentation fetch was attempted for image generation but
 returned HTTP 403 in this environment, and this endpoint cannot be assumed to
 implement an official OpenAI mask contract.
 
-Before code is written, make one explicitly authorized, bounded capability
-probe against the actual selected provider, using a single synthetic Framed
-stress page. It must disclose its submission count and cost boundary. Record
-only safe capability facts, not credentials or provider bodies.
+Track P may prepare the synthetic Framed stress page and provider-surface
+record using the current `standard-v1` fixture. A paid capability probe occurs
+only after Track A has aligned the Task Mandate with the exact-grant runtime:
+the Agent then creates the same exact plan/batch grant, scope, cost, and
+provenance records without asking the human to replay a routine approval.
+Record only safe capability facts, not credentials or provider bodies.
 
 Choose the implementation path from its result:
 
@@ -222,16 +227,24 @@ Choose the implementation path from its result:
    a larger workflow/specification change; it cannot be smuggled into the
    private header renderer.
 
-Prompt-only strengthening may improve samples but is not an acceptable root
-fix by itself. It cannot guarantee placement or stop literal imitation.
+Prompt-only strengthening may improve samples but proves only bounded empirical
+best effort. It cannot guarantee placement or stop literal imitation. A native
+primitive is not considered available until both the provider endpoint contract
+and a bounded result are verified; because current Harness transport exposes
+no mask/region field, that result also opens a narrow transport-change task.
 
-## Proposed OpenSpec Change
+## Proposed Protected-Composition OpenSpec Change
 
-After this plan is accepted, create one OpenSpec change named
-`harden-framed-provider-protected-composition`. It must update specs before
-implementation and retain the current ownership boundaries.
+After the shared schema and provider-path decisions are accepted, create one
+OpenSpec change named `harden-framed-provider-protected-composition`. It must
+update specs before implementation and retain the current ownership boundaries.
+The smaller current-contract baseline change is intentionally separate.
 
-### Phase 1: Establish current tests and a real compilation seam
+### Progressive Phase 0.5: Establish current tests and a real compilation seam
+
+This is the prerequisite baseline change named in the progressive plan. It
+repairs current-contract coverage only; it does not introduce Page Class,
+Header Profile storage, or a new provider capability claim.
 
 1. Replace the stale fixtures and removed API imports in
    `tests/03-framed-image/test_framed_workflow.mjs` with current
@@ -271,10 +284,11 @@ implementation and retain the current ownership boundaries.
    narrows exact literal `context_not_to_render`. Do not leave literal header
    exposure as an untested negative prompt requirement.
 6. Keep all provider prompt semantics in the Framed adapter; shared transport
-   remains opaque and unchanged except for a real, selected provider capability
-   field if the capability probe proves it is needed.
+   remains opaque and unchanged unless Phase 3 selected a verified native
+   primitive. In that case, implement only its narrowly specified transport
+   extension and prove the adapter's bound exact bytes reach it unchanged.
 
-### Phase 3: Quality evidence and review
+### Phase 3: Deterministic contract proof and empirical quality evidence
 
 1. Preserve the existing single Complete Page Review decision and its exact
    raw/composite binding.
@@ -288,16 +302,20 @@ implementation and retain the current ownership boundaries.
    portable product validator.
 4. Retain human inspection of both raw and composite pages, especially for
    provider compliance that raster-only code cannot prove.
+5. Keep deterministic proof separate from empirical evidence: tests can prove
+   Header Profile geometry, normalized body-safe instructions, exact bindings,
+   and local composition, but not where a provider placed rasterized text.
 
 ### Phase 4: Verification and controlled production restart
 
 1. Run focused adapter/parser/review tests, architecture validation, then the
    complete repository regression suite.
-2. Under a new explicit provider authorization, run the synthetic Framed
-   stress-page probe at least three times. The acceptance rubric is: no header
-   literal or readable provider body text in the normalized protected area; no
-   forbidden subject; source body is wholly in the defined body-safe region;
-   and the local composite remains legible.
+2. After Track A is landed, run the synthetic Framed stress-page probe at least
+   three times under the active Task Mandate. Each submission retains its exact
+   grant, scope, cost, and lineage automatically. The empirical rubric is: no
+   header literal or readable provider body text in the normalized protected
+   area; no forbidden subject; source body is wholly in the defined body-safe
+   region; and the local composite remains legible.
 3. Only after this conformance check passes, record `repair` for v3's current
    Complete Page Review through its owner-issued action, replan from current
    source/Style Master, and seek a new authorization for v3 raw generation.
@@ -320,8 +338,8 @@ implementation and retain the current ownership boundaries.
   as a prerequisite, not an unrelated cleanup; the new behavior otherwise has
   no credible regression coverage.
 - **Provider capability probing costs money and produces nondeterministic
-  output** -> require a disclosed small authorization and cap it to the stated
-  synthetic sample count.
+  output** -> cap it to the stated synthetic sample count and require Track A's
+  Task-Mandate runtime alignment before the first paid submission.
 
 ## Out of Scope
 
@@ -337,10 +355,12 @@ implementation and retain the current ownership boundaries.
 
 ## Landing Association
 
-This plan is not an active change. It cannot become an implementation change
-until `page-image-presentation-schema.md` has settled the source/Core/config
-ownership that this plan consumes, and its provider capability gate is answered.
-It then becomes the design input for
+This plan is not an active change. Its current-contract baseline repair can
+become the small Progressive Phase 0.5 OpenSpec change immediately; its
+protected-composition implementation cannot begin until
+`page-image-presentation-schema.md` has settled the source/Core/config
+ownership that it consumes and its provider capability gate is answered. It
+then becomes the design input for
 `openspec/changes/harden-framed-provider-protected-composition/`. The plan is
 closed only after that change has landed, the conformance evidence is recorded,
 and the v3 repair path has completed a new human review.

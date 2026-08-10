@@ -1,35 +1,54 @@
-# Human-Centered Gate Policy
+# Human-Centered Control Policy
 
-Gates guide people through recoverable work. They do not erase the boundaries
-that preserve identity, integrity, security, authorization, or recovery.
+Control outcomes guide a human and Agent through recoverable work; they are not
+repeated permission prompts. They do not erase the boundaries that preserve
+identity, integrity, security, attributable execution, or recovery.
+
+## Task Mandate
+
+A clear human Work Request establishes one Task Mandate for normal in-scope
+work needed to finish that goal, including provider work, recovery, and ordinary
+costs. The Harness records exact execution scope, cost, and evidence as
+bookkeeping; the Agent SHALL NOT ask the human to reconfirm the same task for
+each plan, batch, repair, review, or provider submission.
+
+Ask again only when proposed work changes to a different Deck or goal, exceeds
+an explicit human limit, or needs a genuinely new content or design choice not
+covered by the Work Request. A plan-level Guided Checkpoint is a collaboration
+aid, not a runtime authority or a new Task Mandate.
 
 ## Outcomes
 
 | Outcome | Use it when | Required behavior |
 | --- | --- | --- |
-| `guide` | A deterministic repair or advisory can safely proceed. | Explain the condition and run or recommend the repair. No human risk acceptance is needed. |
-| `confirm` | A reversible quality or process risk belongs to the human. | Show what changed, recommend repair first, and offer one explicit continuation that records a bounded human reason. |
-| `hard-stop` | Identity, integrity, security, authorization, or recoverability is uncertain. | Reject the operation, name the protected invariant, and provide the safe recovery route. No waiver or force option may bypass it. |
+| `guide` | A deterministic repair or advisory can safely proceed. | Explain the condition and have the Agent perform the in-scope repair or recommendation. No new human permission is needed. |
+| `confirm` | A reversible quality or process risk needs a human choice not already covered by the Task Mandate. | Show the impact in presentation terms, recommend repair first, and offer one explicit continuation with a bounded human reason. Do not re-confirm a choice the human already made. |
+| `hard-stop` | Identity, integrity, security, attributable execution, or recoverability is uncertain. | Reject only the unsafe operation, name the protected invariant, and give the Agent's safe recovery route. No waiver or force option may bypass it. |
 
 ## Protected Invariants
 
 - Target version, reset epoch, plan identity, and compare-and-swap ownership are exact.
 - State, confined paths, bytes, and hashes must be valid and attributable.
 - A live or uncertain writer is never overwritten by a continuation.
-- Provider work requires the existing explicit authorization boundary.
+- Provider work must be attributable to the active Task Mandate and its exact
+  runtime execution record.
 - Derived artifacts and state are repaired only through their owning interfaces.
 
 ## Continuations
 
-A continuation is an auditable, version-scoped waiver of a reversible risk. It
+A continuation is an auditable, version-scoped waiver of a new reversible risk.
+It is not required merely because the Harness is recording execution evidence
+or normal cost for work already covered by a Task Mandate. A continuation
 must carry a normalized human reason and the current bounded identity/evidence
 facts. A waiver is not approval, and it never changes whether evidence is
 complete. Runtime record fields and CLI schemas remain owned by their capability
 specifications.
 
-Every confirmable gate response presents: what changed, the recommended repair,
-the explicit continuation, and the next action after either choice. A hard-stop
-response instead presents the invariant and its safe recovery action.
+Every confirmable control response presents what changed, the recommended
+repair, the explicit continuation, and the next action after either choice. A
+hard-stop response presents the invariant and safe recovery action, while the
+Agent continues any legal read-only diagnosis and preparation; it never simply
+reports that the work is blocked.
 
 ## Related Control Policy
 

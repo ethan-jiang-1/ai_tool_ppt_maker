@@ -9,12 +9,12 @@ The reusable methodology, controls, and production tools that an Agent uses to e
 _Avoid_: a generic system label or `ppt_maker_harness` when naming the conceptual system
 
 **Agent**:
-The external orchestrator that uses the PPT Maker Harness to operate a Run Bundle. An Agent is not Harness source or Run Bundle identity.
-_Avoid_: A component of the Harness, a persisted Deck identity
+The external orchestrator that turns human presentation intent and Refinement Requests into evidence-backed navigation and normal in-scope work. An Agent is not Harness source, Run Bundle identity, or implicit authority for a different goal.
+_Avoid_: A component of the Harness, a persisted Deck identity, a human schema debugger
 
 **Ownership Model**:
-The division in which the human owns Deck content and consequential approvals, the Agent owns process orchestration, the PPT Maker Harness owns reusable methods and tools, and the Run Bundle owns one Deck's working facts.
-_Avoid_: Harness ownership of Deck content, Agent ownership of human content
+The division in which the human owns Deck content and genuinely new consequential directions, the Agent owns process navigation, impact analysis, and normal Task Mandate execution, the PPT Maker Harness owns reusable methods and tools, and the Run Bundle owns one Deck's working facts. Harness evidence and cost records support the work without becoming repeated human approval chores.
+_Avoid_: Harness ownership of Deck content, Agent ownership of human content, per-step permission prompts
 
 **Harness Root**:
 The one source directory that contains a PPT Maker Harness and is distinct from every Run Bundle.
@@ -213,12 +213,20 @@ The versioned, auditable catalog of supported Intent Routes, separate from the C
 _Avoid_: Controller registry, command parser, workflow state machine
 
 **Foundation Request**:
-A request to establish or check local runtime, provider readiness, or an explicitly confirmed channel probe before deck work begins.
-_Avoid_: Deck production request, implicit provider authorization
+A request to establish or check local runtime, provider readiness, or in-scope provider capability before Deck work begins.
+_Avoid_: A Deck production request, a separate per-call permission prompt
 
 **Work Request**:
-A request to create a Deck, resume one exact run, or change an existing exact run.
-_Avoid_: Inferred latest deck, generic diagnostic
+A request to create a Deck, resume one exact run, or change an existing exact run. A clear Work Request establishes the Task Mandate for normal in-scope work.
+_Avoid_: Inferred latest deck, generic diagnostic, a command-by-command authorization form
+
+**Task Mandate**:
+The standing authority established by a clear Work Request for an Agent to perform normal in-scope discovery, production, repair, provider work, and recordkeeping for that goal. The Harness records exact scope, cost, and evidence automatically; the Agent asks again only for a different goal, an explicit human limit, or a genuinely new consequential content or design direction.
+_Avoid_: Per-step confirmation, a budget questionnaire, implicit authority for an unrelated Deck
+
+**Refinement Request**:
+A Work Request expressed as ordinary iterative feedback about a page, a Page Class, or the Deck as a whole. The Agent maps it to the smallest Presentation Scope and safe next action without requiring the human to name a field, controller, or workflow node.
+_Avoid_: A malformed command, a request to guess content, a new authorization form
 
 **Orientation Request**:
 A request to locate an exact run, diagnose a bounded failure, recover a missing entry surface, or report an unsupported intent.
@@ -227,6 +235,14 @@ _Avoid_: New workflow, fallback production route
 **Route Gap**:
 A non-persistent response for an unrecognized request that names the smallest missing route, playbook, or owner capability without creating maintenance work automatically.
 _Avoid_: Backlog item, selected route state, silent fallback
+
+**Guided Checkpoint**:
+A non-authoritative collaboration point that states whether enough evidence and known human direction exist for the next irreversible action. When it is not ready, the Agent identifies the missing fact and prepares the smallest safe next action; it is not a Hard Stop or a second lifecycle state machine.
+_Avoid_: A generic gate, a blank blocked status, a new Task Mandate
+
+**Hard Stop**:
+A non-bypassable control outcome for an operation whose identity, integrity, attributable execution, security, or recoverability cannot be established. It stops only that unsafe operation while the Agent may perform safe diagnosis and prepare the owning recovery route.
+_Avoid_: A generic gate, a repeated permission prompt, a total loss of assistance
 
 **Authority-Read-Only Observation**:
 An observation that cannot modify lifecycle authority facts, even when it may rebuild an explicitly named non-authoritative collaboration projection.
