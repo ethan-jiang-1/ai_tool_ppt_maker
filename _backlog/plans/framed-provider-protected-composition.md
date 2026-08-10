@@ -24,6 +24,30 @@
 > - **Provider Avoidance Constraint** — what the request asks the provider to
 >   keep out of that region. It is a request, not a guarantee.
 
+## Before You Start
+
+If you arrived here first, stop and read the route document's
+"Read This First" and "The Seven Changes In Detail" sections. Three things from
+there govern this plan and are not repeated below:
+
+1. **C6 is sixth.** C1–C5 land first. This plan is a design and diagnosis
+   document that was written before that ordering existed; nothing in it
+   authorizes starting now.
+2. **Only `CONTEXT.md` and `docs/adr/` may be edited directly.** Everything in
+   `ppt_maker_harness/`, `openspec/`, `tests/`, `tests_e2e/` goes through an
+   OpenSpec change. Production `deck_*` bundles are never source or fixtures.
+3. **Do not rename any schema identifier here.** `page-image-workflow-v1` and
+   `standard-v1` appear throughout this document as quoted implementation
+   facts. They are frozen literals — `page-image-workflow-v1` is computed into
+   the provider idempotency key and compared for exact equality, so renaming it
+   makes 27 paid attempt records unreadable.
+
+The one decision this plan cannot make locally is whether the provider has a
+native protected-region primitive. Until a paid probe answers it, every
+protection claim here is bounded best effort. That probe needs its own explicit
+work request; the Task Mandate alignment that makes it legal has landed, the
+request has not.
+
 ## Background / Current State
 
 `deck_dark_factory_current/3_versions/v3` is a current

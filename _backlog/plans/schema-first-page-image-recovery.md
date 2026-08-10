@@ -10,6 +10,90 @@
 > and
 > [framed-provider-capability-discovery-research.md](framed-provider-capability-discovery-research.md).
 
+## Read This First: Orientation For The Implementing Agent
+
+You are picking this up without the conversation that produced it. This section
+is the context that is otherwise lost. Everything here was verified against the
+code on 2026-08-11; re-verify anything you are about to depend on, because file
+line numbers drift.
+
+### What the owner actually complained about
+
+The trigger was not a bug. It was that a previous agent kept doing "patch on
+patch" (补丁摞补丁) work — each fix layered onto code whose data contract was
+never written down. The owner's instruction was to **define the schema first,
+scrutinize it, and only then let code change**.
+
+That reverses the usual order and it is the point of the whole plan. C1 ships
+*no runtime change at all*. If you find yourself editing `.mjs` during C1, you
+have misread the plan.
+
+### The five constraints the owner set, in their own words
+
+1. **Schema lives outside code, in YAML** — "这样三个角色都容易沟通，人、prompt
+   和传统的JS". Three consumers must read the same definition: the human, the
+   prompt, and the JS. A JS constant serves only the third.
+2. **No versioning, ever** — "我们今后只会有一个版本啊，我不可能支持多个版本…
+   唯一的，是我们的宪法宪章，他要变了，大家一块儿变就完了" and "最好别考虑版本了，
+   考虑版本真是个噩梦". The root `VERSION` is the only version number. This is
+   why no *new* schema identifier may carry `-vN`.
+3. **Names are 2–3 words and obvious at a glance** — "别太短…你用两个单词，甚至
+   三个单词都好…尽量一眼就能看到，看明白，不要猜测的东西". No abbreviations.
+4. **The whole chain must be visible** — visual → story → pagination → complete
+   page content → converted into what image2/framed needs. The owner's reason:
+   "我都能指正起来" (then I can correct any of it), and it is friendlier to
+   novices. This is why C5 exists as its own change.
+5. **Keep the existing structure** — "结构尽量别动了，结构已经调出来，感觉还可以".
+   The 00→06 pipeline stays. Only the schema and dataflow change.
+
+### Why derived data is designed for the Agent, not the human
+
+"上下文一旦第一次结构出来了之后，所有的打磨都是借助哈密斯打磨，对话来不断的控制" —
+after the first generation, the human never hand-writes a source file again. All
+refinement is conversational.
+
+The consequence is easy to get backwards: derived files are **not** optimized to
+be human-writable. They are optimized so an Agent can answer "where do I change
+this, and what else changes with it?" That is why every derived value must carry
+provenance. A pretty file that cannot answer that question has failed.
+
+### The process rule that overrides your instincts
+
+The owner interrupted an earlier session precisely on this point: "等等等。我们得
+按照正常的路数做，首先你只是改context.md或者是DOS底下的a Dr 然后我们要借助
+open.Spec来调整东西啊，我看你刚才立刻已经动schema了".
+
+- `CONTEXT.md` and `docs/adr/` may be edited directly.
+- **Everything else in the Harness source domain goes through an OpenSpec
+  change.** Per `openspec/config.yaml`, that domain is exactly four directories:
+  `ppt_maker_harness/`, `openspec/`, `tests/`, `tests_e2e/`.
+- `deck_*` and `dpt_*` are production data — never source, never fixtures,
+  never auto-migration targets. Do not read them unless the task names them.
+- `_backlog/` is a separate bookkeeping system, read only when named. It does
+  **not** track OpenSpec change status.
+
+I violated this rule once by creating `ppt_maker_harness/schema/` directly and
+had to delete it. Do not repeat that: C1 creates that directory *through an
+OpenSpec change*.
+
+### Where to start reading the code
+
+| Question | File |
+| --- | --- |
+| What identifiers exist and who validates them | `scripts/shared/image2/page_image_progressive_schema.mjs` |
+| How a retired protocol is refused without rewriting records | `scripts/shared/run-bundle/page_image_workflow_identity.mjs` |
+| Cross-file schema-ownership rules that already exist | `scripts/contracts/harness_architecture.mjs` |
+| Where source is parsed into a receipt | `scripts/01-content/internal/page_image_source.mjs` |
+| The shared seam both adapters compile through | `scripts/shared/page-image/page_image_core.mjs` |
+| The Framed local header geometry | `scripts/03-framed-image/internal/header_overlay.mjs` |
+| The actual HTTP body sent to the provider | `scripts/ppt_flow.mjs:2244` |
+| Glossary — every term used in this plan | `CONTEXT.md` |
+| Why YAML is authoritative and why no versioning | `docs/adr/0006-define-production-schemas-in-yaml.md` |
+
+Single CLI entry point: `node ppt_maker_harness/scripts/ppt_flow.mjs <command>`.
+Relevant subcommands: `state`, `style-master`, `image2`, `validate`, `build`,
+`new-version`. Tests: `npm test`, or `npx vitest run <path>` for one file.
+
 ## What Changed And Why This Plan Exists
 
 The previous route treated the schema as one input to a presentation-system
@@ -30,91 +114,157 @@ Three founding rules now constrain every phase:
    is therefore Agent traceability, not human writability.
 
 The withdrawn OpenSpec change `introduce-page-image-presentation-system` is
-deleted (recoverable at `c05a502`). It proposed renaming the protocol to
-`page-authority-image2-v2` — a third simultaneous protocol name — which the
-no-versioning rule forbids. The protocol name question is settled below under
-"The protocol name is frozen": it stays `page-image-workflow-v1`.
+deleted (21 files, 1335 lines; recoverable at commit `c05a502` with
+`git show c05a502 --stat`). It was withdrawn for two reasons: it proposed
+renaming the protocol to `page-authority-image2-v2`, which the no-versioning
+rule forbids and which the frozen-identifier finding independently rules out;
+and it treated the schema as an input to an implementation rather than as the
+deliverable. Recover it only to read what was considered, never to resume it.
 
-## The Constraint That Shapes Everything: Records Cannot Be Renamed
+## The Constraint That Shapes Everything: Persisted Names Cannot Be Renamed
 
-Evidence gathered 2026-08-11 from the production bundles:
+This is the finding that forced the seven-change split, and it was absent from
+every earlier plan. Read it before touching any identifier.
 
-| Where | Distinct schema IDs | Renamable? |
-| --- | --- | --- |
-| Harness code (`scripts/`) | 81 | yes, code is source |
-| `deck_dark_factory_current/` outside `_generated/` | **15** | **no — these are Record Data** |
-| `deck_dark_factory_current/_generated/` | 10 | yes, rebuildable |
-| All four decks combined | 54 | 15 are records |
+### How to reproduce the inventory
 
-The 15 protected identifiers are paid grants, provider attempts, materialization
-provenance, complete-review decisions, and Style Master candidate lineage:
+Do not trust the numbers below — regenerate them. They were taken on
+2026-08-11 and the bundles keep growing.
 
-```text
-page-image-progressive-accepted-raw-evidence-v1
-page-image-progressive-raw-batch-grant-v1
-page-image-progressive-raw-batch-projection-v1
-page-image-progressive-raw-complete-review-v1
-page-image-progressive-raw-item-attempt-v1
-page-image-progressive-raw-materialization-provenance-v1
-page-image-progressive-raw-scope-head-v1
-page-image-progressive-raw-work-plan-v1
-page-image-style-master-candidate-attempt-v1
-page-image-style-master-candidate-grant-v1
-page-image-style-master-generated-provenance-v1
-page-image-style-master-head-v1
-page-image-style-master-local-provenance-v1
-page-image-style-master-plan-identity-v1
-page-image-style-master-review-decision-v1
+```sh
+# every schema-shaped identifier the code knows
+grep -rhno '"[a-z][a-z0-9-]*-v[0-9]"' ppt_maker_harness/scripts/ \
+  | sed 's/^[0-9]*://;s/"//g' | sort -u
+
+# for each one, how many production files outside _generated/ persist it
+grep -rl "<identifier>" deck_dark_factory_current/ | grep -v /_generated/ | wc -l
 ```
 
-Renaming a Record Data schema destroys the ability to read evidence of money
-already spent. **Records are read under their historical identifier forever;
-only newly written records use the new vocabulary.** This constraint was absent
-from every earlier plan and is the single largest reason the work must split
-into more than one change.
+The `grep -v /_generated/` is the whole test. Inside `_generated/` a name is
+rebuildable and therefore renamable; outside it, the name is in Record Data or
+Source Data and renaming it destroys or invalidates something.
 
-### The protocol name is frozen for the same reason, and it is not renamed
+### What the inventory shows
 
-The withdrawn change proposed `page-authority-image2-v2`. Separately from the
-no-versioning rule, three protocol/mode identifiers are load-bearing in
-persisted data and cannot move:
+89 distinct identifiers exist in `scripts/`. **26 of them are persisted outside
+`_generated/` in `deck_dark_factory_current` alone**, and they fall into four
+groups that need different treatment. An earlier draft of this plan said "15";
+that count covered only the first group and is wrong. The full list:
 
-| Identifier | Source files | Record files outside `_generated/` | What it is |
-| --- | --- | --- | --- |
-| `page-image-workflow-v1` | 58 | 31 | the pipeline/adapter route |
-| `image2-page-workflow-v1` | 24 | 2 | the per-version production mode |
-| `mnemonic-v1` | 33 | 3 | the slide identity scheme |
+**Group 1 — paid raw-production records (8).** Grants, attempts, provenance,
+review decisions. Each file is evidence that money was spent.
 
-`page-image-workflow-v1` is the hardest case. It is not merely stored — it is
-*computed into* the provider idempotency key:
+| Identifier | Files |
+| --- | --- |
+| `page-image-progressive-raw-item-attempt-v1` | 40 |
+| `page-image-progressive-raw-materialization-provenance-v1` | 12 |
+| `page-image-progressive-raw-complete-review-v1` | 7 |
+| `page-image-progressive-raw-batch-grant-v1` | 5 |
+| `page-image-progressive-raw-batch-projection-v1` | 5 |
+| `page-image-progressive-raw-work-plan-v1` | 4 |
+| `page-image-progressive-raw-scope-head-v1` | 3 |
+| `page-image-progressive-accepted-raw-evidence-v1` | 2 |
+
+**Group 2 — Style Master lineage records (7).**
+`page-image-style-master-candidate-attempt-v1` (10),
+`-generated-provenance-v1` (10), `-candidate-grant-v1` (5),
+`-plan-identity-v1` (5), `-review-decision-v1` (5),
+`-local-provenance-v1` (4), `-head-v1` (3).
+
+**Group 3 — live state records (4).** These sit in `_state/state.yaml`, which is
+rewritten by the runtime but never hand-edited:
+`page-image-workflow-target-state-v1`, `page-image-workflow-handoff-v1`,
+`page-image-style-master-selection-v1`, plus the `pipeline:` and `mode:` fields.
+
+**Group 4 — Source Data schemas (7).** These label files a human authored, and
+renaming one is a source migration, not a rename:
+`pptmaker-run-bundle-v2` (`RUN_BUNDLE.md`),
+`pptmaker-page-image-visual-language-v1`,
+`pptmaker-pure-deck-visual-system-v1`,
+`pptmaker-image2-reference-registry-v1` (all under `2_backbone/visual-style/`),
+`page-image-workflow-v1` and `mnemonic-v1` (front matter of
+`slide-specifications.md`), and `standard-v1` (the `**FRAME PRESET**` field
+value on every Framed slide).
+
+**Rule: records are read under their historical identifier forever; only newly
+written records use the new vocabulary.** For Group 4 the rule is different —
+those names are still actively written, so they are frozen against *renaming*
+but not against use.
+
+### The one that would silently destroy evidence
+
+`page-image-workflow-v1` is not merely stored. It is *computed into* the
+provider idempotency key:
 
 ```js
-// page_image_progressive_schema.mjs:417
-return `page-image-workflow-v1-${attempt_key_sha256}`;
+// ppt_maker_harness/scripts/shared/image2/page_image_progressive_schema.mjs:417
+export function progressiveRawIdempotencyKey({ attempt_key_sha256 } = {}) {
+  assertDigest(attempt_key_sha256, "attempt_key_sha256");
+  return `page-image-workflow-v1-${attempt_key_sha256}`;
+}
 ```
 
-and attempt validation compares the persisted key against that function for
-exact equality (`:457`, `:463`). 27 attempt records in
-`deck_dark_factory_current/1_upstream_raw_material/` carry keys with that
-prefix. Changing the literal makes every one of them fail validation — the paid
-attempt history becomes unreadable, not merely mislabelled.
+and `validateProgressiveRawItemAttempt` compares the persisted key against that
+function for **exact equality** at `:457` (submitted attempts) and `:463`
+(terminal attempts). 27 attempt records under
+`deck_dark_factory_current/1_upstream_raw_material/page-image-workflow-iterations/`
+carry keys with that prefix.
 
-It also appears in `_state/state.yaml` as `pipeline:` and in the front matter of
-`slide-specifications.md` for v1, v2, and v3 — i.e. in Source Data the human
-authored. Rewriting those is a source migration, not a rename.
+Change the literal and every one of those records fails validation. The paid
+attempt history does not become mislabelled — it becomes *unreadable*, and the
+failure surfaces as a validation error far from the rename that caused it.
 
-**Decision: the protocol keeps the name `page-image-workflow-v1`.** The user's
-preferred `page-image2-workflow` describes the same thing and reads better, but
-it buys nothing that the schema definitions do not already deliver, and it costs
-the readability of paid evidence. The `-v1` here is a frozen literal inside an
-identity function, in the same category as the 15 record identifiers above — not
-a version number anyone may bump. C1 records this in `frozen-identifiers.yaml`
-with its reason, so the next reader does not re-propose the rename.
+### Decision: the protocol keeps the name `page-image-workflow-v1`
+
+The user asked for `page-image2-workflow`, reasoning "因为我们是想充分利用
+image2 的能力". The withdrawn OpenSpec change independently proposed a third
+name, `page-authority-image2-v2`.
+
+Both are rejected. The new name reads better, but it buys nothing the schema
+definitions do not already deliver, and it costs the readability of evidence of
+money already spent. The `-v1` here is a frozen literal inside an identity
+function — the same category as the record identifiers above, not a version
+number anyone may bump.
+
+Two other live literals are frozen for the same reason:
+`image2-page-workflow-v1` (the per-version production mode, in
+`production_mode.mjs`) and `mnemonic-v1` (the slide identity scheme).
+
+**If a future owner insists on the rename anyway**, it is a source migration in
+its own right and needs: a successor version created by `--new-version`, the
+predecessor left byte-preserved, and an explicit decision that the old attempt
+records are archived rather than carried. It is not a C2 rename and must never
+be bundled into one.
+
+### There is already a retirement mechanism — read it before inventing another
+
+`page-image-workflow-identity.mjs` implements exactly this problem for the
+*previous* protocol generation. `page-authority-image2-v2` and
+`image2-page-authority-v2` were retired, and rather than rewriting the records,
+the module scans raw record bytes for retired identifiers and returns
+`UNSUPPORTED_PROTOCOL` with `byte_preserving: true` and an export action.
+
+Two lessons for C1/C2. First, the repo's established answer to "this name is
+obsolete" is *refuse and preserve*, never *rewrite*. Second, that module is a
+working reference implementation for how `frozen-identifiers.yaml` should be
+enforced at runtime — do not design a new mechanism without reading it.
 
 ## Target: 19 Schemas
 
 Counted after the Q13 addition (`page-artifact-index`) and the Q14 split
 (`layout-config` + `page-layout`). Earlier rounds said 17; 19 is correct.
+
+**These 19 are the *conceptual* target vocabulary, not a rename list.** There
+are 89 identifiers in the code today. The mismatch is intentional: most of the
+89 are internal projections, capture profiles, and lineage records that have no
+place in a vocabulary the human reads. The 19 answer the question "what are the
+meaningful stages of the data flow"; the 89 answer "what does the runtime
+serialize". C1 defines the 19. C2 maps the 89 onto them — and for most, the
+mapping is "internal detail of stage X", not a rename.
+
+Do not attempt a 1:1 rename. Three of the 19 (`story-outline`,
+`design-constraints`, and the pagination step) have **no** existing
+implementation at all — that is C3's entire reason to exist.
 
 ### Deck level — Source
 
@@ -168,6 +318,41 @@ clause naming the other.
 Renamed from the earlier round for the 2–3-word rule: `style-master` →
 `visual-style-candidates`, `workflow-state` → `production-progress-state`,
 `page-links` → `page-artifact-index`, `source-receipt` → `page-source-receipt`.
+
+### Known anchors: where each target already has an implementation
+
+Verified 2026-08-11. This is C2's starting map, not its conclusion — C2 must
+re-derive it, because a name with no anchor may simply mean I did not find it.
+
+| Target | Existing identifier | Defined in |
+| --- | --- | --- |
+| `visual-language` | `pptmaker-page-image-visual-language-v1` | `02-visual-system/internal/page_image_visual_language.mjs:7` |
+| `page-source-receipt` | `page-image-workflow-source-v1` | `01-content/internal/page_image_source.mjs:860` |
+| `page-generation-spec` | `page-image-core-facts-v1`, `-core-slide-facts-v1` | `shared/page-image/page_image_core.mjs` |
+| `image2-request` | `page-image-framed-provider-input-v1` / `-pure-provider-input-v1` | the two adapters; ownership enforced by `harness_architecture.mjs:88` |
+| `image-generation-plan` | `page-image-progressive-raw-work-plan-v2` | `shared/image2/page_image_progressive_schema.mjs:5` |
+| `image-generation-record` | `page-image-progressive-raw-item-attempt-v1` + provenance | same file — **frozen, Group 1** |
+| `page-review-decision` | `page-image-progressive-raw-complete-review-v1` | same file — **frozen, Group 1** |
+| `final-page-list` | `page-image-final-slide-manifest-v1` | `05-delivery/index.mjs:123` |
+| `delivery-package` | `page-image-delivery-receipt-v1`, `-delivery-media-v1`, `-pptx-assembly-v1`, `-notes-receipt-v1` | `05-delivery/` |
+| `visual-style-candidates` | the 7 `page-image-style-master-*` records | `shared/image2/style_master_schema.mjs` — **frozen, Group 2** |
+| `production-progress-state` | `page-image-workflow-target-state-v1` | `shared/state/state.mjs:650` |
+| `framed-header-html` | `FRAMED_HEADER_OVERLAY_PRESET` / `standard-v1` | `03-framed-image/internal/header_overlay.mjs:6` |
+
+| Target | Status |
+| --- | --- |
+| `layout-config` | **does not exist** — C4 creates it |
+| `page-layout` | **does not exist** — C4 creates it |
+| `page-artifact-index` | **does not exist** — C5 creates it |
+| `page-render-model` | **does not exist** — C5 creates it |
+| `story-outline` | **does not exist** — C3 creates it |
+| `design-constraints` | **does not exist** — C3 creates it |
+| `page-source` | partially exists as the `slide-specifications.md` grammar; C4 adds `**PAGE CLASS**` |
+
+Note the shape this reveals: **downstream of the page is well-implemented and
+mostly needs renaming; upstream of the page barely exists.** That asymmetry is
+the real defect the owner noticed, and it is why C3 and C4/C5 are separate
+changes rather than one "schema" change.
 
 ## Definition Home
 
@@ -253,6 +438,26 @@ Landed
  C7  Repair and resume current v3
 ```
 
+### What each checkpoint actually requires
+
+A checkpoint is a Guided Checkpoint, not a Hard Stop: it states whether enough
+evidence exists to start the next change. Checkpoint 1 is the only one that is
+purely a human judgment — the rest are evidence plus a short confirmation.
+
+| Checkpoint | Passed when |
+| --- | --- |
+| 1 | The owner has read `flow.yaml` and the 19 stage files and says the flow is what they want. No test can substitute for this. |
+| 2 | `npm test` green; the drift test fails on a deliberately renamed constant; an existing v3 attempt record still validates. |
+| 3 | A deck's argument and constraints exist as Source Data, and a page list derives from them carrying provenance. |
+| 4 | One page resolves to exactly one workflow projection; the resolved view shows inherited values and their origin; editing an unselected profile invalidates nothing. |
+| 5 | For one page, a human reads source → receipt → layout → render model → generation spec → provider bytes on disk, without running anything. |
+| 6 | Either a verified provider primitive with a transport change, or a written statement that Framed protection is bounded best effort — plus three probe runs against the synthetic fixture. |
+
+If a checkpoint is not ready, the rule from `CONTEXT.md` applies: name the
+missing fact and prepare the smallest safe next action. Do not proceed into the
+next change on the assumption it will be fixed later — that is precisely the
+patch-on-patch habit this plan exists to end.
+
 ## Why Seven Changes, Not One
 
 Each boundary below is a place where the work would otherwise become
@@ -270,6 +475,245 @@ unreviewable or unsafe to land partially.
 
 C1 and C2 are the new work. C3–C7 absorb the earlier plans' Phases 1–6 with
 their evidence intact.
+
+## The Seven Changes In Detail
+
+Each entry gives the proposed OpenSpec change name, its goal in one sentence,
+what is in and out of scope, and the exit evidence that lets the next change
+start. **Names are proposals** — confirm against `openspec/config.yaml`'s
+capability registry when you write the proposal, and reuse an existing
+capability rather than inventing one.
+
+C1–C6 are OpenSpec changes. C7 is not: it is production work on a `deck_*`
+bundle, entered through `BOOTSTRAP.md` and the controller playbook.
+
+---
+
+### C1 — `publish-production-schema-definitions`
+
+**Goal.** Make the entire Page Image data flow visible in one place the human,
+the prompt, and the JS can all read, so that every later change argues against a
+written definition instead of against code.
+
+**In scope.** Only `ppt_maker_harness/schema/`: `README.md`, `META.yaml`,
+`flow.yaml`, `stages/` (19 files), `frozen-identifiers.yaml`. Plus whatever
+`openspec/specs/` requirement declares that directory authoritative.
+
+**Out of scope.** Every `.mjs` file. Any behaviour change. Any rename. If the
+diff touches `scripts/`, the change is wrong.
+
+**Why it is alone.** This is the artifact the owner personally reviews and the
+whole point of the schema-first reversal. A diff that mixes definitions with
+code cannot be reviewed for the thing that matters — whether the vocabulary is
+right. It is also risk-free to land: nothing executes it yet.
+
+**Design notes.**
+- `flow.yaml` is the piece with no precedent. It must record, per
+  transformation: input schema, output schema, owning module, what invalidates
+  the output. This is what lets an Agent answer "what else changes with it".
+- `frozen-identifiers.yaml` needs the two entry kinds described above, and every
+  entry needs a `reason:` naming the specific data at risk. Without the reason a
+  future reader sees only a `-v1` suffix and re-proposes the rename.
+- `page-render-model` vs `page-generation-spec` is the pair most easily
+  confused. Each definition must carry an explicit "does not contain" clause
+  naming the other.
+
+**Exit evidence.** The owner has read `flow.yaml` and the 19 stage files and
+agrees the data flow is what they want. That agreement is Checkpoint 1 — it is
+a human judgment, not a test result.
+
+---
+
+### C2 — `conform-code-to-schema-definitions`
+
+**Goal.** Make the code a mirror of C1's definitions, and make drift between
+them fail a test rather than accumulate silently.
+
+**In scope.** Rename schema constants where C1's vocabulary differs and the
+identifier is not frozen; add `// anchor: schema/stages/<name>.yaml` comments;
+add the drift test; enforce `frozen-identifiers.yaml` at runtime.
+
+**Out of scope.** Any semantic change whatsoever. Any frozen identifier. New
+schemas — those are C3/C4/C5.
+
+**Why it is alone.** It touches nearly every `.mjs` while changing no
+behaviour. A pure-rename diff is reviewable by scanning; a diff that mixes in
+one semantic change is not, and the semantic change hides.
+
+**Design notes.**
+- The drift test enumerates schema constants across `.mjs` and fails on any
+  name with no definition in `stages/` and no entry in `frozen-identifiers.yaml`.
+- **Do not invent the enforcement mechanism.** `scripts/contracts/harness_architecture.mjs`
+  already does cross-file schema-ownership validation — see
+  `PAGE_IMAGE_PROVIDER_INPUT_COMPILER_SCHEMA_BY_ADAPTER` at `:88` and
+  `validatePageImageProviderInputCompilation` at `:337`, which asserts that only
+  the Framed adapter may declare `page-image-framed-provider-input-v1`. Extend
+  that contract; do not build a parallel one.
+- `page_image_workflow_identity.mjs` is the reference for refusing a retired
+  identifier without rewriting records.
+- Expect the count to be roughly 89 identifiers against 19 definitions. Most map
+  as "internal projection of stage X". Resist the urge to rename them all.
+
+**Exit evidence.** `npm test` green; the drift test present and failing when a
+constant is deliberately renamed in a scratch commit; every frozen identifier
+still readable — prove it by validating an existing v3 attempt record.
+
+---
+
+### C3 — `close-upstream-narrative-gap`
+
+**Goal.** Make the flow start at the argument rather than at the page, so the
+human can correct the story before any page exists.
+
+**In scope.** `story-outline`, `design-constraints`, and the pagination step
+that turns a story into a page list.
+
+**Out of scope.** Page Class and layout config (C4). Anything about how a page
+is rendered.
+
+**Why it is separate.** Genuinely new territory with low coupling to the rest.
+It could be done before or after C4 — the ordering here is a preference, not a
+dependency. If C4 is urgent, C3 may follow it.
+
+**Design notes.** This is the least-specified change in the plan, because the
+earlier plans were all page-level. Expect to grill the owner on what a story
+outline actually contains before writing the proposal. The one firm constraint:
+it is Source Data, so it must be editable and must not be recomputable from the
+pages.
+
+**Exit evidence.** A deck can express its argument and constraints in source,
+and pagination derives a page list from them with provenance.
+
+---
+
+### C4 — `land-page-class-and-layout-config`
+
+**Goal.** Let a page declare what *kind* of page it is, and resolve that
+declaration into exactly one workflow-specific presentation, deterministically
+and with provenance.
+
+**In scope.** The `**PAGE CLASS**` source field; the four-document config
+package; the resolver; both adapters; the invalidation rules. Parser, Core,
+`03-framed-image/`, `04-pure-image/`.
+
+**Out of scope.** Publishing the resolved data to disk (C5). Provider-facing
+protection semantics (C6).
+
+**Why it is the hard one.** Rated `XL`: it changes common contracts, both
+adapters, paths, and regression suites. It must come after C1/C2 or it will
+re-scatter the schema — that is the specific failure this whole plan exists to
+prevent.
+
+**Design notes.** All of "Absorbed Design Decisions" Q2–Q13 below is C4's
+specification. Read it before proposing. In particular:
+- The closed class set is `standard | opening | transition | closing`, default
+  `standard`, omission normalizes to `standard`.
+- Selected-vs-unselected invalidation is the subtle part: editing a profile the
+  page *uses* forces a raw rebuild and a new review; editing a sibling profile
+  invalidates nothing.
+- `pure-deck-visual-system.yaml` is deliberately Pure-only and cannot be
+  extended into a shared registry.
+- There is exactly one Header Overlay Preset today (`standard-v1`, hardcoded,
+  caller-supplied rejected). C4 is what makes presets selectable. Note the
+  source already has a `**FRAME PRESET**` field carrying `standard-v1` on every
+  Framed slide — decide explicitly whether `**PAGE CLASS**` supersedes it,
+  coexists with it, or subsumes it. That interaction is unresolved.
+
+**Exit evidence.** A page resolves to exactly one workflow projection; the
+resolved view shows inherited values; unselected-profile edits provably
+invalidate nothing.
+
+---
+
+### C5 — `publish-per-page-derived-data`
+
+**Goal.** Make every intermediate step inspectable on disk before any money is
+spent, so the human can correct the pipeline rather than judge its output.
+
+**In scope.** Writing `page-source-receipt`, `page-layout`, `page-render-model`,
+`page-generation-spec`, `image2-request`, `framed-header-html`, and
+`page-artifact-index` as independent per-page files, plus the deck-level index.
+Timing: at `image2 plan`.
+
+**Out of scope.** Any provider call. Any new gate.
+
+**Why it is separate.** It depends on C4's resolver existing, and it is
+provider-free — so it can land and be inspected before any spend. That is
+exactly the owner's "我都能指正起来".
+
+**Design notes.**
+- `image2 plan` is the correct timing: after the plan exists, before
+  authorization.
+- The existing inspection sidecar stores request JSON under `prompt`, and Human
+  Navigation forbids raw prompt prose in its tree. The new per-page data must be
+  an independent directory, **not** a navigation copy.
+- Framed publishes header **HTML only**, no sibling JSON — the resolved page
+  layout already carries the structured facts.
+- **The trap:** a friendly projection must never become a new gate or a second
+  authority. Keep `test_complete_page_review.mjs` passing so publication cannot
+  create a second acceptance state.
+
+**Exit evidence.** For one page, a human can read every stage from source to
+exact provider bytes without running anything, and each derived file names what
+produced it.
+
+---
+
+### C6 — `harden-framed-provider-protected-composition`
+
+**Goal.** Make the Framed protection promise honest — either backed by a real
+provider primitive, or explicitly labelled as bounded best effort.
+
+**In scope.** `subject_restrictions` propagation, normalized protected geometry
+with explicit canvas semantics, a body-safe region, and the paid capability
+probe.
+
+**Out of scope.** Everything C1–C5 own. The v3 repair itself (C7).
+
+**Why it is separate and last-but-one.** It is the only change carrying
+external provider risk — an outcome no amount of local work can guarantee. It
+must not block C1–C5.
+
+**Full specification.** [framed-provider-protected-composition.md](framed-provider-protected-composition.md),
+with the probe fixture and rubric in
+[framed-provider-capability-discovery-research.md](framed-provider-capability-discovery-research.md).
+Both are current and were re-aligned on 2026-08-11.
+
+**The three known defects it owns** (each with a standing `it.todo` test):
+`subject_restrictions` dropped at `page_image_core.mjs:183`; bare
+`protected_geometry` with no canvas or unit semantics at
+`03-framed-image/index.mjs:821`; no body-safe region anywhere.
+
+**Exit evidence.** Either a verified native primitive with a transport change,
+or a written statement that Framed protection is bounded best effort — plus
+three probe runs against the synthetic fixture, never against v3.
+
+---
+
+### C7 — v3 repair (not an OpenSpec change)
+
+**Goal.** Get `deck_dark_factory_current` v3 unstuck and delivered.
+
+**Why it is not OpenSpec.** It is production work on a `deck_*` bundle.
+`openspec/config.yaml` is explicit: production bundles are never Harness source,
+and deck work enters through `BOOTSTRAP.md`, `AGENT_CONTRACT.md`, and the
+controller playbook — not through a proposal.
+
+**Current v3 state.** Framed workflow. Complete-page review for raw plan
+`d179342d` shows a header collision on all three pages (`DkfGo`, `TwoMet`,
+`PlatGo`). No accepted raw evidence, no final manifest, no delivery receipt —
+so it cannot proceed. The correct decision is `repair`, not `proceed`.
+
+**The mechanism.** Version succession, not migration. `--new-version` copies
+only `slide-specifications.md` and `overrides/` and resets `_generated/`, so the
+successor gets a clean source snapshot plus the new config package, while v3
+stays byte-preserved with its evidence intact. The successor inherits no raw
+evidence, grant, review decision, or final media. All three v3 pages normalize
+to `standard`, so succession makes no content or class judgment.
+
+**Hard rules.** Never hand-edit `_generated/`, state, receipts, or review
+records. Never carry a prior authorization forward. Inspect both the provider
+page and the composite before `proceed`.
 
 ## Absorbed Design Decisions
 

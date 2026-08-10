@@ -23,6 +23,26 @@
 | [framed-provider-protected-composition.md](framed-provider-protected-composition.md) | Framed provider 保护区、约束传播与修复前能力验证的调查/设计计划。归 C6。 |
 | [framed-provider-capability-discovery-research.md](framed-provider-capability-discovery-research.md) | Provider transport 面记录与合成探针准备。归 C6。 |
 
+### 阅读顺序（给接手的 Agent）
+
+这三份不是并列的。按这个顺序读：
+
+1. **`schema-first-page-image-recovery.md` 的 "Read This First" 一节** —
+   讲清楚 owner 抱怨的是什么（补丁摞补丁）、他定下的五条约束（原话）、以及
+   一条会覆盖你直觉的流程规则：**只有 `CONTEXT.md` 和 `docs/adr/` 可以直接
+   改，Harness 源码一律走 OpenSpec**。不读这一节就动手，第一步就会违规。
+2. **同一份文档的 "The Constraint That Shapes Everything"** — 为什么
+   `page-image-workflow-v1` 不能改名。它被算进 provider 幂等键并做精确相等
+   校验；改了它，27 份付费 attempt 记录不是标错，是**读不出来**。
+3. **"The Seven Changes In Detail"** — 每个 change 的名字、Goal、进出 scope、
+   先读什么、退出证据。你只做其中一个；先确认自己在做哪一个。
+4. 只有当你做的是 **C6** 时，才需要另外两份 Framed 专项文档。C1–C5 不需要。
+
+**别做的事**：不要重新论证已经在 "Absorbed Design Decisions" 和
+"Carried-Forward Findings" 里的结论——那是三份已关闭计划（CLS-025/026/027）
+的有效残留，重新调研只会得到同样的答案。也不要去读 `_done/_closed_plans/`
+里那三份原文，有效内容已经全部吸收上来了。
+
 2026-08-11 关闭三份被取代的计划（CLS-025/026/027），其有效证据已吸收进总控路线的
 "Already Landed" 与 "Absorbed Design Decisions" 两节。
 

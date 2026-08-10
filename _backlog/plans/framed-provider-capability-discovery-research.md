@@ -7,6 +7,14 @@
 > Naming note: `standard-v1` and `page-image-workflow-v1` below are quoted
 > implementation identifiers, not new vocabulary. The current preset is the
 > **Header Overlay Preset**; there is exactly one and it is hardcoded.
+>
+> This is the narrowest of the three active plans: it answers exactly one
+> question — can the configured provider be asked to keep pixels out of a
+> region, natively? Read
+> [framed-provider-protected-composition.md](framed-provider-protected-composition.md)
+> for what depends on the answer, and the route document for where C6 sits in
+> the order. Nothing here may be run against a `deck_*` bundle; the fixture
+> below exists precisely so that probing never touches production evidence.
 
 ## Decision
 
