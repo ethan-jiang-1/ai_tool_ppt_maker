@@ -230,9 +230,9 @@ production:
       const before = treeSnapshot(value.deck);
       const inspection = inspectWorkflow({ runDir: value.runDir });
       expect(inspection).toMatchObject({
-        posture: "confirm",
+        posture: "guide",
         root_cause: { owner: "progressive-raw-owner", kind: "plan_progressive_pilot" },
-        primary_action: { owner: "progressive-raw-owner", action_id: "plan_progressive_pilot", requires_human: true },
+        primary_action: { owner: "progressive-raw-owner", action_id: "plan_progressive_pilot", requires_human: false },
         evidence_summary: {
           progressive: "current",
           plan_hash: value.plan.progressive_raw_work_plan.sha256,
@@ -273,9 +273,9 @@ production:
       const before = treeSnapshot(value.deck);
       const inspection = inspectWorkflow({ runDir: value.runDir });
       expect(inspection).toMatchObject({
-        posture: "confirm",
+        posture: "guide",
         root_cause: { owner: "progressive-raw-owner", kind: "plan_progressive_pilot" },
-        primary_action: { owner: "progressive-raw-owner", action_id: "plan_progressive_pilot", kind: "confirm", requires_human: true },
+        primary_action: { owner: "progressive-raw-owner", action_id: "plan_progressive_pilot", kind: "guide", requires_human: false },
         evidence_summary: {
           progressive: "current",
           plan_hash: planHash,

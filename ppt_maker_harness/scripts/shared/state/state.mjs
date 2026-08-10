@@ -37,9 +37,13 @@ import {
   validateRawWorkPlan,
 } from "../image2/page_image_artifacts.mjs";
 import {
+  PROGRESSIVE_RAW_WORK_PLAN_SCHEMA,
   validateProgressiveAcceptedRawEvidence,
   validateProgressiveRawWorkPlan,
 } from "../image2/page_image_progressive_schema.mjs";
+import {
+  readProgressiveRawPlanDirectRecords,
+} from "../image2/page_image_progressive_store.mjs";
 import {
   validateStyleMasterSelectionRecord,
 } from "../image2/style_master_schema.mjs";
@@ -49,6 +53,7 @@ import {
   UNSUPPORTED_PROTOCOL_CODE,
   evaluateReplacementIdentity,
 } from "../run-bundle/page_image_workflow_identity.mjs";
+import { canonicalJsonSha256 } from "../identity/canonical_json.mjs";
 
 export const STATE_DIR = "_state";
 export const STATE_FILE = "state.yaml";
@@ -64,7 +69,7 @@ export const STATE_YAML_HEADER = `\
 # Schema authority: ppt_maker_harness/charter/NODE-SPEC.md
 # API: ppt_maker_harness/scripts/shared/state/state.mjs
 # CLI: node ppt_maker_harness/scripts/ppt_flow.mjs state <runDir> [--json|--check-gates]
-# Fields: schema_version, pipeline, production_mode.by_version, playbook, current_node, execution_id, nodes.*, gates.*, deck.*, playbook_stack
+# Fields: schema_version, pipeline, production_mode.by_version, page_image_task_mandate.by_version, playbook, current_node, execution_id, nodes.*, gates.*, deck.*, playbook_stack
 # MD Controller source: ppt_maker_harness/playbook/*.md
 # Read boundary: observation validates current schema-5 authority and never rewrites, infers, or continues unsupported historical state
 `;
@@ -106,6 +111,7 @@ const STATE_TOP_LEVEL_KEYS = new Set([
   "page_image_raw_provider_authorization",
   "page_image_target_evidence",
   "page_image_progressive_handoff",
+  "page_image_task_mandate",
   "page_image_style_master",
   "playbook",
   "current_node",
@@ -642,6 +648,8 @@ export function resolveRunProductionAdapter(deckDir, { runVersion, runDir, purpo
 
 export const PAGE_IMAGE_RAW_PROVIDER_AUTHORIZATION_SCHEMA = "page-image-workflow-provider-authorization-v1";
 export const PAGE_IMAGE_TARGET_STATE_SCHEMA = "page-image-workflow-target-state-v1";
+export const PAGE_IMAGE_TASK_MANDATE_SCHEMA = "page-image-task-mandate-v1";
+export const PAGE_IMAGE_TASK_MANDATE_SCOPE = "normal-page-image-production";
 
 function stableStringify(value) {
   if (value === null || typeof value !== "object") return JSON.stringify(value);
@@ -680,6 +688,63 @@ function validatePageImageRawAuthorizationStructure(state, errors) {
       errors.push(`invalid page_image_raw_provider_authorization record ${key}`);
     }
   }
+}
+
+const PAGE_IMAGE_TASK_MANDATE_RECORD_KEYS = Object.freeze([
+  "schema",
+  "run_version",
+  "workflow",
+  "execution_id",
+  "execution_started_at",
+  "issued_at",
+  "scope",
+]);
+
+function validPageImageTaskMandateRecord(record, runVersion) {
+  return hasExactKeys(record, PAGE_IMAGE_TASK_MANDATE_RECORD_KEYS) &&
+    record.schema === PAGE_IMAGE_TASK_MANDATE_SCHEMA &&
+    record.run_version === runVersion &&
+    ["framed", "pure"].includes(record.workflow) &&
+    typeof record.execution_id === "string" && record.execution_id.length > 0 &&
+    validIsoTimestamp(record.execution_started_at) &&
+    validIsoTimestamp(record.issued_at) &&
+    record.scope === PAGE_IMAGE_TASK_MANDATE_SCOPE;
+}
+
+function taskMandateReference(record) {
+  return sha256(Buffer.from(stableStringify(record)));
+}
+
+function validatePageImageTaskMandateStructure(state, errors) {
+  const map = state.page_image_task_mandate;
+  if (map === undefined) return;
+  if (!hasExactKeys(map, ["by_version"]) || !isPlainObject(map.by_version)) {
+    errors.push("page_image_task_mandate must contain only by_version");
+    return;
+  }
+  for (const [key, record] of Object.entries(map.by_version)) {
+    const runVersion = versionFromReservedKey(key);
+    if (!runVersion) errors.push(`invalid page_image_task_mandate version key ${key}`);
+    else if (!validPageImageTaskMandateRecord(record, runVersion)) errors.push(`invalid page_image_task_mandate record ${key}`);
+  }
+}
+
+function taskMandateRecord(state, runVersion) {
+  return state?.page_image_task_mandate?.by_version?.[canonicalVersionKey(runVersion)] || null;
+}
+
+function currentTaskMandateMatches(record, context, workflow) {
+  return validPageImageTaskMandateRecord(record, context.exactVersion) &&
+    record.workflow === workflow &&
+    record.execution_id === context.state.execution_id &&
+    record.execution_started_at === context.state.execution_started_at;
+}
+
+function ensureTaskMandateContainer(state) {
+  if (!isPlainObject(state.page_image_task_mandate) || !isPlainObject(state.page_image_task_mandate.by_version)) {
+    state.page_image_task_mandate = { by_version: {} };
+  }
+  return state.page_image_task_mandate.by_version;
 }
 
 function styleMasterSelectionExpectedWorkflow(state, runVersion) {
@@ -907,6 +972,7 @@ export function activateCleanPageImageTargetDraft(deckDir, {
 // Progressive raw facts remain exclusively in the append-mostly raw owner.
 // State keeps only the typed Controller handoff references needed to resume.
 export const PAGE_IMAGE_PROGRESSIVE_HANDOFF_SCHEMA = "page-image-workflow-handoff-v1";
+export const PAGE_IMAGE_PROGRESSIVE_AUTHORIZE_CLI_EVIDENCE_KEY = "exact-batch-grant-recorded";
 const PROGRESSIVE_HANDOFF_RECORD_KEYS = Object.freeze([
   "schema",
   "run_version",
@@ -1108,6 +1174,101 @@ function targetEvidenceContext(deckDir, { runVersion, runDir, purpose = "execute
   const modeRecord = state.production_mode?.by_version?.[canonicalVersionKey(exactVersion)];
   if (!isProductionModeRecord(modeRecord) || modeRecord.mode !== "image2-page-workflow-v1") throw new Error("PAGE_IMAGE_STATE_INVALID");
   return Object.freeze({ exactVersion, inspection, state, stateSha: execution.state_sha256, sourceIdentity: execution.source_identity, modeRecord, record: targetEvidenceRecord(state, exactVersion) });
+}
+
+/**
+ * Read the one task-mandate record usable by the active Page Image execution.
+ * This is deliberately observation-only: a missing or stale record remains a
+ * provider-free planning recovery, never an inferred authority.
+ */
+export function inspectCurrentPageImageTaskMandate(deckDir, { runVersion, runDir, workflow = null } = {}) {
+  let context;
+  try {
+    context = targetEvidenceContext(deckDir, { runVersion, runDir, purpose: "observe" });
+  } catch (error) {
+    return Object.freeze({ ok: false, code: error?.code || error?.message || "TASK_MANDATE_STATE_UNAVAILABLE" });
+  }
+  const selectedWorkflow = workflow ?? context.inspection.workflow;
+  if (!["framed", "pure"].includes(selectedWorkflow) || selectedWorkflow !== context.inspection.workflow) {
+    return Object.freeze({ ok: false, code: "TASK_MANDATE_WORKFLOW_MISMATCH", run_version: context.exactVersion });
+  }
+  const record = taskMandateRecord(context.state, context.exactVersion);
+  if (!validPageImageTaskMandateRecord(record, context.exactVersion)) {
+    return Object.freeze({ ok: false, code: "TASK_MANDATE_MISSING", run_version: context.exactVersion, workflow: selectedWorkflow });
+  }
+  if (!currentTaskMandateMatches(record, context, selectedWorkflow)) {
+    return Object.freeze({ ok: false, code: "TASK_MANDATE_STALE", run_version: context.exactVersion, workflow: selectedWorkflow });
+  }
+  return Object.freeze({
+    ok: true,
+    run_version: context.exactVersion,
+    workflow: selectedWorkflow,
+    task_mandate_sha256: taskMandateReference(record),
+    record: Object.freeze(structuredClone(record)),
+  });
+}
+
+/**
+ * Establish one non-secret normal-production mandate for the exact active
+ * Page Image execution, or replay its existing identical record.
+ */
+export function ensureCurrentPageImageTaskMandate(deckDir, { runVersion, runDir, workflow = null, expectedStateSha = null } = {}) {
+  const context = targetEvidenceContext(deckDir, { runVersion, runDir, purpose: "execute" });
+  const selectedWorkflow = workflow ?? context.inspection.workflow;
+  if (!["framed", "pure"].includes(selectedWorkflow) || selectedWorkflow !== context.inspection.workflow) {
+    throw new Error("TASK_MANDATE_WORKFLOW_MISMATCH");
+  }
+  if (!validTargetEvidenceRecord(context.record, context.exactVersion) ||
+    context.record.source_epoch !== context.modeRecord.source_epoch ||
+    context.record.workflow !== selectedWorkflow) {
+    throw new Error("TARGET_SOURCE_STATE_IDENTITY_MISMATCH");
+  }
+  const existing = taskMandateRecord(context.state, context.exactVersion);
+  if (currentTaskMandateMatches(existing, context, selectedWorkflow)) {
+    return Object.freeze({
+      ok: true,
+      replay: true,
+      run_version: context.exactVersion,
+      workflow: selectedWorkflow,
+      task_mandate_sha256: taskMandateReference(existing),
+      record: Object.freeze(structuredClone(existing)),
+    });
+  }
+
+  const issuedAt = nowIso();
+  const record = {
+    schema: PAGE_IMAGE_TASK_MANDATE_SCHEMA,
+    run_version: context.exactVersion,
+    workflow: selectedWorkflow,
+    execution_id: context.state.execution_id,
+    execution_started_at: context.state.execution_started_at,
+    issued_at: issuedAt,
+    scope: PAGE_IMAGE_TASK_MANDATE_SCOPE,
+  };
+  if (!validPageImageTaskMandateRecord(record, context.exactVersion)) throw new Error("TASK_MANDATE_RECORD_INVALID");
+  const next = structuredClone(context.state);
+  delete next.durable_state_present;
+  delete next._healed;
+  delete next._heal_pending;
+  next.schema_version = STATE_SCHEMA_VERSION;
+  ensureTaskMandateContainer(next)[canonicalVersionKey(context.exactVersion)] = record;
+  writeState(deckDir, next, { expectedStateSha: expectedStateSha ?? context.stateSha, updatedAt: issuedAt });
+  appendHistory(deckDir, {
+    type: "page_image_task_mandate",
+    run_version: context.exactVersion,
+    workflow: selectedWorkflow,
+    execution_id: record.execution_id,
+    task_mandate_sha256: taskMandateReference(record),
+    at: issuedAt,
+  });
+  return Object.freeze({
+    ok: true,
+    replay: false,
+    run_version: context.exactVersion,
+    workflow: selectedWorkflow,
+    task_mandate_sha256: taskMandateReference(record),
+    record: Object.freeze(structuredClone(record)),
+  });
 }
 
 function targetEvidenceFailure(code, nextAction) {
@@ -1898,6 +2059,159 @@ export function readTargetProgressiveHandoff(deckDir, { runVersion, runDir } = {
     return null;
   }
   return Object.freeze(structuredClone(record));
+}
+
+function progressiveAuthorizeNodeId(workflow, batchKind) {
+  if (!["framed", "pure"].includes(workflow) || !["pilot", "expansion"].includes(batchKind)) return null;
+  return `authorize-target-${workflow}-${batchKind}`;
+}
+
+function progressiveAuthorizeCliEvidenceNote({ planHash, batchHash, grantHash, taskMandateSha256 } = {}) {
+  return `plan=${planHash}; batch=${batchHash}; grant=${grantHash}; task-mandate=${taskMandateSha256}`;
+}
+
+function validProgressiveAuthorizeCliEvidence(evidence) {
+  return isPlainObject(evidence) &&
+    evidence.met === true &&
+    evidence.kind === "cli" &&
+    typeof evidence.note === "string" &&
+    /^plan=[0-9a-f]{64}; batch=[0-9a-f]{64}; grant=[0-9a-f]{64}; task-mandate=[0-9a-f]{64}$/.test(evidence.note);
+}
+
+function progressiveAuthorizeHandoffFailure(code) {
+  const error = new Error(code);
+  error.code = code;
+  throw error;
+}
+
+/**
+ * Complete only the matching stable authorize node after `image2 authorize`
+ * has already recorded or replayed its immutable raw-owner grant. The direct
+ * plan/batch/grant store remains authoritative; State owns only the typed CLI
+ * handoff needed by the MD Controller.
+ */
+export function recordTargetProgressiveAuthorizeCliHandoff(deckDir, {
+  runVersion,
+  runDir,
+  planHash,
+  batchHash,
+  grantHash,
+  expectedStateSha = null,
+} = {}) {
+  for (const [label, value] of Object.entries({ planHash, batchHash, grantHash })) {
+    if (!SHA256_RE.test(value || "")) throw new TypeError(`${label} must be a lowercase SHA-256`);
+  }
+  const context = targetEvidenceContext(deckDir, { runVersion, runDir, purpose: "execute" });
+  if (!validTargetEvidenceRecord(context.record, context.exactVersion) ||
+    context.record.source_epoch !== context.modeRecord.source_epoch ||
+    context.record.workflow !== context.inspection.workflow) {
+    progressiveAuthorizeHandoffFailure("TARGET_PROGRESSIVE_AUTHORIZE_HANDOFF_STATE_INVALID");
+  }
+
+  let direct;
+  try {
+    direct = readProgressiveRawPlanDirectRecords(join(deckDir, "3_versions", context.exactVersion), {
+      plan_sha256: planHash,
+    });
+  } catch (error) {
+    progressiveAuthorizeHandoffFailure(error?.code || "TARGET_PROGRESSIVE_AUTHORIZE_HANDOFF_DIRECT_RECORD_INVALID");
+  }
+  const plan = direct.plan.record;
+  const planFacts = progressivePlanFacts(plan);
+  if (planFacts.sha256 !== planHash || plan.schema !== PROGRESSIVE_RAW_WORK_PLAN_SCHEMA ||
+    planFacts.run_version !== context.exactVersion ||
+    planFacts.source_epoch !== context.record.source_epoch ||
+    planFacts.source_receipt_sha256 !== context.record.source_receipt_sha256 ||
+    planFacts.workflow !== context.record.workflow) {
+    progressiveAuthorizeHandoffFailure("TARGET_PROGRESSIVE_AUTHORIZE_HANDOFF_PLAN_MISMATCH");
+  }
+  const mandate = taskMandateRecord(context.state, context.exactVersion);
+  if (!currentTaskMandateMatches(mandate, context, plan.workflow) ||
+    plan.task_mandate_sha256 !== taskMandateReference(mandate)) {
+    progressiveAuthorizeHandoffFailure("TARGET_PROGRESSIVE_AUTHORIZE_HANDOFF_MANDATE_MISMATCH");
+  }
+  const batch = direct.batches.find((entry) => entry.sha256 === batchHash) || null;
+  const grant = direct.grants.find((entry) => entry.sha256 === grantHash) || null;
+  if (!batch || !grant || grant.record.plan_sha256 !== planHash ||
+    grant.record.batch_sha256 !== batchHash || grant.record.run_version !== plan.run_version ||
+    grant.record.workflow !== plan.workflow || grant.record.maximum_submissions !== batch.record.maximum_submissions ||
+    canonicalJsonSha256(grant.record.ordered_slide_ids) !== canonicalJsonSha256(batch.record.paid_submission_slide_ids)) {
+    progressiveAuthorizeHandoffFailure("TARGET_PROGRESSIVE_AUTHORIZE_HANDOFF_GRANT_MISMATCH");
+  }
+  const expectedNodeId = progressiveAuthorizeNodeId(plan.workflow, batch.record.kind);
+  if (!expectedNodeId) progressiveAuthorizeHandoffFailure("TARGET_PROGRESSIVE_AUTHORIZE_HANDOFF_BATCH_KIND_INVALID");
+
+  const base = Object.freeze({
+    ok: true,
+    run_version: context.exactVersion,
+    workflow: plan.workflow,
+    node_id: expectedNodeId,
+    plan_hash: planHash,
+    batch_hash: batchHash,
+    grant_hash: grantHash,
+    task_mandate_sha256: plan.task_mandate_sha256,
+  });
+  if (context.state.playbook !== "create-deck" || context.state.current_node !== expectedNodeId) {
+    return Object.freeze({
+      ...base,
+      status: "not-applicable",
+      current_node: context.state.current_node || null,
+    });
+  }
+
+  const note = progressiveAuthorizeCliEvidenceNote({
+    planHash,
+    batchHash,
+    grantHash,
+    taskMandateSha256: plan.task_mandate_sha256,
+  });
+  const existing = activeRecord(context.state, expectedNodeId);
+  const existingEvidence = existing?.evidence?.[PAGE_IMAGE_PROGRESSIVE_AUTHORIZE_CLI_EVIDENCE_KEY] || null;
+  const evidenceIsCurrent = validProgressiveAuthorizeCliEvidence(existingEvidence) && existingEvidence.note === note;
+  const supersedesPriorCliGrant = existing?.status === "completed" &&
+    !evidenceIsCurrent &&
+    validProgressiveAuthorizeCliEvidence(existingEvidence) &&
+    Object.keys(existing.evidence || {}).length === 1;
+  if (existing?.status === "completed") {
+    if (evidenceIsCurrent) {
+      return Object.freeze({ ...base, status: "replay" });
+    }
+    if (!supersedesPriorCliGrant) {
+      progressiveAuthorizeHandoffFailure("TARGET_PROGRESSIVE_AUTHORIZE_HANDOFF_NODE_CONFLICT");
+    }
+  }
+  if (existing && !["pending", "in_progress"].includes(existing.status) && !supersedesPriorCliGrant) {
+    progressiveAuthorizeHandoffFailure("TARGET_PROGRESSIVE_AUTHORIZE_HANDOFF_NODE_STATE_INVALID");
+  }
+
+  const next = structuredClone(context.state);
+  delete next.durable_state_present;
+  delete next._healed;
+  delete next._heal_pending;
+  next.schema_version = STATE_SCHEMA_VERSION;
+  if (!evidenceIsCurrent) {
+    setNodeEvidence(next, expectedNodeId, PAGE_IMAGE_PROGRESSIVE_AUTHORIZE_CLI_EVIDENCE_KEY, {
+      kind: "cli",
+      note,
+    }, { runVersion: context.exactVersion });
+  }
+  setNodeStatus(next, expectedNodeId, "completed", {}, { runVersion: context.exactVersion });
+  writeState(deckDir, next, { expectedStateSha: expectedStateSha ?? context.stateSha, updatedAt: nowIso() });
+  appendHistory(deckDir, {
+    type: "page_image_progressive_authorize_cli_handoff",
+    run_version: context.exactVersion,
+    workflow: plan.workflow,
+    node_id: expectedNodeId,
+    plan_sha256: planHash,
+    batch_sha256: batchHash,
+    grant_sha256: grantHash,
+    task_mandate_sha256: plan.task_mandate_sha256,
+    ...(supersedesPriorCliGrant ? { supersedes_prior_cli_grant: true } : {}),
+  });
+  return Object.freeze({
+    ...base,
+    status: supersedesPriorCliGrant ? "superseded" : evidenceIsCurrent ? "repaired" : "completed",
+  });
 }
 
 /**
@@ -2884,6 +3198,7 @@ export function validateState(state) {
   validateProductionModeStructure(state, errors);
   validateStyleMasterSelectionStructure(state, errors);
   validatePageImageRawAuthorizationStructure(state, errors);
+  validatePageImageTaskMandateStructure(state, errors);
   validateTargetEvidenceStructure(state, errors);
   validateProgressiveHandoffStructure(state, errors);
   validateCurrentControllerIdentity(state, errors);

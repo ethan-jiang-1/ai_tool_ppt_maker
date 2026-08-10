@@ -102,6 +102,7 @@ function fixturePlan(count = 1, {
   profile_token = "b",
   effective_style_master_sha256 = digest("c"),
   source_execution_sha256 = digest("d"),
+  task_mandate_sha256 = undefined,
 } = {}) {
   const ids = Array.from({ length: count }, (_value, index) => `Slide${String(index + 1).padStart(2, "0")}`);
   const generationProfile = fixtureGenerationProfile(profile_token);
@@ -115,6 +116,7 @@ function fixturePlan(count = 1, {
     provider_profile_sha256,
     effective_style_master_sha256,
     source_execution_sha256,
+    ...(task_mandate_sha256 === undefined ? {} : { task_mandate_sha256 }),
     ordered_slide_ids: ids,
     items: ids.map((slide_id) => {
       const rawContract = fixtureRawContract(slide_id);
@@ -129,6 +131,15 @@ function fixturePlan(count = 1, {
         },
       };
     }),
+  });
+}
+
+function fixtureTaskMandate(plan, task_mandate_sha256 = plan.task_mandate_sha256) {
+  return Object.freeze({
+    ok: true,
+    run_version: plan.run_version,
+    workflow: plan.workflow,
+    task_mandate_sha256,
   });
 }
 
@@ -243,6 +254,129 @@ describe("progressive Page Image raw owner", () => {
     expect(validateProgressiveRawBatch(batch, { plan })).toMatchObject({ ok: true, sha256: batch.sha256 });
     expect(validateProgressiveRawBatch({ ...batch, provider_profile_sha256: digest("9") }, { plan }))
       .toMatchObject({ ok: false, code: "progressive_raw_cross_bound" });
+  });
+
+  it("requires a matching v2 Task Mandate before a new batch grant or provider attempt", async () => {
+    const { root, runDir } = fixtureRun();
+    const plan = fixturePlan(6, { task_mandate_sha256: digest("e") });
+    const matchingMandate = fixtureTaskMandate(plan);
+    const staleMandate = fixtureTaskMandate(plan, digest("f"));
+    try {
+      expect(validateProgressiveRawWorkPlan(plan)).toMatchObject({ ok: true, sha256: plan.sha256 });
+      publishProgressiveRawWorkPlan({ runDir, plan });
+
+      expect(inspectProgressiveRawLifecycle({
+        runDir,
+        workflow: plan.workflow,
+        task_mandate: matchingMandate,
+      }).primary_action).toMatchObject({
+        action_id: "plan_progressive_pilot",
+        kind: "guide",
+        requires_human: false,
+      });
+      expect(inspectProgressiveRawLifecycle({
+        runDir,
+        workflow: plan.workflow,
+        task_mandate: staleMandate,
+      }).primary_action).toMatchObject({
+        action_id: "rebuild_progressive_raw_work",
+        kind: "guide",
+        requires_human: false,
+      });
+
+      await expect(planProgressiveRawPilot({
+        runDir,
+        workflow: plan.workflow,
+        plan_hash: plan.sha256,
+        slide_ids: ["Slide01"],
+        task_mandate: staleMandate,
+      })).rejects.toMatchObject({
+        code: "progressive_raw_task_mandate_required",
+        next_action: { action_id: "rebuild_progressive_raw_work" },
+      });
+      expect(readProgressiveRawPlanDirectRecords(runDir, { plan_sha256: plan.sha256 }).batches).toEqual([]);
+
+      const pilot = await planProgressiveRawPilot({
+        runDir,
+        workflow: plan.workflow,
+        plan_hash: plan.sha256,
+        slide_ids: ["Slide01"],
+        task_mandate: matchingMandate,
+      });
+      expect(pilot.next_action).toMatchObject({
+        action_id: "authorize_progressive_raw_batch",
+        kind: "guide",
+        requires_human: false,
+      });
+
+      await expect(authorizeProgressiveRawBatch({
+        runDir,
+        workflow: plan.workflow,
+        plan_hash: plan.sha256,
+        batch_hash: pilot.batch.batch_hash,
+        task_mandate: staleMandate,
+      })).rejects.toMatchObject({ code: "progressive_raw_task_mandate_required" });
+      expect(readProgressiveRawPlanDirectRecords(runDir, { plan_sha256: plan.sha256 }).grants).toEqual([]);
+
+      const grant = await authorizeProgressiveRawBatch({
+        runDir,
+        workflow: plan.workflow,
+        plan_hash: plan.sha256,
+        batch_hash: pilot.batch.batch_hash,
+        task_mandate: matchingMandate,
+      });
+      expect(grant.next_action).toMatchObject({
+        action_id: "generate_progressive_raw_item",
+        kind: "guide",
+        requires_human: false,
+      });
+
+      const preflight = vi.fn(async () => {});
+      const submit = vi.fn(async () => Buffer.from("must not submit"));
+      await expect(generateProgressiveRawItem({
+        runDir,
+        workflow: plan.workflow,
+        plan_hash: plan.sha256,
+        batch_hash: pilot.batch.batch_hash,
+        provider_requests_by_slide: fixtureProviderRequests(plan),
+        task_mandate: staleMandate,
+        preflight,
+        submit,
+      })).rejects.toMatchObject({ code: "progressive_raw_task_mandate_required" });
+      expect(preflight).not.toHaveBeenCalled();
+      expect(submit).not.toHaveBeenCalled();
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps a v1 plan inspectable but blocks new runtime work under a Task Mandate", async () => {
+    const { root, runDir } = fixtureRun();
+    const plan = fixturePlan(1);
+    try {
+      publishProgressiveRawWorkPlan({ runDir, plan });
+      expect(inspectProgressiveRawLifecycle({
+        runDir,
+        workflow: plan.workflow,
+        task_mandate: fixtureTaskMandate({ ...plan, task_mandate_sha256: digest("e") }),
+      })).toMatchObject({
+        ok: true,
+        plan: { plan_hash: plan.sha256 },
+        primary_action: { action_id: "rebuild_progressive_raw_work" },
+      });
+      expect(readProgressiveRawPlanDirectRecords(runDir, { plan_sha256: plan.sha256 }).plan.record)
+        .toEqual(plan);
+      await expect(planProgressiveRawPilot({
+        runDir,
+        workflow: plan.workflow,
+        plan_hash: plan.sha256,
+        slide_ids: ["Slide01"],
+        task_mandate: fixtureTaskMandate({ ...plan, task_mandate_sha256: digest("e") }),
+      })).rejects.toMatchObject({ code: "progressive_raw_task_mandate_required" });
+      expect(readProgressiveRawPlanDirectRecords(runDir, { plan_sha256: plan.sha256 }).batches).toEqual([]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 
   it("keeps a staged or published-but-unheaded plan outside the current lifecycle", () => {

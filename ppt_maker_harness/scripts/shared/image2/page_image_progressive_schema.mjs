@@ -1,7 +1,8 @@
 import { canonicalJson, canonicalJsonSha256 } from "../identity/canonical_json.mjs";
 import { evaluateReplacementIdentity } from "../run-bundle/page_image_workflow_identity.mjs";
 
-export const PROGRESSIVE_RAW_WORK_PLAN_SCHEMA = "page-image-progressive-raw-work-plan-v1";
+export const PROGRESSIVE_RAW_WORK_PLAN_V1_SCHEMA = "page-image-progressive-raw-work-plan-v1";
+export const PROGRESSIVE_RAW_WORK_PLAN_SCHEMA = "page-image-progressive-raw-work-plan-v2";
 export const PROGRESSIVE_RAW_SCOPE_HEAD_SCHEMA = "page-image-progressive-raw-scope-head-v1";
 export const PROGRESSIVE_RAW_BATCH_SCHEMA = "page-image-progressive-raw-batch-projection-v1";
 export const PROGRESSIVE_RAW_BATCH_GRANT_SCHEMA = "page-image-progressive-raw-batch-grant-v1";
@@ -223,11 +224,15 @@ function create(record, validator, options = undefined) {
 export function validateProgressiveRawWorkPlan(plan) {
   return result(() => {
     assertReplacementRecord(plan, "progressive-raw-plan");
-    if (!exactKeys(plan, [
+    const v1 = plan?.schema === PROGRESSIVE_RAW_WORK_PLAN_V1_SCHEMA;
+    const v2 = plan?.schema === PROGRESSIVE_RAW_WORK_PLAN_SCHEMA;
+    const keys = [
       "schema", "run_version", "source_receipt_sha256", "source_epoch", "workflow",
       "provider_profile_sha256", "effective_style_master_sha256", "source_execution_sha256",
+      ...(v2 ? ["task_mandate_sha256"] : []),
       "ordered_slide_ids", "items",
-    ]) || plan.schema !== PROGRESSIVE_RAW_WORK_PLAN_SCHEMA) {
+    ];
+    if ((!v1 && !v2) || !exactKeys(plan, keys)) {
       fail("progressive_raw_plan_invalid", "raw work plan has an invalid shape");
     }
     assertRunVersion(plan.run_version);
@@ -237,6 +242,7 @@ export function validateProgressiveRawWorkPlan(plan) {
     assertDigest(plan.provider_profile_sha256, "provider_profile_sha256");
     assertDigest(plan.effective_style_master_sha256, "effective_style_master_sha256");
     assertDigest(plan.source_execution_sha256, "source_execution_sha256");
+    if (v2) assertDigest(plan.task_mandate_sha256, "task_mandate_sha256");
     assertOrderedIds(plan.ordered_slide_ids);
     assertItems(plan.items, plan.ordered_slide_ids, { workflow: plan.workflow });
     return plan;
@@ -244,8 +250,10 @@ export function validateProgressiveRawWorkPlan(plan) {
 }
 
 export function createProgressiveRawWorkPlan(input = {}) {
+  const hasTaskMandate = Object.hasOwn(input, "task_mandate_sha256");
+  const taskMandate = input.task_mandate_sha256;
   return create({
-    schema: PROGRESSIVE_RAW_WORK_PLAN_SCHEMA,
+    schema: hasTaskMandate ? PROGRESSIVE_RAW_WORK_PLAN_SCHEMA : PROGRESSIVE_RAW_WORK_PLAN_V1_SCHEMA,
     run_version: input.run_version,
     source_receipt_sha256: input.source_receipt_sha256,
     source_epoch: input.source_epoch,
@@ -253,6 +261,7 @@ export function createProgressiveRawWorkPlan(input = {}) {
     provider_profile_sha256: input.provider_profile_sha256,
     effective_style_master_sha256: input.effective_style_master_sha256,
     source_execution_sha256: input.source_execution_sha256,
+    ...(hasTaskMandate ? { task_mandate_sha256: taskMandate } : {}),
     ordered_slide_ids: input.ordered_slide_ids,
     items: input.items,
   }, validateProgressiveRawWorkPlan);

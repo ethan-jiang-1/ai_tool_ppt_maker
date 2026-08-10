@@ -1,9 +1,9 @@
 ## Purpose
 
 Define the receipt-bound Page Image Workflow raw-image lifecycle. It compiles current
-Pure and Framed raw requests, requires an exact human authorization before a
-nonzero provider submission, records deterministic raw evidence, and exposes a
-review projection before finalization.
+Pure and Framed raw requests, requires a Task-Mandate-backed exact batch grant
+before a nonzero provider submission, records deterministic raw evidence, and
+exposes a human review projection before finalization.
 ## Requirements
 ### Requirement: Page Image Workflow compiles one auditable provider input per slide
 
@@ -101,14 +101,15 @@ separate raw-only or composite-only acceptance state.
 
 After current source receipt and Style Master readiness are established, the
 selected Page Image adapter SHALL publish one provider-free immutable full plan
-for its exact version/workflow scope. The plan and each ordered stable
-`slide_id` item SHALL bind the selected adapter's compiled provider-input
-digest, raw-contract digest, generation profile, Style Master selection, and
-policy-specific header profile or protected geometry where applicable. A
-materialized provider page becomes current only through the exact plan/batch,
-grant, submitted terminal attempt, verified bytes, and immutable provenance
-chain. An ID match, filename, task projection, copied bytes, or last grant
-digest SHALL not establish current raw evidence.
+for its exact version/workflow scope under one active Page Image Task Mandate.
+The plan and each ordered stable `slide_id` item SHALL bind the selected
+adapter's compiled provider-input digest, raw-contract digest, generation
+profile, Style Master selection, Task Mandate reference, and policy-specific
+header profile or protected geometry where applicable. A materialized provider
+page becomes current only through the exact plan/batch, mandate-bound grant,
+submitted terminal attempt, verified bytes, and immutable provenance chain. An
+ID match, filename, task projection, copied bytes, last grant digest, or Task
+Mandate alone SHALL not establish current raw evidence.
 
 The common progressive owner SHALL consume only a validated typed plan from the
 selected adapter. It SHALL retain immutable full plans, batches, grants,
@@ -124,15 +125,46 @@ reopened, or replaced without the owner-issued reconciliation or successor path.
 Staging, unreferenced history, directory order, timestamps, and derived files
 are not current authority.
 
-`pilot` creates only a provider-free exact batch projection. Provider work
-requires later exact batch authorization and generation. A partial Pilot
-decision is limited to its complete attributable sample and may only expose the
-current Expansion or repair/replan action; it cannot publish accepted raw
-evidence, final media, a manifest, PPTX, notes, or delivery. When paid debt is
-zero or the current Pilot scope exhausts the full debt, no synthetic partial
-Pilot decision is created and the owner routes to Complete Page Review. Missing
-partial-Pilot coverage with residual debt returns the owner-issued successor
-Pilot planning action before evidence or decision publication.
+`pilot` creates only a provider-free exact batch projection. With a valid active
+Task Mandate, routine Pilot scope selection, successor planning, and later
+exact batch grant creation are Agent-run work; the grant SHALL still validate
+the exact plan, batch, selected IDs, maximum submissions, and mandate binding
+before generation. A partial Pilot decision is limited to its complete
+attributable sample and may only expose the current Expansion or repair/replan
+action; it cannot publish accepted raw evidence, final media, a manifest, PPTX,
+notes, or delivery. When paid debt is zero or the current Pilot scope exhausts
+the full debt, no synthetic partial Pilot decision is created and the owner
+routes to Complete Page Review. Missing partial-Pilot coverage with residual
+debt returns the owner-issued successor Pilot planning action before evidence
+or decision publication.
+
+#### Scenario: Task-Mandate-covered exact grant remains bounded
+
+- **WHEN** a current mandate-bound plan has an owner-issued Pilot or Expansion
+  batch with an exact plan hash and batch hash
+- **THEN** the owner records or exact-replays one grant bound to that mandate,
+  selected IDs, and maximum submissions without a new human cost decision
+- **AND** generation still submits at most one owner-eligible item from that
+  exact grant per invocation
+
+#### Scenario: Missing or stale Task Mandate stops before a grant
+
+- **WHEN** current raw work has no active mandate or its version, workflow, or
+  execution binding no longer matches the plan
+- **THEN** the owner returns the one current-plan recovery action, whose
+  provider-free planning path establishes or reuses the mandate, before
+  provider initialization, grant publication, or attempt claim
+- **AND** it does not infer a mandate from a task projection, prior grant, or
+  historical source bytes
+
+#### Scenario: Historical raw scope is never silently adopted
+
+- **WHEN** a retained historical plan or grant lacks the current Task Mandate
+  binding required for a new provider submission
+- **THEN** inspection and reconciliation preserve its bytes and attributable
+  terminal evidence
+- **AND** the owner does not rewrite it, attach a mandate retroactively, or
+  submit another provider item from that historical scope
 
 For a complete raw review, the owner SHALL treat an immutable prepared record
 as current only when its decision is unset and no validated later decision

@@ -6,28 +6,40 @@ import { describe, expect, it } from "vitest";
 
 import { createAcceptedRawEvidence, createFinalSlideManifest, createRawWorkPlan } from "../../../ppt_maker_harness/scripts/shared/image2/page_image_artifacts.mjs";
 import { createProgressiveRawWorkPlan } from "../../../ppt_maker_harness/scripts/shared/image2/page_image_progressive_schema.mjs";
+import {
+  authorizeProgressiveRawBatch,
+  planProgressiveRawPilot,
+  publishProgressiveRawWorkPlan,
+} from "../../../ppt_maker_harness/scripts/shared/image2/page_image_progressive_raw_owner.mjs";
+import { readProgressiveRawPlanDirectRecords } from "../../../ppt_maker_harness/scripts/shared/image2/page_image_progressive_store.mjs";
 import { styleMasterGenerationProfileSha256 } from "../../../ppt_maker_harness/scripts/shared/image2/style_master_schema.mjs";
 import { canonicalJsonSha256 } from "../../../ppt_maker_harness/scripts/shared/identity/canonical_json.mjs";
 import { initBundle } from "../../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
 import {
   advanceTargetPageImageSourceEpoch,
   createInitialState,
+  ensureCurrentPageImageTaskMandate,
+  inspectCurrentPageImageTaskMandate,
   initializeTargetPageImageState,
   inspectPageImageRawProviderAuthorization,
   inspectTargetPageImageState,
   CONDITIONS,
+  readHistory,
   readState,
   recordEffectiveStyleMasterSelection,
   recordPageImageRawProviderAuthorization,
   recordTargetProgressiveCompleteRawReview,
   recordTargetProgressivePilotDecision,
   recordTargetProgressiveRawPlan,
+  recordTargetProgressiveAuthorizeCliHandoff,
   recordTargetAcceptedRawEvidence,
   recordTargetDeliveryReceipt,
   recordTargetFinalManifest,
   resolveEffectiveStyleMasterSelection,
   readTargetProgressiveHandoff,
+  PAGE_IMAGE_PROGRESSIVE_AUTHORIZE_CLI_EVIDENCE_KEY,
   statePath,
+  startPlaybook,
   validateStateReadOnly,
   writeState,
 } from "../../../ppt_maker_harness/scripts/shared/state/state.mjs";
@@ -78,15 +90,16 @@ function rawPlan(receipt) {
   });
 }
 
-function progressivePlan(receipt) {
+function progressivePlan(receipt, task_mandate_sha256 = undefined, sourceEpoch = 1) {
   return createProgressiveRawWorkPlan({
     run_version: "v1",
     source_receipt_sha256: receipt.source_sha256,
-    source_epoch: 1,
+    source_epoch: sourceEpoch,
     workflow: receipt.workflow,
     provider_profile_sha256: digest("b"),
     effective_style_master_sha256: digest("c"),
     source_execution_sha256: digest("d"),
+    ...(task_mandate_sha256 === undefined ? {} : { task_mandate_sha256 }),
     ordered_slide_ids: ["DeckGo"],
     items: [{
       slide_id: "DeckGo",
@@ -118,6 +131,327 @@ function styleSelection(workflow = "pure", runVersion = "v1") {
 }
 
 describe("TARGET Page Image state lineage", () => {
+  it("owns one current non-secret Page Image Task Mandate per execution without observation mutation", () => {
+    const fixture = targetFixture("pure");
+    try {
+      initializeTargetPageImageState(fixture.deck, {
+        runVersion: "v1",
+        sourceReceipt: fixture.sourceReceipt,
+      });
+      const path = statePath(fixture.deck);
+      const beforeInspection = readFileSync(path);
+      expect(inspectCurrentPageImageTaskMandate(fixture.deck, {
+        runDir: fixture.runDir,
+        workflow: "pure",
+      })).toMatchObject({ ok: false, code: "TASK_MANDATE_MISSING" });
+      expect(readFileSync(path)).toEqual(beforeInspection);
+
+      const first = ensureCurrentPageImageTaskMandate(fixture.deck, {
+        runDir: fixture.runDir,
+        workflow: "pure",
+      });
+      expect(first).toMatchObject({
+        ok: true,
+        replay: false,
+        run_version: "v1",
+        workflow: "pure",
+        task_mandate_sha256: expect.stringMatching(/^[0-9a-f]{64}$/),
+        record: {
+          schema: "page-image-task-mandate-v1",
+          scope: "normal-page-image-production",
+        },
+      });
+      expect(JSON.stringify(first.record)).not.toMatch(/prompt|credential|provider|work request/i);
+      const afterFirst = readFileSync(path);
+
+      const replay = ensureCurrentPageImageTaskMandate(fixture.deck, {
+        runDir: fixture.runDir,
+        workflow: "pure",
+      });
+      expect(replay).toMatchObject({ ok: true, replay: true, task_mandate_sha256: first.task_mandate_sha256 });
+      expect(readFileSync(path)).toEqual(afterFirst);
+      expect(inspectCurrentPageImageTaskMandate(fixture.deck, {
+        runDir: fixture.runDir,
+        workflow: "pure",
+      })).toMatchObject({ ok: true, task_mandate_sha256: first.task_mandate_sha256 });
+
+      const refinedSource = "---\nproduction:\n  pipeline: page-image-workflow-v1\n  workflow: pure\n---\n# same-task source refinement\n";
+      writeFileSync(join(fixture.runDir, "slide-specifications.md"), refinedSource);
+      advanceTargetPageImageSourceEpoch(fixture.deck, {
+        runVersion: "v1",
+        sourceReceipt: {
+          ...fixture.sourceReceipt,
+          source_sha256: sha256(refinedSource),
+        },
+        expectedSourceEpoch: 1,
+      });
+      expect(inspectCurrentPageImageTaskMandate(fixture.deck, {
+        runDir: fixture.runDir,
+        workflow: "pure",
+      })).toMatchObject({ ok: true, task_mandate_sha256: first.task_mandate_sha256 });
+      expect(ensureCurrentPageImageTaskMandate(fixture.deck, {
+        runDir: fixture.runDir,
+        workflow: "pure",
+      })).toMatchObject({ ok: true, replay: true, task_mandate_sha256: first.task_mandate_sha256 });
+
+      const nextState = structuredClone(readState(fixture.deck, { purpose: "observe", runVersion: "v1" }));
+      delete nextState.durable_state_present;
+      startPlaybook(nextState, "create-deck", { replace: true, runVersion: "v1" });
+      nextState.current_node = "select-target-page-image-workflow";
+      writeState(fixture.deck, nextState);
+      expect(inspectCurrentPageImageTaskMandate(fixture.deck, {
+        runDir: fixture.runDir,
+        workflow: "pure",
+      })).toMatchObject({ ok: false, code: "TASK_MANDATE_STALE" });
+      const successor = ensureCurrentPageImageTaskMandate(fixture.deck, {
+        runDir: fixture.runDir,
+        workflow: "pure",
+      });
+      expect(successor).toMatchObject({ ok: true, replay: false });
+      expect(successor.task_mandate_sha256).not.toBe(first.task_mandate_sha256);
+    } finally {
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps Task Mandate CAS and malformed-record failures provider-free and byte-preserving", () => {
+    const fixture = targetFixture("framed");
+    try {
+      initializeTargetPageImageState(fixture.deck, {
+        runVersion: "v1",
+        sourceReceipt: fixture.sourceReceipt,
+      });
+      const path = statePath(fixture.deck);
+      const beforeConflict = readFileSync(path);
+      expect(() => ensureCurrentPageImageTaskMandate(fixture.deck, {
+        runDir: fixture.runDir,
+        workflow: "framed",
+        expectedStateSha: digest("f"),
+      })).toThrow(/CONFLICT/);
+      expect(readFileSync(path)).toEqual(beforeConflict);
+
+      const created = ensureCurrentPageImageTaskMandate(fixture.deck, {
+        runDir: fixture.runDir,
+        workflow: "framed",
+      });
+      const malformed = structuredClone(readState(fixture.deck, { purpose: "observe", runVersion: "v1" }));
+      delete malformed.durable_state_present;
+      malformed.page_image_task_mandate.by_version["3_versions/v1"] = {
+        ...created.record,
+        scope: "unbounded-provider-work",
+      };
+      writeFileSync(path, `${JSON.stringify(malformed, null, 2)}\n`);
+      const beforeInspection = readFileSync(path);
+      expect(inspectCurrentPageImageTaskMandate(fixture.deck, {
+        runDir: fixture.runDir,
+        workflow: "framed",
+      })).toMatchObject({ ok: false });
+      expect(readFileSync(path)).toEqual(beforeInspection);
+    } finally {
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
+  });
+
+  it("records only the matching authorize node from an exact mandate-bound raw grant and repairs the handoff on replay", async () => {
+    const fixture = targetFixture("pure");
+    try {
+      initializeTargetPageImageState(fixture.deck, {
+        runVersion: "v1",
+        sourceReceipt: fixture.sourceReceipt,
+      });
+      const mandate = ensureCurrentPageImageTaskMandate(fixture.deck, {
+        runDir: fixture.runDir,
+        workflow: "pure",
+      });
+      const plan = progressivePlan(fixture.sourceReceipt, mandate.task_mandate_sha256);
+      publishProgressiveRawWorkPlan({ runDir: fixture.runDir, plan });
+      recordTargetProgressiveRawPlan(fixture.deck, {
+        runDir: fixture.runDir,
+        progressiveRawWorkPlan: plan,
+      });
+      const pilot = await planProgressiveRawPilot({
+        runDir: fixture.runDir,
+        workflow: "pure",
+        plan_hash: plan.sha256,
+        slide_ids: ["DeckGo"],
+        task_mandate: mandate,
+      });
+      const grant = await authorizeProgressiveRawBatch({
+        runDir: fixture.runDir,
+        workflow: "pure",
+        plan_hash: plan.sha256,
+        batch_hash: pilot.batch.batch_hash,
+        task_mandate: mandate,
+      });
+      const positioned = structuredClone(readState(fixture.deck, { purpose: "observe", runVersion: "v1" }));
+      delete positioned.durable_state_present;
+      positioned.current_node = "authorize-target-pure-pilot";
+      writeState(fixture.deck, positioned);
+
+      const path = statePath(fixture.deck);
+      const beforeCasFailure = readFileSync(path);
+      const directBefore = readProgressiveRawPlanDirectRecords(fixture.runDir, { plan_sha256: plan.sha256 });
+      expect(() => recordTargetProgressiveAuthorizeCliHandoff(fixture.deck, {
+        runDir: fixture.runDir,
+        planHash: plan.sha256,
+        batchHash: pilot.batch.batch_hash,
+        grantHash: grant.grant_hash,
+        expectedStateSha: digest("f"),
+      })).toThrow(/CONFLICT/);
+      expect(readFileSync(path)).toEqual(beforeCasFailure);
+      expect(readProgressiveRawPlanDirectRecords(fixture.runDir, { plan_sha256: plan.sha256 }).grants.map((entry) => entry.sha256))
+        .toEqual(directBefore.grants.map((entry) => entry.sha256));
+
+      const handoff = recordTargetProgressiveAuthorizeCliHandoff(fixture.deck, {
+        runDir: fixture.runDir,
+        planHash: plan.sha256,
+        batchHash: pilot.batch.batch_hash,
+        grantHash: grant.grant_hash,
+      });
+      expect(handoff).toMatchObject({
+        ok: true,
+        status: "completed",
+        workflow: "pure",
+        node_id: "authorize-target-pure-pilot",
+        plan_hash: plan.sha256,
+        batch_hash: pilot.batch.batch_hash,
+        grant_hash: grant.grant_hash,
+        task_mandate_sha256: mandate.task_mandate_sha256,
+      });
+      const completed = readState(fixture.deck, { purpose: "observe", runVersion: "v1" });
+      expect(completed.nodes["authorize-target-pure-pilot"]).toMatchObject({
+        status: "completed",
+        evidence: {
+          [PAGE_IMAGE_PROGRESSIVE_AUTHORIZE_CLI_EVIDENCE_KEY]: {
+            met: true,
+            kind: "cli",
+          },
+        },
+      });
+      const afterFirstHandoff = readFileSync(path);
+      expect(recordTargetProgressiveAuthorizeCliHandoff(fixture.deck, {
+        runDir: fixture.runDir,
+        planHash: plan.sha256,
+        batchHash: pilot.batch.batch_hash,
+        grantHash: grant.grant_hash,
+      })).toMatchObject({ ok: true, status: "replay" });
+      expect(readFileSync(path)).toEqual(afterFirstHandoff);
+
+      const unmatched = structuredClone(completed);
+      delete unmatched.durable_state_present;
+      unmatched.current_node = "review-target-pure-raw";
+      writeState(fixture.deck, unmatched);
+      const beforeUnmatched = readFileSync(path);
+      expect(recordTargetProgressiveAuthorizeCliHandoff(fixture.deck, {
+        runDir: fixture.runDir,
+        planHash: plan.sha256,
+        batchHash: pilot.batch.batch_hash,
+        grantHash: grant.grant_hash,
+      })).toMatchObject({
+        ok: true,
+        status: "not-applicable",
+        node_id: "authorize-target-pure-pilot",
+        current_node: "review-target-pure-raw",
+      });
+      expect(readFileSync(path)).toEqual(beforeUnmatched);
+
+      const refinedSource = "---\nproduction:\n  pipeline: page-image-workflow-v1\n  workflow: pure\n---\n# current same-task refinement\n";
+      writeFileSync(join(fixture.runDir, "slide-specifications.md"), refinedSource);
+      const refinedReceipt = {
+        ...fixture.sourceReceipt,
+        source_sha256: sha256(refinedSource),
+      };
+      advanceTargetPageImageSourceEpoch(fixture.deck, {
+        runDir: fixture.runDir,
+        sourceReceipt: refinedReceipt,
+        expectedSourceEpoch: 1,
+      });
+      const refinedPlan = progressivePlan(refinedReceipt, mandate.task_mandate_sha256, 2);
+      publishProgressiveRawWorkPlan({ runDir: fixture.runDir, plan: refinedPlan });
+      recordTargetProgressiveRawPlan(fixture.deck, {
+        runDir: fixture.runDir,
+        progressiveRawWorkPlan: refinedPlan,
+      });
+      const refinedPilot = await planProgressiveRawPilot({
+        runDir: fixture.runDir,
+        workflow: "pure",
+        plan_hash: refinedPlan.sha256,
+        slide_ids: ["DeckGo"],
+        task_mandate: mandate,
+      });
+      const refinedGrant = await authorizeProgressiveRawBatch({
+        runDir: fixture.runDir,
+        workflow: "pure",
+        plan_hash: refinedPlan.sha256,
+        batch_hash: refinedPilot.batch.batch_hash,
+        task_mandate: mandate,
+      });
+      const reentered = structuredClone(readState(fixture.deck, { purpose: "observe", runVersion: "v1" }));
+      delete reentered.durable_state_present;
+      reentered.current_node = "authorize-target-pure-pilot";
+      writeState(fixture.deck, reentered);
+
+      const withUserEvidence = structuredClone(readState(fixture.deck, { purpose: "observe", runVersion: "v1" }));
+      delete withUserEvidence.durable_state_present;
+      withUserEvidence.nodes["authorize-target-pure-pilot"].evidence["manual-quality-note"] = {
+        met: true,
+        kind: "user",
+        at: "2026-08-10T00:00:00.000Z",
+      };
+      writeState(fixture.deck, withUserEvidence);
+      const beforeProtectedConflict = readFileSync(path);
+      expect(() => recordTargetProgressiveAuthorizeCliHandoff(fixture.deck, {
+        runDir: fixture.runDir,
+        planHash: refinedPlan.sha256,
+        batchHash: refinedPilot.batch.batch_hash,
+        grantHash: refinedGrant.grant_hash,
+      })).toThrow(/TARGET_PROGRESSIVE_AUTHORIZE_HANDOFF_NODE_CONFLICT/);
+      expect(readFileSync(path)).toEqual(beforeProtectedConflict);
+
+      const cliOnly = structuredClone(readState(fixture.deck, { purpose: "observe", runVersion: "v1" }));
+      delete cliOnly.durable_state_present;
+      delete cliOnly.nodes["authorize-target-pure-pilot"].evidence["manual-quality-note"];
+      writeState(fixture.deck, cliOnly);
+
+      expect(recordTargetProgressiveAuthorizeCliHandoff(fixture.deck, {
+        runDir: fixture.runDir,
+        planHash: refinedPlan.sha256,
+        batchHash: refinedPilot.batch.batch_hash,
+        grantHash: refinedGrant.grant_hash,
+      })).toMatchObject({
+        ok: true,
+        status: "superseded",
+        plan_hash: refinedPlan.sha256,
+        batch_hash: refinedPilot.batch.batch_hash,
+        grant_hash: refinedGrant.grant_hash,
+      });
+      expect(readProgressiveRawPlanDirectRecords(fixture.runDir, { plan_sha256: plan.sha256 }).grants)
+        .toEqual(expect.arrayContaining([expect.objectContaining({ sha256: grant.grant_hash })]));
+      expect(readHistory(fixture.deck)).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          type: "page_image_progressive_authorize_cli_handoff",
+          plan_sha256: refinedPlan.sha256,
+          batch_sha256: refinedPilot.batch.batch_hash,
+          grant_sha256: refinedGrant.grant_hash,
+          supersedes_prior_cli_grant: true,
+        }),
+      ]));
+      expect(readState(fixture.deck, { purpose: "observe", runVersion: "v1" }).nodes["authorize-target-pure-pilot"])
+        .toMatchObject({
+          status: "completed",
+          evidence: {
+            [PAGE_IMAGE_PROGRESSIVE_AUTHORIZE_CLI_EVIDENCE_KEY]: {
+              met: true,
+              kind: "cli",
+              note: expect.stringContaining(refinedGrant.grant_hash),
+            },
+          },
+        });
+    } finally {
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
+  });
+
   it("keeps optional Style Master selection state separate from raw lineage and fails closed when stale or malformed", () => {
     const fixture = targetFixture("pure");
     try {

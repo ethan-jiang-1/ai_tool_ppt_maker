@@ -275,12 +275,10 @@ production_modes: [image2-page-workflow-v1]
 production_workflows: [framed]
 requires: [recommend-target-framed-pilot]
 produces: [target-framed-pilot-authorization]
-decisions: [authorize, revise, decline]
 entry: []
-exit: [user_decision_recorded]
+exit: [evidence:exact-batch-grant-recorded]
 ```
-**Step 1 — GATE**: Record the human cost decision for the exact owner-issued Pilot batch. This does not accept raw quality or authorize Expansion.
-**Step 2 — CLI**: After `authorize`, run `ppt_flow image2 authorize <run-dir> --plan-hash <sha256> --batch-hash <sha256>`.
+**Step 1 — CLI**: Run `ppt_flow image2 authorize <run-dir> --plan-hash <sha256> --batch-hash <sha256>`. For a matching current Task Mandate, the State-owned CLI handoff records the exact grant evidence and completes this node. This does not accept raw quality or authorize Expansion.
 
 ### generate-target-framed-pilot
 ```yaml
@@ -292,7 +290,7 @@ production_modes: [image2-page-workflow-v1]
 production_workflows: [framed]
 requires: [authorize-target-framed-pilot]
 produces: [target-framed-pilot-item-progress]
-entry: [node_decision:authorize-target-framed-pilot:authorize]
+entry: [node_evidence:authorize-target-framed-pilot:exact-batch-grant-recorded]
 exit: [evidence:target-framed-pilot-item-progress]
 ```
 **Step 1 — CLI**: Re-run `ppt_flow image2 generate` with the exact plan and batch hashes. Each invocation may submit and materialize at most one owner-eligible item; refresh inspection before the next call.
@@ -339,12 +337,10 @@ production_modes: [image2-page-workflow-v1]
 production_workflows: [framed]
 requires: [plan-target-framed-expansion]
 produces: [target-framed-expansion-authorization]
-decisions: [authorize, revise, decline]
 entry: []
-exit: [user_decision_recorded]
+exit: [evidence:exact-batch-grant-recorded]
 ```
-**Step 1 — GATE**: Record a separate cost decision for the exact disclosed Expansion batch.
-**Step 2 — CLI**: After `authorize`, run `ppt_flow image2 authorize <run-dir> --plan-hash <sha256> --batch-hash <sha256>`.
+**Step 1 — CLI**: Run `ppt_flow image2 authorize <run-dir> --plan-hash <sha256> --batch-hash <sha256>`. For a matching current Task Mandate, the State-owned CLI handoff records the exact grant evidence and completes this node.
 
 ### generate-target-framed-expansion
 ```yaml
@@ -356,7 +352,7 @@ production_modes: [image2-page-workflow-v1]
 production_workflows: [framed]
 requires: [authorize-target-framed-expansion]
 produces: [target-framed-expansion-item-progress]
-entry: [node_decision:authorize-target-framed-expansion:authorize]
+entry: [node_evidence:authorize-target-framed-expansion:exact-batch-grant-recorded]
 exit: [evidence:target-framed-expansion-item-progress]
 ```
 **Step 1 — CLI**: Re-run the exact one-item `ppt_flow image2 generate` invocation and refresh owner inspection after every result.
@@ -371,12 +367,12 @@ production_modes: [image2-page-workflow-v1]
 production_workflows: [framed]
 requires: [plan-target-framed-progressive-raw]
 produces: [target-framed-complete-raw-review]
-decisions: [proceed, repair, redirect]
+decisions: [proceed, repair]
 entry: []
 exit: [user_decision_recorded]
 ```
 **Step 1 — CLI**: Only when owner inspection requests complete review, run `ppt_flow image2 review <run-dir> --plan-hash <sha256>` and present full-plan current Framed evidence.
-**Step 2 — GATE**: Record `proceed`, `repair`, or `redirect` against the complete raw review. Small debt and zero debt arrive here without a synthetic partial Pilot decision.
+**Step 2 — GATE**: Record `proceed` or `repair` against the complete raw review. Small debt and zero debt arrive here without a synthetic partial Pilot decision.
 
 ### publish-target-framed-final-manifest
 ```yaml
@@ -547,12 +543,10 @@ production_modes: [image2-page-workflow-v1]
 production_workflows: [pure]
 requires: [recommend-target-pure-pilot]
 produces: [target-pure-pilot-authorization]
-decisions: [authorize, revise, decline]
 entry: []
-exit: [user_decision_recorded]
+exit: [evidence:exact-batch-grant-recorded]
 ```
-**Step 1 — GATE**: Record the human cost decision for the exact owner-issued Pilot batch. This does not accept raw quality or authorize Expansion.
-**Step 2 — CLI**: After `authorize`, run `ppt_flow image2 authorize <run-dir> --plan-hash <sha256> --batch-hash <sha256>`.
+**Step 1 — CLI**: Run `ppt_flow image2 authorize <run-dir> --plan-hash <sha256> --batch-hash <sha256>`. For a matching current Task Mandate, the State-owned CLI handoff records the exact grant evidence and completes this node. This does not accept raw quality or authorize Expansion.
 
 ### generate-target-pure-pilot
 ```yaml
@@ -564,7 +558,7 @@ production_modes: [image2-page-workflow-v1]
 production_workflows: [pure]
 requires: [authorize-target-pure-pilot]
 produces: [target-pure-pilot-item-progress]
-entry: [node_decision:authorize-target-pure-pilot:authorize]
+entry: [node_evidence:authorize-target-pure-pilot:exact-batch-grant-recorded]
 exit: [evidence:target-pure-pilot-item-progress]
 ```
 **Step 1 — CLI**: Re-run `ppt_flow image2 generate` with the exact plan and batch hashes. Each invocation may submit and materialize at most one owner-eligible item; refresh inspection before the next call.
@@ -611,12 +605,10 @@ production_modes: [image2-page-workflow-v1]
 production_workflows: [pure]
 requires: [plan-target-pure-expansion]
 produces: [target-pure-expansion-authorization]
-decisions: [authorize, revise, decline]
 entry: []
-exit: [user_decision_recorded]
+exit: [evidence:exact-batch-grant-recorded]
 ```
-**Step 1 — GATE**: Record a separate cost decision for the exact disclosed Expansion batch.
-**Step 2 — CLI**: After `authorize`, run `ppt_flow image2 authorize <run-dir> --plan-hash <sha256> --batch-hash <sha256>`.
+**Step 1 — CLI**: Run `ppt_flow image2 authorize <run-dir> --plan-hash <sha256> --batch-hash <sha256>`. For a matching current Task Mandate, the State-owned CLI handoff records the exact grant evidence and completes this node.
 
 ### generate-target-pure-expansion
 ```yaml
@@ -628,7 +620,7 @@ production_modes: [image2-page-workflow-v1]
 production_workflows: [pure]
 requires: [authorize-target-pure-expansion]
 produces: [target-pure-expansion-item-progress]
-entry: [node_decision:authorize-target-pure-expansion:authorize]
+entry: [node_evidence:authorize-target-pure-expansion:exact-batch-grant-recorded]
 exit: [evidence:target-pure-expansion-item-progress]
 ```
 **Step 1 — CLI**: Re-run the exact one-item `ppt_flow image2 generate` invocation and refresh owner inspection after every result.
@@ -643,12 +635,12 @@ production_modes: [image2-page-workflow-v1]
 production_workflows: [pure]
 requires: [plan-target-pure-progressive-raw]
 produces: [target-pure-complete-raw-review]
-decisions: [proceed, repair, redirect]
+decisions: [proceed, repair]
 entry: []
 exit: [user_decision_recorded]
 ```
 **Step 1 — CLI**: Only when owner inspection requests complete review, run `ppt_flow image2 review <run-dir> --plan-hash <sha256>` and present full-plan current Pure evidence.
-**Step 2 — GATE**: Record `proceed`, `repair`, or `redirect` against the complete raw review. Small debt and zero debt arrive here without a synthetic partial Pilot decision.
+**Step 2 — GATE**: Record `proceed` or `repair` against the complete raw review. Small debt and zero debt arrive here without a synthetic partial Pilot decision.
 
 ### publish-target-pure-final-manifest
 ```yaml

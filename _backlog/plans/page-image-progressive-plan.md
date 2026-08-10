@@ -191,22 +191,28 @@ provider promises.
 in-scope Task Mandate without asking the human to replay `plan -> authorize ->
 generate` for every batch.
 
-- [ ] Define the durable Task Mandate reference and its scope boundary in the
+- [x] Define the durable Task Mandate reference and its scope boundary in the
   owning runtime; do not put it in the Presentation Control Map or a derived
   data view.
-- [ ] Retain exact `plan_hash`, `batch_hash`, selected IDs, maximum
+- [x] Retain exact `plan_hash`, `batch_hash`, selected IDs, maximum
   submissions, attempt reconciliation, cost record, and provenance binding.
   The change is who triggers the grant, not a removal of the grant.
-- [ ] Update the progressive raw owner, workflow inspection, MD Controller,
+- [x] Update the progressive raw owner, workflow inspection, MD Controller,
   CLI diagnostics, and focused tests together so routine in-scope work is not
   emitted as `requires_human: true`.
-- [ ] Preserve the human-owned Complete Page Review `proceed | repair`
+- [x] Preserve the human-owned Complete Page Review `proceed | repair`
   decision and every identity/integrity hard-stop.
 
-**Exit evidence:** a Task-Mandate-covered routine batch produces the same
-exact grant and lineage as today without a repeat approval question; a new
-goal, explicit limit, or new content/design direction still surfaces one
-precise question.
+**Exit evidence (2026-08-10):** archived change
+`align-task-mandate-exact-grants` is committed as `17bb9f5`. It establishes a
+version/workflow/execution-bound non-secret Task Mandate, binds v2 progressive
+plans to it, and retains exact batch/grant/attempt/provenance lineage. Routine
+Framed/Pure plan, Pilot, successor, grant, and one-item generation actions are
+Agent-run with `requires_human: false`; Pilot and Complete Page Review remain
+human visual decisions, and identity/integrity/reconciliation hard-stops remain
+unchanged. Verification passed: State/raw-owner/workflow 52/52, CLI 4/4,
+Controller/manifest 9/9, mock Framed/Pure E2E 8/8, strict OpenSpec validation,
+and `npm test`.
 
 ### Track P: Prepare Provider Capability Discovery
 

@@ -12,9 +12,10 @@ import {
   styleAsset,
 } from "../../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
 import { pageImageOrdinalImageFilename } from "../../../ppt_maker_harness/scripts/shared/image2/page_image_artifacts.mjs";
+import { resolveContentAddressName } from "../../../ppt_maker_harness/scripts/shared/image2/content_address_store.mjs";
 import { pageImageWorkflowPaths } from "../../../ppt_maker_harness/scripts/shared/run-bundle/page_image_paths.mjs";
 import { readProgressiveRawPlanDirectRecords } from "../../../ppt_maker_harness/scripts/shared/image2/page_image_progressive_store.mjs";
-import { readState } from "../../../ppt_maker_harness/scripts/shared/state/state.mjs";
+import { readState, writeState } from "../../../ppt_maker_harness/scripts/shared/state/state.mjs";
 
 const FLOW = resolve(process.cwd(), "ppt_maker_harness/scripts/ppt_flow.mjs");
 
@@ -166,6 +167,19 @@ function jsonFailure(result) {
   return JSON.parse(line);
 }
 
+function pilotReviewArtifactRoot(runDir, batchHash) {
+  const pilotRoot = join(pageImageWorkflowPaths(runDir).review_root, "pilot");
+  return join(pilotRoot, resolveContentAddressName(pilotRoot, batchHash, {
+    recordHashReader: (pathname) => {
+      try {
+        return JSON.parse(readFileSync(join(pathname, "pilot-page-review-evidence-v1.json"), "utf8")).batch_sha256 || null;
+      } catch {
+        return null;
+      }
+    },
+  }));
+}
+
 async function generateBatch(runDir, env, planHash, batch) {
   const generated = [];
   for (const slideId of batch.paid_submission_slide_ids) {
@@ -185,15 +199,46 @@ async function generateBatch(runDir, env, planHash, batch) {
   return generated;
 }
 
-async function authorizeBatch(runDir, env, planHash, batchHash) {
-  return jsonSuccess(await flow([
-    "image2", "authorize", runDir,
-    "--plan-hash", planHash,
-    "--batch-hash", batchHash,
-  ], env));
+function positionAuthorizeNode(runDir, workflow, batch) {
+  if (!["framed", "pure"].includes(workflow) || !["pilot", "expansion"].includes(batch?.kind)) {
+    throw new Error("test fixture requires a current Framed/Pure Pilot or Expansion batch");
+  }
+  const deck = resolve(runDir, "..", "..");
+  const state = structuredClone(readState(deck, { purpose: "observe", runVersion: "v1" }));
+  delete state.durable_state_present;
+  state.playbook = "create-deck";
+  state.current_node = `authorize-target-${workflow}-${batch.kind}`;
+  writeState(deck, state);
+  return state.current_node;
 }
 
-async function runTargetRawLifecycle(runDir, env, slides, { styleMaster: includeStyleMaster = true } = {}) {
+async function authorizeBatch(runDir, env, planHash, batch, workflow, { handoffStatus = "completed" } = {}) {
+  const nodeId = positionAuthorizeNode(runDir, workflow, batch);
+  const result = jsonSuccess(await flow([
+    "image2", "authorize", runDir,
+    "--plan-hash", planHash,
+    "--batch-hash", batch.batch_hash,
+  ], env));
+  expect(result).toMatchObject({
+    plan_hash: planHash,
+    batch_hash: batch.batch_hash,
+    next_action: { action_id: "generate_progressive_raw_item", kind: "guide", requires_human: false },
+    controller_handoff: {
+      status: handoffStatus,
+      workflow,
+      node_id: nodeId,
+      plan_hash: planHash,
+      batch_hash: batch.batch_hash,
+      grant_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+    },
+  });
+  return result;
+}
+
+async function runTargetRawLifecycle(runDir, env, slides, {
+  styleMaster: includeStyleMaster = true,
+  handoffStatus = "completed",
+} = {}) {
   const styleMaster = includeStyleMaster ? await runStyleMasterLifecycle(runDir, env) : null;
   const plan = jsonSuccess(await flow(["image2", "plan", runDir], env));
   expect(plan).toMatchObject({
@@ -215,7 +260,7 @@ async function runTargetRawLifecycle(runDir, env, slides, { styleMaster: include
       maximum_submissions: slides.length,
     },
   });
-  const authorization = await authorizeBatch(runDir, env, plan.plan_hash, pilot.batch.batch_hash);
+  const authorization = await authorizeBatch(runDir, env, plan.plan_hash, pilot.batch, plan.workflow, { handoffStatus });
   expect(authorization).toMatchObject({
     plan_hash: plan.plan_hash,
     batch_hash: pilot.batch.batch_hash,
@@ -265,7 +310,7 @@ async function runPartialTargetRawLifecycle(runDir, env, slides, { styleMaster: 
       maximum_submissions: pilotSlideIds.length,
     },
   });
-  const pilotAuthorization = await authorizeBatch(runDir, env, planHash, pilot.batch.batch_hash);
+  const pilotAuthorization = await authorizeBatch(runDir, env, planHash, pilot.batch, plan.workflow);
   const pilotGenerated = await generateBatch(runDir, env, planHash, pilot.batch);
   const pilotReview = jsonSuccess(await flow([
     "image2", "pilot-review", runDir,
@@ -297,7 +342,7 @@ async function runPartialTargetRawLifecycle(runDir, env, slides, { styleMaster: 
       maximum_submissions: expansionIds.length,
     },
   });
-  const expansionAuthorization = await authorizeBatch(runDir, env, planHash, expansion.batch.batch_hash);
+  const expansionAuthorization = await authorizeBatch(runDir, env, planHash, expansion.batch, plan.workflow);
   const expansionGenerated = await generateBatch(runDir, env, planHash, expansion.batch);
   expect(expansionGenerated.at(-1)).toMatchObject({
     next_action: { action_id: "prepare_progressive_raw_review" },
@@ -381,7 +426,10 @@ describe("mock TARGET workflow journey", () => {
       expect(`${rejectedRefresh.stdout}\n${rejectedRefresh.stderr}`).toMatch(/Framed local refresh requires/i);
       expect(provider.calls).toHaveLength(2);
 
-      const rebuilt = await runTargetRawLifecycle(fixture.runDir, provider.env, titleUpdated, { styleMaster: false });
+      const rebuilt = await runTargetRawLifecycle(fixture.runDir, provider.env, titleUpdated, {
+        styleMaster: false,
+        handoffStatus: "superseded",
+      });
       expect(rebuilt.rawPlan).toMatchObject({ workflow: "framed", source_epoch: 2 });
       expect(provider.calls).toHaveLength(4);
       const finalAfterTitleRefresh = readFileSync(join(paths.final_root, framGoImage));
@@ -424,7 +472,10 @@ describe("mock TARGET workflow journey", () => {
 
       const rebuilt = await runTargetRawLifecycle(fixture.runDir, provider.env, [
         { ...initialSlides[0], title: "Updated pure heading" },
-      ], { styleMaster: false });
+      ], {
+        styleMaster: false,
+        handoffStatus: "superseded",
+      });
       expect(rebuilt.rawPlan).toMatchObject({ workflow: "pure", source_epoch: 2 });
       expect(provider.calls).toHaveLength(2);
       const state = readState(fixture.deck, { purpose: "observe", runVersion: "v1" });
@@ -478,7 +529,7 @@ describe("mock TARGET workflow journey", () => {
       expect(provider.calls.every((call) => call.body?.model === "gpt-image-2")).toBe(true);
 
       const paths = pageImageWorkflowPaths(fixture.runDir);
-      const pilotRoot = join(paths.review_root, "pilot", lifecycle.pilot.batch.batch_hash);
+      const pilotRoot = pilotReviewArtifactRoot(fixture.runDir, lifecycle.pilot.batch.batch_hash);
       const direct = readProgressiveRawPlanDirectRecords(fixture.runDir, {
         plan_sha256: lifecycle.rawPlan.plan_hash,
       });
@@ -527,7 +578,7 @@ describe("mock TARGET workflow journey", () => {
         "--slide-id", "DeckGo",
         "--slide-id", "FlowGo",
       ], provider.env));
-      const grant = await authorizeBatch(fixture.runDir, provider.env, plan.plan_hash, pilot.batch.batch_hash);
+      const grant = await authorizeBatch(fixture.runDir, provider.env, plan.plan_hash, pilot.batch, workflow);
       const committed = jsonSuccess(await flow([
         "image2", "generate", fixture.runDir,
         "--plan-hash", plan.plan_hash,
@@ -592,7 +643,9 @@ describe("mock TARGET workflow journey", () => {
         "--plan-hash", successor.plan_hash,
         "--slide-id", "FlowGo",
       ], provider.env));
-      const retryGrant = await authorizeBatch(fixture.runDir, provider.env, successor.plan_hash, retry.batch.batch_hash);
+      const retryGrant = await authorizeBatch(fixture.runDir, provider.env, successor.plan_hash, retry.batch, workflow, {
+        handoffStatus: "superseded",
+      });
       expect(retry.batch.batch_hash).not.toBe(pilot.batch.batch_hash);
       expect(retryGrant.grant_hash).not.toBe(grant.grant_hash);
       const retried = jsonSuccess(await flow([

@@ -97,6 +97,8 @@ import {
   recordTargetProgressiveFinalManifest,
   recordTargetProgressivePilotDecision,
   recordTargetProgressiveRawPlan,
+  ensureCurrentPageImageTaskMandate,
+  inspectCurrentPageImageTaskMandate,
 } from "../shared/state/state.mjs";
 import {
   bindStyleMasterScopeCandidate,
@@ -1001,12 +1003,20 @@ function progressiveFramedDisplayBySlide(receipt) {
   return Object.fromEntries(receipt.slides.map((slide) => [slide.slide_id, { title: slide.header_policy?.local_header?.title || "" }]));
 }
 
-function progressiveFramedPlanFromContext(context) {
+function progressiveFramedPlanFromContext(context, taskMandate = null) {
   return createProgressiveRawWorkPlanFromTarget({
     runDir: context.run_dir,
     source_epoch: context.source_epoch,
     raw_work_plan: context.raw_work_plan,
     effective_style_master_sha256: context.style_master_reference.selection_sha256,
+    ...(taskMandate?.ok ? { task_mandate_sha256: taskMandate.task_mandate_sha256 } : {}),
+  });
+}
+
+function currentFramedTaskMandate(context) {
+  return inspectCurrentPageImageTaskMandate(context.deck_dir, {
+    runDir: context.run_dir,
+    workflow: FRAMED_IMAGE_WORKFLOW,
   });
 }
 
@@ -1018,7 +1028,7 @@ function progressiveLocalRebindProjectionUnavailable(error) {
  * Compile the current Framed source/style facts into an expected replacement plan
  * without reading or rebuilding any version `_generated` projection.
  */
-export function readFramedProgressiveTargetPlanCandidate(runDir, { sourceEpoch = null } = {}) {
+export function readFramedProgressiveTargetPlanCandidate(runDir, { sourceEpoch = null, taskMandate = null } = {}) {
   const candidate = compileFramedTargetRawPlanCandidate(resolveFramedTargetCandidateSource(runDir));
   if (sourceEpoch === null) return candidate;
   if (!Number.isInteger(sourceEpoch) || sourceEpoch <= 0) {
@@ -1026,7 +1036,7 @@ export function readFramedProgressiveTargetPlanCandidate(runDir, { sourceEpoch =
   }
   return Object.freeze({
     ...candidate,
-    progressive_raw_work_plan: progressiveFramedPlanFromContext({ ...candidate, source_epoch: sourceEpoch }),
+    progressive_raw_work_plan: progressiveFramedPlanFromContext({ ...candidate, source_epoch: sourceEpoch }, taskMandate),
   });
 }
 
@@ -1108,10 +1118,14 @@ export async function buildFramedProgressiveTargetRawPlan(runDir, { allowSourceR
       acceptedRawEvidence: previous.accepted_raw_evidence,
     });
     if (classification.kind === "local_compose") {
+      const taskMandate = ensureCurrentPageImageTaskMandate(candidate.deck_dir, {
+        runDir: candidate.run_dir,
+        workflow: FRAMED_IMAGE_WORKFLOW,
+      });
       const progressiveRawWorkPlan = progressiveFramedPlanFromContext({
         ...candidate,
         source_epoch: previous.plan.source_epoch,
-      });
+      }, taskMandate);
       const progressivePublication = publishProgressiveRawWorkPlan({
         runDir,
         plan: progressiveRawWorkPlan,
@@ -1149,13 +1163,17 @@ export async function buildFramedProgressiveTargetRawPlan(runDir, { allowSourceR
     }
   }
   const context = materializeTargetSourceCandidateContext(candidate, { allowSourceRebuild });
+  const taskMandate = ensureCurrentPageImageTaskMandate(context.deck_dir, {
+    runDir: context.run_dir,
+    workflow: FRAMED_IMAGE_WORKFLOW,
+  });
   // The retained v2 plan is only a rebuildable adapter projection for review rendering.
   writeTargetRawWorkPlan(context, candidate.raw_work_plan);
   const progressiveRawWorkPlan = progressiveFramedPlanFromContext({
     ...context,
     raw_work_plan: candidate.raw_work_plan,
     style_master_reference: candidate.style_master_reference,
-  });
+  }, taskMandate);
   const progressivePublication = publishProgressiveRawWorkPlan({ runDir: context.run_dir, plan: progressiveRawWorkPlan });
   const providerRequestInspection = writeTargetProviderRequestInspection(context, {
     rawWorkPlan: candidate.raw_work_plan,
@@ -1180,7 +1198,12 @@ export async function buildFramedProgressiveTargetRawPlan(runDir, { allowSourceR
 
 export function readFramedProgressiveTargetStoredPlanContext(runDir) {
   const context = readFramedTargetStoredPlanContext(runDir);
-  return Object.freeze({ ...context, progressive_raw_work_plan: progressiveFramedPlanFromContext(context) });
+  const taskMandate = currentFramedTaskMandate(context);
+  return Object.freeze({
+    ...context,
+    progressive_raw_work_plan: progressiveFramedPlanFromContext(context, taskMandate),
+    progressive_raw_task_mandate: taskMandate,
+  });
 }
 
 export function framedProgressiveRawPlanProjection(plan) {
@@ -1188,6 +1211,7 @@ export function framedProgressiveRawPlanProjection(plan) {
     runDir: plan.run_dir,
     workflow: FRAMED_IMAGE_WORKFLOW,
     expected_plan: plan.progressive_raw_work_plan,
+    task_mandate: plan.progressive_raw_task_mandate,
   });
   return Object.freeze({
     schema: "page-image-progressive-raw-plan-projection-v1",
@@ -1205,19 +1229,19 @@ export function framedProgressiveRawPlanProjection(plan) {
 export async function planFramedTargetPilot(runDir, { planHash, slideIds } = {}) {
   preflightFramedMutation(runDir);
   const plan = readFramedProgressiveTargetStoredPlanContext(runDir);
-  return planProgressiveRawPilot({ runDir: plan.run_dir, workflow: FRAMED_IMAGE_WORKFLOW, plan_hash: planHash, slide_ids: slideIds, display_by_slide: progressiveFramedDisplayBySlide(plan.receipt), expected_plan: plan.progressive_raw_work_plan });
+  return planProgressiveRawPilot({ runDir: plan.run_dir, workflow: FRAMED_IMAGE_WORKFLOW, plan_hash: planHash, slide_ids: slideIds, display_by_slide: progressiveFramedDisplayBySlide(plan.receipt), expected_plan: plan.progressive_raw_work_plan, task_mandate: plan.progressive_raw_task_mandate });
 }
 
 export async function planFramedTargetExpansion(runDir, { planHash } = {}) {
   preflightFramedMutation(runDir);
   const plan = readFramedProgressiveTargetStoredPlanContext(runDir);
-  return planProgressiveRawExpansion({ runDir: plan.run_dir, workflow: FRAMED_IMAGE_WORKFLOW, plan_hash: planHash, display_by_slide: progressiveFramedDisplayBySlide(plan.receipt), expected_plan: plan.progressive_raw_work_plan });
+  return planProgressiveRawExpansion({ runDir: plan.run_dir, workflow: FRAMED_IMAGE_WORKFLOW, plan_hash: planHash, display_by_slide: progressiveFramedDisplayBySlide(plan.receipt), expected_plan: plan.progressive_raw_work_plan, task_mandate: plan.progressive_raw_task_mandate });
 }
 
 export async function authorizeFramedProgressiveRawBatch(runDir, { planHash, batchHash } = {}) {
   preflightFramedMutation(runDir);
   const plan = readFramedProgressiveTargetStoredPlanContext(runDir);
-  return authorizeProgressiveRawBatch({ runDir: plan.run_dir, workflow: FRAMED_IMAGE_WORKFLOW, plan_hash: planHash, batch_hash: batchHash, expected_plan: plan.progressive_raw_work_plan });
+  return authorizeProgressiveRawBatch({ runDir: plan.run_dir, workflow: FRAMED_IMAGE_WORKFLOW, plan_hash: planHash, batch_hash: batchHash, expected_plan: plan.progressive_raw_work_plan, task_mandate: plan.progressive_raw_task_mandate });
 }
 
 export async function generateFramedProgressiveRawItem(runDir, { planHash, batchHash, preflight = null, submit } = {}) {
@@ -1232,6 +1256,7 @@ export async function generateFramedProgressiveRawItem(runDir, { planHash, batch
     provider_requests_by_slide: plan.provider_requests_by_slide,
     preflight,
     submit,
+    task_mandate: plan.progressive_raw_task_mandate,
   });
 }
 
