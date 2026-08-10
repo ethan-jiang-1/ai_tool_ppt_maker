@@ -222,17 +222,31 @@ and `npm test`.
 **Output:** a bounded capability record ready for Phase 3, not an inferred
 provider guarantee.
 
-- [ ] Record the current actual transport surface: it presently submits model,
-  prompt, size, and image references, not a mask or region parameter.
-- [ ] Prepare one synthetic Framed stress page, rubric, result template, and
+- [x] Record the current actual transport surface: it presently submits model,
+  prompt, size, and image references, not a mask or region parameter. Evidence:
+  [Framed provider capability discovery research](framed-provider-capability-discovery-research.md).
+- [x] Prepare one synthetic Framed stress page, rubric, result template, and
   safe evidence path from current fixed header geometry; never use v3 as the
-  experiment.
-- [ ] Separate provider-surface discovery from a prompt-only trial. A native
+  experiment. Evidence: the Track P research defines
+  `framed-protected-region-standard-v1-stress-01` and its three-submission
+  record without creating a run or submitting to a provider.
+- [x] Separate provider-surface discovery from a prompt-only trial. A native
   primitive is not considered available until its endpoint contract and a
-  bounded result are both verified.
-- [ ] Defer a paid submission until Track A has made the active Task Mandate
-  executable without a repeated prompt. Keep the resulting capability record
-  provisional until Phase 3 binds it to the landed Header Profile.
+  bounded result are both verified. Current conclusion: the repository proves
+  prompt-only protection only; no official native endpoint contract or output
+  evidence exists.
+- [x] Record the paid-probe preconditions and deferral. Track A now makes a
+  Task Mandate executable without a repeated prompt, but the actual probe stays
+  pending until the shared Header Profile and Framed protected-composition
+  contract land. The resulting capability record remains provisional until
+  Phase 3 binds it to that landed contract.
+
+**Track P preparation evidence (2026-08-10):**
+`framed-provider-capability-discovery-research.md` records the current
+transport field set, the synthetic fixture, empirical rubric, result template,
+and safe evidence path. It ran no paid provider probe and makes no pixel-level
+guarantee. The next Track P action is deliberately Phase 3/5 work, not a
+premature submission against the current v3 or an unlanded Header Profile.
 
 ### 1. Settle Shared Presentation Schema
 
