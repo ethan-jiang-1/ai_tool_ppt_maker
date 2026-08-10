@@ -19,7 +19,9 @@
 
 | Plan | 说明 |
 |---|---|
+| [page-image-progressive-plan.md](page-image-progressive-plan.md) | Page Image schema、Framed 保护构图和当前 v3 恢复的一条渐进式总控推进路线。 |
 | [framed-provider-protected-composition.md](framed-provider-protected-composition.md) | Framed provider 保护区、约束传播与修复前能力验证的调查/设计计划。 |
+| [page-image-presentation-schema.md](page-image-presentation-schema.md) | Page Class、跨 workflow 页面定义与外部可读控制面的前置 schema 调查/设计计划。 |
 
 **Next available plan ID: CLS-025**（移入 `_closed_plans/` 时分配；CLS-001…024 已用）
 

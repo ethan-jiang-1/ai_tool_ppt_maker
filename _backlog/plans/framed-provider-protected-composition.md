@@ -2,6 +2,10 @@
 
 > Type: investigation and design | Updated: 2026-08-10
 
+> Coordinated by [page-image-progressive-plan.md](page-image-progressive-plan.md).
+> This work package owns the Framed-specific diagnosis, provider capability,
+> protection semantics, and v3 repair path; it does not own shared schema design.
+
 ## Background / Current State
 
 `deck_dark_factory_current/3_versions/v3` is a current
@@ -12,6 +16,57 @@ manifest, or delivery receipt. It must not proceed to delivery.
 
 This is a Harness-maintenance problem, not a run-bundle hand-edit problem.
 `_generated/` remains rebuildable evidence and will not be repaired in place.
+
+### Decisions settled during design grilling
+
+1. The current Work Version, not historical or future versions, is the design
+   boundary. All of its pages must use the same version-owned design system;
+   another version may learn from it but is not required to inherit it.
+2. Framed exists to make its header deterministic. Kicker, title, and subtitle
+   occupy a Reserved Header Region that provider-rendered body text and key
+   subjects must not enter. This is stronger than the current prompt-only
+   `Protected Zone` term.
+3. A current version needs a closed Header Profile Set rather than one
+   universal profile. The initial Page Classes are `standard`, `opening`,
+   `transition`, and `closing`; each class can select a different fixed
+   Reserved Header Region and header treatment.
+4. Page Class is a canonical, workflow-neutral source fact. It is shared by
+   Framed and Pure: Framed maps it to Header Profile; Pure consumes the same
+   class through its whole-page visual system. It must not be introduced as a
+   Framed-only source field.
+5. A human owns the choice of Page Class before provider work. A review must
+   not invent an unplanned class or silently modify geometry after generation.
+6. `standard` is the canonical source default. `opening`, `transition`, and
+   `closing` are explicit source selections, shared unchanged by Framed and
+   Pure.
+7. A Framed Header Profile declares its fixed allowed set of kicker, title,
+   and subtitle. A special Page Class may therefore be title-only, but a slide
+   cannot add, remove, or reposition a header field ad hoc.
+8. An owner may redirect a page to another existing named Page Class, but only
+   by changing canonical source before provider work. That redirect recompiles
+   the provider input, rebuilds raw work, and requires a new Complete Page
+   Review; a reviewer cannot `proceed` the already-violating output by applying
+   an after-the-fact layout override.
+9. Q8 (the concrete page-definition and profile-data schema) is deliberately
+   removed from this repair plan. Research established that it is a cross-
+   workflow domain-model problem, not a Framed configuration detail. Its
+   evidence and unresolved design choices now live in
+   [`page-image-presentation-schema.md`](page-image-presentation-schema.md).
+   This plan must consume the accepted outcome of that plan; it must not create
+   a private `FRAME PRESET` extension or repurpose Pure configuration.
+10. Before any paid production, a human must be able to inspect the resolved
+    page configuration and its controller projections. Framed exposes the
+    Image2 JSON projection and the deterministic local Header HTML projection;
+    both derive from and bind the same canonical page facts. The linked schema
+    plan owns this observability contract.
+
+The linked schema plan contains the Q2-Q13 decision ledger. Its explicit open
+decisions are prerequisites, not implied approval for a configuration tree,
+file path, migration, or authorization behavior.
+
+Still to decide here: the provider capability result and the exact compiled
+protected-region semantics. The page-schema ownership decision is intentionally
+deferred to the linked plan before this plan proposes implementation.
 
 ### Reproduced symptom
 
@@ -118,6 +173,10 @@ region or source subject restrictions.
 
 - Framed has exactly one local renderer: kicker, title, and subtitle. Provider
   body/labels/metrics/callouts remain provider-rendered.
+- **Target constraint, not current behavior:** Page Class belongs to canonical
+  source and Page Image Core. Framed and Pure may project it differently, but
+  neither workflow owns a private page-class vocabulary. Current source has no
+  such field, so this constraint depends on the linked page-schema plan.
 - The protected area is a composition constraint, not an opaque local panel or
   a generic local body renderer.
 - Adapter-owned compiled bytes are immutable, bound into raw lineage, and sent
@@ -187,6 +246,10 @@ implementation and retain the current ownership boundaries.
 4. Add contract-shape and invalidation tests: a protected-region or subject
    restriction change changes the compiled-input digest and routes to raw
    rebuild, never a local header refresh.
+5. After the linked page-schema plan has an accepted model, add only the
+   Framed-specific integration coverage that proves the selected canonical
+   class reaches the chosen local Header Profile. Cross-workflow source/Core
+   schema tests belong to that plan's implementation change.
 
 ### Phase 2: Specify and implement selected protected-region semantics
 
@@ -201,10 +264,13 @@ implementation and retain the current ownership boundaries.
 3. Propagate source `subject_restrictions` through Page Image Core/Framed raw
    contract into the selected provider request. Validate the closed enum at
    every boundary.
-4. Update the Header Rendering Policy specification for whatever replaces or
+4. Consume the closed, workflow-neutral Page Class fact and Framed Header
+   Profile projection defined by the linked page-schema plan. Do not define
+   those source fields or their shared configuration root in this change.
+5. Update the Header Rendering Policy specification for whatever replaces or
    narrows exact literal `context_not_to_render`. Do not leave literal header
    exposure as an untested negative prompt requirement.
-5. Keep all provider prompt semantics in the Framed adapter; shared transport
+6. Keep all provider prompt semantics in the Framed adapter; shared transport
    remains opaque and unchanged except for a real, selected provider capability
    field if the capability probe proves it is needed.
 
@@ -266,11 +332,15 @@ implementation and retain the current ownership boundaries.
   design decision.
 - Assuming masks or an official provider capability without a successful
   provider-specific probe.
+- Designing, naming, or placing the shared Page Class and presentation-system
+  schema; that is the explicit predecessor plan.
 
 ## Landing Association
 
-This plan is not an active change. Once its decision gate is answered, it
-becomes the design input for
+This plan is not an active change. It cannot become an implementation change
+until `page-image-presentation-schema.md` has settled the source/Core/config
+ownership that this plan consumes, and its provider capability gate is answered.
+It then becomes the design input for
 `openspec/changes/harden-framed-provider-protected-composition/`. The plan is
 closed only after that change has landed, the conformance evidence is recorded,
 and the v3 repair path has completed a new human review.
