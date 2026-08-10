@@ -79,7 +79,10 @@ _Avoid_: Refinement as the umbrella name, a synonym for provider authorization, 
 ### Page Image Composition
 
 **Page Source**:
-The canonical per-slide authoring facts, including exact header and body content, visual selection, and Page Class selection when that target model is adopted. It is the only per-page presentation scope and cannot directly choose a workflow or author renderer geometry.
+The canonical per-slide authoring facts, including exact header and body content,
+visual selection, and, after the Page Presentation migration, Page Class
+selection. It is the only per-page presentation scope and cannot directly
+choose a workflow or author renderer geometry.
 _Avoid_: A controller input, a review-time layout override, an unstructured prompt
 
 **Source Receipt**:
@@ -97,47 +100,97 @@ _Avoid_: A slide-level authority choice, a provider avoidance instruction, a thi
 ### Target Presentation Control
 
 **Page Presentation System**:
-The planned version-resolved source configuration that declares the Deck Baseline, closed Page Class catalog, and workflow-isolated class profiles. It is separate from page content, provider prompts, generated output, and lifecycle authority.
+The settled target version-resolved source package at
+`visual-style/page-image-presentation/`: `page-classes.yaml`,
+`deck-baseline.yaml`, `pure-profiles.yaml`, and
+`framed-header-profiles.yaml`. It declares the Deck Baseline, closed Page Class
+catalog, and workflow-isolated profiles; it is separate from page content,
+provider prompts, generated output, and lifecycle authority.
 _Avoid_: Pure visual system as the universal owner, a Framed preset list, an unstructured design brief
 
 **Deck Baseline**:
-The planned version-level presentation values shared by Page Class Profiles before a class declares its typed differences. It owns no slide content, page selection, or direct per-page geometry override.
+The settled target version-level provider facts shared by every Page Class
+Profile before it declares typed differences: closed provider typography,
+provider colour use, and provider density. Both selected workflows compile
+these facts into their provider controller; it owns no slide content, page
+selection, local-header geometry, or direct per-page geometry override.
 _Avoid_: A universal provider prompt, a per-slide style override, a duplicate class profile
 
 **Page Class**:
-The planned source-authored, workflow-neutral category that expresses a page's narrative and presentation role, not its geometry or renderer choice; the initial classes are `standard`, `opening`, `transition`, and `closing`, with `standard` as the default and every non-standard class explicit. Any addition is a version-level design change, and each selected class resolves through a workflow-specific Page Class Profile: Pure gets provider-owned full-page treatment, while Framed gets exactly one Header Profile.
+The settled target source-authored, workflow-neutral category that expresses a
+page's narrative and presentation role, not its geometry or renderer choice;
+the initial classes are `standard`, `opening`, `transition`, and `closing`.
+Omitted `PAGE CLASS` normalizes to `standard`; every special class is explicit,
+and explicit `standard` is rejected as redundant. Any addition is a
+version-level design change. Each selected class resolves through a
+workflow-specific Page Class Profile: Pure gets provider-owned full-page
+treatment, while Framed gets exactly one Header Profile.
 _Avoid_: A Framed-only concept, a post-generation review override, arbitrary slide styling
 
 **Page Class Profile**:
-The planned workflow-specific typed delta for one Page Class. It inherits the Deck Baseline, declares only class differences, and resolves to provider-owned full-page treatment for Pure or exactly one fixed Header Profile for Framed; it never exposes sibling-workflow facts.
+The settled target workflow-specific typed delta for one Page Class. A Pure
+Profile adds only title/content zones and allowed layout families to the Deck
+Baseline; a Framed mapping selects exactly one fixed Header Profile. It never
+exposes sibling-workflow facts.
 _Avoid_: A per-slide layout override, a cross-workflow configuration leak, an unstructured special-page exception
 
 **Header Profile Set**:
-The planned closed, version-scoped catalog of Header Profiles available to Framed pages. A Framed Page Class Profile resolves to one member; members are not selected by per-slide coordinates or a review-time visual edit.
+The settled target closed, version-scoped catalog in
+`framed-header-profiles.yaml`. A Framed Page Class mapping resolves to one
+member; members are not selected by per-slide coordinates or a review-time
+visual edit.
 _Avoid_: An unbounded style menu, a provider layout choice
 
 **Header Profile**:
-The planned fixed Framed treatment resolved for one Page Class in one Work Version. After the relevant Deck Baseline and Framed Page Class Profile are applied, it fixes the allowed header fields, their positions, type styles, colours, spacing, and the Reserved Header Region; a slide cannot override it or add a header field.
+The settled target fixed Framed treatment resolved for one Page Class in one
+Work Version. It fixes an allowed/required subset of kicker, title, and
+subtitle; normalized field and Reserved Header Region geometry; local font
+families, type style, colours, contrast, and line budgets. A slide cannot
+override it or add a header field.
 _Avoid_: Slide-local typography, an ad hoc provider layout instruction
 
 **Reserved Header Region**:
-The planned spatial region owned exclusively by Framed's deterministic local header renderer. Its geometry comes from the Header Profile selected by the page's Page Class; that profile separately determines allowed fields, typography, colour, and spacing, while provider compliance is requested separately and then human-reviewed.
+The settled target normalized spatial region owned exclusively by Framed's
+deterministic local header renderer. Its geometry comes from the Header Profile
+selected by the page's Page Class; that profile separately determines allowed
+fields, typography, colour, and spacing, while provider compliance is requested
+separately and then human-reviewed.
 _Avoid_: Provider Avoidance Constraint, Protected Zone, per-slide header styling
 
 **Resolved Page Presentation**:
-The planned immutable per-slide configuration produced by applying the Deck Baseline and a slide's Page Class to the Page Class Profile selected for its Work Version's one workflow. It supplies only that workflow's projection without allowing the slide to author geometry or styling directly.
+The settled target immutable per-slide configuration produced by applying the
+Deck Baseline and a slide's Page Class to the Page Class Profile selected for
+its Work Version's one workflow. Its schema is
+`pptmaker-resolved-page-presentation-v1`; it supplies only that workflow's
+projection and selected-presentation digest without allowing the slide to
+author geometry or styling directly.
 _Avoid_: Raw configuration file, a review-time override, a provider prompt
 
 **Rendering Controller Projection**:
-The planned human-inspectable, renderer-specific pre-production projection compiled from canonical content and one Resolved Page Presentation; Pure has one Image2 JSON projection, while Framed has a provider Image2 JSON projection and a deterministic local Header HTML projection, all bound to the same page facts. The exact bytes of a provider request remain the Compiled Provider Input.
+The settled target human-inspectable, renderer-specific pre-production
+projection compiled from canonical content and one Resolved Page Presentation.
+Pure has `image2-controller.json`; Framed has that same structured Image2
+controller plus deterministic `framed-header.html`, all bound to the same page
+facts. The exact bytes of a provider request remain the Compiled Provider
+Input; there is no duplicate Framed Header Controller JSON.
 _Avoid_: An opaque prompt, generated page pixels, a lifecycle approval
 
 **Pre-Production Data View**:
-The planned provider-free, page-addressable publication of separate non-secret source, resolved-presentation, and controller-projection artifacts, plus a deck-level Presentation Control Map. It exposes every non-secret fact needed to explain their transformations before authorization without becoming an input or approval authority.
+The settled target provider-free, page-addressable publication below
+`_generated/page_image_workflow/pre-production-data/`: separate non-secret
+`source-receipt.json`, `resolved-presentation.json`,
+`image2-controller.json`, and Framed-only `framed-header.html` per slide, plus
+one deck-level Presentation Control Map. It exposes every non-secret fact
+needed to explain their transformations before authorization without becoming
+an input or approval authority.
 _Avoid_: A summary-only debug report, a second source of truth, a provider log
 
 **Presentation Control Map**:
-The planned deck-level derived index within the Pre-Production Data View. It maps Page Class assignments, resolved profiles, downstream controller projections, and change impact to their authoritative per-page artifacts; it is neither editable configuration nor lifecycle authority.
+The settled target deck-level derived index named
+`presentation-control-map.json` within the Pre-Production Data View. It maps
+Page Class assignments, resolved profiles, downstream controller projections,
+and change impact to their authoritative per-page artifacts; it is neither
+editable configuration nor lifecycle authority.
 _Avoid_: One giant configuration blob, a second source of truth, an approval record
 
 **Presentation Scope**:

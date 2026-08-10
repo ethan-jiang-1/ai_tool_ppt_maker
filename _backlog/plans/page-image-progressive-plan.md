@@ -40,7 +40,7 @@ Mandate UX in the runtime instead of merely describing it in policy prose.
         v
 1. Settle shared presentation schema
         |
-     Guided Checkpoint A: schema design is ready for a human decision
+     Guided Checkpoint A: accepted schema design is ready to implement
         |
         v
 2A. Land shared presentation semantics in Harness
@@ -254,51 +254,50 @@ premature submission against the current v3 or an unlanded Header Profile.
 **Entry:** Phase 0 complete.
 **Output:** an accepted, implementation-ready schema design, not code.
 
-- [ ] Choose and document the final version-level configuration topology,
-  filename, and owned path; decide class-first versus workflow-first rather
-  than leaving both as plausible examples.
-- [ ] Define the exact closed fields and inheritance rules for Deck Baseline,
+- [x] Choose and document the class-first, four-document version-level
+  presentation package, its fixed filenames, and its override/backbone path.
+- [x] Define the exact closed fields and inheritance rules for Deck Baseline,
   Pure Page Class Profiles, Framed Page Class Profiles, and Header Profiles.
-- [ ] Define canonical `PAGE CLASS` authoring syntax, normalization of the
-  `standard` default, invalid source cases, and the retirement/migration rule
-  for current `FRAME PRESET` and `pure-deck-visual-system.yaml` inputs.
-- [ ] Define the explicit, owner-issued migration for the current v3
-  `page-image-workflow-v1` source/configuration pair. The migration must create
-  a new canonical source/configuration snapshot for resumed work, preserve the
-  old pair byte-for-byte as historical evidence, and never infer a current
-  protocol from an old state file.
-- [ ] Define the receipt, Page Image Core, selected projection digest, raw
+- [x] Define canonical `PAGE CLASS` authoring, default normalization, invalid
+  source cases, and the `FRAME PRESET` / `pure-deck-visual-system.yaml`
+  retirement rule.
+- [x] Define the explicit `v3 -> v4` owner-issued source/configuration
+  migration. It preserves v3 byte-for-byte and gives resumed content one new
+  canonical snapshot without inferring a protocol from old state.
+- [x] Define receipt/Core propagation, selected projection digest, raw
   contract, and invalidation semantics for class reassignment, selected and
   unselected profile edits, and workflow transitions.
-- [ ] Define the exact Pre-Production Data View, published by `image2 plan`
-  after source resolution and adapter compilation but before authorization or
-  submission. It uses one dedicated, non-navigation derived root with
-  independent per-page `source-receipt.json`,
-  `resolved-presentation.json`, `image2-controller.json`, and, for Framed,
-  `framed-header.html`, plus one deck-level
-  `presentation-control-map.json` index. Define its source/plan binding and
-  stale/missing rebuild behavior.
-- [ ] Define the Human Navigation boundary: `artifact-view` may link to or
-  summarize safe published control artifacts, but it neither creates the data
-  view nor copies raw Image2 prompt prose into its navigation tree. The exact
-  provider-input inspection remains the audit sidecar, outside that tree.
-- [ ] Decide whether a structured Framed Header Controller JSON is needed in
-  addition to the required Header HTML, and record the rationale.
-- [ ] Walk the model through the four required examples: standard content,
-  title-only Framed opening, Pure transition, and a human reclassified closing
-  page; resolve every ambiguity found by those examples.
-- [ ] Update the schema work package and `CONTEXT.md` with settled terms only,
-  apply the human's available design direction, and isolate only any genuinely
-  new consequential choice.
+- [x] Define the exact Pre-Production Data View, published by `image2 plan`
+  before authorization or submission, with independent per-page source,
+  presentation, Image2 controller, and Framed Header HTML artifacts plus the
+  deck-level Presentation Control Map.
+- [x] Define the Human Navigation boundary: `artifact-view` may link to or
+  summarize safe published control artifacts, but it neither creates the view
+  nor copies raw Image2 prompt prose into its navigation tree. Exact provider
+  input remains the external audit sidecar.
+- [x] Decide that Framed needs no duplicate Header Controller JSON: its
+  structured profile is in resolved presentation and its controller is the
+  exact deterministic HTML projection.
+- [x] Walk the model through standard content, title-only Framed opening, Pure
+  transition, and a human-reclassified closing page; resolve the resulting
+  source, profile, controller, and invalidation behavior.
+- [x] Update the schema work package and `CONTEXT.md` with settled terms. The
+  implementation proposal may now consume the accepted design.
 
 ### Guided Checkpoint A: Shared Schema Ready
 
-- [ ] The schema work package has no implementation-blocking topology, field,
+- [x] The schema work package has no implementation-blocking topology, field,
   migration, projection, or invalidation question left open.
-- [ ] The Agent has presented the exact target model and its human-facing
-  control surface in a form a human can inspect and choose.
-- [ ] Any remaining consequential schema/design choice is either already
-  covered by the Task Mandate or presented as one precise question.
+- [x] The exact target model and its human-facing control surface are recorded
+  in `page-image-presentation-schema.md` and are independently inspectable.
+- [x] The accepted current-v3-to-v4 migration makes no unrecorded content or
+  special-class choice; provider work remains outside this checkpoint.
+
+**Checkpoint A evidence (2026-08-10):** the settled schema plan fixes the
+source package, class catalog, inheritance, selected-only digests, controller
+artifacts, navigation boundary, and v3-to-v4 migration. Phase 2A may now open
+its dedicated implementation change; it must implement those facts, not reopen
+them ad hoc in an adapter.
 
 **When not ready:** the Agent narrows the unresolved question, prepares
 concrete candidate shapes and page examples, and asks only for the specific

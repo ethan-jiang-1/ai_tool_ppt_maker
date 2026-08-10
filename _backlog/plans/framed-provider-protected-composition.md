@@ -60,9 +60,10 @@ This is a Harness-maintenance problem, not a run-bundle hand-edit problem.
     both derive from and bind the same canonical page facts. The linked schema
     plan owns this observability contract.
 
-The linked schema plan contains the Q2-Q13 decision ledger. Its explicit open
-decisions are prerequisites, not implied approval for a configuration tree,
-file path, migration, or authorization behavior.
+The linked schema plan contains the Q2-Q13 decision ledger and the settled
+configuration tree, source path, migration, and controller-artifact contract.
+This plan consumes those shared facts; it does not reinterpret them as a
+provider guarantee or reopen them in a private Framed configuration path.
 
 Still to decide here: the provider capability result and the exact compiled
 protected-region semantics. The page-schema ownership decision is intentionally
@@ -360,10 +361,10 @@ capability claim.
 
 This plan is not an active change. Its current-contract baseline repair is
 complete as the small Progressive Phase 0.5 OpenSpec change; its
-protected-composition implementation cannot begin until
-`page-image-presentation-schema.md` has settled the source/Core/config
-ownership that it consumes and its provider capability gate is answered. It
-then becomes the design input for
+protected-composition implementation cannot begin until the shared
+presentation-system change has landed the source/Core/config ownership it
+consumes and its provider capability gate is answered. The now-settled schema
+plan is the design input for
 `openspec/changes/harden-framed-provider-protected-composition/`. The plan is
 closed only after that change has landed, the conformance evidence is recorded,
 and the v3 repair path has completed a new human review.
