@@ -41,8 +41,9 @@ hardening change will carry the relevant capability deltas.
 
 ## Impact
 
-- Affected source: narrowly scoped test helpers or test-only exports if needed
-  under `ppt_maker_harness/`, plus `tests/03-framed-image/`.
+- Affected source: `tests/03-framed-image/` only. Existing public plan and
+  transport outputs already provide the observation seam, so no Harness export
+  or production script change is expected.
 - Affected checks: current Framed source parsing, compiler/binding observation,
   render contract, review contribution, and invalidation regression tests.
 - Control owner: JS test coverage only; the MD Controller and CLI contract are

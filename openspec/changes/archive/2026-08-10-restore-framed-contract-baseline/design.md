@@ -20,8 +20,9 @@ The relevant authoritative behavior remains in `content-parsing`,
   request -> shared transport path using one valid reusable fixture builder.
 - Preserve the existing single review and exact-bound-input ownership model in
   regression tests.
-- Leave a visible, non-green characterization of the three later semantic
-  fixes without lowering the passing baseline.
+- Leave an explicit pending characterization of the three later semantic fixes
+  without treating any current omission as passing behavior or lowering the
+  green baseline.
 
 **Non-Goals:**
 
