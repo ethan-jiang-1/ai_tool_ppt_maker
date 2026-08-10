@@ -19,19 +19,14 @@
 
 | Plan | 说明 |
 |---|---|
-| [schema-first-page-image-recovery.md](schema-first-page-image-recovery.md) | **总控路线**。19 个 schema、定义家、C1–C7 七个 change 的拆分与依赖。 |
+| [schema-first-page-image-recovery.md](schema-first-page-image-recovery.md) | **总控路线**。19 个 schema、定义家、C1–C7 七个 change 的拆分与依赖。所有已作废计划中仍成立的结论都已吸收进来，下游 change 不需要读已关闭文档。 |
 | [framed-provider-protected-composition.md](framed-provider-protected-composition.md) | Framed provider 保护区、约束传播与修复前能力验证的调查/设计计划。归 C6。 |
 | [framed-provider-capability-discovery-research.md](framed-provider-capability-discovery-research.md) | Provider transport 面记录与合成探针准备。归 C6。 |
 
-### 已被取代（保留证据，路线作废）
+2026-08-11 关闭三份被取代的计划（CLS-025/026/027），其有效证据已吸收进总控路线的
+"Already Landed" 与 "Absorbed Design Decisions" 两节。
 
-| Plan | 状态 |
-|---|---|
-| [page-image-progressive-plan.md](page-image-progressive-plan.md) | Phase 0/0.5/Track A/Track P 的落地证据有效；Phase 1–6 作废。 |
-| [page-image-presentation-schema.md](page-image-presentation-schema.md) | Q2–Q13 决策与包结构有效；`-v1` 标识符和一批术语名作废。 |
-| [page-image-progressive-plan-feasibility-research.md](page-image-progressive-plan-feasibility-research.md) | 基线、缺陷、工作量、影响面分析有效；结尾的执行顺序作废。 |
-
-**Next available plan ID: CLS-025**（移入 `_closed_plans/` 时分配；CLS-001…024 已用）
+**Next available plan ID: CLS-028**（移入 `_closed_plans/` 时分配；CLS-001…027 已用）
 
 ---
 

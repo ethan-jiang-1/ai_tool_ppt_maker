@@ -2,9 +2,13 @@
 
 > Type: progressive coordination plan | Updated: 2026-08-11 | Status: active
 >
-> Supersedes the route in `page-image-progressive-plan.md`. That plan's Phases
-> 0, 0.5, Track A, and Track P are landed and carried forward here unchanged;
-> its Phases 1–6 are re-derived below because the schema decision changed.
+> **This is the only route document for Page Image recovery.** Three earlier
+> plans were closed on 2026-08-11 as CLS-025/026/027; everything from them that
+> still binds is restated below, so no downstream change needs to open a closed
+> document. Two specialist plans remain active and are owned by change C6:
+> [framed-provider-protected-composition.md](framed-provider-protected-composition.md)
+> and
+> [framed-provider-capability-discovery-research.md](framed-provider-capability-discovery-research.md).
 
 ## What Changed And Why This Plan Exists
 
@@ -28,7 +32,8 @@ Three founding rules now constrain every phase:
 The withdrawn OpenSpec change `introduce-page-image-presentation-system` is
 deleted (recoverable at `c05a502`). It proposed renaming the protocol to
 `page-authority-image2-v2` — a third simultaneous protocol name — which the
-no-versioning rule forbids.
+no-versioning rule forbids. The protocol name question is settled below under
+"The protocol name is frozen": it stays `page-image-workflow-v1`.
 
 ## The Constraint That Shapes Everything: Records Cannot Be Renamed
 
@@ -67,6 +72,44 @@ already spent. **Records are read under their historical identifier forever;
 only newly written records use the new vocabulary.** This constraint was absent
 from every earlier plan and is the single largest reason the work must split
 into more than one change.
+
+### The protocol name is frozen for the same reason, and it is not renamed
+
+The withdrawn change proposed `page-authority-image2-v2`. Separately from the
+no-versioning rule, three protocol/mode identifiers are load-bearing in
+persisted data and cannot move:
+
+| Identifier | Source files | Record files outside `_generated/` | What it is |
+| --- | --- | --- | --- |
+| `page-image-workflow-v1` | 58 | 31 | the pipeline/adapter route |
+| `image2-page-workflow-v1` | 24 | 2 | the per-version production mode |
+| `mnemonic-v1` | 33 | 3 | the slide identity scheme |
+
+`page-image-workflow-v1` is the hardest case. It is not merely stored — it is
+*computed into* the provider idempotency key:
+
+```js
+// page_image_progressive_schema.mjs:417
+return `page-image-workflow-v1-${attempt_key_sha256}`;
+```
+
+and attempt validation compares the persisted key against that function for
+exact equality (`:457`, `:463`). 27 attempt records in
+`deck_dark_factory_current/1_upstream_raw_material/` carry keys with that
+prefix. Changing the literal makes every one of them fail validation — the paid
+attempt history becomes unreadable, not merely mislabelled.
+
+It also appears in `_state/state.yaml` as `pipeline:` and in the front matter of
+`slide-specifications.md` for v1, v2, and v3 — i.e. in Source Data the human
+authored. Rewriting those is a source migration, not a rename.
+
+**Decision: the protocol keeps the name `page-image-workflow-v1`.** The user's
+preferred `page-image2-workflow` describes the same thing and reads better, but
+it buys nothing that the schema definitions do not already deliver, and it costs
+the readability of paid evidence. The `-v1` here is a frozen literal inside an
+identity function, in the same category as the 15 record identifiers above — not
+a version number anyone may bump. C1 records this in `frozen-identifiers.yaml`
+with its reason, so the next reader does not re-propose the rename.
 
 ## Target: 19 Schemas
 
@@ -134,25 +177,47 @@ ppt_maker_harness/schema/
   META.yaml          how to write one definition + naming rules
   flow.yaml          the dataflow: each transformation, owner, invalidation
   stages/            19 field-level definitions, one file each
-  legacy-records.yaml  the 15 frozen record identifiers, read-only forever
+  frozen-identifiers.yaml  the 15 record schemas + 3 protocol/mode/identity
+                           literals, read-only forever, each with its reason
 ```
 
 Code constants become mirrors annotated `// anchor: schema/stages/<name>.yaml`.
 A regression test enumerates schema constants across `.mjs` and fails on any
-name with no definition. `legacy-records.yaml` is the explicit exception list:
-reading those identifiers is permitted, writing new data under them is not.
+name with no definition. `frozen-identifiers.yaml` is the explicit exception
+list. Its two entry kinds differ:
+
+- **Frozen record schema** (the 15) — reading is permitted, writing new data
+  under the identifier is not. New records use the new vocabulary.
+- **Frozen literal** (`page-image-workflow-v1`, `image2-page-workflow-v1`,
+  `mnemonic-v1`) — still actively written, because it identifies the live
+  protocol, mode, and identity scheme. It is frozen against *renaming*, not
+  against use.
+
+Every entry carries a `reason:` naming the specific data that would become
+unreadable. Without it a future reader sees only a `-v1` suffix and re-proposes
+the rename this plan already rejected.
+
+## Already Landed
+
+Carried forward from the closed plans. These need no rework.
+
+| Work | Evidence |
+| --- | --- |
+| **Baseline confirmed** | The v3 collision is provider-page content entering the Framed local header area before local composition. Current v3 has no accepted raw evidence, final manifest, or delivery receipt, so it cannot proceed. |
+| **Framed test baseline restored** | `restore-framed-contract-baseline` (2026-08-10): 16 passing workflow tests, 3 named `it.todo` cases for the known omissions — lost `subject_restrictions`, ambiguous protected-region coordinates, missing body-safe region. The old 11 stale failures are gone. Those three define C6's work. |
+| **Task Mandate aligned** | `align-task-mandate-exact-grants`, committed `17bb9f5`. Routine plan/Pilot/successor/grant/generation actions are Agent-run with `requires_human: false`; exact batch/grant/attempt/provenance lineage retained; Pilot and Complete Page Review remain human decisions. Verified: State/raw-owner/workflow 52/52, CLI 4/4, Controller 9/9, mock E2E 8/8, `npm test`. |
+| **Provider surface recorded** | The transport submits `model`, `prompt`, `n`, `size`, `image`, `images`, `image_urls` — no mask or region field. A synthetic stress fixture, rubric, and result template exist. No paid probe was run; that stays in C6. |
+| **Glossary and decision record** | `CONTEXT.md` rewritten 2026-08-11: 11 stale "settled target" terms removed, upstream narrative and data-kind vocabulary added, `Header Overlay Preset` corrected against the implementation. [ADR 0006](../../docs/adr/0006-define-production-schemas-in-yaml.md) records the YAML-authority and no-versioning decisions. |
 
 ## Ordered Route
 
 ```text
-Landed (carried forward from the previous plan)
-  0    Confirmed baseline
-  0.5  Framed current-contract test baseline restored
-  A    Task Mandate aligned with exact-grant runtime
-  P    Provider capability surface recorded
-       |
-       v
-CONTEXT.md rewritten + ADR 0006          <- landed 2026-08-11
+Landed
+  Confirmed baseline
+  Framed current-contract test baseline restored
+  Task Mandate aligned with exact-grant runtime
+  Provider capability surface recorded
+  CONTEXT.md rewritten + ADR 0006          <- 2026-08-11
        |
        v
  C1  Publish the schema definitions                    (no runtime change)
@@ -196,7 +261,7 @@ unreviewable or unsafe to land partially.
 | Change | Scope | Why it cannot merge with its neighbour |
 | --- | --- | --- |
 | **C1** Publish schema definitions | `ppt_maker_harness/schema/` only; zero runtime behaviour | This is the artifact the owner reviews. Mixing it with code changes makes the review impossible. Landing it alone is risk-free. |
-| **C2** Conform code to definitions | Rename constants, add anchors, add the drift test, freeze the 15 records | Touches nearly every `.mjs` but changes no behaviour. A pure-rename change is reviewable by diff; bundling semantics into it is not. |
+| **C2** Conform code to definitions | Rename constants, add anchors, add the drift test, enforce `frozen-identifiers.yaml` | Touches nearly every `.mjs` but changes no behaviour. A pure-rename change is reviewable by diff; bundling semantics into it is not. |
 | **C3** Upstream gap | `story-outline`, `design-constraints`, pagination | New capability territory. Independent of Page Class. |
 | **C4** Page Class + layout config | Parser, Core, resolver, both adapters, invalidation | The `XL` change. Needs C1/C2 vocabulary settled first or it re-scatters the schema. |
 | **C5** Per-page derived data on disk | `image2 plan` writer, path layout | Depends on C4's resolver existing. Provider-free, so it can land and be inspected before any spend. |
@@ -205,6 +270,101 @@ unreviewable or unsafe to land partially.
 
 C1 and C2 are the new work. C3–C7 absorb the earlier plans' Phases 1–6 with
 their evidence intact.
+
+## Absorbed Design Decisions
+
+The two superseded plans are closed. Everything from them that still binds is
+restated here, so no downstream change needs to read a closed document.
+
+### From the schema plan (Q2–Q13, settled 2026-08-10)
+
+| # | Decision | Owner |
+| --- | --- | --- |
+| Q2 | The current Work Version is the design boundary. Other versions may learn from it but never inherit automatically. | C4 |
+| Q3 | Flexibility for opening/transition/closing pages is source-authored class selection, never a post-generation layout override. | C4 |
+| Q4 | The closed class set is `standard`, `opening`, `transition`, `closing`. | C4 |
+| Q5 | `standard` is the default; every special class is explicit in source. | C4 |
+| Q6 | A framed header treatment owns its allowed kicker/title/subtitle set; a special class may be title-only. | C4 |
+| Q7 | A human may redirect a page only to an existing named class, through source. That invalidates raw work and requires a new review. | C4 |
+| Q8 | Page-definition schema and profile ownership are a cross-workflow problem. Pure's configuration cannot be repurposed to hold Framed facts. | C4 |
+| Q9 | One version-level config resolves a class into strictly isolated Pure and Framed projections. Not one cross-workflow YAML. | C4 |
+| Q10 | Before production each page exposes its source, resolved config, and generation spec; Framed also exposes its deterministic header HTML. No duplicate header-controller JSON. | C5 |
+| Q11 | Those layers publish as independent per-page files with an index, not one giant document. | C5 |
+| Q12 | A deck-level index explains purpose, adjustment scope, downstream controllers, and rebuild impact. | C5 |
+| Q13 | Class profiles inherit deck-wide defaults and declare only typed differences; the resolved view shows the inherited result. | C4 |
+
+**Config file layout** (C4). Four documents under
+`visual-style/page-image-presentation/`, resolved by the normal
+override-first/backbone-default path and validated as one closed package:
+
+| Document | Owns | Must not contain |
+| --- | --- | --- |
+| class catalog | closed class set, default, class→profile identifiers | slide literals, geometry, provider prose |
+| deck defaults | workflow-neutral typography, colour roles, density | per-slide facts, renderer geometry, prompts |
+| pure profiles | Pure-only full-page treatment per class | framed header facts |
+| framed header profiles | allowed fields, Reserved Header Region, local type/colour/spacing | Pure zones, provider prose, slide overrides |
+
+A malformed, missing, or cross-file-inconsistent document stops planning; the
+resolver never falls back to an earlier generated projection. The source-facing
+counterpart is one closed field, `**PAGE CLASS**: opening`, whose omission
+normalizes to `standard`.
+
+**Invalidation** (C4). A class reassignment, a deck-default edit, or a
+*selected* profile edit changes the page's resolved presentation and forces raw
+rebuild plus a new Complete Page Review. An *unselected* class or sibling
+profile edit invalidates nothing. A workflow transition resolves a fresh
+projection and never reuses an old raw contract.
+
+**Framed publishes header HTML only** (C5). The resolved page layout already
+carries the structured header facts, and the HTML is the exact deterministic
+local controller. A sibling JSON copy would add a duplicate with no decision
+value.
+
+### From the feasibility research (2026-08-10)
+
+Effort, in the research's own scale — `S` bounded to one owner, `M` crosses a
+few, `L` changes an adapter and its lifecycle tests, `XL` changes common
+contracts, both adapters, paths, and regression suites:
+
+| Change | Estimate | Dominant risk |
+| --- | --- | --- |
+| C1 | `S` | none — documentation only |
+| C2 | `M` | wide diff; the 15 frozen record identifiers must survive |
+| C3 | `M` | new territory, low coupling |
+| C4 | `XL` | selected-vs-unselected invalidation, and source migration |
+| C5 | `M` | must not become a second authority or a navigation copy |
+| C6 | `L` prompt-only, `XL` if a native primitive appears | external provider behaviour |
+| C7 | `M` operationally | low architecture risk if C1–C6 pass |
+
+Regression blast radius, by area:
+
+| Area | Coverage to add or repair |
+| --- | --- |
+| source and receipt | `tests/01-content/test_page_authority_source.mjs` — currently asserts only the old preset |
+| shared semantics | `test_page_image_core.mjs`, `test_page_image_invalidation.mjs`, both adapter suites |
+| version config | `test_pure_deck_visual_system.mjs` plus new resolver/migration tests including unselected-profile non-invalidation |
+| framed compilation | `test_framed_workflow.mjs`, then parsed-source-to-exact-request, coordinate-semantics, restriction, transport tests |
+| per-page derived data | new path/schema tests; keep `test_complete_page_review.mjs` so publication cannot create a second acceptance state |
+
+The research's three relaxation findings still hold: provider capability
+discovery does not wait for schema code; Task-Mandate runtime alignment was
+independent (and has landed); and a friendly projection must never become a new
+gate.
+
+### Version succession, not protocol migration
+
+The superseded schema plan specified a `v3 -> v4` migration. Its **mechanism**
+survives; its **framing as a protocol change** does not — there is one
+protocol.
+
+What survives: `--new-version` already copies only `slide-specifications.md`
+and `overrides/` while resetting `_generated/`. A successor version therefore
+gets a clean source snapshot and the new config package before any raw plan is
+built, and the predecessor stays byte-preserved with its evidence intact. The
+successor receives no raw evidence, grant, review decision, or final media.
+Verified against the current v3: all three pages (`DkfGo`, `TwoMet`, `PlatGo`)
+normalize to `standard`, so succession makes no content or special-class
+judgment. Owned by C7.
 
 ## Carried-Forward Findings
 
@@ -238,10 +398,11 @@ These survive from the earlier plans and must not be re-litigated:
   provider-rendered.
 - `_generated/`, receipts, review records, and state are never hand-edited.
 - A provider avoidance instruction is not a collision guarantee.
-- Record Data is append-only. The 15 frozen identifiers are read forever and
+- Record Data is append-only. The 15 frozen record schemas are read forever and
   never rewritten.
-- No schema identifier gains a `-vN` suffix. If the charter changes, everything
-  changes together.
+- No *new* schema identifier gains a `-vN` suffix. If the charter changes,
+  everything changes together. The existing frozen literals keep theirs because
+  persisted identity keys depend on the exact string.
 - A derived value without provenance is a defect: the Agent could not then state
   a change's blast radius, and the human could not check the claim.
 

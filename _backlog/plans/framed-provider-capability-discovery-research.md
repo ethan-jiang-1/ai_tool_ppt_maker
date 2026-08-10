@@ -1,8 +1,12 @@
 # Research: Framed Provider Capability Discovery
 
-> Status: preparation only | Date: 2026-08-10 | Owner: change C6 in
+> Status: preparation only | Date: 2026-08-10 | Updated: 2026-08-11 | Owner:
+> change **C6** in
 > [schema-first-page-image-recovery.md](schema-first-page-image-recovery.md)
-> (formerly Track P in the superseded progressive plan)
+>
+> Naming note: `standard-v1` and `page-image-workflow-v1` below are quoted
+> implementation identifiers, not new vocabulary. The current preset is the
+> **Header Overlay Preset**; there is exactly one and it is hardcoded.
 
 ## Decision
 
@@ -60,9 +64,9 @@ header; it does not clip or erase provider pixels.
 | Deterministic contract evidence | Current field set; exact prompt bytes; plan/batch/grant/attempt lineage; fixed header geometry; correct raw-plus-composite review binding | Whether rasterized provider text or a key visual subject stays out of the header region |
 | Empirical provider-output evidence | Whether a bounded set of actual provider PNGs visibly respected the fixture's avoidance instruction | A general provider guarantee, a native API capability, or future output behavior |
 
-This boundary is required by the current plan: prompt-only improvement is
-bounded best effort, while a native primitive needs both endpoint-contract and
-bounded-output evidence. [Framed work package](/Users/bowhead/ai_tool_ppt_maker/_backlog/plans/framed-provider-protected-composition.md:232)
+This boundary is required by the route: prompt-only improvement is bounded best
+effort, while a native primitive needs both endpoint-contract and bounded-output
+evidence. [Framed work package](/Users/bowhead/ai_tool_ppt_maker/_backlog/plans/framed-provider-protected-composition.md)
 
 ## Proposed Synthetic Stress Fixture
 
@@ -120,9 +124,9 @@ selected_next_path: prompt-only-best-effort | native-primitive-candidate | repai
 The empirical pass criterion is: no copied header literal, readable provider
 body text, or key subject in the mapped protected rectangle; the local header
 remains legible. A `body-safe-region` pass cannot be claimed until the proposed
-Framed contract defines one. The existing plan requires this same distinction
-and keeps OCR advisory rather than an automatic acceptance gate.
-[Progressive conformance rubric](/Users/bowhead/ai_tool_ppt_maker/_backlog/plans/page-image-progressive-plan.md:500)
+Framed contract defines one. C6 requires this same distinction and keeps OCR
+advisory rather than an automatic acceptance gate.
+[C6 work package](framed-provider-protected-composition.md)
 
 ## Safe Evidence Path
 
@@ -146,11 +150,11 @@ and keeps OCR advisory rather than an automatic acceptance gate.
 
 ## Paid-Probe Status
 
-**Prepared, not authorized or appropriate to run now.** Track A is now landed,
-so the runtime *can* establish a non-secret Task Mandate once provider-free
-planning runs for a specific current version/workflow. The mandate binds only
-that version, workflow, and active execution; observation cannot manufacture
-it. [State owner](/Users/bowhead/ai_tool_ppt_maker/ppt_maker_harness/scripts/shared/state/state.mjs:1180)
+**Prepared, not authorized or appropriate to run now.** The Task Mandate
+alignment has landed, so the runtime *can* establish a non-secret Task Mandate
+once provider-free planning runs for a specific current version/workflow. The
+mandate binds only that version, workflow, and active execution; observation
+cannot manufacture it. [State owner](/Users/bowhead/ai_tool_ppt_maker/ppt_maker_harness/scripts/shared/state/state.mjs:1180)
 
 Under the accepted policy, one clear Work Request covers ordinary in-scope
 provider cost and does not require per-batch reconfirmation.
@@ -158,9 +162,10 @@ provider cost and does not require per-batch reconfirmation.
 However, this research request authorized investigation and preparation, not a
 new synthetic production run or paid provider experiment. No synthetic run has
 an active exact plan, Task Mandate, batch grant, or result record. In addition,
-the shared Page Presentation schema and the selected Framed
-protected-composition contract are still pending; the progressive plan places
-empirical conformance after those land. [Progressive plan](/Users/bowhead/ai_tool_ppt_maker/_backlog/plans/page-image-progressive-plan.md:492)
+the schema definitions (C1/C2), the layout config (C4), and the selected Framed
+protected-composition contract (C6) are still pending; the route places
+empirical conformance after those land.
+[Route document](schema-first-page-image-recovery.md)
 
 The next legal action is therefore to retain this prepared fixture and use it
 after the owner creates a dedicated current synthetic run and its active Task

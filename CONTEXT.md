@@ -136,6 +136,17 @@ schema in YAML. Code constants are mirrors of it, annotated with the definition
 they reference; a schema that exists in code but not there is a defect.
 _Avoid_: A JS constant, a per-module type file, documentation of code
 
+**Frozen Identifier**:
+A name that can no longer be changed because persisted data depends on the exact
+literal. Two kinds. A frozen *record schema* labels Record Data that already
+exists: it is read forever under its historical name, and new records use
+current vocabulary instead. A frozen *literal* — the protocol, production mode,
+and identity scheme names — is still actively written; it is frozen against
+renaming, not against use, because it is computed into identity keys that
+validation compares for exact equality. Both kinds are listed in the Schema
+Definition Home with the specific data each protects.
+_Avoid_: Legacy name, deprecated schema, version suffix
+
 ### Page Image Composition
 
 **Page Source**:

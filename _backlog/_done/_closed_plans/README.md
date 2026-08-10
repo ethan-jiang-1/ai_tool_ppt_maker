@@ -43,7 +43,10 @@ plan 完成后从 `_backlog/plans/` 通过 `git mv` 移入本目录：
 | [CLS-022](page-image-workflow-master-plan.md) | 2026-08-08 | `page-image-workflow-master-plan.md` | Page Image Workflow 转换总路线图；两个里程碑完成，后续仅保留为独立提案候选。 |
 | [CLS-023](progressive-page-image-integrity-and-usability.md) | 2026-08-09 | `progressive-page-image-integrity-and-usability.md` | BUG-055/056/057/059/060/062/063 的渐进式 Page Image 完整性与可用性修复；Changes 0–12、successor Pilot、三页交付与最终复核均完成。 |
 | [CLS-024](2026-08-06-page-production-short-references-research.md) | 2026-08-09 | `2026-08-06-page-production-short-references-research.md` | 短 Page Image 物理导航研究复核：`nav/art/` 的八位 digest 前缀实体文件已满足人类使用；immutable SHA storage 保持内部边界。 |
+| [CLS-025](page-image-progressive-plan.md) | 2026-08-11 | `page-image-progressive-plan.md` | Phase 0/0.5/Track A/Track P 已落地并被 `schema-first-page-image-recovery.md` 吸收；Phase 1–6 的路线因 schema-first 决策作废。 |
+| [CLS-026](page-image-presentation-schema.md) | 2026-08-11 | `page-image-presentation-schema.md` | Q2–Q13 决策与四文档配置包结构已吸收进 C4/C5；`-v1` 标识符与 `Header Profile Set` 等术语作废。 |
+| [CLS-027](page-image-progressive-plan-feasibility-research.md) | 2026-08-11 | `page-image-progressive-plan-feasibility-research.md` | 基线、缺陷定位、工作量与回归影响面分析已吸收进 C1–C7；结尾的执行顺序建议作废。 |
 
-**Next available plan ID: CLS-025**
+**Next available plan ID: CLS-028**
 
 > 已完成计划保留历史决策；当前工作只从 `_backlog/plans/` 重新进入。
