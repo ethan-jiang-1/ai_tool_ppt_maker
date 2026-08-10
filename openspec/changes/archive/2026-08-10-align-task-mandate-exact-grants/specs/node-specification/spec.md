@@ -4,18 +4,21 @@
 
 For each current Page Image version, State SHALL be the durable owner of an
 optional, versioned Task Mandate record. A valid record SHALL bind only the
-current run version, selected workflow, active execution identity, issuance
-time, and a stable digest/reference used by the raw-plan lineage. It SHALL NOT
-persist raw Work Request prose, prompt text, credentials, provider responses,
-or an unbounded human-cost questionnaire.
+current run version, selected workflow, active execution identity and start
+time, issuance time, the fixed `normal-page-image-production` scope, and a
+stable digest/reference used by the raw-plan lineage. It SHALL NOT persist raw
+Work Request prose, prompt text, credentials, provider responses, or an
+unbounded human-cost questionnaire.
 
-The selected Page Image planning path SHALL establish the record once for a
-clear current Work Request or reuse it only when those direct bindings still
-match. Source edits inside the same version/workflow/execution may reuse the
-mandate while producing a new exact raw plan and grant. A new version,
+The MD Agent interprets a clear current Work Request; the selected Page Image
+planning path SHALL establish the record once when that provider-free planning
+is invoked under that request, or reuse it only when those direct bindings
+still match. Source edits inside the same version/workflow/execution may reuse
+the mandate while producing a new exact raw plan and grant. A new version,
 execution, workflow, identity failure, or explicit out-of-scope request SHALL
 not reuse the old reference for new provider work. State observation SHALL stay
-byte-preserving and SHALL not invent, repair, or activate a mandate.
+byte-preserving and SHALL not infer Work Request semantics, repair, or activate
+a mandate.
 
 The Controller may record successful mandate-covered planning and exact-grant
 evidence as `agent` or `cli`; it SHALL NOT record it as a human visual or cost
@@ -55,3 +58,23 @@ decisions retain their typed `user` provenance.
   State, history, task projections, generated artifacts, or provider work
 - **AND** it does not infer authority from chat text, a prior grant, or a
   navigation artifact
+
+#### Scenario: A direct grant cannot complete an unrelated Controller node
+
+- **WHEN** an exact `image2 authorize` operation records or replays a valid
+  mandate-bound grant while the active Controller node is not the matching
+  Framed/Pure Pilot or Expansion authorize node
+- **THEN** the direct raw-owner grant remains its own valid evidence while the
+  state-owned handoff leaves Controller node status and evidence unchanged
+- **AND** it does not fabricate a user decision or complete a sibling node
+
+#### Scenario: A current refinement supersedes only prior CLI grant evidence
+
+- **WHEN** a same-execution source refinement or successor establishes a later
+  current mandate-bound exact grant at its matching stable authorize node
+- **AND** that node's prior completion contains only typed CLI grant evidence
+- **THEN** State records the later exact CLI evidence as the current Controller
+  projection and retains each prior raw plan, batch, grant, attempt, and
+  provenance record unchanged
+- **AND** human, malformed, unmatched-node, or failed current-fact evidence is
+  not reset or superseded

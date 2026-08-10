@@ -110,6 +110,37 @@ function binding(plan) {
   };
 }
 
+function taskMandateRecoveryAction(snapshot) {
+  return action("rebuild_progressive_raw_work", {
+    kind: "guide",
+    plan_hash: snapshot.plan.sha256,
+    summary: "Rebuild the current provider-free plan under the active Page Image Task Mandate.",
+  });
+}
+
+/**
+ * Adapter-owned runtime calls always pass the State inspection result. The
+ * undefined form is retained only for low-level immutable-record readers and
+ * their historical protocol fixtures; it is never used by the public CLI.
+ */
+function taskMandateAction(snapshot, taskMandate) {
+  if (taskMandate === undefined) return null;
+  const plan = snapshot.plan;
+  if (!Object.hasOwn(plan, "task_mandate_sha256")) return taskMandateRecoveryAction(snapshot);
+  if (!taskMandate?.ok || taskMandate.task_mandate_sha256 !== plan.task_mandate_sha256 ||
+    taskMandate.run_version !== plan.run_version || taskMandate.workflow !== plan.workflow) {
+    return taskMandateRecoveryAction(snapshot);
+  }
+  return null;
+}
+
+function requireCurrentTaskMandate(snapshot, taskMandate) {
+  const recovery = taskMandateAction(snapshot, taskMandate);
+  if (recovery) {
+    fail("progressive_raw_task_mandate_required", "current provider work requires a matching Page Image Task Mandate and v2 full plan", { nextAction: recovery });
+  }
+}
+
 function orderedItems(plan, ids) {
   const selected = new Set(ids);
   return plan.items.filter((item) => selected.has(item.slide_id));
@@ -648,13 +679,20 @@ async function withCurrentProgressiveRawPlanLock(runDir, {
   workflow,
   plan_hash,
   expected_plan = null,
+  task_mandate = undefined,
   action: ownerAction,
 } = {}) {
   if (typeof ownerAction !== "function") fail("progressive_raw_invalid", "current progressive raw mutation requires an owner action");
-  const current = requireCurrentPlan(loadPlanByHead(runDir, workflow), plan_hash, expected_plan);
+  const current = requireCurrentPlan(loadPlanByHead(runDir, workflow), plan_hash);
+  requireCurrentTaskMandate(current, task_mandate);
+  requireCurrentPlan(current, plan_hash, expected_plan);
   return withProgressiveRawPlanLock(runDir, {
     plan_sha256: current.plan.sha256,
-    action: async () => ownerAction(requireCurrentPlan(loadPlanByHead(runDir, workflow), plan_hash, expected_plan)),
+    action: async () => {
+      const reloaded = requireCurrentPlan(loadPlanByHead(runDir, workflow), plan_hash);
+      requireCurrentTaskMandate(reloaded, task_mandate);
+      return ownerAction(requireCurrentPlan(reloaded, plan_hash, expected_plan));
+    },
   });
 }
 
@@ -703,7 +741,28 @@ function completeReviewAction(snapshot) {
   return action("prepare_progressive_raw_review", { plan_hash: snapshot.plan.sha256, summary: "Prepare complete full-plan raw review evidence." });
 }
 
-function nextAction(snapshot, { expectedPlan = null } = {}) {
+function routineMandateAction(snapshot, taskMandate, actionId, { plan_hash = snapshot.plan.sha256, batch_hash = null, summary = null } = {}) {
+  const recovery = taskMandateAction(snapshot, taskMandate);
+  if (recovery) return recovery;
+  if (Object.hasOwn(snapshot.plan, "task_mandate_sha256")) {
+    return action(actionId, { plan_hash, batch_hash, summary });
+  }
+  return action(actionId, {
+    kind: "confirm",
+    requires_human: true,
+    plan_hash,
+    batch_hash,
+    summary,
+  });
+}
+
+function providerSubmissionAction(snapshot, taskMandate, { batch_hash, summary = null } = {}) {
+  const recovery = taskMandateAction(snapshot, taskMandate);
+  if (recovery) return recovery;
+  return action("generate_progressive_raw_item", { plan_hash: snapshot.plan.sha256, batch_hash, summary });
+}
+
+function nextAction(snapshot, { expectedPlan = null, task_mandate = undefined } = {}) {
   if (!snapshot) return action("plan_progressive_raw_work", { summary: "Compile and publish one provider-free full raw plan." });
   const unresolved = unresolvedAction(snapshot);
   if (unresolved) return unresolved;
@@ -719,11 +778,14 @@ function nextAction(snapshot, { expectedPlan = null } = {}) {
   const live = activeBatch(snapshot);
   if (live) {
     if (!live.grant) {
-      return action("authorize_progressive_raw_batch", { kind: "confirm", requires_human: true, plan_hash: snapshot.plan.sha256, batch_hash: live.batch.sha256, summary: "Confirm the exact disclosed provider cost for this batch." });
+      return routineMandateAction(snapshot, task_mandate, "authorize_progressive_raw_batch", {
+        batch_hash: live.batch.sha256,
+        summary: "Record the exact current provider grant for this batch.",
+      });
     }
     if (live.unresolved) return action("reconcile_progressive_raw_attempt", { kind: "repair", plan_hash: snapshot.plan.sha256, attempt_sha256: live.unresolved.attempt.sha256 });
     if (live.claim || live.eligible) {
-      return action("generate_progressive_raw_item", { plan_hash: snapshot.plan.sha256, batch_hash: live.batch.sha256, summary: "Submit at most one exact owner-eligible item." });
+      return providerSubmissionAction(snapshot, task_mandate, { batch_hash: live.batch.sha256, summary: "Submit at most one exact owner-eligible item." });
     }
   }
   const latest = latestBatch(snapshot);
@@ -733,10 +795,7 @@ function nextAction(snapshot, { expectedPlan = null } = {}) {
       const coverageMissing = missingRawCoverage(snapshot.materializations, latest.record.review_sample_slide_ids);
       if (coverageMissing.length > 0) {
         if (snapshot.progress.paid_debt.length > 0) {
-          return action("plan_progressive_pilot", {
-            kind: "confirm",
-            requires_human: true,
-            plan_hash: snapshot.plan.sha256,
+          return routineMandateAction(snapshot, task_mandate, "plan_progressive_pilot", {
             summary: "A terminal Pilot lacks current review coverage; choose the exact successor Pilot scope.",
           });
         }
@@ -757,11 +816,15 @@ function nextAction(snapshot, { expectedPlan = null } = {}) {
       return action("rebuild_progressive_raw_work", { kind: "repair", plan_hash: snapshot.plan.sha256 });
     }
     if (latestState?.terminal && snapshot.progress.paid_debt.length > 0) {
-      return action("plan_progressive_pilot", { kind: "confirm", requires_human: true, plan_hash: snapshot.plan.sha256, summary: "A terminal predecessor leaves paid debt requiring a newly disclosed successor scope." });
+      return routineMandateAction(snapshot, task_mandate, "plan_progressive_pilot", {
+        summary: "A terminal predecessor leaves paid debt requiring a successor Pilot scope.",
+      });
     }
   }
   if (snapshot.progress.paid_debt.length === 0) return completeReviewAction(snapshot);
-  return action("plan_progressive_pilot", { kind: "confirm", requires_human: true, plan_hash: snapshot.plan.sha256, summary: "Choose exact formal IDs for the representative Pilot scope." });
+  return routineMandateAction(snapshot, task_mandate, "plan_progressive_pilot", {
+    summary: "Choose exact formal IDs for the representative Pilot scope.",
+  });
 }
 
 function currentDisplay(plan, displayBySlide = {}) {
@@ -936,7 +999,7 @@ function retainCurrentCompleteReviewForProviderFreeReuse(runDir, plan, sourceSna
 }
 
 /** Build the only provider-free replacement raw plan from one selected adapter plan. */
-export function createProgressiveRawWorkPlanFromTarget({ runDir, source_epoch, raw_work_plan, effective_style_master_sha256 } = {}) {
+export function createProgressiveRawWorkPlanFromTarget({ runDir, source_epoch, raw_work_plan, effective_style_master_sha256, task_mandate_sha256 } = {}) {
   const legacy = checked(raw_work_plan, "selected adapter raw work plan", (plan) => {
     if (!plan || plan.schema !== "page-image-adapter-raw-work-plan-v1") return { ok: false, code: "progressive_raw_target_plan_invalid", message: "selected adapter must supply a current typed raw plan projection" };
     const ids = plan.ordered_slide_ids;
@@ -964,6 +1027,7 @@ export function createProgressiveRawWorkPlanFromTarget({ runDir, source_epoch, r
       effective_style_master_sha256,
       adapter_raw_work_plan_sha256: legacy.sha256,
     }),
+    ...(task_mandate_sha256 === undefined ? {} : { task_mandate_sha256 }),
     ordered_slide_ids: raw_work_plan.ordered_slide_ids,
     items: raw_work_plan.items.map((item) => ({
       slide_id: item.slide_id,
@@ -1086,7 +1150,7 @@ function progressiveControllerHandoffs(snapshot) {
 }
 
 /** Read one current raw-owner projection without writing any artifact or state. */
-export function inspectProgressiveRawLifecycle({ runDir, workflow, expected_plan = null } = {}) {
+export function inspectProgressiveRawLifecycle({ runDir, workflow, expected_plan = null, task_mandate = undefined } = {}) {
   let snapshot;
   try {
     snapshot = loadPlanByHead(runDir, workflow);
@@ -1095,6 +1159,7 @@ export function inspectProgressiveRawLifecycle({ runDir, workflow, expected_plan
       ok: false,
       code: error.code || "progressive_raw_owner_invalid",
       next_action: error.next_action || action("report_internal", {
+        kind: "repair",
         summary: "The progressive raw owner detected an immutable integrity conflict requiring Harness maintenance.",
       }),
     });
@@ -1108,7 +1173,7 @@ export function inspectProgressiveRawLifecycle({ runDir, workflow, expected_plan
       primary_action: action("plan_progressive_raw_work", { summary: "Compile one provider-free full progressive raw plan." }),
     });
   }
-  const primary = nextAction(snapshot, { expectedPlan: expected_plan });
+  const primary = nextAction(snapshot, { expectedPlan: expected_plan, task_mandate });
   const latest = latestBatch(snapshot);
   const currentReview = currentCompleteReview(snapshot);
   return Object.freeze({
@@ -1128,79 +1193,85 @@ export function inspectProgressiveRawLifecycle({ runDir, workflow, expected_plan
 }
 
 /** Derive a provider-free exact Pilot projection from formal IDs and direct debt facts. */
-export async function planProgressiveRawPilot({ runDir, workflow, plan_hash, slide_ids, display_by_slide = {}, expected_plan = null } = {}) {
+export async function planProgressiveRawPilot({ runDir, workflow, plan_hash, slide_ids, display_by_slide = {}, expected_plan = null, task_mandate = undefined } = {}) {
   return withCurrentProgressiveRawPlanLock(runDir, {
     workflow,
     plan_hash,
     expected_plan,
+    task_mandate,
     action: async (snapshot) => {
+      requireCurrentTaskMandate(snapshot, task_mandate);
       const unresolved = unresolvedAction(snapshot);
       if (unresolved) fail("progressive_raw_reconciliation_required", "submitted outcome must reconcile before Pilot planning", { nextAction: unresolved });
       const scope = validatePilotScope(snapshot, slide_ids);
       const active = activeBatch(snapshot);
       if (active) {
         const exact = findExactOpenBatch(snapshot, { kind: "pilot", ordered: scope.ordered, paid: scope.paid });
-        if (!exact) fail("progressive_raw_batch_conflict", "a conflicting live Pilot scope already owns current paid work", { nextAction: nextAction(snapshot) });
-        return Object.freeze({ plan_hash, batch: projectBatch({ ...exact.record, sha256: exact.sha256 }, snapshot.plan, display_by_slide), replay: true, next_action: nextAction(snapshot) });
+        if (!exact) fail("progressive_raw_batch_conflict", "a conflicting live Pilot scope already owns current paid work", { nextAction: nextAction(snapshot, { task_mandate }) });
+        return Object.freeze({ plan_hash, batch: projectBatch({ ...exact.record, sha256: exact.sha256 }, snapshot.plan, display_by_slide), replay: true, next_action: nextAction(snapshot, { task_mandate }) });
       }
-      const ownerAction = nextAction(snapshot);
+      const ownerAction = nextAction(snapshot, { task_mandate });
       if (ownerAction.action_id !== "plan_progressive_pilot") {
         fail("progressive_raw_pilot_unavailable", "the current progressive lifecycle does not permit another Pilot scope", { nextAction: ownerAction });
       }
       const batch = batchRecord(snapshot, { kind: "pilot", ordered: scope.ordered, paid: scope.paid, partial: scope.partial });
       writeProgressiveRawBatch(runDir, { plan: snapshot.plan, batch });
       const after = loadPlanByHead(runDir, workflow);
-      return Object.freeze({ plan_hash, batch: projectBatch(batch, snapshot.plan, display_by_slide), replay: false, next_action: nextAction(after) });
+      return Object.freeze({ plan_hash, batch: projectBatch(batch, snapshot.plan, display_by_slide), replay: false, next_action: nextAction(after, { task_mandate }) });
     },
   });
 }
 
 /** Derive the one remaining paid Expansion projection after a partial Pilot proceed. */
-export async function planProgressiveRawExpansion({ runDir, workflow, plan_hash, display_by_slide = {}, expected_plan = null } = {}) {
+export async function planProgressiveRawExpansion({ runDir, workflow, plan_hash, display_by_slide = {}, expected_plan = null, task_mandate = undefined } = {}) {
   return withCurrentProgressiveRawPlanLock(runDir, {
     workflow,
     plan_hash,
     expected_plan,
+    task_mandate,
     action: async (snapshot) => {
+      requireCurrentTaskMandate(snapshot, task_mandate);
       const unresolved = unresolvedAction(snapshot);
       if (unresolved) fail("progressive_raw_reconciliation_required", "submitted outcome must reconcile before Expansion planning", { nextAction: unresolved });
       const previous = latestBatch(snapshot);
       const previousState = previous ? snapshot.batch_states.get(previous.sha256) : null;
       const decision = previous ? snapshot.pilot.decision_by_batch.get(previous.sha256) : null;
       if (!previous || previous.record.kind !== "pilot" || !previous.record.is_partial_pilot || !previousState?.terminal || decision?.record.decision !== "proceed") {
-        fail("progressive_raw_expansion_unavailable", "Expansion requires the exact terminal partial Pilot proceed record", { nextAction: nextAction(snapshot) });
+        fail("progressive_raw_expansion_unavailable", "Expansion requires the exact terminal partial Pilot proceed record", { nextAction: nextAction(snapshot, { task_mandate }) });
       }
       const debt = snapshot.progress.paid_debt;
       if (debt.length === 0) fail("progressive_raw_complete_review_required", "no remaining paid debt exists after Pilot; route to complete raw review", { nextAction: completeReviewAction(snapshot) });
       const active = activeBatch(snapshot);
       if (active) {
         const exact = findExactOpenBatch(snapshot, { kind: "expansion", ordered: debt, paid: debt });
-        if (!exact) fail("progressive_raw_batch_conflict", "a conflicting live Expansion scope already owns remaining paid work", { nextAction: nextAction(snapshot) });
-        return Object.freeze({ plan_hash, batch: projectBatch({ ...exact.record, sha256: exact.sha256 }, snapshot.plan, display_by_slide), replay: true, next_action: nextAction(snapshot) });
+        if (!exact) fail("progressive_raw_batch_conflict", "a conflicting live Expansion scope already owns remaining paid work", { nextAction: nextAction(snapshot, { task_mandate }) });
+        return Object.freeze({ plan_hash, batch: projectBatch({ ...exact.record, sha256: exact.sha256 }, snapshot.plan, display_by_slide), replay: true, next_action: nextAction(snapshot, { task_mandate }) });
       }
       const batch = batchRecord(snapshot, { kind: "expansion", ordered: debt, paid: debt, partial: false });
       writeProgressiveRawBatch(runDir, { plan: snapshot.plan, batch });
       const after = loadPlanByHead(runDir, workflow);
-      return Object.freeze({ plan_hash, batch: projectBatch(batch, snapshot.plan, display_by_slide), replay: false, next_action: nextAction(after) });
+      return Object.freeze({ plan_hash, batch: projectBatch(batch, snapshot.plan, display_by_slide), replay: false, next_action: nextAction(after, { task_mandate }) });
     },
   });
 }
 
 /** Record or exact-replay one human-confirmed exact batch grant. */
-export async function authorizeProgressiveRawBatch({ runDir, workflow, plan_hash, batch_hash, expected_plan = null } = {}) {
+export async function authorizeProgressiveRawBatch({ runDir, workflow, plan_hash, batch_hash, expected_plan = null, task_mandate = undefined } = {}) {
   return withCurrentProgressiveRawPlanLock(runDir, {
     workflow,
     plan_hash,
     expected_plan,
+    task_mandate,
     action: async (snapshot) => {
+      requireCurrentTaskMandate(snapshot, task_mandate);
       const unresolved = unresolvedAction(snapshot);
       if (unresolved) fail("progressive_raw_reconciliation_required", "submitted outcome must reconcile before authorization", { nextAction: unresolved });
       digest(batch_hash, "batch_hash");
       const batch = snapshot.attempt_state.batch_by_sha.get(batch_hash);
       const state = snapshot.batch_states.get(batch_hash);
-      if (!batch || !state) fail("progressive_raw_batch_stale", "the supplied batch hash is not current for this full plan", { nextAction: nextAction(snapshot) });
-      if (state.terminal) fail("progressive_raw_batch_terminal", "a terminal batch cannot reopen its old grant", { nextAction: nextAction(snapshot) });
-      if (state.grant) return Object.freeze({ plan_hash, batch_hash, grant_hash: state.grant.sha256, replay: true, maximum_submissions: state.grant.record.maximum_submissions, next_action: nextAction(snapshot) });
+      if (!batch || !state) fail("progressive_raw_batch_stale", "the supplied batch hash is not current for this full plan", { nextAction: nextAction(snapshot, { task_mandate }) });
+      if (state.terminal) fail("progressive_raw_batch_terminal", "a terminal batch cannot reopen its old grant", { nextAction: nextAction(snapshot, { task_mandate }) });
+      if (state.grant) return Object.freeze({ plan_hash, batch_hash, grant_hash: state.grant.sha256, replay: true, maximum_submissions: state.grant.record.maximum_submissions, next_action: nextAction(snapshot, { task_mandate }) });
       const grant = createProgressiveRawBatchGrant({
         ...binding(snapshot.plan),
         batch_sha256: batch_hash,
@@ -1210,12 +1281,12 @@ export async function authorizeProgressiveRawBatch({ runDir, workflow, plan_hash
       }, { plan: snapshot.plan, batch: batch.record });
       writeProgressiveRawBatchGrant(runDir, { plan: snapshot.plan, batch: batch.record, grant });
       const after = loadPlanByHead(runDir, workflow);
-      return Object.freeze({ plan_hash, batch_hash, grant_hash: grant.sha256, replay: false, maximum_submissions: grant.maximum_submissions, next_action: nextAction(after) });
+      return Object.freeze({ plan_hash, batch_hash, grant_hash: grant.sha256, replay: false, maximum_submissions: grant.maximum_submissions, next_action: nextAction(after, { task_mandate }) });
     },
   });
 }
 
-function currentEligibleAttempt(snapshot, batchState) {
+function currentEligibleAttempt(snapshot, batchState, taskMandate = undefined) {
   if (batchState.unresolved) {
     fail("progressive_raw_reconciliation_required", "a submitted provider outcome must reconcile before another item may submit", {
       nextAction: action("reconcile_progressive_raw_attempt", { kind: "repair", plan_hash: snapshot.plan.sha256, attempt_sha256: batchState.unresolved.attempt.sha256 }),
@@ -1223,7 +1294,7 @@ function currentEligibleAttempt(snapshot, batchState) {
   }
   if (batchState.claim) return batchState.claim.attempt;
   if (!batchState.eligible) {
-    fail("progressive_raw_item_unavailable", "this batch has no owner-eligible unsubmitted item", { nextAction: nextAction(snapshot) });
+    fail("progressive_raw_item_unavailable", "this batch has no owner-eligible unsubmitted item", { nextAction: nextAction(snapshot, { task_mandate: taskMandate }) });
   }
   const item = batchState.eligible;
   const created = createProgressiveRawItemAttempt({
@@ -1290,7 +1361,7 @@ function providerResultKnownFailure(result) {
 }
 
 /** Submit at most one persisted exact item, publishing materialization before succeeded visibility. */
-export async function generateProgressiveRawItem({ runDir, workflow, plan_hash, batch_hash, expected_plan = null, provider_requests_by_slide, preflight = null, submit } = {}) {
+export async function generateProgressiveRawItem({ runDir, workflow, plan_hash, batch_hash, expected_plan = null, provider_requests_by_slide, preflight = null, submit, task_mandate = undefined } = {}) {
   if (typeof submit !== "function") fail("progressive_raw_provider_submit_required", "one provider submit function is required");
   if (preflight !== null && typeof preflight !== "function") {
     fail("progressive_raw_provider_preflight_invalid", "provider preflight must be a function when supplied");
@@ -1299,15 +1370,17 @@ export async function generateProgressiveRawItem({ runDir, workflow, plan_hash, 
     workflow,
     plan_hash,
     expected_plan,
+    task_mandate,
     action: async (snapshot) => {
+      requireCurrentTaskMandate(snapshot, task_mandate);
       const unresolved = unresolvedAction(snapshot);
       if (unresolved) fail("progressive_raw_reconciliation_required", "a submitted outcome must reconcile before generation", { nextAction: unresolved });
       digest(batch_hash, "batch_hash");
       const batch = snapshot.attempt_state.batch_by_sha.get(batch_hash);
       const state = snapshot.batch_states.get(batch_hash);
-      if (!batch || !state || !state.grant) fail("progressive_raw_grant_required", "generation requires one current exact batch grant", { nextAction: nextAction(snapshot) });
-      if (state.terminal) fail("progressive_raw_batch_terminal", "generation cannot reopen a terminal batch", { nextAction: nextAction(snapshot) });
-      const candidate = currentEligibleAttempt(snapshot, state);
+      if (!batch || !state || !state.grant) fail("progressive_raw_grant_required", "generation requires one current exact batch grant", { nextAction: nextAction(snapshot, { task_mandate }) });
+      if (state.terminal) fail("progressive_raw_batch_terminal", "generation cannot reopen a terminal batch", { nextAction: nextAction(snapshot, { task_mandate }) });
+      const candidate = currentEligibleAttempt(snapshot, state, task_mandate);
       let boundRequests;
       try {
         boundRequests = validateBoundPageImageProviderRequests({
@@ -1375,14 +1448,14 @@ export async function generateProgressiveRawItem({ runDir, workflow, plan_hash, 
           ...(providerMedia ? { provider_media: providerMedia } : {}),
           ...(providerFailure ? { provider_failure: providerFailure } : {}),
           progress: after.progress,
-          next_action: nextAction(after),
+          next_action: nextAction(after, { task_mandate }),
         });
       }
       if (providerResultKnownFailure(result)) {
         const terminal = createProgressiveRawItemAttempt({ ...submitted, status: "known_failure", previous_attempt_sha256: submitted.sha256 }, { plan: snapshot.plan, batch: batch.record, grant: state.grant.record });
         writeProgressiveRawItemAttempt(runDir, { plan: snapshot.plan, batch: batch.record, grant: state.grant.record, attempt: terminal });
         const after = loadPlanByHead(runDir, workflow);
-        return Object.freeze({ plan_hash, batch_hash, item: candidate.record.slide_id, outcome: "known_failure", progress: after.progress, next_action: nextAction(after) });
+        return Object.freeze({ plan_hash, batch_hash, item: candidate.record.slide_id, outcome: "known_failure", progress: after.progress, next_action: nextAction(after, { task_mandate }) });
       }
       if (!Buffer.isBuffer(result) && !(result instanceof Uint8Array)) {
         fail("progressive_raw_provider_outcome_unresolved", "provider returned no provable bytes; reconcile the persisted submission", {
@@ -1410,7 +1483,7 @@ export async function generateProgressiveRawItem({ runDir, workflow, plan_hash, 
       }, { plan: snapshot.plan, batch: batch.record, grant: state.grant.record });
       writeProgressiveRawItemAttempt(runDir, { plan: snapshot.plan, batch: batch.record, grant: state.grant.record, attempt: terminal });
       const after = loadPlanByHead(runDir, workflow);
-      return Object.freeze({ plan_hash, batch_hash, item: candidate.record.slide_id, outcome: "succeeded", materialization_provenance_sha256: provenance.sha256, progress: after.progress, next_action: nextAction(after) });
+      return Object.freeze({ plan_hash, batch_hash, item: candidate.record.slide_id, outcome: "succeeded", materialization_provenance_sha256: provenance.sha256, progress: after.progress, next_action: nextAction(after, { task_mandate }) });
     },
   });
 }

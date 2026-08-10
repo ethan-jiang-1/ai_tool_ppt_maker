@@ -3,6 +3,7 @@ import { sha256Bytes } from "../identity/byte_hash.mjs";
 import { evaluateReplacementIdentity } from "../run-bundle/page_image_workflow_identity.mjs";
 import {
   PROGRESSIVE_ACCEPTED_RAW_EVIDENCE_SCHEMA,
+  PROGRESSIVE_RAW_WORK_PLAN_V1_SCHEMA,
   PROGRESSIVE_RAW_WORK_PLAN_SCHEMA,
   validateProgressiveAcceptedRawEvidence,
   validateProgressiveRawWorkPlan,
@@ -241,7 +242,9 @@ export function validateRawWorkPlanForFinalization(plan) {
   } catch (error) {
     return freeze({ ok: false, code: error.code || "raw_plan_invalid", message: error.message });
   }
-  if (plan?.schema === PROGRESSIVE_RAW_WORK_PLAN_SCHEMA) return validateProgressiveRawWorkPlan(plan);
+  if ([PROGRESSIVE_RAW_WORK_PLAN_V1_SCHEMA, PROGRESSIVE_RAW_WORK_PLAN_SCHEMA].includes(plan?.schema)) {
+    return validateProgressiveRawWorkPlan(plan);
+  }
   return validateRawWorkPlanProviderInputBindings(plan);
 }
 

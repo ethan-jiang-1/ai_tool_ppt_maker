@@ -6,6 +6,7 @@ import { checkBundle, deckRoot } from "../run-bundle/bundle_layout.mjs";
 import { PAGE_IMAGE_WORKFLOW_V1_PIPELINE, PAGE_IMAGE_WORKFLOW_SELECTION_REQUIRED_MESSAGE, isPageImageWorkflowSelectionPending, probeProductionMarker } from "../run-bundle/production_marker.mjs";
 import { evaluateReplacementIdentity } from "../run-bundle/page_image_workflow_identity.mjs";
 import {
+  inspectCurrentPageImageTaskMandate,
   readTargetProgressiveControllerDecision,
   readTargetProgressiveHandoff,
   resolveRunProductionAdapter,
@@ -103,7 +104,8 @@ function progressiveAdapter(workflow) {
  */
 function progressiveTargetWorkflowResult(runDir, route) {
   const workflow = route.workflow;
-  const direct = inspectProgressiveRawLifecycle({ runDir, workflow });
+  const taskMandate = inspectCurrentPageImageTaskMandate(deckRoot(runDir), { runDir, workflow });
+  const direct = inspectProgressiveRawLifecycle({ runDir, workflow, task_mandate: taskMandate });
   const baseSummary = {
     pipeline: route.policy.pipeline,
     mode: route.mode,
@@ -139,6 +141,7 @@ function progressiveTargetWorkflowResult(runDir, route) {
   try {
     candidate = adapter.readPlanCandidate(runDir, {
       sourceEpoch: direct.plan?.source_epoch ?? null,
+      taskMandate,
     });
     expectedPlan = candidate.progressive_raw_work_plan || null;
     // A missing progressive head still needs the accepted Style Master
@@ -219,7 +222,12 @@ function progressiveTargetWorkflowResult(runDir, route) {
     }
   }
 
-  const current = inspectProgressiveRawLifecycle({ runDir, workflow, expected_plan: expectedPlan });
+  const current = inspectProgressiveRawLifecycle({
+    runDir,
+    workflow,
+    expected_plan: expectedPlan,
+    task_mandate: taskMandate,
+  });
   if (!current.ok) {
     return report({
       runDir,

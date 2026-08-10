@@ -88,6 +88,8 @@ import {
   recordTargetProgressiveFinalManifest,
   recordTargetProgressivePilotDecision,
   recordTargetProgressiveRawPlan,
+  ensureCurrentPageImageTaskMandate,
+  inspectCurrentPageImageTaskMandate,
 } from "../shared/state/state.mjs";
 import {
   bindStyleMasterScopeCandidate,
@@ -812,12 +814,20 @@ function progressivePureDisplayBySlide(receipt) {
   return Object.fromEntries(receipt.slides.map((slide) => [slide.slide_id, { title: slide.header_policy?.provider_visible?.title || "" }]));
 }
 
-function progressivePurePlanFromContext(context) {
+function progressivePurePlanFromContext(context, taskMandate = null) {
   return createProgressiveRawWorkPlanFromTarget({
     runDir: context.run_dir,
     source_epoch: context.source_epoch,
     raw_work_plan: context.raw_work_plan,
     effective_style_master_sha256: context.style_master_reference.selection_sha256,
+    ...(taskMandate?.ok ? { task_mandate_sha256: taskMandate.task_mandate_sha256 } : {}),
+  });
+}
+
+function currentPureTaskMandate(context) {
+  return inspectCurrentPageImageTaskMandate(context.deck_dir, {
+    runDir: context.run_dir,
+    workflow: PURE_IMAGE_WORKFLOW,
   });
 }
 
@@ -825,7 +835,7 @@ function progressivePurePlanFromContext(context) {
  * Compile current Pure source/style facts into an expected replacement plan without
  * reading or rebuilding any version `_generated` projection.
  */
-export function readPureProgressiveTargetPlanCandidate(runDir, { sourceEpoch = null } = {}) {
+export function readPureProgressiveTargetPlanCandidate(runDir, { sourceEpoch = null, taskMandate = null } = {}) {
   const candidate = compilePureTargetRawPlanCandidate(resolvePureTargetCandidateSource(runDir));
   if (sourceEpoch === null) return candidate;
   if (!Number.isInteger(sourceEpoch) || sourceEpoch <= 0) {
@@ -833,7 +843,7 @@ export function readPureProgressiveTargetPlanCandidate(runDir, { sourceEpoch = n
   }
   return Object.freeze({
     ...candidate,
-    progressive_raw_work_plan: progressivePurePlanFromContext({ ...candidate, source_epoch: sourceEpoch }),
+    progressive_raw_work_plan: progressivePurePlanFromContext({ ...candidate, source_epoch: sourceEpoch }, taskMandate),
   });
 }
 
@@ -844,13 +854,17 @@ export function buildPureProgressiveTargetRawPlan(runDir, { allowSourceRebuild =
   assertNoUnresolvedProgressiveRawSubmission({ runDir, workflow: PURE_IMAGE_WORKFLOW });
   const candidate = compilePureTargetRawPlanCandidate(resolvePureTargetCandidateSource(runDir));
   const context = materializeTargetSourceCandidateContext(candidate, { allowSourceRebuild });
+  const taskMandate = ensureCurrentPageImageTaskMandate(context.deck_dir, {
+    runDir: context.run_dir,
+    workflow: PURE_IMAGE_WORKFLOW,
+  });
   // This is a rebuildable adapter projection; v3 direct records own lifecycle facts.
   writeTargetRawWorkPlan(context, candidate.raw_work_plan);
   const progressiveRawWorkPlan = progressivePurePlanFromContext({
     ...context,
     raw_work_plan: candidate.raw_work_plan,
     style_master_reference: candidate.style_master_reference,
-  });
+  }, taskMandate);
   const published = publishProgressiveRawWorkPlan({ runDir: context.run_dir, plan: progressiveRawWorkPlan });
   const providerRequestInspection = writeTargetProviderRequestInspection(context, {
     rawWorkPlan: candidate.raw_work_plan,
@@ -876,8 +890,9 @@ export function buildPureProgressiveTargetRawPlan(runDir, { allowSourceRebuild =
 /** Resolve the selected Pure source and its exact current raw-plan binding. */
 export function readPureProgressiveTargetStoredPlanContext(runDir) {
   const context = readPureTargetStoredPlanContext(runDir);
-  const progressiveRawWorkPlan = progressivePurePlanFromContext(context);
-  return Object.freeze({ ...context, progressive_raw_work_plan: progressiveRawWorkPlan });
+  const taskMandate = currentPureTaskMandate(context);
+  const progressiveRawWorkPlan = progressivePurePlanFromContext(context, taskMandate);
+  return Object.freeze({ ...context, progressive_raw_work_plan: progressiveRawWorkPlan, progressive_raw_task_mandate: taskMandate });
 }
 
 export function pureProgressiveRawPlanProjection(plan) {
@@ -885,6 +900,7 @@ export function pureProgressiveRawPlanProjection(plan) {
     runDir: plan.run_dir,
     workflow: PURE_IMAGE_WORKFLOW,
     expected_plan: plan.progressive_raw_work_plan,
+    task_mandate: plan.progressive_raw_task_mandate,
   });
   return Object.freeze({
     schema: "page-image-progressive-raw-plan-projection-v1",
@@ -909,6 +925,7 @@ export async function planPureTargetPilot(runDir, { planHash, slideIds } = {}) {
     slide_ids: slideIds,
     display_by_slide: progressivePureDisplayBySlide(plan.receipt),
     expected_plan: plan.progressive_raw_work_plan,
+    task_mandate: plan.progressive_raw_task_mandate,
   });
 }
 
@@ -921,13 +938,14 @@ export async function planPureTargetExpansion(runDir, { planHash } = {}) {
     plan_hash: planHash,
     display_by_slide: progressivePureDisplayBySlide(plan.receipt),
     expected_plan: plan.progressive_raw_work_plan,
+    task_mandate: plan.progressive_raw_task_mandate,
   });
 }
 
 export async function authorizePureProgressiveRawBatch(runDir, { planHash, batchHash } = {}) {
   preflightPureMutation(runDir);
   const plan = readPureProgressiveTargetStoredPlanContext(runDir);
-  return authorizeProgressiveRawBatch({ runDir: plan.run_dir, workflow: PURE_IMAGE_WORKFLOW, plan_hash: planHash, batch_hash: batchHash, expected_plan: plan.progressive_raw_work_plan });
+  return authorizeProgressiveRawBatch({ runDir: plan.run_dir, workflow: PURE_IMAGE_WORKFLOW, plan_hash: planHash, batch_hash: batchHash, expected_plan: plan.progressive_raw_work_plan, task_mandate: plan.progressive_raw_task_mandate });
 }
 
 export async function generatePureProgressiveRawItem(runDir, { planHash, batchHash, preflight = null, submit } = {}) {
@@ -942,6 +960,7 @@ export async function generatePureProgressiveRawItem(runDir, { planHash, batchHa
     provider_requests_by_slide: plan.provider_requests_by_slide,
     preflight,
     submit,
+    task_mandate: plan.progressive_raw_task_mandate,
   });
 }
 

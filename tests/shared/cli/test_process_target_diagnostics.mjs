@@ -14,6 +14,7 @@ import { pageImageWorkflowPaths, pageImageProgressiveRawPaths } from "../../../p
 import { initBundle } from "../../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
 import { createProgressiveRawItemAttempt } from "../../../ppt_maker_harness/scripts/shared/image2/page_image_progressive_schema.mjs";
 import { readProgressiveRawPlanDirectRecords, writeProgressiveRawItemAttempt } from "../../../ppt_maker_harness/scripts/shared/image2/page_image_progressive_store.mjs";
+import { readState, writeState } from "../../../ppt_maker_harness/scripts/shared/state/state.mjs";
 import { acceptLocalStyleMasterFixture } from "../../helpers/accepted_style_master.mjs";
 
 const FLOW = resolve(process.cwd(), "ppt_maker_harness/scripts/ppt_flow.mjs");
@@ -343,6 +344,13 @@ function expectOwnerAction(envelope, { category, reason, action }) {
   expect(JSON.stringify(envelope.diagnostic.next)).not.toMatch(/force|waiv|retry/i);
 }
 
+function removeCurrentTaskMandate(fixture) {
+  const state = structuredClone(readState(fixture.deck, { purpose: "observe", runVersion: "v1" }));
+  delete state.durable_state_present;
+  delete state.page_image_task_mandate?.by_version?.["3_versions/v1"];
+  writeState(fixture.deck, state);
+}
+
 describe("target Page Image CLI diagnostics", () => {
   it("short-circuits an unfit Framed source, preserves owner boundaries, and succeeds after the same plan repair", async () => {
     const fixture = await createFixture(`SOURCE_LITERAL_SENTINEL ${"W".repeat(28)}`);
@@ -370,6 +378,7 @@ describe("target Page Image CLI diagnostics", () => {
       expect(plan).toMatchObject({
         schema: "page-image-progressive-raw-plan-projection-v1",
         plan_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+        next_action: { action_id: "plan_progressive_pilot", kind: "guide", requires_human: false },
       });
       expect(provider.calls).toHaveLength(0);
 
@@ -403,6 +412,7 @@ describe("target Page Image CLI diagnostics", () => {
           paid_submission_slide_ids: ["FramGo"],
           maximum_submissions: 1,
         },
+        next_action: { action_id: "authorize_progressive_raw_batch", kind: "guide", requires_human: false },
       });
       const authorized = await runFlow([
         "image2", "authorize", fixture.runDir,
@@ -415,6 +425,7 @@ describe("target Page Image CLI diagnostics", () => {
         batch_hash: batch.batch.batch_hash,
         grant_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
         maximum_submissions: 1,
+        next_action: { action_id: "generate_progressive_raw_item", kind: "guide", requires_human: false },
       });
       expect(provider.calls).toHaveLength(0);
     } finally {
@@ -458,6 +469,50 @@ describe("target Page Image CLI diagnostics", () => {
     }
   }, 45_000);
 
+  it("keeps mandate-covered work agent-run and blocks a missing mandate before provider work", async () => {
+    const fixture = await createPureFixture();
+    const provider = await startMockProvider({ responseBytes: pngBytes("#397d93") });
+    try {
+      const plan = JSON.parse((await runFlow(["image2", "plan", fixture.runDir], provider.env)).stdout);
+      expect(plan).toMatchObject({
+        next_action: { action_id: "plan_progressive_pilot", kind: "guide", requires_human: false },
+      });
+      const pilotResult = await runFlow([
+        "image2", "pilot", fixture.runDir,
+        "--plan-hash", plan.plan_hash,
+        "--slide-id", "PureOne",
+        "--slide-id", "PureTwo",
+      ], provider.env);
+      expect(pilotResult.status, pilotResult.stderr).toBe(0);
+      const pilot = JSON.parse(pilotResult.stdout);
+      expect(pilot).toMatchObject({
+        next_action: { action_id: "authorize_progressive_raw_batch", kind: "guide", requires_human: false },
+      });
+
+      removeCurrentTaskMandate(fixture);
+      const before = immutableSnapshot(fixture);
+      const rejected = await runFlow([
+        "image2", "authorize", fixture.runDir,
+        "--plan-hash", plan.plan_hash,
+        "--batch-hash", pilot.batch.batch_hash,
+      ], provider.env);
+      const envelope = parseFailure(rejected);
+      expect(envelope).toMatchObject({
+        code: "GATE_BLOCKED",
+        diagnostic: {
+          reason: { kind: "progressive_raw_task_mandate_required" },
+          next: { requires_human: false },
+        },
+      });
+      expect(provider.calls).toHaveLength(0);
+      expect(readProgressiveRawPlanDirectRecords(fixture.runDir, { plan_sha256: plan.plan_hash }).grants).toEqual([]);
+      expectUnchanged(fixture, before);
+    } finally {
+      await provider.close();
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
+  }, 45_000);
+
   it("runs the fixed Pure progressive CLI forms one item at a time", async () => {
     const fixture = await createPureFixture();
     const provider = await startMockProvider({ responseBytes: pngBytes("#397d93") });
@@ -469,6 +524,7 @@ describe("target Page Image CLI diagnostics", () => {
         schema: "page-image-progressive-raw-plan-projection-v1",
         workflow: "pure",
         plan_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+        next_action: { action_id: "plan_progressive_pilot", kind: "guide", requires_human: false },
       });
 
       const pilot = await runFlow([
@@ -485,6 +541,9 @@ describe("target Page Image CLI diagnostics", () => {
         is_partial_pilot: false,
         maximum_submissions: 2,
       });
+      expect(JSON.parse(pilot.stdout)).toMatchObject({
+        next_action: { action_id: "authorize_progressive_raw_batch", kind: "guide", requires_human: false },
+      });
 
       const authorized = await runFlow([
         "image2", "authorize", fixture.runDir,
@@ -492,6 +551,9 @@ describe("target Page Image CLI diagnostics", () => {
         "--batch-hash", batch.batch_hash,
       ], provider.env);
       expect(authorized.status, authorized.stderr).toBe(0);
+      expect(JSON.parse(authorized.stdout)).toMatchObject({
+        next_action: { action_id: "generate_progressive_raw_item", kind: "guide", requires_human: false },
+      });
 
       const first = await runFlow([
         "image2", "generate", fixture.runDir,

@@ -60,7 +60,8 @@ None.
 
 - **Affected Harness sources:** `state.mjs`, the progressive raw plan/grant
   schema and owner, selected Framed/Pure plan publication, workflow inspection
-  and task projection, `ppt_flow.mjs`, and `playbook/create-deck.md`.
+  and task projection, `ppt_flow.mjs`, `playbook/create-deck.md`, and
+  validation of the checked-in Controller manifest.
 - **Affected tests:** progressive raw-owner/schema/state coverage, workflow
   inspection and task-projection coverage, MD Controller parsing, and public
   `image2` diagnostic tests for both Framed and Pure routes.

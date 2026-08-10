@@ -14,6 +14,13 @@ Partial Pilot and Complete Page Review remain their own bounded human visual
 decisions; neither is a substitute for an identity, mandate, grant, or
 lifecycle fact.
 
+When an in-scope source refinement or owner-issued successor creates a later
+current exact grant at the same stable Framed/Pure authorize node, its typed
+`cli` evidence supersedes only an earlier typed CLI grant projection at that
+node. The immutable raw lineage remains historical evidence; a user decision,
+malformed node record, unmatched node, or failed current grant fact SHALL NOT
+be reset or superseded.
+
 Complete Page Review SHALL use one `proceed` or `repair` decision. A Framed
 node presents the exact raw provider page beside the production-equivalent
 local-header composite; a Pure node presents its complete provider page. It

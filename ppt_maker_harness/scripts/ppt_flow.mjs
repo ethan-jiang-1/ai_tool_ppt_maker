@@ -1574,6 +1574,16 @@ function targetPageImageFailure(operation, route, error) {
     const reconciliation = reason.includes("reconciliation") || reason.includes("outcome_unresolved");
     const gate = reconciliation || /(?:grant_required|authorization|required|batch_terminal|pilot_|complete_review)/.test(reason);
     const provider = reason.includes("provider") && !reconciliation;
+    const ownerRequiresHuman = typeof ownerAction?.requires_human === "boolean"
+      ? ownerAction.requires_human
+      : null;
+    const nextAction = reconciliation
+      ? "reconcile"
+      : ownerRequiresHuman === false
+        ? "repair_prerequisite"
+        : gate
+          ? "review"
+          : "repair_prerequisite";
     return {
       code: gate ? CLI_ERROR_CODES.GATE_BLOCKED : CLI_ERROR_CODES.FAILED,
       message: reconciliation
@@ -1588,7 +1598,8 @@ function targetPageImageFailure(operation, route, error) {
         ...common,
         category: provider ? "provider" : gate ? "gate" : "artifact",
         ...(ownerAction ? { subject: { kind: "progressive_raw_action", id: ownerAction.action_id } } : {}),
-        next: createCliNext(reconciliation ? "reconcile" : gate ? "review" : "repair_prerequisite", {
+        next: createCliNext(nextAction, {
+          ...(ownerRequiresHuman === null ? {} : { requiresHuman: ownerRequiresHuman }),
           default: ownerAction?.action_id
             ? `Run the raw owner's ${ownerAction.action_id} action after re-reading exact current owner facts.`
             : "Inspect the exact progressive raw owner facts and run its one current action.",
@@ -2829,6 +2840,14 @@ async function commandTargetPageImageImage2(operation, route, opts = {}) {
       const batchHash = requiredPageImageHash(operation, "--batch-hash", opts.batchHash, "batch");
       if (!planHash || !batchHash) return 1;
       output = await operations.authorize(route.run_dir, { planHash, batchHash });
+      const { recordTargetProgressiveAuthorizeCliHandoff } = await import("./shared/state/state.mjs");
+      const controllerHandoff = recordTargetProgressiveAuthorizeCliHandoff(route.deck_dir, {
+        runDir: route.run_dir,
+        planHash,
+        batchHash,
+        grantHash: output.grant_hash,
+      });
+      output = Object.freeze({ ...output, controller_handoff: controllerHandoff });
     } else if (operation === "generate") {
       const planHash = requiredPageImageHash(operation, "--plan-hash", opts.planHash, "full plan");
       const batchHash = requiredPageImageHash(operation, "--batch-hash", opts.batchHash, "batch");

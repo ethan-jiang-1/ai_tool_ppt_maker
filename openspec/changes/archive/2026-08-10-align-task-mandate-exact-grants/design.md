@@ -120,20 +120,38 @@ The existing Framed and Pure `authorize-target-*-pilot` and
 retiring current Controller identities. Their `authorize/revise/decline`
 decision declarations and user-decision exits are replaced by one CLI-evidence
 exit for a validated mandate-bound exact grant. The downstream generation nodes
-depend on that evidence, not a synthetic `user` decision.
+depend on that evidence, not a synthetic `user` decision. The corresponding
+entries in `controller-manifest-v3.json` remain stable and the Controller
+validator continues to own their ordering and dependency checks.
 
 After a successful `image2 authorize`, a state-owned, idempotent Controller
 handoff verifies the direct raw-owner grant, plan, and mandate before recording
 `cli` evidence and completing the corresponding node. If this handoff loses a
 CAS race, the raw grant stays the source of truth; rerunning the exact
-`authorize` command replays the grant and repairs the same handoff. No task
-projection write can complete a node.
+`authorize` command replays the grant and repairs the same handoff. If the
+current Controller is not that exact authorize node, a successful direct grant
+remains successful but no unrelated node may be completed. No task-projection
+write can complete a node.
+
+A same-execution source refinement or owner-issued successor may legitimately
+need another exact grant at the same stable authorize node. When the current
+raw owner proves that later grant and the node's prior completion contains only
+an older typed `cli` grant handoff, State replaces that Controller projection
+with the new exact CLI evidence and appends a handoff history record. It never
+rewrites the prior immutable plan, batch, grant, attempt, or provenance. A
+human decision, malformed evidence, an unmatched current node, or any failed
+current plan/batch/mandate check remains a conflict or non-applicable outcome;
+the new behavior is not a general node reset.
 
 Alternative considered: delete the authorize nodes or let the projection mark
 them complete. Deleting nodes creates avoidable current-state migration
 pressure; allowing a projection to decide lifecycle state creates a second
 authority. Stable node IDs plus direct CLI evidence preserve the existing
 ownership boundary.
+
+The existing Complete Page Review node declarations are also normalized to the
+already-closed `proceed | repair` decision enum. `redirect` remains a valid
+partial-Pilot visual decision only; it is not a Complete Page Review branch.
 
 ### Keep the change narrow and policy-aligned
 
@@ -158,7 +176,10 @@ cost-confirm branches and adds no retry, fallback, or parallel success store.
 - **CLI/Controller:** exercise public `image2 plan/pilot/authorize/generate`
   diagnostics and Controller parsing so routine scopes carry
   `requires_human: false`, while Pilot/Complete Page Review and true hard-stops
-  retain their existing posture.
+  retain their existing posture. Cover the stable authorize-node CLI-evidence
+  handoff, its CAS replay repair, a same-execution source-refinement handoff
+  replacement, an unmatched-node non-mutation case, the checked-in Controller
+  manifest, and Complete Page Review's closed two-value enum.
 - **E2E:** extend the existing mock target-workflow journey for both Framed and
   Pure through Pilot, Expansion, and Complete Page Review. It will prove that
   exact grants remain required without a human-cost diagnostic and that the

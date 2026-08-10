@@ -67,8 +67,9 @@ raw evidence, or make final or delivery artifacts available.
 
 - **WHEN** current raw work has no active mandate or its version, workflow, or
   execution binding no longer matches the plan
-- **THEN** the owner returns one mandate-establishment or current-plan recovery
-  action before provider initialization, grant publication, or attempt claim
+- **THEN** the owner returns the one current-plan recovery action, whose
+  provider-free planning path establishes or reuses the mandate, before
+  provider initialization, grant publication, or attempt claim
 - **AND** it does not infer a mandate from a task projection, prior grant, or
   historical source bytes
 
