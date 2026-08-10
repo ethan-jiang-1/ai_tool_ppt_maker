@@ -1,6 +1,15 @@
 # Progressive Plan: Page Image Composition Recovery
 
-> Type: progressive coordination plan | Updated: 2026-08-10 | Status: active
+> Type: progressive coordination plan | Updated: 2026-08-11 | Status: **superseded**
+>
+> **Superseded by [schema-first-page-image-recovery.md](schema-first-page-image-recovery.md)
+> on 2026-08-11.** Phases 0, 0.5, Track A, and Track P are landed; their exit
+> evidence below remains authoritative and is carried forward. Phases 1–6 and
+> Guided Checkpoints A–E are **withdrawn**: the owner reversed the ordering so
+> that the schema is the deliverable rather than an input, and the
+> no-versioning rule invalidated the `page-authority-image2-v2` protocol rename
+> those phases assumed. Read this file for the landed evidence and the
+> refinement-loop model; read the successor for the current route.
 
 ## Purpose
 

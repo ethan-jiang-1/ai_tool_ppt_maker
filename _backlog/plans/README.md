@@ -1,6 +1,6 @@
 # Active Plans — 活跃 plan/分析文档列表
 
-> 最后更新: 2026-08-10 | `_backlog/plans/` — 活跃 plan 在此，完成移入 [`../_done/_closed_plans/`](../_done/_closed_plans/)。
+> 最后更新: 2026-08-11 | `_backlog/plans/` — 活跃 plan 在此，完成移入 [`../_done/_closed_plans/`](../_done/_closed_plans/)。
 >
 > **plan 没有编号，文件名即标识。完成后文件名不变，位置即状态。**
 
@@ -19,9 +19,17 @@
 
 | Plan | 说明 |
 |---|---|
-| [page-image-progressive-plan.md](page-image-progressive-plan.md) | Page Image schema、Framed 保护构图和当前 v3 恢复的一条渐进式总控推进路线。 |
-| [framed-provider-protected-composition.md](framed-provider-protected-composition.md) | Framed provider 保护区、约束传播与修复前能力验证的调查/设计计划。 |
-| [page-image-presentation-schema.md](page-image-presentation-schema.md) | Page Class、跨 workflow 页面定义与外部可读控制面的前置 schema 调查/设计计划。 |
+| [schema-first-page-image-recovery.md](schema-first-page-image-recovery.md) | **总控路线**。19 个 schema、定义家、C1–C7 七个 change 的拆分与依赖。 |
+| [framed-provider-protected-composition.md](framed-provider-protected-composition.md) | Framed provider 保护区、约束传播与修复前能力验证的调查/设计计划。归 C6。 |
+| [framed-provider-capability-discovery-research.md](framed-provider-capability-discovery-research.md) | Provider transport 面记录与合成探针准备。归 C6。 |
+
+### 已被取代（保留证据，路线作废）
+
+| Plan | 状态 |
+|---|---|
+| [page-image-progressive-plan.md](page-image-progressive-plan.md) | Phase 0/0.5/Track A/Track P 的落地证据有效；Phase 1–6 作废。 |
+| [page-image-presentation-schema.md](page-image-presentation-schema.md) | Q2–Q13 决策与包结构有效；`-v1` 标识符和一批术语名作废。 |
+| [page-image-progressive-plan-feasibility-research.md](page-image-progressive-plan-feasibility-research.md) | 基线、缺陷、工作量、影响面分析有效；结尾的执行顺序作废。 |
 
 **Next available plan ID: CLS-025**（移入 `_closed_plans/` 时分配；CLS-001…024 已用）
 

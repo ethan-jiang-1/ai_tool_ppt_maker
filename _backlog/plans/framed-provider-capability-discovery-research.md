@@ -1,7 +1,8 @@
 # Research: Framed Provider Capability Discovery
 
-> Status: preparation only | Date: 2026-08-10 | Owner: Track P in
-> [page-image-progressive-plan.md](page-image-progressive-plan.md)
+> Status: preparation only | Date: 2026-08-10 | Owner: change C6 in
+> [schema-first-page-image-recovery.md](schema-first-page-image-recovery.md)
+> (formerly Track P in the superseded progressive plan)
 
 ## Decision
 

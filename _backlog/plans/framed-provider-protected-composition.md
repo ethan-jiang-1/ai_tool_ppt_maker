@@ -1,8 +1,14 @@
 # Plan: Framed provider protected-composition hardening
 
-> Type: investigation and design | Updated: 2026-08-10
+> Type: investigation and design | Updated: 2026-08-11 | Status: **active**
+>
+> Now owned by change **C6** of
+> [schema-first-page-image-recovery.md](schema-first-page-image-recovery.md).
+> Its diagnosis, provider-surface findings, and repair semantics carry forward
+> unchanged. Two adjustments: schema identifiers lose their `-vN` suffixes, and
+> the "Page Class from the linked page-schema plan" dependency now points at
+> change C4 rather than the withdrawn presentation-system phase.
 
-> Coordinated by [page-image-progressive-plan.md](page-image-progressive-plan.md).
 > This work package owns the Framed-specific diagnosis, provider capability,
 > protection semantics, and v3 repair path; it does not own shared schema design.
 

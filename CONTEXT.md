@@ -76,125 +76,121 @@ _Avoid_: The only production path
 The production family that uses an image model to create either a whole-page page composition or a reviewed visual-slot asset. A local Framed header overlay does not turn whole-page Image Production into visual-slot production or HTML Production.
 _Avoid_: Refinement as the umbrella name, a synonym for provider authorization, or a required post-HTML phase
 
+### Deck Narrative
+
+**Story Outline**:
+The Deck-level narrative source that states the argument, its order, and the
+evidence carrying each move, before any page exists. It is human-owned content
+under Content Authority and survives repagination.
+_Avoid_: A slide list, a page count, an agenda
+
+**Design Constraint Set**:
+The Deck-level source that records what the presentation must and must not do:
+audience, tone, forbidden claims, required terminology, and delivery limits. It
+constrains every downstream stage without describing any single page.
+_Avoid_: A visual style sheet, a per-page instruction, a provider prompt
+
+**Visual Language**:
+The Deck-level source that fixes the presentation's visual vocabulary:
+typography, colour roles, imagery register, and composition habits. Both
+workflows compile it into provider-facing facts; it owns no page content and no
+local renderer geometry.
+_Avoid_: A per-slide style override, a provider prompt, a rendered asset
+
+**Pagination**:
+The act of turning a Story Outline into a set of Slide Identities, and the
+reason a Deck's page count changes without its argument changing. One narrative
+move may become several pages or one.
+_Avoid_: Reordering, a structural version, a page-count target
+
+### Production Data Kinds
+
+**Source Data**:
+Data a human or an Agent may edit directly. It cannot be recomputed from
+anything else, so losing it loses work.
+_Avoid_: Input file, raw data
+
+**Derived Data**:
+Data that exists only as the recomputable result of an upstream transformation.
+Editing it directly is never the repair; changing its upstream source and
+recomputing is. Every derived value carries the configuration layer it came
+from, so an Agent can state a change's blast radius and a human can check that
+claim.
+_Avoid_: Cache, generated file, temporary output
+
+**Record Data**:
+An append-only statement that something irreversible already happened —
+provider spend, an authorization, a human decision. Existing entries are never
+rewritten; a correction is a new entry.
+_Avoid_: Log, derived evidence, state
+
+**Provenance**:
+The annotation on a Derived Data value naming the source or configuration layer
+that produced it. It is what makes a derived file answerable to the question
+"where do I change this, and what else changes with it?"
+_Avoid_: A comment, a debug field
+
+**Schema Definition Home**:
+The single directory under the Harness Root that defines every production
+schema in YAML. Code constants are mirrors of it, annotated with the definition
+they reference; a schema that exists in code but not there is a defect.
+_Avoid_: A JS constant, a per-module type file, documentation of code
+
 ### Page Image Composition
 
 **Page Source**:
-The canonical per-slide authoring facts, including exact header and body content,
-visual selection, and, after the Page Presentation migration, Page Class
-selection. It is the only per-page presentation scope and cannot directly
-choose a workflow or author renderer geometry.
+The canonical per-slide authoring facts, including exact header and body
+content, visual selection, and Page Class selection. It is the only per-page
+presentation scope and cannot directly choose a workflow or author renderer
+geometry.
 _Avoid_: A controller input, a review-time layout override, an unstructured prompt
 
-**Source Receipt**:
+**Page Source Receipt**:
 The immutable normalized record derived from Page Source before adapter planning. It binds the Work Version's workflow, stable slide identities and positions, canonical content, and selected visual facts; it is derived data, not editable source.
 _Avoid_: A second source of truth, a provider request, generated evidence
 
 **Page Image Core**:
-The shared immutable semantic and binding model used by Pure and Framed. It combines a Source Receipt with validated visual configuration today and is the intended seam for selected presentation facts; it neither renders pixels nor owns either workflow's controller.
+The shared immutable semantic and binding model used by Pure and Framed. It combines a Page Source Receipt with validated visual configuration; it neither renders pixels nor owns either workflow's controller.
 _Avoid_: A Framed-only renderer, a text-free underlay, a background-only image
 
 **Header Rendering Policy**:
-A workflow-bound rule, expressed with each page's canonical header literals, that assigns those fields to a renderer. One Work Version gives every page the same ownership branch: the provider renders them in Pure, while Framed's deterministic transparent local overlay renders them in Framed; Page Class Profiles may vary fixed treatment but cannot change that owner.
+A workflow-bound rule, expressed with each page's canonical header literals, that assigns those fields to a renderer. One Work Version gives every page the same ownership branch: the provider renders them in Pure, while Framed's deterministic transparent local overlay renders them in Framed. A page cannot change that owner.
 _Avoid_: A slide-level authority choice, a provider avoidance instruction, a third workflow
 
-### Target Presentation Control
-
-**Page Presentation System**:
-The settled target version-resolved source package at
-`visual-style/page-image-presentation/`: `page-classes.yaml`,
-`deck-baseline.yaml`, `pure-profiles.yaml`, and
-`framed-header-profiles.yaml`. It declares the Deck Baseline, closed Page Class
-catalog, and workflow-isolated profiles; it is separate from page content,
-provider prompts, generated output, and lifecycle authority.
-_Avoid_: Pure visual system as the universal owner, a Framed preset list, an unstructured design brief
-
-**Deck Baseline**:
-The settled target version-level provider facts shared by every Page Class
-Profile before it declares typed differences: closed provider typography,
-provider colour use, and provider density. Both selected workflows compile
-these facts into their provider controller; it owns no slide content, page
-selection, local-header geometry, or direct per-page geometry override.
-_Avoid_: A universal provider prompt, a per-slide style override, a duplicate class profile
-
 **Page Class**:
-The settled target source-authored, workflow-neutral category that expresses a
-page's narrative and presentation role, not its geometry or renderer choice;
-the initial classes are `standard`, `opening`, `transition`, and `closing`.
-Omitted `PAGE CLASS` normalizes to `standard`; every special class is explicit,
-and explicit `standard` is rejected as redundant. Any addition is a
-version-level design change. Each selected class resolves through a
-workflow-specific Page Class Profile: Pure gets provider-owned full-page
-treatment, while Framed gets exactly one Header Profile.
+The source-authored, workflow-neutral category that expresses a page's
+narrative role, not its geometry or renderer choice; the classes are
+`standard`, `opening`, `transition`, and `closing`. An omitted class normalizes
+to `standard`. Adding a class is a Deck-level design change, never a per-page
+escape hatch.
 _Avoid_: A Framed-only concept, a post-generation review override, arbitrary slide styling
 
-**Page Class Profile**:
-The settled target workflow-specific typed delta for one Page Class. A Pure
-Profile adds only title/content zones and allowed layout families to the Deck
-Baseline; a Framed mapping selects exactly one fixed Header Profile. It never
-exposes sibling-workflow facts.
-_Avoid_: A per-slide layout override, a cross-workflow configuration leak, an unstructured special-page exception
-
-**Header Profile Set**:
-The settled target closed, version-scoped catalog in
-`framed-header-profiles.yaml`. A Framed Page Class mapping resolves to one
-member; members are not selected by per-slide coordinates or a review-time
-visual edit.
-_Avoid_: An unbounded style menu, a provider layout choice
-
-**Header Profile**:
-The settled target fixed Framed treatment resolved for one Page Class in one
-Work Version. It fixes an allowed/required subset of kicker, title, and
-subtitle; normalized field and Reserved Header Region geometry; local font
-families, type style, colours, contrast, and line budgets. A slide cannot
-override it or add a header field.
-_Avoid_: Slide-local typography, an ad hoc provider layout instruction
+**Header Overlay Preset**:
+The single closed local-header treatment that the Framed adapter will render:
+canvas, font families, theme, Reserved Header Region, and kicker/title/subtitle
+geometry. Exactly one exists and a caller cannot supply its own.
+_Avoid_: Header Profile, a per-class style menu, a per-slide typography override
 
 **Reserved Header Region**:
-The settled target normalized spatial region owned exclusively by Framed's
-deterministic local header renderer. Its geometry comes from the Header Profile
-selected by the page's Page Class; that profile separately determines allowed
-fields, typography, colour, and spacing, while provider compliance is requested
-separately and then human-reviewed.
+The normalized spatial region owned exclusively by Framed's deterministic local
+header renderer, declared by the Header Overlay Preset. Provider compliance
+with it is requested separately and then human-reviewed.
 _Avoid_: Provider Avoidance Constraint, Protected Zone, per-slide header styling
 
-**Resolved Page Presentation**:
-The settled target immutable per-slide configuration produced by applying the
-Deck Baseline and a slide's Page Class to the Page Class Profile selected for
-its Work Version's one workflow. Its schema is
-`pptmaker-resolved-page-presentation-v1`; it supplies only that workflow's
-projection and selected-presentation digest without allowing the slide to
-author geometry or styling directly.
-_Avoid_: Raw configuration file, a review-time override, a provider prompt
+**Provider Avoidance Constraint**:
+The provider-facing composition instruction derived from a Framed Reserved
+Header Region. It asks the provider to keep readable text and key subjects away
+from that region, but neither changes local ownership nor itself proves
+provider compliance.
+_Avoid_: Reserved Header Region, a blank band, a guaranteed collision prevention mechanism
 
-**Rendering Controller Projection**:
-The settled target human-inspectable, renderer-specific pre-production
-projection compiled from canonical content and one Resolved Page Presentation.
-Pure has `image2-controller.json`; Framed has that same structured Image2
-controller plus deterministic `framed-header.html`, all bound to the same page
-facts. The exact bytes of a provider request remain the Compiled Provider
-Input; there is no duplicate Framed Header Controller JSON.
-_Avoid_: An opaque prompt, generated page pixels, a lifecycle approval
-
-**Pre-Production Data View**:
-The settled target provider-free, page-addressable publication below
-`_generated/page_image_workflow/pre-production-data/`: separate non-secret
-`source-receipt.json`, `resolved-presentation.json`,
-`image2-controller.json`, and Framed-only `framed-header.html` per slide, plus
-one deck-level Presentation Control Map. It exposes every non-secret fact
-needed to explain their transformations before authorization without becoming
-an input or approval authority.
-_Avoid_: A summary-only debug report, a second source of truth, a provider log
-
-**Presentation Control Map**:
-The settled target deck-level derived index named
-`presentation-control-map.json` within the Pre-Production Data View. It maps
-Page Class assignments, resolved profiles, downstream controller projections,
-and change impact to their authoritative per-page artifacts; it is neither
-editable configuration nor lifecycle authority.
-_Avoid_: One giant configuration blob, a second source of truth, an approval record
+**Protected Zone**:
+The name Harness implementation still uses for a Provider Avoidance Constraint.
+It is not the canonical name for a Reserved Header Region.
+_Avoid_: Reserved Header Region, a second local renderer, a hard spatial guarantee
 
 **Presentation Scope**:
-The intentional reach of a design adjustment: Deck Baseline for shared visual rules, Page Class Profile for a named class of pages, or Page Source for one page's content, visual selection, and class selection. Rendering Controller Projections expose the result of those scopes but cannot be edited as another scope.
+The intentional reach of a design adjustment: Visual Language for shared visual rules, Page Class for a named class of pages, or Page Source for one page's content, visual selection, and class selection. Derived per-page data exposes the result of those scopes but cannot be edited as another scope.
 _Avoid_: Per-page geometry nudging, one all-purpose configuration blob, a review-time layout override
 
 ### Workflow Roles
@@ -238,14 +234,6 @@ _Avoid_: A second provider image, a separate approval state
 **Complete Page Review**:
 The one human proceed-or-repair decision on a complete page representation: Framed presents its raw page beside its Production-Equivalent Composite, while Pure presents its complete provider page. It precedes and does not replace final delivery review.
 _Avoid_: A raw-only Framed decision, an additional composite gate
-
-**Provider Avoidance Constraint**:
-The provider-facing composition instruction derived from a Framed Reserved Header Region. It asks the provider to keep readable text and key subjects away from that region, but neither changes local ownership nor itself proves provider compliance.
-_Avoid_: Reserved Header Region, a blank band, a guaranteed collision prevention mechanism
-
-**Protected Zone**:
-The legacy name for a Provider Avoidance Constraint in current specifications and implementation. It is not the canonical name for a Reserved Header Region.
-_Avoid_: Reserved Header Region, a second local renderer, a hard spatial guarantee
 
 **Provider-Input-Preserving Refresh**:
 A Framed local header refresh for which the compiled provider input, Provider Avoidance Constraint, raw contract, and generation profile remain unchanged. Any change outside that proof requires a raw rebuild.

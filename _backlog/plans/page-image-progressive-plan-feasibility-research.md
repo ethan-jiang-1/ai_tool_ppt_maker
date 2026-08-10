@@ -1,8 +1,15 @@
 # Research: Feasibility of the Page Image Progressive Plan
 
-> Type: implementation-feasibility research | Updated: 2026-08-10 | Scope: current
+> Type: implementation-feasibility research | Updated: 2026-08-11 | Scope: current
 > OpenSpec specifications, Harness source, tests, and active plans only. No production
 > code, run bundle, existing plan, policy, or `CONTEXT.md` was changed.
+>
+> Status: **evidence retained, recommendation superseded.** The verified
+> baseline, defect list, effort table, and blast-radius analysis remain
+> accurate and are cited by
+> [schema-first-page-image-recovery.md](schema-first-page-image-recovery.md).
+> Its closing execution order is withdrawn: the owner made the schema the
+> deliverable rather than an input to a presentation-system implementation.
 
 ## Conclusion
 

@@ -1,6 +1,27 @@
 # Plan: Page Image presentation schema recovery
 
-> Type: settled schema design prerequisite | Updated: 2026-08-10
+> Type: settled schema design prerequisite | Updated: 2026-08-11
+> Status: **partially superseded** by
+> [schema-first-page-image-recovery.md](schema-first-page-image-recovery.md).
+
+**What still holds.** The Q2–Q13 decision ledger, the class-first package
+shape, the four-document split, inheritance, selected-only invalidation, and
+the per-page artifact reasoning are all carried forward into change **C4** of
+the successor plan.
+
+**What is withdrawn.**
+
+- Every `-v1` schema identifier in this file. Schema identifiers no longer
+  carry version suffixes ([ADR 0006](../../docs/adr/0006-define-production-schemas-in-yaml.md)).
+- The names `Resolved Page Presentation`, `Rendering Controller Projection`,
+  `Pre-Production Data View`, `Presentation Control Map`, `Deck Baseline`,
+  `Page Class Profile`, and `Header Profile`. `CONTEXT.md` no longer defines
+  them; the successor plan's 19-schema table gives the current names.
+- The `v3 -> v4` migration framed as a protocol change. There is one protocol.
+- "Header Profile Set" as a catalog of selectable members. The implementation
+  has exactly one hardcoded `standard-v1` overlay preset and rejects any
+  caller-supplied alternative (`header_overlay.mjs:6,64`). `CONTEXT.md` calls
+  the real thing **Header Overlay Preset**.
 
 > Coordinated by [page-image-progressive-plan.md](page-image-progressive-plan.md).
 > This work package owns the shared presentation schema and data-exposure
