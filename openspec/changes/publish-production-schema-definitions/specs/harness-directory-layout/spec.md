@@ -22,6 +22,11 @@ vocabulary; code constants are not a competing vocabulary authority. This
 requirement SHALL NOT move, migrate, or rewrite any Run Bundle source, derived,
 state, or record data.
 
+The parent Harness source-directory map and the existing static Harness-root
+directory assertion SHALL include `schema/`. The assertion update SHALL only
+recognize this additional directory and SHALL retain its font-authority and
+third-party-font-toolchain coverage.
+
 #### Scenario: A maintainer inspects production schemas
 
 - **WHEN** a maintainer opens the Harness schema definition home
@@ -36,6 +41,14 @@ state, or record data.
   identifiers from still-written protocol, mode, and identity literals
 - **AND** it names the specific unreadable or invalid evidence each frozen
   identifier protects
+
+#### Scenario: The Harness root gains the schema definition home
+
+- **WHEN** the static Harness-root directory assertion runs after `schema/` is
+  added
+- **THEN** it accepts the required `schema/` directory
+- **AND** it continues to verify the sole canonical font authority and absence
+  of a third-party font toolchain
 
 ### Requirement: Schema definitions expose provenance and author-term repair context
 

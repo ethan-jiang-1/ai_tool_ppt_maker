@@ -27,8 +27,8 @@ pre-selecting the module paths that their later changes will design.
 
 **Non-Goals:**
 
-- Changing `.mjs` files, CLI behavior, state, records, provider requests, or
-  existing user-facing diagnostics.
+- Changing production-runtime `.mjs` files, CLI behavior, state, records,
+  provider requests, or existing user-facing diagnostics.
 - Renaming constants, enforcing schema-to-code drift, or routing Repair
   Guidance through a runtime handoff. Those are C2.
 - Implementing Story Outline, Design Constraint Set, pagination, Page Class,
@@ -140,13 +140,22 @@ The command will live in `schema/README.md` and is run as C1 evidence.
 
 `git diff --check`, `openspec validate`, and the documented `npm test` core
 baseline are required checks. Root `README.md` declares that core baseline for
-every normal Harness change. Focused, sweep, mock E2E, and real E2E checks are
-not selected for C1 because it introduces no runtime behavior, public journey,
-or provider interaction.
+every normal Harness change. Because C1 updates the existing static
+Harness-root directory assertion, it also runs:
 
-Apart from the scope conflict below, unit, integration, and E2E suites are not
-changed: C1 adds no runtime behavior or public interface. C2 owns the durable
-regression test that checks code-to-YAML drift and author-facing output.
+```sh
+npm run test:sweep -- tests/00-setup/test_html_fonts.mjs
+```
+
+That targeted sweep preserves the assertion's font-authority coverage while
+verifying that the required `schema/` directory is accepted. Mock E2E and real
+E2E checks are not selected for C1 because it introduces no runtime behavior,
+public journey, or provider interaction.
+
+Apart from the approved static assertion update, unit, integration, and E2E
+suites are not changed: C1 adds no runtime behavior or public interface. C2
+owns the durable regression test that checks code-to-YAML drift and
+author-facing output.
 
 ### Control-policy boundary
 
@@ -173,11 +182,12 @@ adding a parallel evaluator or gate now.
 
 ## Migration Plan
 
-1. Add the schema definition home and directory-layout requirement without
-   modifying executable production source or Run Bundle data, after resolving
-   the scope question below.
-2. Run the documented static schema integrity check, OpenSpec validation, and
-   a diff audit for `.mjs` files.
+1. Add the schema definition home and apply the approved parent README map and
+   static directory-assertion updates, without modifying production-runtime
+   source or Run Bundle data.
+2. Run the documented static schema integrity check, targeted sweep, OpenSpec
+   validation, and a diff audit confirming that no production-runtime `.mjs`
+   files changed.
 3. Obtain Checkpoint 1 review of `flow.yaml` and all nineteen definitions.
 4. Only after approval, start C2 to map existing implementation identifiers and
    make code a tested mirror.
@@ -186,25 +196,19 @@ The change is additive and has no deployed data migration. Before C2 consumes
 the definition home, rollback is removal of this new directory and its accepted
 spec change; no record, state, provider evidence, or Deck source needs repair.
 
-## Open Question
+## Approved Scope Decision
 
-The fixed target path creates a direct scope conflict that C1 cannot resolve
-unilaterally. `tests/00-setup/test_html_fonts.mjs` asserts the exact current
-top-level Harness directory set and will fail as soon as `schema/` exists.
-The route document simultaneously confines C1 to `ppt_maker_harness/schema/`
-and requires that its diff touch no `.mjs` file.
+The owner approved the narrow compatibility exception required by the selected
+`ppt_maker_harness/schema/` location. C1 may make exactly these two supporting
+source edits:
 
-The owner must choose one of these scope decisions before apply:
+1. Add `schema/` to the Source Directories map in
+   `ppt_maker_harness/README.md`.
+2. Add `schema` to the exact Harness-root directory list in
+   `tests/00-setup/test_html_fonts.mjs`, retaining that test's font-authority
+   and third-party-font-toolchain assertions.
 
-1. Permit one no-runtime compatibility adjustment to the exact test assertion,
-   together with the `ppt_maker_harness/README.md` source-directory map, while
-   retaining the prohibition on production `.mjs` changes. This is the
-   recommended path because it preserves the selected `schema/` home and a
-   passing repository test suite.
-2. Preserve the literal schema-only/no-`.mjs` boundary and choose a different
-   location for the definition home. This changes the established C1 directory
-   decision and must be reflected in the route before implementation.
-
-Deferring the assertion repair to C2 is not a safe option: C1 would land with a
-known failing existing test, and C2 is intentionally a separate reviewable
-change.
+This exception does not permit production-runtime `.mjs`, `scripts/`, CLI,
+state, record, provider, or Run Bundle changes. Deferring the assertion update
+to C2 remains unsafe because C1 would otherwise land with a known failing
+existing test.

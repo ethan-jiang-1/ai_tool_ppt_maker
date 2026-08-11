@@ -29,6 +29,9 @@ and later JS validation need one readable YAML definition home before code can b
 - Document a static schema-integrity verification for the required Repair Guidance blocks without
   adding a runtime module. Runtime constants, drift enforcement, and author-facing refusal routing
   remain the subsequent `conform-code-to-schema-definitions` change.
+- Update `ppt_maker_harness/README.md` and the one existing static Harness-root directory assertion
+  so both enumerate `schema/`. This approved compatibility adjustment has no production runtime
+  behavior and does not change a CLI, state, record, or provider boundary.
 
 ## Capabilities
 
@@ -43,8 +46,12 @@ and later JS validation need one readable YAML definition home before code can b
 
 ## Impact
 
-- Affected Harness source: new non-executable files under `ppt_maker_harness/schema/`; this change
-  deliberately does not edit `scripts/`, CLI behavior, state, or production records.
+- Affected Harness source: new non-executable files under `ppt_maker_harness/schema/` plus the
+  top-level source-directory map in `ppt_maker_harness/README.md`; this change deliberately does
+  not edit `scripts/`, CLI behavior, state, or production records.
+- Affected test source: one existing static directory-list assertion in
+  `tests/00-setup/test_html_fonts.mjs`, updated only to recognize the approved `schema/` directory
+  while retaining its font-authority coverage.
 - Affected OpenSpec source: one `harness-directory-layout` delta plus this change's planning
   artifacts.
 - Control owner: no runtime control path changes. The YAML contract is read by humans and Agents
@@ -53,7 +60,5 @@ and later JS validation need one readable YAML definition home before code can b
   fixture.
 - Dependencies and public APIs: none. The new files are documentation and data contracts only;
   they introduce no executable dependency or external surface.
-- Apply readiness: blocked on the documented C1 scope conflict in `design.md`. The fixed
-  `ppt_maker_harness/schema/` location currently contradicts an existing exact Harness-directory
-  assertion and the route's literal no-`.mjs` rule; implementation must not begin until the owner
-  resolves that boundary.
+- Scope decision: the owner approved the narrowly bounded source-map and static-test adjustment.
+  No other `.mjs` changes are in scope.

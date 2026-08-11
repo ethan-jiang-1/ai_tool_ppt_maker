@@ -1,6 +1,6 @@
-## 0. Resolve The C1 Scope Boundary
+## 0. Apply The Approved C1 Compatibility Boundary
 
-- [ ] 0.1 Obtain and record the owner's decision on the exact Harness-root directory assertion that conflicts with the route's literal no-`.mjs` rule. Do not create `ppt_maker_harness/schema/` until the owner either permits the narrowly scoped test/map compatibility adjustment or revises the definition-home location; then reconcile the route and this change before task 1.1.
+- [ ] 0.1 Update the `ppt_maker_harness/README.md` Source Directories map and the exact Harness-root directory list in `tests/00-setup/test_html_fonts.mjs` to include `schema/`. Retain the test's font-authority and third-party-font-toolchain assertions; do not modify a production-runtime `.mjs` file.
 
 ## 1. Establish The Definition Home
 
@@ -23,5 +23,5 @@
 ## 4. Verify C1 Scope And Checkpoint
 
 - [ ] 4.1 Run the documented static YAML integrity command to reject a missing or extra stage definition, and to prove every field with a `rule` has a non-empty `means`/`ask`/`never` Repair Guidance block; manually review the reported defaults against `META.yaml` normalizing semantics.
-- [ ] 4.2 Run `npm test` as the documented core Harness baseline, then run `git diff --check` and `openspec validate publish-production-schema-definitions --strict`; audit the C1 diff against the scope decision to prove it adds no production-runtime `.mjs`, CLI, state, provider, or Run Bundle change.
+- [ ] 4.2 Run `npm run test:sweep -- tests/00-setup/test_html_fonts.mjs` and `npm test` as the targeted and documented core Harness baselines, then run `git diff --check` and `openspec validate publish-production-schema-definitions --strict`; audit the C1 diff against the scope decision to prove it adds no production-runtime `.mjs`, CLI, state, provider, or Run Bundle change.
 - [ ] 4.3 Present `flow.yaml` and all nineteen stage definitions for Checkpoint 1; after the owner confirms the data flow, record the validation and confirmation evidence in `_backlog/plans/schema-first-page-image-recovery.md` and leave the change ready for archival.
