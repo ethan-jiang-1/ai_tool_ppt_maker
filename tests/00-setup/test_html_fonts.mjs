@@ -175,7 +175,7 @@ describe('HTML font bundle', () => {
       .filter((entry) => entry.isDirectory())
       .map((entry) => entry.name)
       .sort();
-    expect(harnessDirectories).toEqual(['charter', 'playbook', 'reference', 'scripts', 'workflow']);
+    expect(harnessDirectories).toEqual(['charter', 'playbook', 'reference', 'schema', 'scripts', 'workflow']);
     const fontDirectories = readdirSync(harnessRoot, { recursive: true, withFileTypes: true })
       .filter((entry) => entry.isDirectory() && entry.name === 'fonts')
       .map((entry) => join(entry.parentPath, entry.name));

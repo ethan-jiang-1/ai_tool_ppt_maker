@@ -1,0 +1,47 @@
+schema: page-review-decision
+kind: record
+scope: version
+purpose: "Record the human complete-page review outcome against exact generation evidence."
+answers: "Did the human choose proceed or repair for this complete page review?"
+owner: "ppt_maker_harness/scripts/shared/image2/page_image_progressive_schema.mjs"
+producer_status: materialized
+inputs:
+  - image-generation-plan
+  - image-generation-record
+outputs:
+  - final-page-list
+  - image-generation-plan
+provenance:
+  source: "The exact plan, reviewed page evidence, and the human's recorded decision."
+  requirement: "Retain plan and evidence digests so a decision cannot apply to a different generation run."
+downstream_consumers:
+  - final-page-list
+  - repair routing
+does_not_contain:
+  - "A provider request, a mutable source edit, or a new independent gate."
+  - "Permission to reuse evidence from a different plan."
+fields:
+  outcome:
+    type: enum
+    description: "The human decision after inspecting the complete generated pages."
+    rule: "Must be proceed or repair for the complete-page review."
+    on_violation:
+      means: "The review has not made a clear decision about the generated pages."
+      ask: "Should these pages proceed to finalization, or should they be repaired?"
+      never: "Never infer approval from the existence of generated images."
+  reviewed_evidence_digest:
+    type: sha256 digest
+    description: "The evidence set the human reviewed before recording the outcome."
+    rule: "Must match the complete page evidence for the exact generation plan."
+    on_violation:
+      means: "The decision could be applied to pages the human did not inspect."
+      ask: "Which generated pages and evidence did you review for this decision?"
+      never: "Never reuse a decision after the generation plan changes."
+  repair_context:
+    type: optional structured note
+    description: "The recorded repair direction when the outcome is repair."
+    rule: "Must describe a repair direction when the outcome is repair."
+    on_violation:
+      means: "The next repair cannot tell what the reviewer wants corrected."
+      ask: "What should change before these pages are reviewed again?"
+      never: "Never convert a repair note into permission for unrelated changes."

@@ -11,10 +11,14 @@ and later JS validation need one readable YAML definition home before code can b
 
 - Add `ppt_maker_harness/schema/` as the authoritative, non-executable definition home for the
   Page Image production vocabulary.
-- Publish a `README.md`, `META.yaml`, `flow.yaml`, nineteen stage definitions, and
-  `frozen-identifiers.yaml` there. Together they describe the source-to-delivery flow, ownership,
-  invalidation, field constraints, defaults, provenance expectations, and historically immutable
-  identifiers.
+- Publish a `README.md`, `META.yaml`, `flow.yaml`, `recovery-route.yaml`, nineteen stage
+  definitions, and `frozen-identifiers.yaml` there. Together they describe the source-to-delivery
+  flow, ownership, invalidation, field constraints, defaults, provenance expectations, the C1-C7
+  recovery route, and historically immutable identifiers.
+- Make `recovery-route.yaml` the structured authority for the C1-C7 Page Image recovery-route
+  labels. The README is its discovery entry, while every planned producer carries a resolvable
+  `route_ref`. The route distinguishes change labels from workflow phases, schema names, runtime
+  owners, and authorizations.
 - Require every constrained field to include author-term Repair Guidance (`means`, `ask`, and
   `never`). The guidance is a Collaboration Projection for a Deck Author; it neither authorizes
   work nor changes a gate, record, state, or diagnostic.

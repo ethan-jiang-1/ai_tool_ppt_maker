@@ -1,0 +1,50 @@
+schema: page-render-model
+kind: derived
+scope: version-page
+purpose: "Provide the complete human-reviewable representation of what one final page should look like before generation."
+answers: "What will this page look like as a complete reviewable page?"
+owner: "publish-per-page-derived-data planned change (C5)"
+producer_status: planned
+route_ref: C5
+inputs:
+  - page-source-receipt
+  - page-layout
+  - visual-language
+outputs:
+  - page-generation-spec
+  - page-artifact-index
+provenance:
+  source: "The parsed page, its resolved layout, and selected visual language."
+  requirement: "Retain references to all content and presentation inputs a reviewer needs to inspect."
+downstream_consumers:
+  - page-generation-spec
+  - page-artifact-index
+  - complete-page-review
+does_not_contain:
+  - "page-generation-spec or any provider-only instruction."
+  - "Exact provider request bytes, a submission result, or a review outcome."
+fields:
+  reviewable_composition:
+    type: structured page representation
+    description: "The complete page content, visual treatment, and local overlay treatment visible to a reviewer."
+    rule: "Must represent one complete page without omitting an authored or resolved presentation element."
+    on_violation:
+      means: "A reviewer cannot judge the intended page before generation."
+      ask: "What should a reviewer see on this complete page before any provider submission?"
+      never: "Never replace a missing page representation with a provider instruction."
+  stable_page_identity:
+    type: mnemonic identifier
+    description: "The stable identity carried from source through the reviewable page."
+    rule: "Must match the parsed page identity exactly."
+    on_violation:
+      means: "The reviewable page could be confused with another page."
+      ask: "Which existing page identity does this representation belong to?"
+      never: "Never assign a new identity while preparing a reviewable representation."
+  input_provenance:
+    type: mapping
+    description: "References to the receipt, layout, and visual selection used to build the model."
+    rule: "Must identify every upstream page representation used to compose the reviewable page."
+    on_violation:
+      means: "The page cannot explain what will change when a source decision changes."
+      ask: "Which content, layout, and visual choices should this page reflect?"
+      never: "Never make the reviewable representation an untraceable summary."

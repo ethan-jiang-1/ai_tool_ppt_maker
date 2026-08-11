@@ -7,7 +7,7 @@ definition home for the conceptual Page Image production schemas. It SHALL be
 separate from Run Bundles and contain a `README.md` that states the authority
 boundary, `META.yaml` that defines the required definition shape, `flow.yaml`
 that describes transformations, `stages/` with exactly the nineteen conceptual
-stage definitions, and `frozen-identifiers.yaml`.
+stage definitions, `recovery-route.yaml`, and `frozen-identifiers.yaml`.
 
 The nineteen stage definitions SHALL use the established unversioned vocabulary:
 `story-outline`, `visual-language`, `design-constraints`, `layout-config`,
@@ -22,6 +22,14 @@ vocabulary; code constants are not a competing vocabulary authority. This
 requirement SHALL NOT move, migrate, or rewrite any Run Bundle source, derived,
 state, or record data.
 
+`recovery-route.yaml` SHALL be the structured authority for the C1-C7 Page
+Image recovery-route labels used by planned-owner citations. Every entry SHALL
+state its change or work, execution kind, responsibility, boundary, and exit
+evidence; the README SHALL make that authority discoverable. The route SHALL
+distinguish its labels from workflow phases, schema names, runtime owners, and
+authorizations. Every stage or flow entry with `producer_status: planned` SHALL
+use a `route_ref` that resolves to one entry in this route.
+
 The parent Harness source-directory map and the existing static Harness-root
 directory assertion SHALL include `schema/`. The assertion update SHALL only
 recognize this additional directory and SHALL retain its font-authority and
@@ -31,8 +39,18 @@ third-party-font-toolchain coverage.
 
 - **WHEN** a maintainer opens the Harness schema definition home
 - **THEN** they can locate the authority boundary, all nineteen stage definitions,
-  the complete transformation flow, and the frozen identifier inventory without
-  inspecting a Run Bundle or following implementation imports
+  the complete transformation flow, frozen identifier inventory, and C1-C7
+  route-label authority without inspecting a Run Bundle, Backlog plan, or following
+  implementation imports
+
+#### Scenario: A planned producer is inspected
+
+- **WHEN** a maintainer encounters a planned producer in a stage definition or
+  `flow.yaml`
+- **THEN** its `route_ref` resolves in `recovery-route.yaml` to the named change
+  or production work, responsibility, boundary, and exit evidence
+- **AND** the reference does not imply that the later work is authorized or
+  materialized
 
 #### Scenario: A historical identifier is inspected
 

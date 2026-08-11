@@ -1,0 +1,50 @@
+schema: production-progress-state
+kind: record
+scope: version
+purpose: "Record the current workflow target state, source epoch, and recorded handoffs for one version."
+answers: "Where is this version in production, and which evidence and handoff bind that state?"
+owner: "ppt_maker_harness/scripts/shared/state/state.mjs"
+producer_status: materialized
+inputs:
+  - page-source-receipt
+  - image-generation-plan
+  - page-review-decision
+  - delivery-package
+outputs:
+  - image-generation-plan
+  - visual-style-candidates
+provenance:
+  source: "Runtime-managed version state and recorded workflow handoffs."
+  requirement: "Retain the source epoch, selected workflow, and evidence references that explain current status."
+downstream_consumers:
+  - workflow inspection
+  - selected workflow operations
+  - visual-style-candidates
+does_not_contain:
+  - "A second MD Controller, a substitute for a playbook, or an authorization grant."
+  - "Hand-edited derived output or an implicit workflow transition."
+fields:
+  selected_workflow:
+    type: enum
+    description: "The one workflow recorded for the version."
+    rule: "Must be framed or pure and remain singular for the version."
+    on_violation:
+      means: "The version no longer has a coherent production path."
+      ask: "Which one workflow was selected for this version?"
+      never: "Never record both workflows as active for one version."
+  source_epoch:
+    type: positive integer
+    description: "The current source generation that downstream records bind to."
+    rule: "Must advance only when the canonical source changes through its owner."
+    on_violation:
+      means: "The state cannot tell whether its evidence belongs to current source."
+      ask: "Which current source revision should this production state describe?"
+      never: "Never edit an epoch to make stale evidence appear current."
+  evidence_handoff:
+    type: mapping
+    description: "References to the current plan, review, delivery, or next recorded workflow handoff."
+    rule: "Must point only to evidence valid for the selected workflow and source epoch."
+    on_violation:
+      means: "The reported progress may be based on stale or unrelated production evidence."
+      ask: "Which current plan, review, or delivery evidence describes this version?"
+      never: "Never use a handoff reference as permission for a new provider action."

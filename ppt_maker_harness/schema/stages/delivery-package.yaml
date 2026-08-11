@@ -1,0 +1,46 @@
+schema: delivery-package
+kind: derived
+scope: version
+purpose: "Assemble final page media, PPTX, notes, and delivery receipts into one traceable delivery result."
+answers: "What final PPTX, notes, media, and receipts were delivered for this version?"
+owner: "ppt_maker_harness/scripts/05-delivery/index.mjs"
+producer_status: materialized
+inputs:
+  - final-page-list
+  - page-source
+outputs: []
+provenance:
+  source: "The final page list, source-owned notes, assembly receipt, notes receipt, and delivery media manifest."
+  requirement: "Retain the final-manifest digest and digests for each produced delivery artifact."
+downstream_consumers:
+  - delivery inspection
+  - notes-only refresh
+  - user handoff
+does_not_contain:
+  - "A new provider submission, source mutation, or approval decision."
+  - "A final artifact that is not bound to the final page list."
+fields:
+  final_manifest_digest:
+    type: sha256 digest
+    description: "The digest of the exact final page list assembled into delivery."
+    rule: "Must match the final page list used by all delivery artifacts."
+    on_violation:
+      means: "The delivered files cannot prove which accepted pages they contain."
+      ask: "Which accepted final page list should this delivery assemble?"
+      never: "Never assemble delivery from a stale final page list."
+  artifact_receipts:
+    type: mapping
+    description: "Assembly, notes, media, and delivery receipt references and digests."
+    rule: "Must bind every published delivery artifact to the same final manifest."
+    on_violation:
+      means: "The delivery result could mix files from different presentation states."
+      ask: "Which assembled presentation, notes, and media belong to this final version?"
+      never: "Never treat a standalone PPTX file as a complete delivery record."
+  ordered_page_coverage:
+    type: ordered list of stable page identities
+    description: "The pages represented in the assembled presentation and notes."
+    rule: "Must exactly match the final page list."
+    on_violation:
+      means: "The delivered presentation and its notes may not cover the same pages."
+      ask: "Which final pages should appear in the delivered presentation and notes?"
+      never: "Never inject notes for a page that is not in the final page list."

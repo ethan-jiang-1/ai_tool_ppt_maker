@@ -1,0 +1,48 @@
+schema: page-source-receipt
+kind: derived
+scope: version-page
+purpose: "Preserve the normalized result of parsing the authored page source before adapter compilation."
+answers: "What did the parser understand from this page's source?"
+owner: "ppt_maker_harness/scripts/01-content/internal/page_image_source.mjs"
+producer_status: materialized
+inputs:
+  - page-source
+  - visual-language
+outputs:
+  - page-layout
+  - page-generation-spec
+provenance:
+  source: "Page source digest and the visual-language selection used during parsing."
+  requirement: "Retain source_sha256, workflow, stable page identity, and normalized page facts."
+downstream_consumers:
+  - page-layout
+  - page-generation-spec
+  - image-generation-plan
+does_not_contain:
+  - "A resolved class profile, provider request bytes, or generated image."
+  - "An authorization, review decision, or delivery receipt."
+fields:
+  source_digest:
+    type: sha256 digest
+    description: "The digest of the authored page source used for parsing."
+    rule: "Must identify the exact source bytes that produced the receipt."
+    on_violation:
+      means: "The parsed page cannot be traced back to the content that was reviewed."
+      ask: "Which current source version should this page be derived from?"
+      never: "Never reuse a receipt after changing its underlying content."
+  normalized_workflow:
+    type: enum
+    description: "The selected version workflow after source parsing."
+    rule: "Must be framed or pure and match the version's recorded workflow."
+    on_violation:
+      means: "The parsed page is not aligned with the version's production choice."
+      ask: "Which workflow was selected for this version before planning work?"
+      never: "Never let a page silently change the version's workflow."
+  parsed_page_facts:
+    type: mapping
+    description: "Normalized content, visual selection, header policy, and identity facts for one page."
+    rule: "Must preserve one stable page identity and one normalized visual selection."
+    on_violation:
+      means: "The parser did not produce a complete page that later work can trace."
+      ask: "Which content and approved visual selection belong to this page?"
+      never: "Never replace parsed facts with a generated image description."

@@ -1,0 +1,50 @@
+schema: image-generation-plan
+kind: derived
+scope: version
+purpose: "Describe the exact selected page-generation scope and bindings before any provider submission."
+answers: "What will be generated, for which pages, with which exact plan?"
+owner: "selected workflow adapter with ppt_maker_harness/scripts/shared/image2/page_image_progressive_schema.mjs"
+producer_status: materialized
+inputs:
+  - page-generation-spec
+  - image2-request
+  - visual-style-candidates
+  - production-progress-state
+outputs:
+  - image-generation-record
+  - page-review-decision
+provenance:
+  source: "The current source receipt, selected workflow, selected style master, generation profile, and per-page request bindings."
+  requirement: "Retain the plan digest, ordered stable page identities, and source epoch."
+downstream_consumers:
+  - provider submission
+  - image-generation-record
+  - page-review-decision
+does_not_contain:
+  - "Provider response bytes, paid attempt evidence, or a review decision."
+  - "Permission to submit without a separate exact authorization."
+fields:
+  planned_page_scope:
+    type: ordered list of stable page identities
+    description: "The pages that this exact plan may generate."
+    rule: "Must cover the selected scope exactly and preserve the intended order."
+    on_violation:
+      means: "The plan could generate a different set of pages than the one being reviewed."
+      ask: "Which pages should this generation run cover, and in what order?"
+      never: "Never add a page to a reviewed plan after authorization."
+  plan_digest:
+    type: sha256 digest
+    description: "The digest that binds the planned source, configuration, and request identities."
+    rule: "Must match the complete planned scope and selected page bindings."
+    on_violation:
+      means: "The generation run cannot prove what was approved."
+      ask: "Which exact plan should later submission and review refer to?"
+      never: "Never treat a changed plan as the same reviewed plan."
+  maximum_submissions:
+    type: positive integer
+    description: "The bounded count of provider submissions allowed by the planned scope."
+    rule: "Must equal the number of planned submissions and never exceed the selected scope."
+    on_violation:
+      means: "The planned cost and provider impact are not bounded."
+      ask: "How many of the selected pages should this run submit?"
+      never: "Never increase the submission count through an implicit retry."

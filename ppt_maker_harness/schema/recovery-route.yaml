@@ -1,0 +1,53 @@
+route: page-image-recovery
+authority: "Canonical definition of C1-C7 recovery-route labels used by this schema home."
+purpose: "Sequence bounded vocabulary, code-conformance, capability, and production-repair work without treating the labels as runtime behavior."
+not_a:
+  - workflow phase
+  - schema name
+  - runtime owner
+  - CLI command
+  - authorization state
+
+labels:
+  - id: C1
+    work: publish-production-schema-definitions
+    execution_kind: openspec-change
+    responsibility: "Publish the non-executable Page Image schema vocabulary, flow, route, and frozen identifier inventory."
+    boundary: "No production runtime behavior, provider work, record migration, or Run Bundle mutation."
+    exit_evidence: "The owner confirms that flow.yaml and all nineteen stage definitions express the intended data flow."
+  - id: C2
+    work: conform-code-to-schema-definitions
+    execution_kind: openspec-change
+    responsibility: "Make implementation constants, defaults, drift checks, and author-facing repair projections conform to C1."
+    boundary: "No semantic behavior change and no rename of a frozen identifier."
+    exit_evidence: "Core tests pass, deliberate constant drift fails, and historical attempt records remain valid."
+  - id: C3
+    work: close-upstream-narrative-gap
+    execution_kind: openspec-change
+    responsibility: "Introduce Story Outline, Design Constraints, and the provenance-carrying pagination step."
+    boundary: "No Page Class, layout resolution, or provider generation behavior."
+    exit_evidence: "A deck has editable argument and constraints, and derives a page list with provenance."
+  - id: C4
+    work: land-page-class-and-layout-config
+    execution_kind: openspec-change
+    responsibility: "Introduce Page Class, isolated layout config, a resolver, workflow projections, and invalidation rules."
+    boundary: "No persistent per-page derived-artifact publication and no provider-protection claim."
+    exit_evidence: "Each page resolves one workflow projection with inherited-value provenance, while unselected profiles invalidate nothing."
+  - id: C5
+    work: publish-per-page-derived-data
+    execution_kind: openspec-change
+    responsibility: "Publish independently inspectable per-page derived artifacts and their index before provider work."
+    boundary: "No provider call and no new gate or acceptance state."
+    exit_evidence: "A human can trace one page from source through exact provider bytes without running the pipeline."
+  - id: C6
+    work: harden-framed-provider-protected-composition
+    execution_kind: openspec-change
+    responsibility: "Make Framed protected-composition semantics honest through normalized facts and provider capability evidence."
+    boundary: "Does not subsume C1-C5 vocabulary or production-version repair."
+    exit_evidence: "Provider capability or bounded best-effort protection is documented and verified against the synthetic probe fixture."
+  - id: C7
+    work: version-repair
+    execution_kind: production-work
+    responsibility: "Repair a named production version by version succession after the Harness recovery route is ready."
+    boundary: "Not an OpenSpec change, not a Harness runtime migration, and never a hand edit of derived data or records."
+    exit_evidence: "The repaired successor passes its selected workflow review and delivery evidence while the predecessor remains byte-preserved."

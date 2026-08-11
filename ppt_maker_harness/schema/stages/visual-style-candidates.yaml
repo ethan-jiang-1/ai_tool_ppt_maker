@@ -1,0 +1,48 @@
+schema: visual-style-candidates
+kind: record
+scope: version
+purpose: "Preserve Style Master candidate lineage, review decisions, and the selected candidate for a workflow."
+answers: "Which visual-style candidates existed, how were they reviewed, and which one is selected?"
+owner: "ppt_maker_harness/scripts/shared/image2/style_master_schema.mjs"
+producer_status: materialized
+inputs:
+  - visual-language
+  - production-progress-state
+outputs:
+  - page-generation-spec
+  - image-generation-plan
+provenance:
+  source: "Candidate plans, grants, attempts, generated and local provenance, review decisions, and the candidate head."
+  requirement: "Records are append-only and retain their historical serialized identifiers."
+downstream_consumers:
+  - page-generation-spec
+  - image-generation-plan
+  - production-progress-state
+does_not_contain:
+  - "Per-page source copy, a provider request for a page, or a final page list."
+  - "A mutable replacement for historical candidate evidence."
+fields:
+  candidate_lineage:
+    type: append-only record chain
+    description: "The plan, grant, attempt, provenance, review, and head records for each candidate."
+    rule: "Must retain the complete record chain for every candidate that was reviewed or selected."
+    on_violation:
+      means: "The chosen visual style cannot explain how it was produced or judged."
+      ask: "Which candidate history supports the style selected for this version?"
+      never: "Never overwrite an earlier candidate record to make a later choice look original."
+  selected_candidate:
+    type: candidate reference
+    description: "The one candidate selected for the current workflow and source context."
+    rule: "Must bind to reviewed candidate evidence compatible with the selected workflow."
+    on_violation:
+      means: "Page generation could use a style that has not been selected for this version."
+      ask: "Which reviewed visual style should guide this version's pages?"
+      never: "Never select a candidate from another workflow or source context."
+  selection_digest:
+    type: sha256 digest
+    description: "The digest supplied to downstream page-generation facts."
+    rule: "Must identify the exact selected candidate lineage and workflow."
+    on_violation:
+      means: "Downstream pages cannot prove which visual style they inherited."
+      ask: "Which selected visual style should each planned page inherit?"
+      never: "Never reuse a style selection digest after the selected candidate changes."

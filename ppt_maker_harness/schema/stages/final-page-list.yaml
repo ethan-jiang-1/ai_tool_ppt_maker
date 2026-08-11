@@ -1,0 +1,47 @@
+schema: final-page-list
+kind: derived
+scope: version
+purpose: "Select the final accepted page bytes for every page in the version."
+answers: "Which image is final for each page?"
+owner: "ppt_maker_harness/scripts/05-delivery/index.mjs with shared final-manifest validation"
+producer_status: materialized
+inputs:
+  - image-generation-record
+  - page-review-decision
+outputs:
+  - delivery-package
+provenance:
+  source: "Accepted raw evidence and the complete-page review decision for the exact plan."
+  requirement: "Retain final byte digests and stable page identities in final display order."
+downstream_consumers:
+  - delivery-package
+  - PPTX assembly
+  - notes injection
+does_not_contain:
+  - "A provider instruction, a new review decision, or mutable source content."
+  - "Final bytes for a page without accepted evidence."
+fields:
+  ordered_page_entries:
+    type: ordered list
+    description: "One final entry for each stable page identity and its accepted byte digest."
+    rule: "Must cover the final version pages exactly once and preserve final order."
+    on_violation:
+      means: "Delivery could omit, duplicate, or reorder pages without evidence."
+      ask: "Which accepted page should appear at each position in the delivered presentation?"
+      never: "Never select a final page from an unreviewed attempt."
+  final_byte_digest:
+    type: sha256 digest
+    description: "The digest of the accepted final bytes for a page."
+    rule: "Must match bytes linked to accepted evidence for that page."
+    on_violation:
+      means: "The final list cannot prove which image will be delivered."
+      ask: "Which accepted image should represent this page in delivery?"
+      never: "Never replace final bytes without a new accepted evidence chain."
+  evidence_binding:
+    type: mapping
+    description: "The link from each final entry to the accepted evidence and review decision."
+    rule: "Must bind each final entry to the plan and review that accepted it."
+    on_violation:
+      means: "A final page could be delivered without a traceable human decision."
+      ask: "Which review outcome accepted this page for final delivery?"
+      never: "Never treat a file path alone as acceptance evidence."

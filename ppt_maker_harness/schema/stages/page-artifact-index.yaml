@@ -1,0 +1,54 @@
+schema: page-artifact-index
+kind: derived
+scope: version-page
+purpose: "Index one page's inspectable source, derived, request, record, and final artifacts without creating a second control state."
+answers: "Where are this page's artifacts, and what stage is each artifact in?"
+owner: "publish-per-page-derived-data planned change (C5)"
+producer_status: planned
+route_ref: C5
+inputs:
+  - page-source-receipt
+  - page-layout
+  - page-render-model
+  - page-generation-spec
+  - image2-request
+  - framed-header-html
+outputs:
+  - image-generation-plan
+  - final-page-list
+  - delivery-package
+provenance:
+  source: "References to the independently published page artifacts at image2 plan time and later lifecycle records."
+  requirement: "Every entry names its producing artifact and the page identity it belongs to."
+downstream_consumers:
+  - production inspection
+  - final-page-list
+  - delivery-package
+does_not_contain:
+  - "A duplicate page artifact payload or raw provider prose in a navigation tree."
+  - "An authorization, a new acceptance gate, or a substitute lifecycle state."
+fields:
+  stable_page_identity:
+    type: mnemonic identifier
+    description: "The page identity used by every indexed artifact."
+    rule: "Must match the identity carried by each referenced page artifact."
+    on_violation:
+      means: "The index could join artifacts from different pages."
+      ask: "Which existing page identity should all of these artifacts belong to?"
+      never: "Never group artifacts by their current position alone."
+  artifact_references:
+    type: mapping of artifact names to paths and digests
+    description: "Locations and stable references for the source-to-delivery artifact chain."
+    rule: "Must reference independent artifacts without copying their full payloads."
+    on_violation:
+      means: "A reviewer cannot trace the page without relying on a duplicate authority."
+      ask: "Which independently published artifacts should this page expose for inspection?"
+      never: "Never embed raw provider prose or duplicate page data in the index."
+  lifecycle_observation:
+    type: descriptive status
+    description: "The observed availability of page artifacts, not a new controller state."
+    rule: "Must report existing artifact evidence without authorizing a next lifecycle action."
+    on_violation:
+      means: "The index would start acting like a second production controller."
+      ask: "Which artifacts are available for inspection right now?"
+      never: "Never turn an index entry into approval or permission."

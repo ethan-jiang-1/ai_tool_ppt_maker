@@ -46,6 +46,7 @@ schema/
   README.md
   META.yaml
   flow.yaml
+  recovery-route.yaml
   frozen-identifiers.yaml
   stages/
     <one YAML definition for each conceptual schema>
@@ -56,6 +57,14 @@ methodology rather than one Deck's data. `README.md` makes the ownership
 boundary explicit: YAML owns the conceptual vocabulary, current code is an
 implementation inventory until C2 annotates its mirrors, and neither source
 nor record data in a Run Bundle is rewritten.
+
+`recovery-route.yaml` owns the C1-C7 recovery-route legend. Those labels occur
+in planned-owner citations, but they are not stages, lifecycle phases, modules,
+or authorizations. Each structured entry records its name, execution kind,
+responsibility, boundary, and exit evidence. The README points readers there;
+it is a discovery surface, not a competing authority. Planned stage and flow
+entries use `route_ref`, which the static check resolves against this YAML.
+C7 is explicitly production work, not an OpenSpec change or a Harness migration.
 
 Alternative considered: define schemas beside the owning `.mjs` modules. It
 was rejected because it repeats the present code-archeology problem and cannot
@@ -136,7 +145,9 @@ against the exact nineteen-name set, recursively finds every mapping with a
 `rule`, and rejects a missing, non-mapping, or empty-string `means`/`ask`/`never`
 member in its `on_violation` block. It also reports every field that declares a
 `default` for manual review against the normalizing semantics in `META.yaml`.
-The command will live in `schema/README.md` and is run as C1 evidence.
+It also checks that C1-C7 have complete route entries and that every planned
+stage or flow producer has a resolvable `route_ref`. The command will live in
+`schema/README.md` and is run as C1 evidence.
 
 `git diff --check`, `openspec validate`, and the documented `npm test` core
 baseline are required checks. Root `README.md` declares that core baseline for

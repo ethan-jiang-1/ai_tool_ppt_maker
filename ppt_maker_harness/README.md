@@ -17,7 +17,8 @@ ppt_maker_harness/
 ├── scripts/    Node ESM CLI and capability modules
 ├── charter/    directory, lifecycle, node, and state rules
 ├── reference/  glossary, anti-patterns, and quick start
-└── playbook/   MD Controllers and controller manifest
+├── playbook/   MD Controllers and controller manifest
+└── schema/     authoritative Page Image production definitions
 ```
 
 `deck_*` and `dpt_*` are production data, not Harness source. A run bundle is

@@ -1,0 +1,46 @@
+schema: story-outline
+kind: source
+scope: deck
+purpose: "Record the deck's argument, evidence order, and intended audience outcome before pages are derived."
+answers: "What is the argument, in what order, and on what evidence?"
+owner: "close-upstream-narrative-gap planned change (C3)"
+producer_status: planned
+route_ref: C3
+inputs: []
+outputs:
+  - page-source
+provenance:
+  source: "Human-authored deck narrative."
+  recomputable: false
+  requirement: "Keep the author decision and its evidence references together."
+downstream_consumers:
+  - page-source
+  - design-constraints
+does_not_contain:
+  - "Per-page visual selections or provider instructions."
+  - "A review decision, generated image, or delivery receipt."
+fields:
+  central_claim:
+    type: string
+    description: "The conclusion the audience should retain."
+    rule: "Must state one testable deck-level claim."
+    on_violation:
+      means: "The deck has no clear conclusion to organize around."
+      ask: "What should the audience believe or do after this presentation?"
+      never: "Never infer the central claim from a final image or delivery receipt."
+  evidence_sequence:
+    type: ordered list
+    description: "The evidence or reasoning beats that support the claim."
+    rule: "Must be ordered and must support the central claim."
+    on_violation:
+      means: "The argument cannot yet show why its conclusion is credible."
+      ask: "Which facts, examples, or reasoning steps should the audience encounter first?"
+      never: "Never use page order alone as evidence of an intended argument."
+  audience_outcome:
+    type: string
+    description: "The intended audience understanding, decision, or next action."
+    rule: "Must describe an outcome for the named audience."
+    on_violation:
+      means: "The presentation has no stated effect on its audience."
+      ask: "What should this audience understand, decide, or do next?"
+      never: "Never replace the intended outcome with a rendering preference."

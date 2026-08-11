@@ -1,0 +1,49 @@
+schema: layout-config
+kind: source
+scope: version
+purpose: "Resolve a closed page class into isolated framed or pure presentation profiles with inheritance provenance."
+answers: "Which class and workflow-specific profile govern this page's presentation treatment?"
+owner: "land-page-class-and-layout-config planned change (C4)"
+producer_status: planned
+route_ref: C4
+inputs:
+  - visual-language
+  - design-constraints
+outputs:
+  - page-layout
+provenance:
+  source: "Version-level class catalog, deck defaults, and one selected workflow-specific profile."
+  requirement: "Every resolved value identifies its inherited source and selected profile."
+downstream_consumers:
+  - page-layout
+  - page-render-model
+  - page-generation-spec
+does_not_contain:
+  - "Per-page copy, a provider prompt, or provider transport bytes."
+  - "A shared profile that mixes Pure facts with Framed header facts."
+fields:
+  page_class:
+    type: enum
+    description: "The page treatment selected from the version's class catalog."
+    rule: "Must be standard, opening, transition, or closing when supplied."
+    default: standard
+    on_violation:
+      means: "The page needs one known presentation treatment."
+      ask: "Should this page use the usual treatment, open a section, bridge a transition, or close the story?"
+      never: "Never invent a one-off treatment outside the approved set."
+  class_profile_binding:
+    type: workflow-specific profile reference
+    description: "The selected class-to-profile binding for the version workflow."
+    rule: "Must resolve each selected class to exactly one profile for the selected workflow."
+    on_violation:
+      means: "The page has no unambiguous presentation treatment."
+      ask: "Which existing profile should this class use in the selected workflow?"
+      never: "Never borrow a profile from the other workflow."
+  inherited_value_provenance:
+    type: mapping
+    description: "The source of each deck default or class-specific override in the resolved profile."
+    rule: "Must identify the deck default or selected profile that supplied every resolved value."
+    on_violation:
+      means: "A later change cannot explain why this page received its current treatment."
+      ask: "Which deck rule or selected profile supplies this presentation choice?"
+      never: "Never present an inherited value as an unexplained page override."
