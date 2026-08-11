@@ -14,7 +14,6 @@ import {
   runAllChecks,
 } from '../../ppt_maker_harness/scripts/00-setup/internal/env_check.mjs';
 import { parseCliErrorLine } from '../../ppt_maker_harness/scripts/shared/cli/cli_error.mjs';
-import { currentFramedHeaderOverlayRenderProfile } from '../../ppt_maker_harness/scripts/03-framed-image/internal/framed_render_profile.mjs';
 
 const ENV_CHECK = 'ppt_maker_harness/scripts/00-setup/env-check.mjs';
 const REQUIRED = ['@napi-rs/canvas', 'pptxgenjs', 'commander', 'playwright'];
@@ -858,9 +857,8 @@ describe('env-check Page Image operation profiles', () => {
     }
   }
 
-  it('reports the exact production profile for default Framed-local readiness', () => {
+  it('reports renderer readiness without selecting a page presentation profile', () => {
     const result = runPageImageCheck([]);
-    const productionProfile = currentFramedHeaderOverlayRenderProfile();
     expect(result.exitCode).toBe(0);
     expect(result.report).toMatchObject({
       allPass: true,
@@ -875,11 +873,9 @@ describe('env-check Page Image operation profiles', () => {
     expect(result.report.checks.find((check) => check.check === 'framed_render_profile')).toMatchObject({
       status: 'ok',
       profile: {
-        schema: productionProfile.schema,
-        render_profile_digest: productionProfile.render_profile_digest,
-        runtime: productionProfile.runtime,
-        font_render_inventory: productionProfile.font_render_inventory,
-        capture: productionProfile.capture,
+        runtime: { id: expect.any(String) },
+        font_render_inventory: { schema: expect.any(String), families: expect.any(Number), faces: expect.any(Number) },
+        capture: { id: expect.any(String) },
       },
     });
   });

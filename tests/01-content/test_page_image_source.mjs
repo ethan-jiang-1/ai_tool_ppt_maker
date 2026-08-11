@@ -39,7 +39,7 @@ function slide({
 **KICKER**: Operations
 **TITLE**: ${title}
 **SUBTITLE**: A concise premise
-${workflow === "framed" ? "**FRAME PRESET**: standard\n" : ""}${extra}${bodyYaml === null ? "" : `**SLIDE BODY**:
+${extra}${bodyYaml === null ? "" : `**SLIDE BODY**:
 \`\`\`yaml
 ${bodyYaml}
 \`\`\`
@@ -91,8 +91,8 @@ describe("Page Image Workflow source", () => {
       pipeline: "page-image-workflow",
       workflow: "framed",
       slides: [
-        { slide_id: "DeckGo", position: 1 },
-        { slide_id: "LineUp", position: 2 },
+        { slide_id: "DeckGo", position: 1, page_class: "standard" },
+        { slide_id: "LineUp", position: 2, page_class: "standard" },
       ],
     });
     for (const item of receipt.slides) {
@@ -128,7 +128,6 @@ describe("Page Image Workflow source", () => {
   it("keeps Framed header literals local and provider context-not-to-render", () => {
     const receipt = parsePageImageSource(source(), { registry });
     expect(receipt.slides[0].header_policy).toEqual({
-      frame_preset: "standard",
       local_header: {
         kicker: "Operations",
         title: "A current source",
@@ -142,7 +141,7 @@ describe("Page Image Workflow source", () => {
     });
   });
 
-  it("keeps Pure header literals provider-visible and forbids a Framed preset", () => {
+  it("keeps Pure header literals provider-visible and rejects the retired Framed selector", () => {
     const pureReceipt = parsePageImageSource(source({ workflow: "pure" }), { registry });
     expect(pureReceipt.slides[0].header_policy).toEqual({
       provider_visible: {
@@ -156,15 +155,39 @@ describe("Page Image Workflow source", () => {
       workflow: "pure",
       slides: [slide({ workflow: "pure", extra: "**FRAME PRESET**: standard\n" })],
     }));
-    expect(issueCodes(error)).toContain("pure_frame_preset_forbidden");
-    expect(error.issues.find((issue) => issue.code === "pure_frame_preset_forbidden").subject.field).toBe("FRAME PRESET");
+    expect(issueCodes(error)).toContain("unsupported_page_image_field");
+    expect(error.issues.find((issue) => issue.code === "unsupported_page_image_field").subject.field).toBe("FRAME PRESET");
   });
 
-  it("requires an explicit Framed title and header preset", () => {
-    const withoutPreset = source().replace("**FRAME PRESET**: standard\n", "");
+  it("requires an explicit Framed title but no obsolete preset", () => {
     const withoutTitle = source().replace("**TITLE**: A current source\n", "");
-    expect(issueCodes(parseError(withoutPreset))).toContain("missing_framed_header_preset");
     expect(issueCodes(parseError(withoutTitle))).toContain("missing_framed_title");
+  });
+
+  it("normalizes an omitted PAGE CLASS to standard and passes an explicit class to the resolver", () => {
+    const contexts = [];
+    const receipt = parsePageImageSource(source({
+      slides: [slide({ extra: "**PAGE CLASS**: opening\n" })],
+    }), {
+      registry: {
+        resolveSelection(context) {
+          contexts.push(context);
+          return registry.resolveSelection(context);
+        },
+      },
+    });
+
+    expect(receipt.slides[0].page_class).toBe("opening");
+    expect(contexts[0]).toMatchObject({ workflow: "framed", page_class: "opening" });
+    expect(parsePageImageSource(source(), { registry }).slides[0].page_class).toBe("standard");
+  });
+
+  it("rejects invalid or repeated PAGE CLASS before receipt creation", () => {
+    const unknown = source({ slides: [slide({ extra: "**PAGE CLASS**: hero\n" })] });
+    const repeated = source({ slides: [slide({ extra: "**PAGE CLASS**: opening\n**PAGE CLASS**: closing\n" })] });
+
+    expect(issueCodes(parseError(unknown))).toContain("invalid_page_image_enum");
+    expect(issueCodes(parseError(repeated))).toContain("duplicate_page_image_field");
   });
 
   it("rejects invalid Provider Content roles, policies, sizes, and item counts", () => {

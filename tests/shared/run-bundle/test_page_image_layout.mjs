@@ -6,12 +6,19 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import {
+  BACKBONE_CONSTRAINTS,
+  BACKBONE_STORY_OUTLINE,
   DEFAULT_INIT_MODE,
+  PAGE_CLASS_CATALOG_FILE,
+  PAGE_IMAGE_DECK_DEFAULTS_FILE,
+  PAGE_IMAGE_PRESENTATION_FILES,
+  PAGE_IMAGE_PRESENTATION_SUBDIR,
   PAGE_IMAGE_WORKFLOW_PATHS,
   checkBundle,
   checkProgressivePageProductionHistoryLayout,
   checkStyleMasterPresentationJpeg,
   checkStyleMasterHistoryLayout,
+  createVersion,
   initBundle,
   pageImageWorkflowPaths,
   pageImageProgressiveRawPaths,
@@ -22,6 +29,10 @@ import {
   STYLE_MASTER_IMAGE,
   styleAsset,
 } from "../../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
+import {
+  parseDesignConstraints,
+  parseStoryOutline,
+} from "../../../ppt_maker_harness/scripts/01-content/index.mjs";
 import {
   PAGE_IMAGE_WORKFLOW_PRODUCTION_MODE,
   initialProductionModeRecord,
@@ -77,7 +88,8 @@ describe("Page Image bundle layout", () => {
       const runDir = join(deck, "3_versions", "v1");
       expect(DEFAULT_INIT_MODE).toBe(PAGE_IMAGE_WORKFLOW_PRODUCTION_MODE);
       const source = readFileSync(join(runDir, "slide-specifications.md"), "utf8");
-      const pureDeckVisualSystemPath = join(deck, "2_backbone", "visual-style", PURE_DECK_VISUAL_SYSTEM_FILE);
+      const presentationPath = join(deck, "2_backbone", "visual-style", PAGE_IMAGE_PRESENTATION_SUBDIR);
+      const pureDeckVisualSystemPath = join(presentationPath, PURE_DECK_VISUAL_SYSTEM_FILE);
       expect(source).toContain("pipeline: page-image-workflow");
       expect(source).not.toMatch(/^  workflow:/m);
       expect(source).not.toContain("page_image_default");
@@ -85,10 +97,42 @@ describe("Page Image bundle layout", () => {
       const state = readState(deck, { purpose: "observe", heal: false, runVersion: "v1" });
       expect(state.pipeline).toBe(PAGE_IMAGE_WORKFLOW_PIPELINE);
       expect(state.production_mode.by_version["3_versions/v1"]).toBeUndefined();
-      expect(state.current_node).toBe("select-target-page-image-workflow");
+      expect(state.current_node).toBe("author-target-narrative-sources");
       expect(existsSync(pageImageWorkflowPaths(runDir).root)).toBe(false);
       expect(existsSync(pureDeckVisualSystemPath)).toBe(true);
+      expect(PAGE_IMAGE_PRESENTATION_FILES.map((filename) => existsSync(join(presentationPath, filename)))).toEqual([true, true, true, true]);
+      expect(readFileSync(join(presentationPath, PAGE_CLASS_CATALOG_FILE), "utf8")).toContain("pptmaker-page-image-class-catalog");
+      expect(readFileSync(join(presentationPath, PAGE_IMAGE_DECK_DEFAULTS_FILE), "utf8")).toContain("pptmaker-page-image-deck-defaults");
       expect(readFileSync(pureDeckVisualSystemPath, "utf8")).toContain("schema: pptmaker-pure-deck-visual-system");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("seeds only the current editable narrative-source pair with ordinary Controller state", () => {
+    const root = mkdtempSync(join(tmpdir(), "narrative-source-init-"));
+    try {
+      const deck = join(root, "deck_current");
+      initBundle(deck, null, "keynote", "dark-executive");
+      const backbone = join(deck, "2_backbone");
+      const storyPath = join(backbone, BACKBONE_STORY_OUTLINE);
+      const constraintsPath = join(backbone, BACKBONE_CONSTRAINTS);
+      const statePath = join(deck, "_state", "state.yaml");
+      const runDir = join(deck, "3_versions", "v1");
+
+      expect(existsSync(storyPath)).toBe(true);
+      expect(existsSync(constraintsPath)).toBe(true);
+      expect(existsSync(join(backbone, "outline.md"))).toBe(false);
+      expect(parseStoryOutline(readFileSync(storyPath, "utf8"))).toMatchObject({ schema: "story-outline" });
+      expect(parseDesignConstraints(readFileSync(constraintsPath, "utf8"))).toMatchObject({ schema: "design-constraints" });
+
+      const state = readFileSync(statePath, "utf8");
+      expect(state).toContain("current_node:");
+      expect(state).not.toContain("page_image_target_evidence");
+      expect(state).not.toContain("provider_authorization");
+      expect(state).not.toContain("page_review");
+      expect(existsSync(join(runDir, "_scratch", "narrative-plans"))).toBe(false);
+      expect(existsSync(pageImageWorkflowPaths(runDir).root)).toBe(false);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
@@ -308,12 +352,33 @@ describe("Page Image bundle layout", () => {
       initBundle(deck, null, "keynote", "dark-executive");
       const runDir = join(deck, "3_versions", "v1");
       const backbonePath = pureDeckVisualSystemAsset(runDir);
-      const overridePath = join(runDir, "overrides", "visual-style", PURE_DECK_VISUAL_SYSTEM_FILE);
-      expect(backbonePath).toBe(join(deck, "2_backbone", "visual-style", PURE_DECK_VISUAL_SYSTEM_FILE));
-      mkdirSync(join(runDir, "overrides", "visual-style"), { recursive: true });
+      const overridePath = join(runDir, "overrides", "visual-style", PAGE_IMAGE_PRESENTATION_SUBDIR, PURE_DECK_VISUAL_SYSTEM_FILE);
+      expect(backbonePath).toBe(join(deck, "2_backbone", "visual-style", PAGE_IMAGE_PRESENTATION_SUBDIR, PURE_DECK_VISUAL_SYSTEM_FILE));
+      mkdirSync(join(runDir, "overrides", "visual-style", PAGE_IMAGE_PRESENTATION_SUBDIR), { recursive: true });
       writeFileSync(overridePath, "schema: replacement\n", "utf8");
       expect(pureDeckVisualSystemAsset(runDir)).toBe(overridePath);
       expect(readFileSync(backbonePath, "utf8")).toContain("pptmaker-pure-deck-visual-system");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("copies a presentation override into a clean successor without any generated evidence", () => {
+    const root = mkdtempSync(join(tmpdir(), "presentation-clean-successor-"));
+    try {
+      const deck = join(root, "deck_current");
+      initBundle(deck, null, "keynote", "dark-executive");
+      const runDir = join(deck, "3_versions", "v1");
+      const override = join(runDir, "overrides", "visual-style", PAGE_IMAGE_PRESENTATION_SUBDIR, PURE_DECK_VISUAL_SYSTEM_FILE);
+      mkdirSync(join(override, ".."), { recursive: true });
+      writeFileSync(override, "schema: replacement\n", "utf8");
+      mkdirSync(join(runDir, "_generated", "page_image_workflow", "raw"), { recursive: true });
+      writeFileSync(join(runDir, "_generated", "page_image_workflow", "raw", "plan-manifest.json"), "old evidence", "utf8");
+
+      const successor = createVersion(runDir, "v2");
+      expect(readFileSync(join(successor, "overrides", "visual-style", PAGE_IMAGE_PRESENTATION_SUBDIR, PURE_DECK_VISUAL_SYSTEM_FILE), "utf8"))
+        .toBe("schema: replacement\n");
+      expect(existsSync(join(successor, "_generated", "page_image_workflow", "raw", "plan-manifest.json"))).toBe(false);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

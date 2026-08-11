@@ -118,7 +118,6 @@ production:
 ## Slide 01: \`DeckGo\`
 
 **TITLE**: Framed inspection only
-**FRAME PRESET**: standard
 **SLIDE BODY**:
 \`\`\`yaml
 items:
@@ -150,7 +149,6 @@ production:
 ${slideIds.map((slideId, index) => `## Slide ${String(index + 1).padStart(2, "0")}: \`${slideId}\`
 
 **TITLE**: Framed Pilot reference ${index + 1}
-**FRAME PRESET**: standard
 **SLIDE BODY**:
 \`\`\`yaml
 items:

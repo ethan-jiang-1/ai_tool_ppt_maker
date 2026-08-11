@@ -192,29 +192,36 @@ function contractLayout(headerOverlay, layoutGeometry, selection) {
   });
 }
 
-function normalizedHeaderOverlay(framePreset, localHeader) {
+function normalizedHeaderOverlay(presentationProfile, localHeader) {
   exactKeys(localHeader, HEADER_FIELDS, 'local_header');
   try {
-    return validateFramedHeaderOverlay({ preset: framePreset, ...localHeader });
+    return validateFramedHeaderOverlay({ profile: presentationProfile, ...localHeader });
   } catch (error) {
     throw new FramedHeaderOverlayContractError(error?.code || 'framed_header_overlay_invalid', error?.message || 'Framed header overlay is invalid');
   }
 }
 
+function renderProfileFacts(presentationProfile) {
+  exactKeys(presentationProfile, ['id', 'permitted_fields', 'canvas', 'font_families', 'theme', 'protected_geometry', 'fields'], 'resolved Framed presentation profile');
+  const { id, canvas, font_families, theme, protected_geometry, fields } = presentationProfile;
+  return Object.freeze({ id, canvas, font_families, theme, protected_geometry, fields });
+}
+
 /** Derive the immutable three-field Framed header-overlay contract without a browser. */
-export function describeFramedHeaderOverlay({ slide_id, frame_preset, local_header } = {}) {
-  exactKeys({ slide_id, frame_preset, local_header }, ['slide_id', 'frame_preset', 'local_header'], 'Framed header overlay');
+export function describeFramedHeaderOverlay({ slide_id, presentation_profile, local_header } = {}) {
+  exactKeys({ slide_id, presentation_profile, local_header }, ['slide_id', 'presentation_profile', 'local_header'], 'Framed header overlay');
   const slideId = requiredSlideId(slide_id);
-  const headerOverlay = normalizedHeaderOverlay(frame_preset, local_header);
+  const headerOverlay = normalizedHeaderOverlay(presentation_profile, local_header);
+  const profileFacts = renderProfileFacts(presentation_profile);
   let selection;
   let profile;
   try {
     selection = selectFramedHeaderOverlayFontFaces(headerOverlay);
-    profile = currentFramedHeaderOverlayRenderProfile();
+    profile = currentFramedHeaderOverlayRenderProfile({ preset: profileFacts });
   } catch (error) {
     throw new FramedHeaderOverlayContractError(error?.code || 'framed_font_runtime_invalid', error?.message || 'Framed font/profile readiness failed', error?.details || null);
   }
-  const layoutGeometry = compileFramedHeaderOverlayGeometry();
+  const layoutGeometry = compileFramedHeaderOverlayGeometry({ preset: profileFacts });
   const layout = contractLayout(headerOverlay, layoutGeometry, selection);
   return Object.freeze({
     schema: 'pptmaker-framed-header-overlay-contract',
@@ -266,11 +273,11 @@ function describeOverlayBatch(frames, withRaw) {
   }
   const seen = new Set();
   return frames.map((frame) => {
-    const keys = withRaw ? ['slide_id', 'frame_preset', 'local_header', 'verified_raw'] : ['slide_id', 'frame_preset', 'local_header'];
+    const keys = withRaw ? ['slide_id', 'presentation_profile', 'local_header', 'verified_raw'] : ['slide_id', 'presentation_profile', 'local_header'];
     exactKeys(frame, keys, 'Framed batch page');
     const contract = describeFramedHeaderOverlay({
       slide_id: frame.slide_id,
-      frame_preset: frame.frame_preset,
+      presentation_profile: frame.presentation_profile,
       local_header: frame.local_header,
     });
     if (seen.has(contract.slide_id)) {
@@ -324,7 +331,6 @@ function owner({ captureBatch = captureHtmlPngBatch, resolveRuntime = resolvePin
       });
       assertBatchSuccess(result, contracts);
       return Object.freeze({
-        render_profile_digest: contracts[0].contract.render_profile.render_profile_digest,
         pages: Object.freeze(contracts.map(({ contract }, index) => Object.freeze({
           slide_id: contract.slide_id,
           layout: contract.layout,
@@ -346,7 +352,6 @@ function owner({ captureBatch = captureHtmlPngBatch, resolveRuntime = resolvePin
         pages[contract.slide_id] = Buffer.from(result.pages[index].bytes);
       }
       return Object.freeze({
-        render_profile_digest: contracts[0].contract.render_profile.render_profile_digest,
         final_bytes_by_slide: Object.freeze(pages),
       });
     },

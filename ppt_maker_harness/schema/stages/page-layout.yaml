@@ -1,28 +1,25 @@
 schema: page-layout
 kind: derived
 scope: version-page
-purpose: "Resolve page class, deck defaults, and workflow-specific profile facts into one page treatment with provenance."
-answers: "What geometry and presentation treatment has this page resolved to, and where did each value come from?"
-owner: "land-page-class-and-layout-config planned change (C4)"
-producer_status: planned
-route_ref: C4
+purpose: "Represent the in-memory workflow-isolated Page Class projection used to compile one current page."
+answers: "Which selected profile and presentation facts bind this page's current raw input, and where did they come from?"
+owner: "scripts/02-visual-system/internal/page_image_presentation.mjs -> Page Image Core and the selected adapter"
+producer_status: materialized
 inputs:
   - page-source-receipt
   - layout-config
   - visual-language
 outputs:
-  - page-render-model
   - page-generation-spec
-  - framed-header-html
+  - image-generation-plan
 provenance:
-  source: "One parsed page receipt plus the selected class profile and inherited deck defaults."
-  requirement: "Retain a source reference for every resolved geometry and treatment value."
+  source: "One normalized Page Source receipt plus its resolved layout-config projection."
+  requirement: "Keep normalized class, selected profile, selected defaults, provenance, and binding digest in immutable raw lineage only."
 downstream_consumers:
-  - page-render-model
   - page-generation-spec
-  - framed-header-html
+  - image-generation-plan
 does_not_contain:
-  - "Provider transport bytes, a provider response, or a review decision."
+  - "A C5 per-page file, provider transport bytes, a provider response, or a review decision."
   - "A second source of record for the author-authored page content."
 fields:
   resolved_class:
@@ -30,17 +27,17 @@ fields:
     description: "The class after applying the normalized page source and version catalog."
     rule: "Must resolve to exactly one class profile for the selected workflow."
     on_violation:
-      means: "The page has no unambiguous presentation treatment."
-      ask: "Which existing treatment should this page use in the selected workflow?"
-      never: "Never merge two class treatments to make a new one."
+      means: "The source class and selected workflow have no one valid isolated projection."
+      ask: "Repair the direct Page Source or presentation package and rerun the resolver."
+      never: "Never merge classes, infer a class, or attach a Pure projection to Framed work."
   geometry:
     type: mapping
-    description: "Resolved regions, spacing, and workflow-specific presentation geometry."
-    rule: "Must be complete for the selected treatment and identify its value origins."
+    description: "Workflow-specific profile facts: Pure whole-page facts or Framed local-header/protected-region facts."
+    rule: "Must expose only the selected workflow's facts and identify their source origins."
     on_violation:
-      means: "The page cannot be rendered or reviewed as one coherent treatment."
-      ask: "Which approved layout profile supplies the page's regions and spacing?"
-      never: "Never leave a geometry choice unexplained or infer it from a provider image."
+      means: "The selected profile cannot supply deterministic adapter facts."
+      ask: "Repair the selected profile source and rerun the same checkpoint."
+      never: "Never use provider media, an unselected sibling, or a caller geometry override as the source."
   provenance_map:
     type: mapping
     description: "A reference from each resolved value to its source, deck default, or selected profile."

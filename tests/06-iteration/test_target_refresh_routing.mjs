@@ -20,9 +20,9 @@ function framedReceipt(source = "a", title = "Framed title") {
     slides: [{
       slide_id: "DeckGo",
       position: 1,
+      page_class: "standard",
       provider_content: { items: [] },
       header_policy: {
-        frame_preset: "standard",
         local_header: { kicker: null, title, subtitle: null },
         context_not_to_render: { kicker: null, title, subtitle: null },
       },
@@ -40,6 +40,7 @@ function pureReceipt(source = "a", title = "Pure title") {
     slides: [{
       slide_id: "DeckGo",
       position: 1,
+      page_class: "standard",
       provider_content: { items: [] },
       header_policy: { provider_visible: { kicker: null, title, subtitle: null } },
       visual_language: { recipe: "editorial-systems" },
@@ -179,9 +180,9 @@ describe("TARGET refresh routing", () => {
     reordered.slides.push({
       slide_id: "BodyMap",
       position: 2,
+      page_class: "standard",
       provider_content: { items: [] },
       header_policy: {
-        frame_preset: "standard",
         local_header: { kicker: null, title: "Body", subtitle: null },
         context_not_to_render: { kicker: null, title: "Body", subtitle: null },
       },

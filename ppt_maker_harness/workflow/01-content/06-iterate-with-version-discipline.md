@@ -31,7 +31,7 @@ T10 项目经历了 v1（26 slides）、v2（20 slides）、v3（19 slides）三
 
 > **一个版本 = 下游 delta(这一版的 slide 规格 + 局部覆盖),跑在共享的上游/中游底座上。**
 
-这决定了版本切在哪:切在**下游** `3_versions/v{n}/`,不切上游中游。上游(原始素材)和中游 backbone(隐喻/公式/约束/大纲/讲稿/视觉)**全版本共享一份**。如果这些也随版本复制,共性就会分叉——那正是 Harness bug 0007(拷贝即分叉)的病。
+这决定了版本切在哪:切在**下游** `3_versions/v{n}/`,不切上游中游。上游(原始素材)和中游 backbone(隐喻/公式/Story Outline/内容约束/讲稿/视觉)**全版本共享一份**。如果这些也随版本复制,共性就会分叉——那正是 Harness bug 0007(拷贝即分叉)的病。
 
 ### 目录约定（run bundle 的版本快照）
 
@@ -151,11 +151,10 @@ deck_{NAME}/
 
 ### 3. 应用约束检查
 
-每轮迭代结束后，把所有 slide 过一遍设计约束（在 `2_backbone/design-constraints.md` 中定义）：
+每轮迭代结束后，把所有 slide 过一遍内容约束（在 `2_backbone/design-constraints.md` 中定义）：
 
 - [ ] 所有 slide 的 language 符合策略？（例如：English only on slides）
 - [ ] 没有禁止的内容类型？（例如：no internal numbers, no system names）
-- [ ] 每张 slide 的文字密度是否在限制内？（例如：25-35 words for most slides, max 50）
 - [ ] KPI 数字使用了 magnitude 而非精确值？
 - [ ] 案例使用了第三方名称？（案例公司可以点名——它们是公开信息）
 
@@ -171,4 +170,4 @@ deck_{NAME}/
 
 ---
 
-> **Next**: 拿 `template-slide-specifications.md`（每页规格）+ `template-core-metaphor.md` / `template-core-formula.md` / `template-design-constraints.md`（backbone 身份），复制到你的项目对应位置，开始填空。本方法论文件（00-05）是你的指南。
+> **Next**: 先填 `template-story-outline.md` 和 `template-design-constraints.md`，再在已确认的 page plan 基础上填 `template-slide-specifications.md`。`template-core-metaphor.md` / `template-core-formula.md` 是共享 backbone 身份。本方法论文件（00-05）是你的指南。

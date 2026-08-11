@@ -3,24 +3,23 @@ kind: source
 scope: version
 purpose: "Resolve a closed page class into isolated framed or pure presentation profiles with inheritance provenance."
 answers: "Which class and workflow-specific profile govern this page's presentation treatment?"
-owner: "land-page-class-and-layout-config planned change (C4)"
-producer_status: planned
-route_ref: C4
+owner: "scripts/shared/run-bundle/bundle_layout.mjs (locations and seeds); scripts/02-visual-system/internal/page_image_presentation.mjs (validation and resolution)"
+producer_status: materialized
 inputs:
-  - visual-language
-  - design-constraints
+  - page-source
+  - version visual-style/page-image-presentation source package
 outputs:
-  - page-layout
+  - in-memory page-layout projection
 provenance:
-  source: "Version-level class catalog, deck defaults, and one selected workflow-specific profile."
-  requirement: "Every resolved value identifies its inherited source and selected profile."
+  source: "Override-first/backbone-default page-class catalog, deck defaults, Pure profiles, and Framed header profiles."
+  requirement: "Validate all four source contracts before resolution; bind each page only to its selected class/profile/default values and their provenance."
 downstream_consumers:
   - page-layout
-  - page-render-model
   - page-generation-spec
+  - image-generation-plan
 does_not_contain:
   - "Per-page copy, a provider prompt, or provider transport bytes."
-  - "A shared profile that mixes Pure facts with Framed header facts."
+  - "A shared profile that mixes Pure facts with Framed header facts, a generated projection, or lifecycle evidence."
 fields:
   page_class:
     type: enum
@@ -28,22 +27,22 @@ fields:
     rule: "Must be standard, opening, transition, or closing when supplied."
     default: standard
     on_violation:
-      means: "The page needs one known presentation treatment."
-      ask: "Should this page use the usual treatment, open a section, bridge a transition, or close the story?"
-      never: "Never invent a one-off treatment outside the approved set."
+      means: "The selected source class cannot be resolved from the closed package."
+      ask: "Repair the Page Source or the direct package record, then rerun the same resolution checkpoint."
+      never: "Never synthesize a profile, merge package YAML, or borrow the other workflow's facts."
   class_profile_binding:
     type: workflow-specific profile reference
     description: "The selected class-to-profile binding for the version workflow."
     rule: "Must resolve each selected class to exactly one profile for the selected workflow."
     on_violation:
-      means: "The page has no unambiguous presentation treatment."
-      ask: "Which existing profile should this class use in the selected workflow?"
-      never: "Never borrow a profile from the other workflow."
+      means: "The complete package is missing, malformed, or cross-file inconsistent."
+      ask: "Repair the named canonical source document and rerun resolution."
+      never: "Never fall back to a previous plan, generated value, or unselected sibling profile."
   inherited_value_provenance:
     type: mapping
     description: "The source of each deck default or class-specific override in the resolved profile."
     rule: "Must identify the deck default or selected profile that supplied every resolved value."
     on_violation:
-      means: "A later change cannot explain why this page received its current treatment."
-      ask: "Which deck rule or selected profile supplies this presentation choice?"
-      never: "Never present an inherited value as an unexplained page override."
+      means: "A selected input cannot be attributed for invalidation or review lineage."
+      ask: "Repair the direct package source supplying the selected binding."
+      never: "Never expose an unexplained page override or persist a C5 derived projection."

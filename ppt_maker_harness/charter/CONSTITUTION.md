@@ -109,7 +109,7 @@ deck_{NAME}/
 │   ├── core-metaphor.md
 │   ├── core-formula.md
 │   ├── design-constraints.md
-│   ├── outline.md
+│   ├── story-outline.md
 │   ├── manuscript/
 │   └── visual-style/
 │       ├── style-master-prompt.md

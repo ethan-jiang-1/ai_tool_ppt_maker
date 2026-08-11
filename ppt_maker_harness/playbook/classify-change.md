@@ -27,7 +27,11 @@ proves compiled provider input, protected geometry, raw contract, and local
 header profile are unchanged. Route header-literal, Provider Content Schema,
 visual, geometry, and profile changes to Generated Image Rebuild; notes-only
 work to Delivery; and structural or whole-workflow changes to Structural
-Versioning Path. An undeclared source/state pair remains the owner-issued
+Versioning Path. A selected `PAGE CLASS`, page-presentation default, or profile
+change is a visual change and therefore rebuilds raw; a valid unselected sibling
+does not change that page's binding. A malformed presentation package stops at
+its named source/configuration repair and reruns this checkpoint, without a
+new route or gate. An undeclared source/state pair remains the owner-issued
 `repair-current-protocol-identity` hard-stop.
 
 **Step 3 — CLI**: Record the selected IDs and owner-valid path. Raw work stays

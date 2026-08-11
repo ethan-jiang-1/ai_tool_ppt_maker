@@ -21,10 +21,10 @@ function receipt({ workflow = "framed", source = "a" } = {}) {
     slides: [{
       slide_id: "DeckGo",
       position: 1,
+      page_class: "standard",
       provider_content: { items: [] },
       header_policy: workflow === "framed"
         ? {
-          frame_preset: "standard",
           local_header: { kicker: null, title: "Current title", subtitle: null },
           context_not_to_render: { kicker: null, title: "Current title", subtitle: null },
         }
@@ -161,22 +161,23 @@ describe("Page Image invalidation", () => {
     const previousPlan = rawPlan(previousReceipt);
     const evidence = acceptedEvidence(previousPlan);
     const cases = [
-      ["compiled_provider_input_sha256", "compiled_provider_input_drift"],
-      ["provider_content_sha256", "provider_content_drift"],
-      ["visual_selection_sha256", "visual_selection_drift"],
-      ["style_master_selection_sha256", "style_master_selection_drift"],
-      ["generation_profile_sha256", "generation_profile_drift"],
-      ["header_policy_sha256", "header_policy_drift"],
-      ["local_header_profile_sha256", "local_header_profile_drift"],
-      ["protected_geometry_sha256", "protected_geometry_drift"],
+      ["compiled_provider_input_sha256", "compiled_provider_input_drift", "9"],
+      ["provider_content_sha256", "provider_content_drift", "9"],
+      ["visual_selection_sha256", "visual_selection_drift", "9"],
+      ["style_master_selection_sha256", "style_master_selection_drift", "9"],
+      ["generation_profile_sha256", "generation_profile_drift", "9"],
+      ["header_policy_sha256", "header_policy_drift", "9"],
+      ["page_presentation_sha256", "page_presentation_drift", "8"],
+      ["local_header_profile_sha256", "local_header_profile_drift", "9"],
+      ["protected_geometry_sha256", "protected_geometry_drift", "9"],
     ];
 
-    for (const [field, reason] of cases) {
+    for (const [field, reason, replacement] of cases) {
       expect(evaluatePageImageInvalidation({
         previousReceipt,
         nextReceipt,
         previousRawWorkPlan: previousPlan,
-        nextRawWorkPlan: rawPlan(nextReceipt, { binding: { [field]: digest("9") } }),
+        nextRawWorkPlan: rawPlan(nextReceipt, { binding: { [field]: digest(replacement) } }),
         acceptedRawEvidence: evidence,
       })).toMatchObject({ kind: "raw_rebuild", reason });
     }
@@ -189,11 +190,11 @@ describe("Page Image invalidation", () => {
     })).toMatchObject({ kind: "raw_rebuild", reason: "generation_profile_drift" });
   });
 
-  it("turns Pure deck-system drift into raw rebuild debt without mutating accepted evidence", () => {
+  it("turns selected Pure page-presentation drift into raw rebuild debt without mutating accepted evidence", () => {
     const currentReceipt = receipt({ workflow: "pure", source: "a" });
     const previousPlan = rawPlan(currentReceipt);
     const nextPlan = rawPlan(currentReceipt, {
-      binding: { deck_visual_system_sha256: digest("8") },
+      binding: { page_presentation_sha256: digest("8") },
     });
     const historicalEvidence = acceptedEvidence(previousPlan);
     const evidenceBefore = structuredClone(historicalEvidence);
@@ -208,7 +209,7 @@ describe("Page Image invalidation", () => {
       workflow: "pure",
       kind: "raw_rebuild",
       provider_required: true,
-      reason: "deck_visual_system_drift",
+      reason: "page_presentation_drift",
       next_action: "authorize_and_rebuild_pure_raw",
     });
     expect(historicalEvidence).toEqual(evidenceBefore);

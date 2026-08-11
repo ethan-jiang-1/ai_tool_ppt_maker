@@ -4,9 +4,8 @@ execution: descriptive-only
 
 sources:
   - schema: story-outline
-    owner: "close-upstream-narrative-gap planned change (C3)"
-    producer_status: planned
-    route_ref: C3
+    owner: "ppt_maker_harness/scripts/01-content/internal/narrative_source.mjs"
+    producer_status: materialized
     invalidated_by:
       - "A human changes the deck argument, evidence order, or audience outcome."
   - schema: visual-language
@@ -15,15 +14,13 @@ sources:
     invalidated_by:
       - "A human changes the canonical visual-language registry or a selected visual record."
   - schema: design-constraints
-    owner: "close-upstream-narrative-gap planned change (C3)"
-    producer_status: planned
-    route_ref: C3
+    owner: "ppt_maker_harness/scripts/01-content/internal/narrative_source.mjs"
+    producer_status: materialized
     invalidated_by:
       - "A human changes audience, claim boundaries, tone, or required terminology."
   - schema: layout-config
-    owner: "land-page-class-and-layout-config planned change (C4)"
-    producer_status: planned
-    route_ref: C4
+    owner: "scripts/shared/run-bundle/bundle_layout.mjs; scripts/02-visual-system/internal/page_image_presentation.mjs"
+    producer_status: materialized
     invalidated_by:
       - "A human changes deck defaults or a profile selected by a page class."
 
@@ -34,9 +31,8 @@ transformations:
       - design-constraints
       - visual-language
     output: page-source
-    owner: "close-upstream-narrative-gap planned change (C3)"
-    producer_status: planned
-    route_ref: C3
+    owner: "ppt_maker_harness/scripts/01-content/internal/narrative_page_plan.mjs"
+    producer_status: materialized
     invalidated_by:
       - "A story, constraint, visual selection, or source-authored page change."
   - name: parse-page-source
@@ -54,9 +50,8 @@ transformations:
       - layout-config
       - visual-language
     output: page-layout
-    owner: "land-page-class-and-layout-config planned change (C4)"
-    producer_status: planned
-    route_ref: C4
+    owner: "scripts/02-visual-system/internal/page_image_presentation.mjs -> selected Page Image adapter"
+    producer_status: materialized
     invalidated_by:
       - "A parsed page change, a deck-default change, or a selected class profile change."
   - name: build-page-render-model
@@ -74,13 +69,14 @@ transformations:
   - name: compile-page-generation-spec
     inputs:
       - page-source-receipt
+      - page-layout
       - visual-language
       - visual-style-candidates
     output: page-generation-spec
     owner: "ppt_maker_harness/scripts/shared/page-image/page_image_core.mjs"
     producer_status: materialized
     invalidated_by:
-      - "A normalized source, selected visual language, selected style candidate, generation profile, or header policy change."
+      - "A normalized source, selected Page Class projection, selected visual language, selected style candidate, generation profile, or header policy change."
   - name: compile-image2-request
     inputs:
       - page-generation-spec
@@ -92,11 +88,12 @@ transformations:
   - name: render-framed-header-html
     inputs:
       - page-source-receipt
+      - page-layout
     output: framed-header-html
     owner: "ppt_maker_harness/scripts/03-framed-image/internal/header_overlay.mjs"
     producer_status: materialized
     invalidated_by:
-      - "A framed header policy or the selected overlay preset change."
+      - "A framed header policy or selected Framed presentation-profile change."
   - name: publish-page-artifact-index
     inputs:
       - page-source-receipt
@@ -181,4 +178,4 @@ transformations:
 
 notes:
   - "This flow shows provenance and rebuild impact only. It is not a lifecycle controller, authorization path, or second state machine."
-  - "A planned C3-C5 producer names its planned change rather than an implementation module."
+  - "A planned C4-C5 producer names its planned change rather than an implementation module."

@@ -28,8 +28,8 @@ function pngBytes(color) {
 }
 
 function targetSource(workflow, slides) {
-  const header = workflow === "framed"
-    ? "**KICKER**: Operations\n**SUBTITLE**: Current provider-rendered page composition\n**FRAME PRESET**: standard\n"
+  const header = (slide) => workflow === "framed" && slide.pageClass === "opening"
+    ? ""
     : "**KICKER**: Operations\n**SUBTITLE**: Current provider-rendered page composition\n";
   return `---
 identity:
@@ -42,7 +42,7 @@ production:
 ${slides.map((slide, index) => `## Slide ${String(index + 1).padStart(2, "0")}: \`${slide.id}\`
 
 **TITLE**: ${slide.title}
-${header}**SLIDE BODY**:
+${slide.pageClass ? `**PAGE CLASS**: ${slide.pageClass}\n` : ""}${header(slide)}**SLIDE BODY**:
 \`\`\`yaml
 items:
   - role: callout
@@ -397,7 +397,7 @@ async function runStyleMasterLifecycle(runDir, env) {
 }
 
 describe("mock TARGET workflow journey", () => {
-  it("runs a homogeneous Framed current-version journey through raw rebuild and notes-only refreshes", async () => {
+  it("runs a Framed selected Page Class edit through raw rebuild and notes-only refreshes", async () => {
     const slides = [
       { id: "FramGo", title: "Original framed heading", note: "Original Framed note." },
       { id: "BodyMap", title: "Second framed heading", note: "Second Framed note." },
@@ -414,11 +414,11 @@ describe("mock TARGET workflow journey", () => {
 
       const paths = pageImageWorkflowPaths(fixture.runDir);
       const framGoImage = pageImageOrdinalImageFilename(1, "FramGo");
-      const titleUpdated = [
-        { ...slides[0], title: "Refreshed framed heading" },
+      const presentationUpdated = [
+        { ...slides[0], pageClass: "opening" },
         slides[1],
       ];
-      writeFileSync(join(fixture.runDir, "slide-specifications.md"), targetSource("framed", titleUpdated));
+      writeFileSync(join(fixture.runDir, "slide-specifications.md"), targetSource("framed", presentationUpdated));
       const rejectedRefresh = await flow([
         "refresh", fixture.runDir, "--kind", "title", "--only", "FramGo",
       ], provider.env);
@@ -426,7 +426,7 @@ describe("mock TARGET workflow journey", () => {
       expect(`${rejectedRefresh.stdout}\n${rejectedRefresh.stderr}`).toMatch(/Framed local refresh requires/i);
       expect(provider.calls).toHaveLength(2);
 
-      const rebuilt = await runTargetRawLifecycle(fixture.runDir, provider.env, titleUpdated, {
+      const rebuilt = await runTargetRawLifecycle(fixture.runDir, provider.env, presentationUpdated, {
         styleMaster: false,
         handoffStatus: "superseded",
       });
@@ -435,8 +435,8 @@ describe("mock TARGET workflow journey", () => {
       const finalAfterTitleRefresh = readFileSync(join(paths.final_root, framGoImage));
 
       const notesUpdated = [
-        { ...titleUpdated[0], note: "Updated source-owned Framed note." },
-        titleUpdated[1],
+        { ...presentationUpdated[0], note: "Updated source-owned Framed note." },
+        presentationUpdated[1],
       ];
       writeFileSync(join(fixture.runDir, "slide-specifications.md"), targetSource("framed", notesUpdated));
       const notes = expectSuccess(await flow(["refresh", fixture.runDir, "--kind", "notes"], provider.env));

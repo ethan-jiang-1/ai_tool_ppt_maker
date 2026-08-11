@@ -5,9 +5,17 @@ import {
   createFramedTargetRawReviewContribution,
 } from "../../ppt_maker_harness/scripts/03-framed-image/index.mjs";
 import { currentFramedHeaderOverlayRenderProfile } from "../../ppt_maker_harness/scripts/03-framed-image/internal/framed_render_profile.mjs";
+import {
+  framedRenderProfileFacts,
+  STANDARD_FRAMED_PRESENTATION_PROFILE,
+} from "../helpers/framed_presentation_profile.mjs";
 import { validateTargetRawReviewContribution } from "../../ppt_maker_harness/scripts/shared/image2/page_image_target_runtime.mjs";
 
 const digest = (letter) => letter.repeat(64);
+const STANDARD_PRESENTATION_PROFILE = STANDARD_FRAMED_PRESENTATION_PROFILE;
+const STANDARD_RENDER_PROFILE = currentFramedHeaderOverlayRenderProfile({
+  preset: framedRenderProfileFacts(STANDARD_PRESENTATION_PROFILE),
+});
 
 function framedProviderInputBinding(compiled) {
   return {
@@ -17,7 +25,7 @@ function framedProviderInputBinding(compiled) {
     style_master_selection_sha256: digest("d"),
     generation_profile_sha256: digest("e"),
     header_policy_sha256: digest("f"),
-    deck_visual_system_sha256: null,
+    page_presentation_sha256: digest("9"),
     local_header_profile_sha256: digest("1"),
     protected_geometry_sha256: digest("2"),
   };
@@ -26,7 +34,6 @@ function framedProviderInputBinding(compiled) {
 function headerPolicy(title) {
   const header = { kicker: null, title, subtitle: null };
   return {
-    frame_preset: "standard",
     local_header: header,
     context_not_to_render: { ...header },
   };
@@ -39,8 +46,8 @@ function framedReceipt({ firstTitle = "First framed title", secondTitle = "Secon
     workflow: "framed",
     source_sha256: digest("a"),
     slides: [
-      { slide_id: "DeckGo", position: 1, header_policy: headerPolicy(firstTitle) },
-      { slide_id: "FlowUp", position: 2, header_policy: headerPolicy(secondTitle) },
+      { slide_id: "DeckGo", position: 1, page_class: "standard", header_policy: headerPolicy(firstTitle), visual_language: { presentation: { workflow: "framed", page_class: "standard", binding_sha256: digest("9"), profile: STANDARD_PRESENTATION_PROFILE } } },
+      { slide_id: "FlowUp", position: 2, page_class: "standard", header_policy: headerPolicy(secondTitle), visual_language: { presentation: { workflow: "framed", page_class: "standard", binding_sha256: digest("9"), profile: STANDARD_PRESENTATION_PROFILE } } },
     ],
   };
 }
@@ -68,7 +75,7 @@ describe("Framed raw-review contribution", () => {
       .toMatchObject({ ok: true, typed_review_contribution_sha256: contribution.typed_review_contribution_sha256 });
     expect(contribution.coverage.ordered_stable_ids).toEqual(["DeckGo", "FlowUp"]);
     expect(contribution.coverage.items.map((item) => item.coverage_profile_digest))
-      .toEqual([currentFramedHeaderOverlayRenderProfile().render_profile_digest, currentFramedHeaderOverlayRenderProfile().render_profile_digest]);
+      .toEqual([STANDARD_RENDER_PROFILE.render_profile_digest, STANDARD_RENDER_PROFILE.render_profile_digest]);
     expect(contribution.coverage.items).toMatchObject([
       {
         stable_id: "DeckGo",

@@ -548,7 +548,7 @@ describe("accepted Style Master raw binding", () => {
 
       expect(sourceAfter.source_sha256).toBe(sourceBefore.source_sha256);
       expect(captureError(() => readPureTargetStoredPlanContext(value.runDir))).toMatchObject({
-        code: "target_raw_plan_stale",
+        code: "target_source_receipt_stale",
         next_action: "rebuild_target_raw_plan",
       });
       expect(readFileSync(value.paths.target_raw_plan)).toEqual(rawPlanBefore);

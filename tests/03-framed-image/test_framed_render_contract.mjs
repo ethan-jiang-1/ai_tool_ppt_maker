@@ -9,7 +9,7 @@ import {
   describeFramedHeaderOverlay,
 } from '../../ppt_maker_harness/scripts/03-framed-image/internal/framed_render_contract.mjs';
 import { captureHtmlPngBatch } from '../../ppt_maker_harness/scripts/03-framed-image/internal/capture_runtime.mjs';
-import { FRAMED_HEADER_OVERLAY_STANDARD } from '../../ppt_maker_harness/scripts/03-framed-image/internal/header_overlay.mjs';
+import { STANDARD_FRAMED_PRESENTATION_PROFILE, framedRenderProfileFacts } from '../helpers/framed_presentation_profile.mjs';
 import {
   discoverRuntimePackages,
   inspectHtmlRuntime,
@@ -22,8 +22,11 @@ const localHeader = Object.freeze({
   subtitle: 'Three deterministic local fields',
 });
 
+const STANDARD_PRESENTATION_PROFILE = STANDARD_FRAMED_PRESENTATION_PROFILE;
+const STANDARD_RENDER_PROFILE = framedRenderProfileFacts();
+
 function headerInput(local_header = localHeader) {
-  return { frame_preset: 'standard', local_header };
+  return { presentation_profile: STANDARD_PRESENTATION_PROFILE, local_header };
 }
 
 function verifiedRaw(color) {
@@ -103,18 +106,18 @@ describe('Framed header-overlay contract', () => {
     expect(overlay).toMatchObject({
       schema: 'pptmaker-framed-header-overlay-contract',
       slide_id: 'DeckGo',
-      header_overlay: { preset: 'standard', ...localHeader },
+      header_overlay: { profile: STANDARD_PRESENTATION_PROFILE, ...localHeader },
       layout: {
-        canvas: FRAMED_HEADER_OVERLAY_STANDARD.canvas,
-        theme: FRAMED_HEADER_OVERLAY_STANDARD.theme,
-        protected_geometry: FRAMED_HEADER_OVERLAY_STANDARD.protected_geometry,
+        canvas: STANDARD_RENDER_PROFILE.canvas,
+        theme: STANDARD_RENDER_PROFILE.theme,
+        protected_geometry: STANDARD_RENDER_PROFILE.protected_geometry,
       },
       render_profile: { render_profile_digest: expect.any(String) },
     });
     expect(overlay.layout.fields).toEqual([
-      { id: 'kicker', text: localHeader.kicker, ...FRAMED_HEADER_OVERLAY_STANDARD.fields.kicker },
-      { id: 'title', text: localHeader.title, ...FRAMED_HEADER_OVERLAY_STANDARD.fields.title },
-      { id: 'subtitle', text: localHeader.subtitle, ...FRAMED_HEADER_OVERLAY_STANDARD.fields.subtitle },
+      { id: 'kicker', text: localHeader.kicker, ...STANDARD_RENDER_PROFILE.fields.kicker },
+      { id: 'title', text: localHeader.title, ...STANDARD_RENDER_PROFILE.fields.title },
+      { id: 'subtitle', text: localHeader.subtitle, ...STANDARD_RENDER_PROFILE.fields.subtitle },
     ]);
     expect(overlay.layout).not.toHaveProperty('panels');
 
@@ -129,7 +132,6 @@ describe('Framed header-overlay contract', () => {
     const proof = await contract.verifyHeaderOverlays([{ slide_id: 'DeckGo', ...headerInput() }]);
 
     expect(proof).toMatchObject({
-      render_profile_digest: overlay.render_profile.render_profile_digest,
       pages: [{ slide_id: 'DeckGo', render_profile_digest: overlay.render_profile.render_profile_digest }],
     });
     expect(capturedPages).toHaveLength(1);
@@ -137,7 +139,7 @@ describe('Framed header-overlay contract', () => {
       id: 'DeckGo',
       expectedLeafMarkers: ['kicker', 'title', 'subtitle'],
       layout: {
-        protected_geometry: FRAMED_HEADER_OVERLAY_STANDARD.protected_geometry,
+        protected_geometry: STANDARD_RENDER_PROFILE.protected_geometry,
         overlay: { transparent: true, requires_full_canvas_provider_page: false },
       },
     });
@@ -160,7 +162,7 @@ describe('Framed header-overlay contract', () => {
     });
     await expect(contract.verifyHeaderOverlays([{
       slide_id: 'DeckGo',
-      frame_preset: 'standard',
+      presentation_profile: STANDARD_PRESENTATION_PROFILE,
       local_header: { ...localHeader, callout: 'blocked' },
     }])).rejects.toMatchObject({ code: 'framed_header_overlay_input_invalid' });
   });

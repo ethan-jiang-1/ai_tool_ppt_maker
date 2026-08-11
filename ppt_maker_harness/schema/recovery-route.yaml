@@ -24,9 +24,9 @@ labels:
   - id: C3
     work: close-upstream-narrative-gap
     execution_kind: openspec-change
-    responsibility: "Introduce Story Outline, Design Constraints, and the provenance-carrying pagination step."
+    responsibility: "Define and parse the current Story Outline and Design Constraints sources, then compile and publish a provenance-carrying narrative page plan through the existing exact-plan boundary."
     boundary: "No Page Class, layout resolution, or provider generation behavior."
-    exit_evidence: "A deck has editable argument and constraints, and derives a page list with provenance."
+    exit_evidence: "The source parser, narrative page-plan compiler, slides CLI preview, and exact publisher prove that editable argument and constraints derive a page list with provenance and existing render debt only."
   - id: C4
     work: land-page-class-and-layout-config
     execution_kind: openspec-change

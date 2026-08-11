@@ -27,13 +27,30 @@ export {
 } from "./internal/slide_ids.mjs";
 
 export {
-  FRAMED_HEADER_PRESET,
+  PAGE_IMAGE_CLASSES,
   PAGE_IMAGE_WORKFLOW_SOURCE_RECEIPT_SCHEMA,
   PageImageSourceError,
   PROVIDER_CONTENT_COPY_POLICIES,
   PROVIDER_CONTENT_ROLES,
   parsePageImageSource,
 } from "./internal/page_image_source.mjs";
+
+export {
+  DESIGN_CONSTRAINTS_SCHEMA,
+  STORY_OUTLINE_SCHEMA,
+  NarrativeSourceError,
+  parseDesignConstraints,
+  parseStoryOutline,
+} from "./internal/narrative_source.mjs";
+
+export {
+  NARRATIVE_PAGE_GROUPING_CANDIDATE_SCHEMA,
+  NARRATIVE_PAGE_PLAN_SCHEMA,
+  NarrativePagePlanError,
+  applyNarrativePagePlan,
+  parseNarrativePageGroupingCandidate,
+  previewNarrativePagePlan,
+} from "./internal/narrative_page_plan.mjs";
 
 export {
   TARGET_STRUCTURAL_PLAN_SCHEMA,

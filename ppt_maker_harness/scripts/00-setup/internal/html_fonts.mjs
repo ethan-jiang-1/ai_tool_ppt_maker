@@ -341,7 +341,7 @@ function headerOverlayFields(headerOverlay) {
   if (!headerOverlay || typeof headerOverlay !== 'object' || Array.isArray(headerOverlay)) {
     throw new HtmlFontSelectionError('font_selection_input_invalid', 'a typed Framed header overlay is required for font selection');
   }
-  const keys = ['preset', 'kicker', 'title', 'subtitle'];
+  const keys = ['profile', 'kicker', 'title', 'subtitle'];
   if (Object.keys(headerOverlay).length !== keys.length || !keys.every((key) => Object.hasOwn(headerOverlay, key))) {
     throw new HtmlFontSelectionError('font_selection_input_invalid', 'Framed font selection accepts only a closed header overlay');
   }

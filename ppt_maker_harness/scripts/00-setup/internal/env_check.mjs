@@ -509,38 +509,27 @@ function unavailableHtmlRuntimeChecks(reason) {
   ];
 }
 
-function framedProfileFacts(profile) {
-  if (!profile || typeof profile !== 'object' ||
-    typeof profile.schema !== 'string' ||
-    typeof profile.render_profile_digest !== 'string' ||
-    !profile.runtime || !profile.font_render_inventory || !profile.capture) {
-    throw new Error('Framed profile shape is invalid');
-  }
-  return Object.freeze({
-    schema: profile.schema,
-    render_profile_digest: profile.render_profile_digest,
-    runtime: Object.freeze({ ...profile.runtime }),
-    font_render_inventory: Object.freeze({ ...profile.font_render_inventory }),
-    capture: Object.freeze({ ...profile.capture }),
-  });
-}
-
 async function checkFramedRenderProfile(runtime) {
   try {
-    // Keep the direct doctor pre-install-safe: this production owner is loaded
-    // only after the package-backed browser and font prerequisites have passed.
-    const { currentFramedHeaderOverlayRenderProfile } = await import('../../03-framed-image/internal/framed_render_profile.mjs');
-    const profile = framedProfileFacts(currentFramedHeaderOverlayRenderProfile());
-    if (profile.runtime.id !== runtime.profile ||
-      profile.runtime.playwright_version !== runtime.playwright?.version ||
-      profile.runtime.chromium_revision !== runtime.chromium?.revision ||
-      profile.runtime.chromium_browser_version !== runtime.chromium?.browserVersion) {
-      throw new Error('Framed profile does not match the verified pinned runtime');
-    }
+    // A run-independent doctor checks renderer readiness only. Page presentation
+    // profiles are version-resolved source and are never selected by this CLI.
+    const { loadFramedFontRenderInventory } = await import('./html_fonts.mjs');
+    const { HTML_CAPTURE_PROFILE } = await import('../../03-framed-image/internal/capture_runtime.mjs');
+    const inventory = loadFramedFontRenderInventory();
+    const profile = Object.freeze({
+      runtime: Object.freeze({
+        id: runtime.profile,
+        playwright_version: runtime.playwright?.version,
+        chromium_revision: runtime.chromium?.revision,
+        chromium_browser_version: runtime.chromium?.browserVersion,
+      }),
+      font_render_inventory: Object.freeze({ schema: inventory.schema, families: inventory.families.length, faces: inventory.faces.length }),
+      capture: Object.freeze({ id: HTML_CAPTURE_PROFILE.id }),
+    });
     return {
       check: 'framed_render_profile',
       status: 'ok',
-      detail: `canonical Framed profile ${profile.render_profile_digest.slice(0, 12)} is ready (runtime ${profile.runtime.id}, font inventory ${profile.font_render_inventory.digest.slice(0, 12)}, capture ${profile.capture.id})`,
+      detail: `Framed runtime ${profile.runtime.id} is ready (font families ${profile.font_render_inventory.families}, capture ${profile.capture.id})`,
       fix: null,
       profile,
     };

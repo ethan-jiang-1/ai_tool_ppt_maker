@@ -1,16 +1,14 @@
 schema: page-source
 kind: source
 scope: version-page
-purpose: "Hold one page's authored content, visual selection, stable identity, and normalized class before parsing."
-answers: "What does this page say, show, and declare about its treatment?"
-owner: "land-page-class-and-layout-config planned change (C4); current source grammar is partially owned by 01-content"
-producer_status: planned
-route_ref: C4
+purpose: "Hold one page's authored content, visual selection, Page Class, and stable identity before parsing."
+answers: "What does this page say, show, and identify before parsing?"
+owner: "ppt_maker_harness/scripts/01-content/internal/page_image_source.mjs"
+producer_status: materialized
 inputs:
   - story-outline
   - design-constraints
   - visual-language
-  - layout-config
 outputs:
   - page-source-receipt
 provenance:
@@ -45,10 +43,12 @@ fields:
     description: "The optional source-authored presentation class for this page."
     rule: "Must be standard, opening, transition, or closing when supplied."
     default: standard
+    producer_status: materialized
+    producer: "parsePageImageSource() normalizes PAGE CLASS into each Page Source receipt."
     on_violation:
-      means: "The page treatment is not one the version can resolve."
-      ask: "Does this page need the usual treatment, a section opening, a transition, or a closing?"
-      never: "Never require a special treatment merely to let the page proceed."
+      means: "The source requests a class outside the closed current presentation vocabulary."
+      ask: "Repair PAGE CLASS to standard, opening, transition, or closing."
+      never: "Never infer a special class from content, position, prior media, or evidence."
   visual_selection:
     type: registered selection
     description: "The chosen visual recipe, composition, motifs, and optional relationship."

@@ -17,7 +17,7 @@ export function pageImageProviderInputBinding({ workflow = "pure", compiled = "1
     style_master_selection_sha256: digest("4"),
     generation_profile_sha256: digest("5"),
     header_policy_sha256: digest("6"),
-    deck_visual_system_sha256: workflow === "pure" ? digest("9") : null,
+    page_presentation_sha256: digest("9"),
     local_header_profile_sha256: workflow === "framed" ? digest("7") : null,
     protected_geometry_sha256: workflow === "framed" ? digest("8") : null,
   });

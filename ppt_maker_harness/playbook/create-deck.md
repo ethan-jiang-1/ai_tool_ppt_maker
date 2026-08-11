@@ -28,14 +28,36 @@ exit: [user_decision_recorded]
 ```
 **Step 1 — MD**: Confirm the topic, audience, source truth, visual direction, and remote-cost boundary before authoring.
 
+## Narrative Before Pages
+
+The Deck Author first owns the shared argument and its content boundaries. The
+Agent may repair those sources from supplied material, but asks for the smallest
+missing content decision when a repair needs new meaning. Story Outline and
+Design Constraints are never visual-language, page-class, geometry, provider,
+or approval inputs.
+
+### author-target-narrative-sources
+```yaml
+node: author-target-narrative-sources
+lifecycle_phase: 1
+method_module: 01-content
+production_modes: [image2-page-workflow]
+draft_route: true
+requires: [checkpoint-intake]
+produces: [story-outline, design-constraints]
+entry: []
+exit: []
+```
+**Step 1 — MD**: Write or repair the shared Story Outline and Design Constraints from the Deck Author's supplied claim, audience, evidence, and claim boundaries. Keep visual selections in Visual Language and page class, geometry, and density rules with their later owners.
+**Step 2 — CLI**: Use `ppt_flow slides narrative-plan` when the sources need deterministic repair guidance. Its narrative-plan owner validates the sources together with the candidate; a malformed source is a guide when supplied content is enough to repair it, otherwise ask only for the smallest missing content decision.
+
 ## One Workflow Per Version
 
-
-
-The TARGET controller records one human `framed` or `pure` decision before it
-can expose provider-facing work. It then follows exactly one sibling path into
-shared delivery and iteration. The source/state resolver remains the authority
-for receipt identity, workflow binding, evidence, and recovery.
+The TARGET controller records one human `framed` or `pure` decision only after
+the narrative sources are current and before it exposes provider-facing work. It
+then follows exactly one sibling path into shared delivery and iteration. The
+source/state resolver remains the authority for receipt identity, workflow
+binding, evidence, and recovery.
 
 ### Owner diagnostic handoff
 
@@ -81,7 +103,7 @@ lifecycle_phase: 1
 method_module: 01-content
 production_modes: [image2-page-workflow]
 draft_route: true
-requires: [checkpoint-intake]
+requires: [author-target-narrative-sources]
 produces: [target-page-image-workflow-choice]
 decisions: [framed, pure]
 entry: []
@@ -89,22 +111,6 @@ exit: [user_decision_recorded]
 ```
 **Step 1 — MD**: Choose one version workflow, `framed` or `pure`, based on the content and visual intent. Do not choose an authority per slide.
 **Step 2 — GATE**: Record the one workflow decision before the canonical target source is authored. This decision does not waive source/state validation.
-
-### author-target-page-image-content
-```yaml
-node: author-target-page-image-content
-lifecycle_phase: 1
-method_module: 01-content
-production_modes: [image2-page-workflow]
-production_workflows: [framed, pure]
-draft_route: true
-requires: [select-target-page-image-workflow]
-produces: [page-image-workflow-source, page-image-workflow-source-receipt, stable-slide-ids]
-entry: []
-exit: [slide_specs_exists, slide_specs_valid]
-```
-**Step 1 — MD**: Author the canonical Page Image Workflow source with the recorded version workflow. The workflow applies to every slide in the version.
-**Step 2 — CLI**: Run the existing source validation action before any provider readiness or authorization.
 
 ### configure-target-page-image-visual-system
 ```yaml
@@ -114,12 +120,30 @@ method_module: 02-visual-system
 production_modes: [image2-page-workflow]
 production_workflows: [framed, pure]
 draft_route: true
-requires: [author-target-page-image-content]
+requires: [select-target-page-image-workflow]
 produces: [target-page-image-visual-language]
 entry: []
 exit: [visual_preset_seeded]
 ```
-**Step 1 — MD**: Maintain the closed visual-language and reference registries. Framed-specific Header Rendering Policy facts remain owned by the selected Framed workflow.
+**Step 1 — MD**: Maintain the closed visual-language and reference registries before page grouping. Framed-specific Header Rendering Policy facts remain owned by the selected Framed workflow.
+
+### author-target-page-image-content
+```yaml
+node: author-target-page-image-content
+lifecycle_phase: 1
+method_module: 01-content
+production_modes: [image2-page-workflow]
+production_workflows: [framed, pure]
+draft_route: true
+requires: [configure-target-page-image-visual-system]
+produces: [narrative-page-grouping-candidate, narrative-page-plan, page-image-workflow-source, page-image-workflow-source-receipt, stable-slide-ids]
+entry: [visual_preset_seeded]
+exit: [slide_specs_exists, slide_specs_valid]
+```
+**Step 1 — MD**: Use the current Story Outline, Design Constraints, and Visual Language registry to make one Agent-authored page-grouping candidate. Repair malformed narrative input or candidate deterministically whenever the supplied content makes that possible.
+**Step 2 — CLI**: Run `ppt_flow slides narrative-plan <run-dir> --candidate <path>` and present the returned ordered page lineage and exact plan hash in Deck Author terms. A stale plan, changed source bytes, invalid identity, or invalid target is an existing non-bypassable hard-stop: repair the direct source or candidate, then preview a new plan.
+**Step 3 — GATE**: Obtain one conversational Deck Author confirmation that the displayed argument-to-page structure is right. This is a content and structure decision only; do not persist an approval, treat it as provider authorization, or create review evidence.
+**Step 4 — CLI**: Materialize only the displayed exact plan with `ppt_flow slides apply-plan <run-dir> --plan <path> --apply --plan-sha256 <hash>`. The structural publisher owns current hashes, source publication, State binding, and render debt.
 
 ### inspect-target-framed-style-master
 ```yaml

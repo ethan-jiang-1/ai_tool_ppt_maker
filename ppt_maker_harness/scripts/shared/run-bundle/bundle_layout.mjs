@@ -29,7 +29,7 @@
  *     │   ├── core-metaphor.md
  *     │   ├── core-formula.md
  *     │   ├── design-constraints.md
- *     │   ├── outline.md
+ *     │   ├── story-outline.md
  *     │   ├── manuscript/
  *     │   └── visual-style/
  *     │       ├── style-master-prompt.md   the prompt that GENERATES style_master
@@ -217,7 +217,7 @@ export const LESSONS_DIR_README = `\
 export const BACKBONE_METAPHOR = 'core-metaphor.md';
 export const BACKBONE_FORMULA = 'core-formula.md';
 export const BACKBONE_CONSTRAINTS = 'design-constraints.md';
-export const BACKBONE_OUTLINE = 'outline.md';
+export const BACKBONE_STORY_OUTLINE = 'story-outline.md';
 export const BACKBONE_MANUSCRIPT_SUBDIR = 'manuscript';
 export const BACKBONE_STYLE_SUBDIR = 'visual-style';
 
@@ -227,7 +227,18 @@ export const BACKBONE_STYLE_SUBDIR = 'visual-style';
 export const STYLE_MASTER_PROMPT = 'style-master-prompt.md';
 export const STYLE_MASTER_IMAGE = 'style_master.jpg';
 export const PAGE_IMAGE_VISUAL_LANGUAGE_FILE = 'page-image-visual-language.yaml';
+export const PAGE_IMAGE_PRESENTATION_SUBDIR = 'page-image-presentation';
+export const PAGE_IMAGE_CLASSES = Object.freeze(['standard', 'opening', 'transition', 'closing']);
+export const PAGE_CLASS_CATALOG_FILE = 'page-class-catalog.yaml';
+export const PAGE_IMAGE_DECK_DEFAULTS_FILE = 'deck-defaults.yaml';
 export const PURE_DECK_VISUAL_SYSTEM_FILE = 'pure-deck-visual-system.yaml';
+export const FRAMED_HEADER_PROFILES_FILE = 'framed-header-profiles.yaml';
+export const PAGE_IMAGE_PRESENTATION_FILES = Object.freeze([
+    PAGE_CLASS_CATALOG_FILE,
+    PAGE_IMAGE_DECK_DEFAULTS_FILE,
+    PURE_DECK_VISUAL_SYSTEM_FILE,
+    FRAMED_HEADER_PROFILES_FILE,
+]);
 const STYLE_MASTER_PLAN_DIRECTORY_RE = /^(?:[0-9a-f]{8}|[0-9a-f]{64})$/;
 const STYLE_MASTER_STAGING_DIRECTORY_RE = /^plan-[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/;
 const STYLE_MASTER_VERSION_DIRECTORY_RE = /^v[0-9]+$/;
@@ -270,37 +281,72 @@ relationships:
     composition_ids: [centered-constellation]
     reading_order: left-to-right
 `;
-const PURE_DECK_VISUAL_SYSTEM_SEED = `schema: pptmaker-pure-deck-visual-system
-revision: 1
-typography:
-  voices:
-    display: editorial-serif
-    text: editorial-sans
-  hierarchy:
-    kicker: eyebrow
-    title: display
-    subtitle: supporting
-    body: body
-    label: label
-    metric: metric
-    diagram_text: diagram
-    quote: quote
-    callout: callout
-    supporting_copy: supporting
-colour_use:
-  palette_source: style-master
-  roles:
-    primary_text: primary
-    secondary_text: secondary
-    accent: accent
-    surface: neutral
-layout:
-  zones:
-    title: { x: 0.08, y: 0.08, width: 0.84, height: 0.22 }
-    content: { x: 0.08, y: 0.34, width: 0.84, height: 0.54 }
-  whitespace: generous
-  families: [editorial-hero, diagram-led, data-led]
+const PAGE_CLASS_CATALOG_SEED = `schema: pptmaker-page-image-class-catalog
+default: standard
+classes:
+  standard: { pure: standard, framed: standard }
+  opening: { pure: opening, framed: opening }
+  transition: { pure: transition, framed: transition }
+  closing: { pure: closing, framed: closing }
 `;
+const PAGE_IMAGE_DECK_DEFAULTS_SEED = `schema: pptmaker-page-image-deck-defaults
+typography:
+  density: generous
+colour_roles:
+  primary_text: primary
+  secondary_text: secondary
+  accent: accent
+  surface: neutral
+`;
+const PURE_DECK_VISUAL_SYSTEM_PROFILE_SEED = `    typography:
+      voices:
+        display: editorial-serif
+        text: editorial-sans
+      hierarchy:
+        kicker: eyebrow
+        title: display
+        subtitle: supporting
+        body: body
+        label: label
+        metric: metric
+        diagram_text: diagram
+        quote: quote
+        callout: callout
+        supporting_copy: supporting
+    colour_use:
+      palette_source: style-master
+      roles: { primary_text: primary, secondary_text: secondary, accent: accent, surface: neutral }
+    layout:
+      zones:
+        title: { x: 0.08, y: 0.08, width: 0.84, height: 0.22 }
+        content: { x: 0.08, y: 0.34, width: 0.84, height: 0.54 }
+      whitespace: generous
+      families: [editorial-hero, diagram-led, data-led]
+`;
+const PURE_DECK_VISUAL_SYSTEM_SEED = `schema: pptmaker-pure-deck-visual-system
+profiles:
+${["standard", "opening", "transition", "closing"].map((profile) => `  ${profile}:\n${PURE_DECK_VISUAL_SYSTEM_PROFILE_SEED}`).join("")}`;
+const FRAMED_HEADER_PROFILE_SEED = (permittedFields) => `    permitted_fields: [${permittedFields.join(", ")}]
+    canvas: { css_width: 1000, css_height: 562.5, capture_width: 2000, capture_height: 1125 }
+    font_families: [Source Sans 3, Noto Sans SC]
+    theme:
+      text: '#fffdf8'
+      muted_text: '#eee4d7'
+      kicker: '#ffd27f'
+      contrast: { kind: text-shadow, color: '#000000', opacity: 0.42, offset_x: 0, offset_y: 1, blur: 3 }
+    protected_geometry: [{ id: header, x: 40, y: 28, width: 920, height: 238 }]
+    fields:
+      kicker: { x: 64, y: 54, width: 872, height: 22, font_size: 16, line_height: 20, weight: 600, color: '#ffd27f', max_lines: 1 }
+      title: { x: 64, y: 82, width: 872, height: 104, font_size: 46, line_height: 52, weight: 700, color: '#fffdf8', max_lines: 2 }
+      subtitle: { x: 64, y: 194, width: 872, height: 46, font_size: 23, line_height: 28, weight: 400, color: '#eee4d7', max_lines: 1 }
+`;
+const FRAMED_HEADER_PROFILES_SEED = `schema: pptmaker-framed-header-profiles
+profiles:
+  standard:
+${FRAMED_HEADER_PROFILE_SEED(["kicker", "title", "subtitle"])}  opening:
+${FRAMED_HEADER_PROFILE_SEED(["title"])}  transition:
+${FRAMED_HEADER_PROFILE_SEED(["title", "subtitle"])}  closing:
+${FRAMED_HEADER_PROFILE_SEED(["title", "subtitle"])} `;
 const PAGE_IMAGE_REFERENCE_REGISTRY_SEED = `schema: pptmaker-image2-reference-registry
 profiles: {}
 `;
@@ -377,14 +423,14 @@ export const BACKBONE_FILE_SEEDS = Object.freeze({
     [BACKBONE_METAPHOR]:    'workflow/01-content/template-core-metaphor.md',
     [BACKBONE_FORMULA]:     'workflow/01-content/template-core-formula.md',
     [BACKBONE_CONSTRAINTS]: 'workflow/01-content/template-design-constraints.md',
-    [BACKBONE_OUTLINE]:     null,
+    [BACKBONE_STORY_OUTLINE]: 'workflow/01-content/template-story-outline.md',
 });
 
 export const BACKBONE_SUBDIRS = Object.freeze([BACKBONE_MANUSCRIPT_SUBDIR, BACKBONE_STYLE_SUBDIR]);
 export const BACKBONE_OPTIONAL = new Set(['visual-style.md']);
 
 export const VISUAL_STYLE_FILES = Object.freeze([
-    STYLE_MASTER_PROMPT, STYLE_MASTER_IMAGE, PAGE_IMAGE_VISUAL_LANGUAGE_FILE, PURE_DECK_VISUAL_SYSTEM_FILE,
+    STYLE_MASTER_PROMPT, STYLE_MASTER_IMAGE, PAGE_IMAGE_VISUAL_LANGUAGE_FILE, PAGE_IMAGE_PRESENTATION_SUBDIR,
 ]);
 
 export const VISUAL_STYLE_OPTIONAL = new Set([
@@ -411,6 +457,11 @@ const _ALLOWED_IN_ASSETS = new Set([
     ASSET_SVG_SUBDIR,
     ASSET_REFERENCE_SUBDIR,
     ASSET_ICONS_SUBDIR,
+    'README.md',
+]);
+
+const _ALLOWED_IN_PAGE_IMAGE_PRESENTATION = new Set([
+    ...PAGE_IMAGE_PRESENTATION_FILES,
     'README.md',
 ]);
 
@@ -458,7 +509,12 @@ export function styleAsset(runDir, filename) {
 
 /** Resolve the Pure deck visual-system source through normal version overrides. */
 export function pureDeckVisualSystemAsset(runDir) {
-    return styleAsset(runDir, PURE_DECK_VISUAL_SYSTEM_FILE);
+    return pageImagePresentationAsset(runDir, PURE_DECK_VISUAL_SYSTEM_FILE);
+}
+
+/** Resolve one Page Image presentation source through normal version overrides. */
+export function pageImagePresentationAsset(runDir, filename) {
+    return styleAsset(runDir, `${PAGE_IMAGE_PRESENTATION_SUBDIR}/${filename}`);
 }
 
 export function styleDir(runDir) {
@@ -857,6 +913,33 @@ export function checkDeckRootControls(root) {
  *   `'preview'` (style master, no gates), or `false`/`'structure'`.
  * @returns {string[]}
  */
+function checkPageImagePresentationLayout(presentationPath, { required, scope }) {
+    const problems = [];
+    if (!fs.existsSync(presentationPath)) {
+        if (required) problems.push(`missing canonical Page Image presentation package at ${scope}`);
+        return problems;
+    }
+    if (!fs.statSync(presentationPath).isDirectory()) {
+        problems.push(`Page Image presentation package at ${scope} must be a directory`);
+        return problems;
+    }
+    const entries = new Map(fs.readdirSync(presentationPath, { withFileTypes: true }).map((entry) => [entry.name, entry]));
+    for (const [name, entry] of entries) {
+        if (_ignorable(name)) continue;
+        if (!_ALLOWED_IN_PAGE_IMAGE_PRESENTATION.has(name) || (name !== 'README.md' && !entry.isFile())) {
+            problems.push(`unexpected '${name}' in ${scope} — allowed source files: ${[...PAGE_IMAGE_PRESENTATION_FILES].join(', ')}`);
+        }
+    }
+    if (required) {
+        for (const filename of PAGE_IMAGE_PRESENTATION_FILES) {
+            if (!entries.get(filename)?.isFile()) {
+                problems.push(`missing canonical Page Image presentation source ${filename} at ${scope}`);
+            }
+        }
+    }
+    return problems;
+}
+
 export function checkBundle(runDir, requirePipelineReady = true) {
     const mode = normalizeCheckMode(requirePipelineReady);
     const problems = [];
@@ -979,6 +1062,10 @@ export function checkBundle(runDir, requirePipelineReady = true) {
                 }
             }
         }
+        problems.push(...checkPageImagePresentationLayout(
+            path.join(vsPath, PAGE_IMAGE_PRESENTATION_SUBDIR),
+            { required: true, scope: `${BACKBONE_DIR}/${BACKBONE_STYLE_SUBDIR}/${PAGE_IMAGE_PRESENTATION_SUBDIR}/` },
+        ));
     }
 
     const overridesPath = path.join(runDir, OVERRIDES_SUBDIR);
@@ -1013,6 +1100,10 @@ export function checkBundle(runDir, requirePipelineReady = true) {
                     }
                 }
             }
+            problems.push(...checkPageImagePresentationLayout(
+                path.join(overrideStyle, PAGE_IMAGE_PRESENTATION_SUBDIR),
+                { required: false, scope: `${OVERRIDES_SUBDIR}/${BACKBONE_STYLE_SUBDIR}/${PAGE_IMAGE_PRESENTATION_SUBDIR}/` },
+            ));
         }
     }
 
@@ -1268,7 +1359,7 @@ const _PAGE_IMAGE_SEEDS = Object.freeze({
 });
 
 /** Canonical current authoring draft. It becomes runnable only after workflow selection. */
-function _pageImageSeedSource(deckType = null) {
+export function pageImageInitialDraftSource(deckType = null) {
     const seed = _PAGE_IMAGE_SEEDS[deckType || 'generic'];
     return `---
 identity:
@@ -1291,7 +1382,7 @@ closed \`VISUAL BRIEF\` selection from the visual-language registry.
 
 /** Source text + label for a production mode's canonical seed. */
 function _seedSourceForMode(deckType) {
-    return { source: _pageImageSeedSource(deckType), label: 'Page Image Image2 authoring draft' };
+    return { source: pageImageInitialDraftSource(deckType), label: 'Page Image Image2 authoring draft' };
 }
 
 const _DIR_READMES = {
@@ -1313,8 +1404,8 @@ const _DIR_READMES = {
         '**这里放什么:** 整个 deck 的骨架,全版本共享的「默认事实源」:\n' +
         '- `core-metaphor.md` — 核心隐喻\n' +
         '- `core-formula.md` — 核心公式\n' +
-        '- `design-constraints.md` — 设计约束(语言/禁忌/文字密度)\n' +
-        '- `outline.md` — 大纲主干\n' +
+        '- `design-constraints.md` — 内容约束(受众/语言与语气/禁忌主张/必要术语)\n' +
+        '- `story-outline.md` — Block-first 叙事主干\n' +
         '- `manuscript/` — 讲稿主干\n' +
         '- `visual-style/` — 视觉主干(见里面的 README)\n\n' +
         '**你做什么:** 改这里 = 影响所有版本。想只改某一版,去那一版的 `overrides/`。\n'
@@ -1323,7 +1414,7 @@ const _DIR_READMES = {
         '# 视觉主干\n\n' +
         '**这里放什么:**\n' +
         '- `page-image-visual-language.yaml` — current recipe, composition, motif, and frame inputs\n' +
-        '- `pure-deck-visual-system.yaml` — Pure-only deck typography, colour-use, zones, whitespace, and layout-family source; version overrides use the normal `overrides/visual-style/` path\n' +
+        '- `page-image-presentation/` — Page Class catalog, deck defaults, Pure profiles, and Framed header profiles; version overrides use the matching `overrides/visual-style/page-image-presentation/` path\n' +
         '- `style-master-prompt.md` — Style Master intent input; `style_master.jpg` — derived presentation JPEG after acceptance\n' +
         '- `assets/asset-manifest.yaml` — verified local references\n\n' +
         '**权威:** 当前 version/workflow 的 accepted selection 在 `_state/state.yaml`; `style_master.jpg` 只按 override-first/backbone-default 路径投影，不能单独通过 raw gate。\n\n' +
@@ -1478,6 +1569,8 @@ function initBundleForMode(deckDir, harnessDir = null, deckType = null, style = 
     }
     // Asset subdirectories (optional infrastructure, placeholder on init)
     const assetsBase = `${BACKBONE_DIR}/${BACKBONE_STYLE_SUBDIR}/${BACKBONE_ASSETS_SUBDIR}`;
+    const presentationBase = `${BACKBONE_DIR}/${BACKBONE_STYLE_SUBDIR}/${PAGE_IMAGE_PRESENTATION_SUBDIR}`;
+    dirs.push(presentationBase);
     for (const sd of [ASSET_SVG_SUBDIR, ASSET_REFERENCE_SUBDIR, ASSET_ICONS_SUBDIR]) {
         dirs.push(`${assetsBase}/${sd}`);
     }
@@ -1534,9 +1627,10 @@ function initBundleForMode(deckDir, harnessDir = null, deckType = null, style = 
     _writeIfAbsent(
         path.join(deckDir, BACKBONE_DIR, BACKBONE_STYLE_SUBDIR, PAGE_IMAGE_VISUAL_LANGUAGE_FILE),
         PAGE_IMAGE_VISUAL_LANGUAGE_SEED);
-    _writeIfAbsent(
-        path.join(deckDir, BACKBONE_DIR, BACKBONE_STYLE_SUBDIR, PURE_DECK_VISUAL_SYSTEM_FILE),
-        PURE_DECK_VISUAL_SYSTEM_SEED);
+    _writeIfAbsent(path.join(deckDir, presentationBase, PAGE_CLASS_CATALOG_FILE), PAGE_CLASS_CATALOG_SEED);
+    _writeIfAbsent(path.join(deckDir, presentationBase, PAGE_IMAGE_DECK_DEFAULTS_FILE), PAGE_IMAGE_DECK_DEFAULTS_SEED);
+    _writeIfAbsent(path.join(deckDir, presentationBase, PURE_DECK_VISUAL_SYSTEM_FILE), PURE_DECK_VISUAL_SYSTEM_SEED);
+    _writeIfAbsent(path.join(deckDir, presentationBase, FRAMED_HEADER_PROFILES_FILE), FRAMED_HEADER_PROFILES_SEED);
     _writeIfAbsent(
         path.join(deckDir, BACKBONE_DIR, BACKBONE_STYLE_SUBDIR, BACKBONE_ASSETS_SUBDIR, ASSET_REFERENCE_SUBDIR, 'image2-reference-material.yaml'),
         PAGE_IMAGE_REFERENCE_REGISTRY_SEED);
@@ -1595,7 +1689,7 @@ function initBundleForMode(deckDir, harnessDir = null, deckType = null, style = 
         state.gates.content = 'pending';
         state.gates.visual = 'pending';
         setNodeStatus(state, 'checkpoint-intake', 'completed');
-        state.current_node = 'select-target-page-image-workflow';
+        state.current_node = 'author-target-narrative-sources';
         writeState(deckDir, state);
         log.push(`state: ${STATE_DIR}/${STATE_FILE} (mode:${mode})`);
     }
@@ -1642,7 +1736,7 @@ deck_\${NAME}/
 │   ├── ${BACKBONE_METAPHOR}
 │   ├── ${BACKBONE_FORMULA}
 │   ├── ${BACKBONE_CONSTRAINTS}
-│   ├── ${BACKBONE_OUTLINE}
+│   ├── ${BACKBONE_STORY_OUTLINE}
 │   ├── ${BACKBONE_MANUSCRIPT_SUBDIR}/
 │   └── ${BACKBONE_STYLE_SUBDIR}/
 │       ├── ${STYLE_MASTER_PROMPT}
@@ -1716,7 +1810,7 @@ export function selfCheck() {
     }
 
     const tree = renderTree();
-    for (const n of [UPSTREAM_DIR, BACKBONE_DIR, VERSIONS_DIR, GENERATED_SUBDIR, SCRATCH_SUBDIR, SLIDE_SPECS_NAME, STATE_DIR, LESSONS_DIR, BACKBONE_ASSETS_SUBDIR, ASSET_MANIFEST_FILE]) {
+    for (const n of [UPSTREAM_DIR, BACKBONE_DIR, VERSIONS_DIR, GENERATED_SUBDIR, SCRATCH_SUBDIR, SLIDE_SPECS_NAME, STATE_DIR, LESSONS_DIR, BACKBONE_STORY_OUTLINE, BACKBONE_ASSETS_SUBDIR, ASSET_MANIFEST_FILE]) {
         if (!tree.includes(n)) {
             problems.push(`renderTree() is missing canonical entry ${JSON.stringify(n)} (stale hardcoded literal?)`);
         }

@@ -15,7 +15,6 @@ import {
   createFramedRawWorkPlan,
   publishFramedFinalSlideManifest,
   readFramedTargetStoredPlanContext,
-  resolveFramedHeaderOverlayPreset,
   authorizeFramedTargetRawPlan,
   authorizeFramedProgressiveRawBatch,
   acceptFramedProgressivePilot,
@@ -37,6 +36,7 @@ import {
   validateFramedRawContract,
 } from "../../ppt_maker_harness/scripts/03-framed-image/index.mjs";
 import { verifyFramedHeaderOverlays } from "../../ppt_maker_harness/scripts/03-framed-image/internal/framed_render_contract.mjs";
+import { STANDARD_FRAMED_PRESENTATION_PROFILE } from "../helpers/framed_presentation_profile.mjs";
 import { targetPageImageSubmitFactory } from "../../ppt_maker_harness/scripts/ppt_flow.mjs";
 import { initBundle } from "../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
 import { pageImageWorkflowPaths } from "../../ppt_maker_harness/scripts/shared/run-bundle/page_image_paths.mjs";
@@ -50,6 +50,7 @@ import {
 import { acceptLocalStyleMasterFixture } from "../helpers/accepted_style_master.mjs";
 
 const digest = (letter) => letter.repeat(64);
+const STANDARD_PRESENTATION_PROFILE = STANDARD_FRAMED_PRESENTATION_PROFILE;
 
 function framedProviderInputBinding(compiled = "a") {
   return {
@@ -59,7 +60,7 @@ function framedProviderInputBinding(compiled = "a") {
     style_master_selection_sha256: digest("d"),
     generation_profile_sha256: digest("e"),
     header_policy_sha256: digest("f"),
-    deck_visual_system_sha256: null,
+    page_presentation_sha256: digest("9"),
     local_header_profile_sha256: digest("1"),
     protected_geometry_sha256: digest("2"),
   };
@@ -103,7 +104,6 @@ production:
 **KICKER**: ${kicker}
 **TITLE**: ${title}
 **SUBTITLE**: ${subtitle}
-**FRAME PRESET**: standard
 ${subjectRestrictions ? `**SUBJECT RESTRICTIONS**: ${subjectRestrictions}
 ` : ""}**SLIDE BODY**:
 \`\`\`yaml
@@ -130,9 +130,9 @@ const receipt = {
   slides: [{
     slide_id: "DeckGo",
     position: 1,
+    page_class: "standard",
     provider_content: { items: [{ role: "label", literal: "Provider-owned content remains readable.", copy_policy: "exact" }] },
     header_policy: {
-      frame_preset: "standard",
       local_header: { kicker: null, title: "A title", subtitle: null },
       context_not_to_render: { kicker: null, title: "A title", subtitle: null },
     },
@@ -140,20 +140,6 @@ const receipt = {
 };
 
 describe("Framed target workflow", () => {
-  it("normalizes standard to only closed header-overlay facts", () => {
-    const preset = resolveFramedHeaderOverlayPreset("standard");
-    expect(preset).toMatchObject({
-      canvas: { css_width: 1000, css_height: 562.5, capture_width: 2000, capture_height: 1125 },
-      protected_geometry: [{ id: "header", x: 40, y: 28, width: 920, height: 238 }],
-      fields: {
-        kicker: { x: 64, y: 54, width: 872, height: 22, max_lines: 1 },
-        title: { x: 64, y: 82, width: 872, height: 104, max_lines: 2 },
-        subtitle: { x: 64, y: 194, width: 872, height: 46, max_lines: 1 },
-      },
-    });
-    expect(preset).not.toHaveProperty("variants");
-    expect(preset).not.toHaveProperty("callout");
-  });
 
   it("compiles resolved visual and provider-content facts into the Framed raw contract", async () => {
     const root = mkdtempSync(join(tmpdir(), "framed-scene-contract-"));
@@ -270,7 +256,7 @@ relationship: causal-flow`,
   it("rejects the 28-W regression through the canonical browser render contract", async () => {
     await expect(verifyFramedHeaderOverlays([{
       slide_id: "WideW",
-      frame_preset: "standard",
+      presentation_profile: STANDARD_PRESENTATION_PROFILE,
       local_header: {
         kicker: null,
         title: "W".repeat(28),
@@ -746,7 +732,7 @@ production:
 ${slides.map((slideId, index) => `## Slide ${String(index + 1).padStart(2, "0")}: \`${slideId}\`
 
 **TITLE**: Framed Pilot ${index + 1}
-**FRAME PRESET**: standard
+${slideId === "DataMap" ? "**PAGE CLASS**: opening\n" : ""}
 **SLIDE BODY**:
 \`\`\`yaml
 items:
@@ -771,9 +757,19 @@ negative_constraints:
 
       const plan = await buildFramedProgressiveTargetRawPlan(runDir);
       const planHash = plan.progressive_raw_work_plan.sha256;
-      const pilot = await planFramedTargetPilot(runDir, { planHash, slideIds: ["DataMap"] });
+      const deckGo = plan.provider_requests_by_slide.DeckGo.raw_contract.framed;
+      const dataMap = plan.provider_requests_by_slide.DataMap.raw_contract.framed;
+      expect(deckGo).toMatchObject({ profile_id: "standard" });
+      expect(dataMap).toMatchObject({ profile_id: "opening" });
+      expect(deckGo.render_profile_digest).not.toBe(dataMap.render_profile_digest);
+      const pilot = await planFramedTargetPilot(runDir, { planHash, slideIds: ["DeckGo", "DataMap"] });
       await authorizeFramedProgressiveRawBatch(runDir, { planHash, batchHash: pilot.batch.batch_hash });
       const rawBytes = NATIVE_PROVIDER_PNG;
+      await generateFramedProgressiveRawItem(runDir, {
+        planHash,
+        batchHash: pilot.batch.batch_hash,
+        submit: async () => rawBytes,
+      });
       await generateFramedProgressiveRawItem(runDir, {
         planHash,
         batchHash: pilot.batch.batch_hash,
@@ -787,6 +783,8 @@ negative_constraints:
       const pilotRoot = join(paths.review_root, "pilot", resolveContentAddressName(join(paths.review_root, "pilot"), pilot.batch.batch_hash));
       const presentation = JSON.parse(readFileSync(join(pilotRoot, "pilot-page-review-evidence.json"), "utf8"));
       expect(evidence).toMatchObject({ pilot_evidence_sha256: expect.stringMatching(/^[0-9a-f]{64}$/) });
+      expect(readFileSync(join(pilotRoot, "provider-page", "01_DeckGo.png"))).toEqual(rawBytes);
+      expect(existsSync(join(pilotRoot, "complete-page", "01_DeckGo.png"))).toBe(true);
       expect(readFileSync(join(pilotRoot, "provider-page", "10_DataMap.png"))).toEqual(rawBytes);
       expect(existsSync(join(pilotRoot, "complete-page", "10_DataMap.png"))).toBe(true);
       expect(existsSync(join(pilotRoot, "provider-page", "DataMap.png"))).toBe(false);
@@ -797,7 +795,7 @@ negative_constraints:
         raw_work_plan_sha256: planHash,
         batch_sha256: pilot.batch.batch_hash,
         has_complete_page_artifact: true,
-        items: [{ slide_id: "DataMap" }],
+        items: [{ slide_id: "DeckGo" }, { slide_id: "DataMap" }],
       });
       expect(existsSync(join(pilotRoot, "pilot-page-review.png"))).toBe(true);
       expect(existsSync(paths.target_final_manifest)).toBe(false);
@@ -847,7 +845,6 @@ production:
 ## Slide 01: \`DeckGo\`
 
 **TITLE**: Framed finalization fact
-**FRAME PRESET**: standard
 **SLIDE BODY**:
 \`\`\`yaml
 items:

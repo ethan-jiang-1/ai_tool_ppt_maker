@@ -3,23 +3,19 @@ kind: source
 scope: deck
 purpose: "Capture audience, tone, claim boundaries, and terminology that constrain every derived page."
 answers: "What may this deck claim, how should it speak, and what terms must it use?"
-owner: "close-upstream-narrative-gap planned change (C3)"
-producer_status: planned
-route_ref: C3
+owner: "ppt_maker_harness/scripts/01-content/internal/narrative_source.mjs"
+producer_status: materialized
 inputs: []
 outputs:
   - page-source
-  - page-generation-spec
 provenance:
   source: "Human-authored deck brief and content policy."
   recomputable: false
   requirement: "Preserve the author decision that constrained later content."
 downstream_consumers:
   - page-source
-  - page-layout
-  - page-generation-spec
 does_not_contain:
-  - "A page-specific layout, prompt, or provider request."
+  - "A Visual Language selection, page class, layout or geometry rule, density policy, prompt, or provider request."
   - "A final review decision or a delivery record."
 fields:
   audience:
@@ -30,6 +26,14 @@ fields:
       means: "The deck cannot choose an appropriate level of detail or tone."
       ask: "Who will use this presentation, and what do they already know?"
       never: "Never substitute a visual style for an audience decision."
+  language_and_tone:
+    type: string
+    description: "The language, register, and evidence standard for the deck."
+    rule: "Must give the author enough content direction to write consistently without selecting a visual treatment."
+    on_violation:
+      means: "The deck may switch voice or evidence standard from one page to the next."
+      ask: "What language, register, and evidence standard should every page use?"
+      never: "Never turn tone guidance into a Visual Language selection or layout rule."
   forbidden_claims:
     type: list of strings
     description: "Claims, implications, or assurances the deck must not make."

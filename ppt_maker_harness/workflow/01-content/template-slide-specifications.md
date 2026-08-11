@@ -16,6 +16,7 @@ Use a 5-8 character mnemonic `slide_id` with exactly two BlockCase chunks.
 **KICKER**: [Optional context]
 **TITLE**: [One reviewable governing claim]
 **SUBTITLE**: [Optional supporting sentence]
+**PAGE CLASS**: [Optional: standard | opening | transition | closing]
 **VISUAL BRIEF**:
 ```yaml
 recipe: editorial-systems
@@ -42,6 +43,9 @@ items:
 - Framed gives Provider-visible body content to the common Page Image Core and
   overlays only kicker, title, and subtitle locally. Pure has the Provider render
   headers as well. Both policies require the same closed `SLIDE BODY.items` schema.
+- `PAGE CLASS` is the sole per-page presentation selector. The Agent may recommend
+  `opening`, `transition`, or `closing` from the page's narrative role; it does
+  not infer or require that choice. Omit the field for `standard`.
 - Every slide supplies a closed `VISUAL BRIEF` from the Page Image visual-language
   registry; it cannot suppress or replace source-owned content literals.
 - Do not add arbitrary markup, CSS, coordinates, retired source fields, provider

@@ -65,6 +65,37 @@ Harness-binding schema, not a production protocol.
 - **THEN** validation accepts their one selected workflow under existing rules
 - **AND** it does not accept an alternate contract pair
 
+### Requirement: Initialization and validation seed one complete Page Image presentation package
+
+Initialization SHALL seed the four canonical Page Image presentation source
+documents at the current Run Bundle layout locations with one complete,
+cross-file-valid default package. Current layout validation SHALL evaluate the
+package as a unit before a dependent Page Image owner plans raw work and SHALL
+return the source/configuration repair action for an absent, malformed, or
+cross-file-inconsistent document. It SHALL not synthesize a missing document,
+fall back to a generated projection, inspect an existing production bundle, or
+convert a retired `FRAME PRESET` source.
+
+Seeding or validating the package SHALL not create a page receipt, resolved
+per-page file, raw plan, provider work, authorization, review decision, or
+other lifecycle evidence. `new-version` continues to copy only canonical source
+and overrides into a clean successor with fresh workflow evidence.
+
+#### Scenario: Init creates a presentation-ready draft
+
+- **WHEN** `init` creates a new Run Bundle
+- **THEN** it seeds the complete valid Page Image presentation package beside
+  the current narrative sources and workflow draft
+- **AND** it does not create page-level derived data or provider/review records
+
+#### Scenario: A malformed package stops before raw work
+
+- **WHEN** a current source selects a workflow but its presentation package is
+  missing or cross-file-inconsistent
+- **THEN** validation reports the bounded source/configuration repair action
+  before receipt-dependent raw planning or provider work
+- **AND** it does not write a default, a migration, or a new lifecycle record
+
 ### Requirement: New versions begin with fresh replacement workflow evidence
 
 When `ppt_flow new-version` copies an exact current Page Image Workflow
@@ -102,3 +133,22 @@ second locator format.
 - **WHEN** initialization uses a current local Harness root
 - **THEN** it writes the one declared locator in the new Bundle
 - **AND** it does not create a second root-format branch
+
+### Requirement: Initialization seeds only the current narrative-source layout
+Run Bundle initialization SHALL seed the canonical editable Story Outline and
+Design Constraints sources at their current backbone paths alongside the
+existing current workflow draft. Its structure validation SHALL recognize those
+exact current source entries and reject a new layout that substitutes or emits
+the retired `outline.md` path.
+
+Initialization SHALL not inspect an existing production Run Bundle to fill,
+convert, or migrate either narrative source. It SHALL not create provider work,
+source-bound State evidence, review evidence, or a materialized page plan merely
+by seeding the sources. Its ordinary Controller state remains separately owned
+by the existing initialization path.
+
+#### Scenario: Init creates a narrative-ready draft
+- **WHEN** `init` creates a new Run Bundle
+- **THEN** the current narrative source pair is present with the current
+  Page Image workflow draft
+- **AND** no page-plan, provider, or review record is created

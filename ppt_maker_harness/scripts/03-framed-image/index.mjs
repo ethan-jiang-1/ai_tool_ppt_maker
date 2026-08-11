@@ -1,11 +1,4 @@
 import {
-  FRAMED_HEADER_OVERLAY_PRESET,
-  FRAMED_HEADER_OVERLAY_STANDARD,
-  FRAMED_HEADER_OVERLAY_STANDARD_DIGEST,
-  FramedHeaderOverlayError,
-  resolveFramedHeaderOverlayPreset,
-} from "./internal/header_overlay.mjs";
-import {
   composeFramedHeaderOverlays,
   describeFramedHeaderOverlay,
   verifyFramedHeaderOverlays,
@@ -29,7 +22,9 @@ import { sha256Bytes } from "../shared/identity/byte_hash.mjs";
 import { parsePageImageSource } from "../01-content/index.mjs";
 import {
   createPageImageSourceResolver,
+  loadPageImagePresentationPackage,
   loadPageImageVisualLanguage,
+  resolvePageImagePresentation,
 } from "../02-visual-system/index.mjs";
 import {
   PageImageCoreError,
@@ -162,14 +157,6 @@ export const FRAMED_IMAGE_OPERATION_MAP = Object.freeze({
   ]),
 });
 
-export {
-  FRAMED_HEADER_OVERLAY_PRESET,
-  FRAMED_HEADER_OVERLAY_STANDARD,
-  FRAMED_HEADER_OVERLAY_STANDARD_DIGEST,
-  FramedHeaderOverlayError,
-  resolveFramedHeaderOverlayPreset,
-};
-
 export class FramedImageWorkflowError extends Error {
   constructor(code, message) {
     super(message);
@@ -200,15 +187,16 @@ const FRAMED_RAW_CONTRACT_KEYS = Object.freeze([
 const FRAMED_RAW_CONTRACT_CORE_KEYS = Object.freeze(["schema", "canonical_semantic_sha256"]);
 const FRAMED_PROVIDER_RENDERED_CONTENT_KEYS = Object.freeze(["items"]);
 const FRAMED_RAW_CONTRACT_FRAME_KEYS = Object.freeze([
-  "preset",
-  "preset_digest",
+  "profile_id",
+  "profile_digest",
+  "presentation_binding_sha256",
   "canvas",
   "protected_geometry",
   "local_header",
   "context_not_to_render",
   "render_profile_digest",
 ]);
-const FRAMED_HEADER_POLICY_KEYS = Object.freeze(["frame_preset", "local_header", "context_not_to_render"]);
+const FRAMED_HEADER_POLICY_KEYS = Object.freeze(["local_header", "context_not_to_render"]);
 const FRAMED_HEADER_FIELDS = Object.freeze(["kicker", "title", "subtitle"]);
 const SHA256_RE = /^[0-9a-f]{64}$/;
 
@@ -246,11 +234,11 @@ function validateFramedRawContractAgainstProfile(rawContract, renderProfile) {
       throw new FramedImageWorkflowError("framed_raw_contract_invalid", "Framed raw contract has an invalid canonical shape");
     }
     const frame = rawContract.framed;
-    if (frame.preset !== renderProfile?.preset?.id ||
-      frame.preset_digest !== renderProfile?.preset?.digest ||
+    if (frame.profile_id !== renderProfile?.preset?.id ||
+      frame.profile_digest !== renderProfile?.preset?.digest ||
       !Array.isArray(frame.protected_geometry) || frame.protected_geometry.length === 0 ||
       frame.protected_geometry.some((rectangle) => !isRectangle(rectangle, frame.canvas)) ||
-      !SHA256_RE.test(frame.render_profile_digest || "")) {
+      !SHA256_RE.test(frame.presentation_binding_sha256 || "") || !SHA256_RE.test(frame.render_profile_digest || "")) {
       throw new FramedImageWorkflowError("framed_raw_contract_invalid", "Framed raw contract has invalid frame facts");
     }
     if (!SHA256_RE.test(renderProfile?.render_profile_digest || "")) {
@@ -260,7 +248,6 @@ function validateFramedRawContractAgainstProfile(rawContract, renderProfile) {
       throw new FramedImageWorkflowError("framed_raw_contract_profile_stale", "Framed raw contract does not bind the current render profile");
     }
     const headerPolicy = normalizePageImageHeaderPolicy({
-      frame_preset: frame.preset,
       local_header: frame.local_header,
       context_not_to_render: frame.context_not_to_render,
     }, FRAMED_IMAGE_WORKFLOW);
@@ -286,7 +273,17 @@ function validateFramedRawContractAgainstProfile(rawContract, renderProfile) {
 
 /** Validate one Framed raw contract against the canonical current render profile. */
 export function validateFramedRawContract(rawContract) {
-  return validateFramedRawContractAgainstProfile(rawContract, currentFramedHeaderOverlayRenderProfile());
+  try {
+    if (!hasExactKeys(rawContract, FRAMED_RAW_CONTRACT_KEYS) || !hasExactKeys(rawContract.framed, FRAMED_RAW_CONTRACT_FRAME_KEYS)) {
+      throw new FramedImageWorkflowError("framed_raw_contract_invalid", "Framed raw contract has an invalid canonical shape");
+    }
+    return validateFramedRawContractAgainstProfile(rawContract, {
+      preset: { id: rawContract.framed.profile_id, digest: rawContract.framed.profile_digest },
+      render_profile_digest: rawContract.framed.render_profile_digest,
+    });
+  } catch (error) {
+    return Object.freeze({ ok: false, code: error.code || "framed_raw_contract_invalid", message: error.message || "Framed raw contract is invalid" });
+  }
 }
 
 function requireReceipt(receipt) {
@@ -305,8 +302,8 @@ function canonicalFramedFrameFacts(frame) {
     throw new FramedImageWorkflowError("framed_render_contract_invariant_failed", "Framed render contract is missing canonical raw facts");
   }
   return Object.freeze({
-    preset: profile.preset.id,
-    preset_digest: profile.preset.digest,
+    profile_id: profile.preset.id,
+    profile_digest: profile.preset.digest,
     canvas: layout.canvas,
     protected_geometry: Object.freeze(layout.protected_geometry.map(({ x, y, width, height }) => ({ x, y, width, height }))),
   });
@@ -314,15 +311,18 @@ function canonicalFramedFrameFacts(frame) {
 
 function framedHeaderOverlayInput(slide) {
   const policy = slide?.header_policy;
+  const presentation = slide?.visual_language?.presentation;
   if (!hasExactKeys(policy, FRAMED_HEADER_POLICY_KEYS) ||
     !hasExactKeys(policy.local_header, FRAMED_HEADER_FIELDS) ||
     !hasExactKeys(policy.context_not_to_render, FRAMED_HEADER_FIELDS) ||
-    canonicalJsonSha256(policy.local_header) !== canonicalJsonSha256(policy.context_not_to_render)) {
+    canonicalJsonSha256(policy.local_header) !== canonicalJsonSha256(policy.context_not_to_render) ||
+    !presentation || presentation.workflow !== FRAMED_IMAGE_WORKFLOW || presentation.page_class !== slide.page_class ||
+    !SHA256_RE.test(presentation.binding_sha256 || "") || !presentation.profile || typeof presentation.profile !== "object") {
     throw new FramedImageWorkflowError("framed_header_policy_invalid", "Framed slides require one closed local header and matching context-not-to-render facts");
   }
   return Object.freeze({
     slide_id: slide.slide_id,
-    frame_preset: policy.frame_preset,
+    presentation_profile: presentation.profile,
     local_header: policy.local_header,
   });
 }
@@ -442,10 +442,6 @@ export function createFramedTargetRawReviewContribution({ receipt, rawWorkPlan }
     }
     return Object.freeze({ slide, frame, title });
   });
-  const profileDigests = new Set(described.map(({ frame }) => frame.render_profile.render_profile_digest));
-  if (profileDigests.size !== 1) {
-    throw new FramedImageWorkflowError("framed_review_contribution_profile_invalid", "Framed raw-review contribution requires one current render profile");
-  }
   const contribution = createTargetRawReviewContribution({
     workflow: FRAMED_IMAGE_WORKFLOW,
     ordered_stable_ids: rawWorkPlan.ordered_slide_ids,
@@ -711,11 +707,25 @@ export async function publishFramedFinalSlideManifest(input = {}) {
   return (await composeFramedFinalSlideManifest(input)).manifest;
 }
 
-function parseFramedTargetReceipt({ deckDir, sourcePath, sourceText }) {
+function parseFramedTargetReceipt({ runDir, deckDir, sourcePath, sourceText }) {
   const visualLanguage = loadPageImageVisualLanguage(deckDir);
+  const presentationPackage = loadPageImagePresentationPackage(runDir);
+  const visualResolver = createPageImageSourceResolver({ deckDir, visualLanguage });
   return parsePageImageSource(sourceText, {
     source: sourcePath,
-    registry: createPageImageSourceResolver({ deckDir, visualLanguage }),
+    registry: {
+      resolveSelection(context) {
+        return Object.freeze({
+          ...visualResolver.resolveSelection(context),
+          presentation: resolvePageImagePresentation({
+            package: presentationPackage,
+            workflow: context.workflow,
+            pageClass: context.page_class,
+            headerPolicy: context.header_policy,
+          }),
+        });
+      },
+    },
   });
 }
 
@@ -792,6 +802,11 @@ function framedRawContract(slide, frame, coreSlide) {
     throw new FramedImageWorkflowError("framed_page_image_core_invalid", `Framed Page Image Core facts are unavailable for ${slide.slide_id}`);
   }
   const facts = canonicalFramedFrameFacts(frame);
+  const presentation = coreSlide.visual_selection?.presentation;
+  if (!presentation || presentation.workflow !== FRAMED_IMAGE_WORKFLOW ||
+    presentation.page_class !== slide.page_class || !SHA256_RE.test(presentation.binding_sha256 || "")) {
+    throw new FramedImageWorkflowError("framed_page_presentation_required", `Framed page presentation is unavailable for ${slide.slide_id}`);
+  }
   const providerClauses = coreSlide.visual_selection?.provider_clauses || null;
   const identityRoleClause = coreSlide.visual_selection?.identity_reference?.provider_reference?.role_clause || null;
   const rawContract = Object.freeze({
@@ -812,6 +827,7 @@ function framedRawContract(slide, frame, coreSlide) {
     },
     framed: {
       ...facts,
+      presentation_binding_sha256: presentation.binding_sha256,
       local_header: { ...coreSlide.header_policy.local_header },
       context_not_to_render: { ...coreSlide.header_policy.context_not_to_render },
       render_profile_digest: frame.render_profile.render_profile_digest,
@@ -852,11 +868,6 @@ function compileFramedProviderInput({ slideId, rawContract, generationProfile } 
 /** Compile a selected Framed current raw-plan candidate without artifact writes. */
 function compileFramedTargetRawPlanCandidate(context) {
   const framesById = new Map(context.receipt.slides.map((slide) => [slide.slide_id, describeFramedSlide(slide)]));
-  const renderProfileDigests = new Set([...framesById.values()].map((frame) => frame.render_profile.render_profile_digest));
-  if (renderProfileDigests.size !== 1) {
-    throw new FramedImageWorkflowError("framed_render_contract_invariant_failed", "Framed raw-plan candidate requires one canonical render profile");
-  }
-  const renderProfile = framesById.values().next().value.render_profile;
   const generation = buildTargetRawGenerationProfile({
     runDir: context.run_dir,
     deckDir: context.deck_dir,
@@ -871,7 +882,7 @@ function compileFramedTargetRawPlanCandidate(context) {
     const frame = framesById.get(slide.slide_id);
     const coreSlide = coreSlidesById.get(slide.slide_id);
     const rawContract = framedRawContract(slide, frame, coreSlide);
-    const rawContractValidation = validateFramedRawContractAgainstProfile(rawContract, renderProfile);
+    const rawContractValidation = validateFramedRawContractAgainstProfile(rawContract, frame.render_profile);
     if (!rawContractValidation.ok) throw new FramedImageWorkflowError(rawContractValidation.code, rawContractValidation.message);
     rawContractsBySlide[slide.slide_id] = rawContractValidation.raw_contract_sha256;
     const compiledProviderInput = compileFramedProviderInput({
@@ -911,10 +922,24 @@ function compileFramedTargetRawPlanCandidate(context) {
     ...context,
     raw_work_plan: rawWorkPlan,
     provider_requests_by_slide: Object.freeze(providerRequestsBySlide),
+    frames_by_slide: Object.freeze(Object.fromEntries(framesById)),
     page_image_core: coreFacts,
-    render_profile_digest: renderProfile.render_profile_digest,
     style_master_reference: generation.style_master_reference,
   });
+}
+
+function verifyFramedCandidateProof(candidate, proof) {
+  const expected = candidate.receipt.slides.map((slide) => slide.slide_id);
+  if (!proof || !Array.isArray(proof.pages) || canonicalJson(proof.pages.map((page) => page.slide_id)) !== canonicalJson(expected)) {
+    throw new FramedImageWorkflowError("framed_render_profile_stale", "Framed layout proof did not return the candidate's ordered stable page IDs");
+  }
+  for (const page of proof.pages) {
+    const frame = candidate.frames_by_slide?.[page.slide_id];
+    if (!frame || page.render_profile_digest !== frame.render_profile.render_profile_digest ||
+      canonicalJson(page.layout?.protected_geometry) !== canonicalJson(frame.layout.protected_geometry)) {
+      throw new FramedImageWorkflowError("framed_render_profile_stale", `Framed layout proof did not bind the candidate profile and guide for ${page.slide_id}`);
+    }
+  }
 }
 
 /**
@@ -925,9 +950,7 @@ export async function buildFramedTargetRawPlan(runDir, { allowSourceRebuild = fa
   preflightFramedMutation(runDir);
   const candidate = compileFramedTargetRawPlanCandidate(resolveFramedTargetCandidateSource(runDir));
   const proof = await verifyFramedHeaderOverlays(candidate.receipt.slides.map(framedHeaderOverlayInput));
-  if (proof.render_profile_digest !== candidate.render_profile_digest) {
-    throw new FramedImageWorkflowError("framed_render_profile_stale", "Framed layout proof did not use the candidate render profile");
-  }
+  verifyFramedCandidateProof(candidate, proof);
   const context = materializeTargetSourceCandidateContext(candidate, { allowSourceRebuild });
   writeTargetRawWorkPlan(context, candidate.raw_work_plan);
   return Object.freeze({
@@ -1100,9 +1123,7 @@ export async function buildFramedProgressiveTargetRawPlan(runDir, { allowSourceR
   }
   const candidate = compileFramedTargetRawPlanCandidate(rebindContext || resolveFramedTargetCandidateSource(runDir));
   const proof = await verifyFramedHeaderOverlays(candidate.receipt.slides.map(framedHeaderOverlayInput));
-  if (proof.render_profile_digest !== candidate.render_profile_digest) {
-    throw new FramedImageWorkflowError("framed_render_profile_stale", "Framed layout proof did not use the candidate render profile");
-  }
+  verifyFramedCandidateProof(candidate, proof);
   if (rebindContext) {
     const previous = readProgressiveAcceptedRawWork({
       runDir,

@@ -16,7 +16,7 @@ function pureProviderInputBinding(compiled = "a") {
     style_master_selection_sha256: digest("d"),
     generation_profile_sha256: digest("e"),
     header_policy_sha256: digest("f"),
-    deck_visual_system_sha256: digest("9"),
+    page_presentation_sha256: digest("9"),
     local_header_profile_sha256: null,
     protected_geometry_sha256: null,
   };

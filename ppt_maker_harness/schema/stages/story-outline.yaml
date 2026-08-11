@@ -1,11 +1,10 @@
 schema: story-outline
 kind: source
 scope: deck
-purpose: "Record the deck's argument, evidence order, and intended audience outcome before pages are derived."
-answers: "What is the argument, in what order, and on what evidence?"
-owner: "close-upstream-narrative-gap planned change (C3)"
-producer_status: planned
-route_ref: C3
+purpose: "Record the deck's Block-first argument, evidence order, and intended audience outcome before pages are derived."
+answers: "What is the argument, in what Block order, and on what evidence?"
+owner: "ppt_maker_harness/scripts/01-content/internal/narrative_source.mjs"
+producer_status: materialized
 inputs: []
 outputs:
   - page-source
@@ -15,7 +14,6 @@ provenance:
   requirement: "Keep the author decision and its evidence references together."
 downstream_consumers:
   - page-source
-  - design-constraints
 does_not_contain:
   - "Per-page visual selections or provider instructions."
   - "A review decision, generated image, or delivery receipt."
@@ -28,14 +26,14 @@ fields:
       means: "The deck has no clear conclusion to organize around."
       ask: "What should the audience believe or do after this presentation?"
       never: "Never infer the central claim from a final image or delivery receipt."
-  evidence_sequence:
-    type: ordered list
-    description: "The evidence or reasoning beats that support the claim."
-    rule: "Must be ordered and must support the central claim."
+  blocks:
+    type: ordered Block list
+    description: "Ordered argument Blocks, each with an audience question, argument function, evidence or reasoning beats, and intended inclusive page range."
+    rule: "Block ordinals start at 1 and are consecutive; each Block has at least one beat and a positive ascending page range."
     on_violation:
-      means: "The argument cannot yet show why its conclusion is credible."
-      ask: "Which facts, examples, or reasoning steps should the audience encounter first?"
-      never: "Never use page order alone as evidence of an intended argument."
+      means: "The argument cannot yet show how its evidence builds toward the conclusion."
+      ask: "For each part of the argument, what question does the audience need answered, and which evidence should answer it?"
+      never: "Never use page order alone as evidence of an intended argument or infer a page grouping."
   audience_outcome:
     type: string
     description: "The intended audience understanding, decision, or next action."

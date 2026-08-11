@@ -16,6 +16,7 @@ import {
 import {
   buildResumeCard,
   createInitialState,
+  createTargetAuthoringState,
 } from "../../../ppt_maker_harness/scripts/shared/state/state.mjs";
 
 const PLAYBOOK_DIR = "ppt_maker_harness/playbook";
@@ -46,6 +47,28 @@ describe("MD Controller reader characterization", () => {
     expect(controller).toContain("diagnostic.next");
     expect(controller).toMatch(/does not recreate a category,\s*action, or recovery route/i);
     expect(controller).toMatch(/shared handoff owns the user explanation/i);
+  });
+
+  it("keeps narrative page-plan confirmation conversational and outside State authority", () => {
+    const index = buildPlaybookIndex(PLAYBOOK_DIR);
+    const sources = index.nodesById.get("author-target-narrative-sources");
+    const pageSource = index.nodesById.get("author-target-page-image-content");
+    expect(sources).toMatchObject({
+      requires: ["checkpoint-intake"],
+      exit: [],
+    });
+    expect(pageSource).toMatchObject({
+      requires: ["configure-target-page-image-visual-system"],
+      exit: ["slide_specs_exists", "slide_specs_valid"],
+    });
+    expect(pageSource.steps.map((step) => step.type)).toEqual(["MD", "CLI", "GATE", "CLI"]);
+    expect(pageSource.decisions).toEqual([]);
+
+    const state = createTargetAuthoringState("target", "keynote", "dark-executive");
+    expect(state.current_node).toBe("author-target-narrative-sources");
+    expect(state).not.toHaveProperty("narrative_page_plan");
+    expect(state).not.toHaveProperty("narrative_confirmation");
+    expect(state).not.toHaveProperty("provider_authorization");
   });
 
   it("the live MD Controller registry matches the checked-in v3 manifest and validates cleanly", () => {
@@ -92,12 +115,17 @@ describe("MD Controller reader characterization", () => {
     const pure = controllerActiveNodeIds(index, "create-deck", "image2-page-workflow", "pure");
     const unresolved = controllerActiveNodeIds(index, "create-deck", "image2-page-workflow");
 
-    expect(unresolved).toEqual(["checkpoint-intake", "select-target-page-image-workflow"]);
+    expect(unresolved).toEqual([
+      "checkpoint-intake",
+      "author-target-narrative-sources",
+      "select-target-page-image-workflow",
+    ]);
     expect(framed).toEqual([
       "checkpoint-intake",
+      "author-target-narrative-sources",
       "select-target-page-image-workflow",
-      "author-target-page-image-content",
       "configure-target-page-image-visual-system",
+      "author-target-page-image-content",
       "inspect-target-framed-style-master",
       "plan-target-framed-style-master",
       "authorize-target-framed-style-master",
@@ -121,9 +149,10 @@ describe("MD Controller reader characterization", () => {
     ]);
     expect(pure).toEqual([
       "checkpoint-intake",
+      "author-target-narrative-sources",
       "select-target-page-image-workflow",
-      "author-target-page-image-content",
       "configure-target-page-image-visual-system",
+      "author-target-page-image-content",
       "inspect-target-pure-style-master",
       "plan-target-pure-style-master",
       "authorize-target-pure-style-master",
@@ -150,9 +179,10 @@ describe("MD Controller reader characterization", () => {
     expect(framed).not.toContain("inspect-target-pure-style-master");
     expect(pure).not.toContain("inspect-target-framed-style-master");
     expect(controllerDraftRouteNodes(index, "create-deck", "framed")).toEqual([
+      "author-target-narrative-sources",
       "select-target-page-image-workflow",
-      "author-target-page-image-content",
       "configure-target-page-image-visual-system",
+      "author-target-page-image-content",
       "inspect-target-framed-style-master",
       "plan-target-framed-style-master",
       "authorize-target-framed-style-master",
@@ -163,9 +193,10 @@ describe("MD Controller reader characterization", () => {
       "plan-target-framed-progressive-raw",
     ]);
     expect(controllerDraftRouteNodes(index, "create-deck", "pure")).toEqual([
+      "author-target-narrative-sources",
       "select-target-page-image-workflow",
-      "author-target-page-image-content",
       "configure-target-page-image-visual-system",
+      "author-target-page-image-content",
       "inspect-target-pure-style-master",
       "plan-target-pure-style-master",
       "authorize-target-pure-style-master",

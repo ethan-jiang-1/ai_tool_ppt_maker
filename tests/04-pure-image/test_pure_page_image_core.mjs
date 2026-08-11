@@ -85,6 +85,7 @@ relationship: layer-stack
 
 **KICKER**: Delivery
 **TITLE**: A different literal and visual selection
+**PAGE CLASS**: opening
 **SLIDE BODY**:
 \`\`\`yaml
 items:
@@ -113,7 +114,7 @@ function captureError(action) {
 }
 
 describe("Pure Page Image Core adapter", () => {
-  it("stops a missing Pure visual system before Style Master readiness or source-plan writes", () => {
+  it("stops a missing Pure presentation source before Style Master readiness or source-plan writes", () => {
     const root = mkdtempSync(join(tmpdir(), "pure-page-image-core-missing-system-"));
     const deck = join(root, "deck_pure_page_image_core");
     const runDir = join(deck, "3_versions", "v1");
@@ -125,8 +126,29 @@ describe("Pure Page Image Core adapter", () => {
       const stateBefore = readFileSync(statePath(deck));
 
       expect(captureError(() => buildPureTargetRawPlan(runDir))).toMatchObject({
-        code: "pure_visual_system_source_missing",
+        code: "page_image_presentation_source_missing",
       });
+      expect(readFileSync(statePath(deck))).toEqual(stateBefore);
+      expect(existsSync(paths.target_source_receipt)).toBe(false);
+      expect(existsSync(paths.target_raw_plan)).toBe(false);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("stops a malformed unselected Pure profile before receipt, raw-plan, or state mutation", () => {
+    const root = mkdtempSync(join(tmpdir(), "pure-page-image-core-malformed-sibling-"));
+    const deck = join(root, "deck_pure_page_image_core");
+    const runDir = join(deck, "3_versions", "v1");
+    try {
+      initBundle(deck, null, "keynote", "dark-executive");
+      writeFileSync(join(runDir, "slide-specifications.md"), SOURCE);
+      const pure = pureDeckVisualSystemAsset(runDir);
+      writeFileSync(pure, readFileSync(pure, "utf8").replace("  opening:\n    typography:", "  opening:\n    provider_prompt: forbidden\n    typography:"));
+      const paths = pageImageWorkflowPaths(runDir);
+      const stateBefore = readFileSync(statePath(deck));
+
+      expect(captureError(() => buildPureTargetRawPlan(runDir)).code).toMatch(/^page_image_presentation_/);
       expect(readFileSync(statePath(deck))).toEqual(stateBefore);
       expect(existsSync(paths.target_source_receipt)).toBe(false);
       expect(existsSync(paths.target_raw_plan)).toBe(false);
@@ -189,13 +211,13 @@ describe("Pure Page Image Core adapter", () => {
         style_master_selection_sha256: coreSlide.style_master_selection_sha256,
         generation_profile_sha256: coreSlide.generation_profile_sha256,
         header_policy_sha256: coreSlide.header_policy_sha256,
-        deck_visual_system_sha256: coreSlide.deck_visual_system_sha256,
+        page_presentation_sha256: coreSlide.page_presentation_sha256,
         local_header_profile_sha256: null,
         protected_geometry_sha256: null,
       });
       const serialized = JSON.stringify(contract);
-      expect(contract.deck_visual_system.sha256).toBe(coreSlide.deck_visual_system_sha256);
-      expect(JSON.parse(request.compiled_provider_input.utf8).deck_visual_system).toEqual(contract.deck_visual_system);
+      expect(contract.page_presentation.binding_sha256).toBe(coreSlide.page_presentation_sha256);
+      expect(JSON.parse(request.compiled_provider_input.utf8).page_presentation).toEqual(contract.page_presentation);
       expect(serialized).not.toContain("local_header");
       expect(serialized).not.toContain("context_not_to_render");
       expect(serialized).not.toContain("protected_geometry");
@@ -205,7 +227,7 @@ describe("Pure Page Image Core adapter", () => {
     }
   });
 
-  it("shares one deterministic deck system across Pure pages without treating inspection as acceptance", async () => {
+  it("binds each selected Pure presentation without treating inspection as acceptance", async () => {
     const root = mkdtempSync(join(tmpdir(), "pure-page-image-core-multi-"));
     const deck = join(root, "deck_pure_page_image_core");
     const runDir = join(deck, "3_versions", "v1");
@@ -225,14 +247,15 @@ describe("Pure Page Image Core adapter", () => {
       const secondInput = JSON.parse(secondRequest.compiled_provider_input.utf8);
       const inspection = JSON.parse(readFileSync(join(runDir, plan.provider_request_inspection.path), "utf8"));
 
-      expect(first.provider_input_binding.deck_visual_system_sha256)
-        .toBe(second.provider_input_binding.deck_visual_system_sha256);
-      expect(firstInput.deck_visual_system).toEqual(secondInput.deck_visual_system);
-      expect(firstRequest.raw_contract.deck_visual_system).toEqual(secondRequest.raw_contract.deck_visual_system);
+      expect(first.provider_input_binding.page_presentation_sha256)
+        .not.toBe(second.provider_input_binding.page_presentation_sha256);
+      expect(firstInput.page_presentation).toMatchObject({ page_class: "standard", profile_id: "standard" });
+      expect(secondInput.page_presentation).toMatchObject({ page_class: "opening", profile_id: "opening" });
+      expect(firstRequest.raw_contract.page_presentation).not.toEqual(secondRequest.raw_contract.page_presentation);
       expect(firstRequest.raw_contract.provider_rendered_content).not.toEqual(secondRequest.raw_contract.provider_rendered_content);
       expect(firstRequest.raw_contract.visual_language).not.toEqual(secondRequest.raw_contract.visual_language);
-      expect(inspection.items.map((item) => item.provider_input_binding.deck_visual_system_sha256))
-        .toEqual([first.provider_input_binding.deck_visual_system_sha256, second.provider_input_binding.deck_visual_system_sha256]);
+      expect(inspection.items.map((item) => item.provider_input_binding.page_presentation_sha256))
+        .toEqual([first.provider_input_binding.page_presentation_sha256, second.provider_input_binding.page_presentation_sha256]);
       expect(JSON.stringify(inspection)).not.toMatch(/api[_-]?key|authorization|data:image|accepted|selector|pixel/i);
       expect(inspection).not.toHaveProperty("accepted_raw_evidence_sha256");
       expect(sourceBefore.source_sha256).toBe(plan.receipt.source_sha256);

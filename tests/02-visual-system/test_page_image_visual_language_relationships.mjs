@@ -80,7 +80,7 @@ production:
 ## Slide 01: \`${slideId}\`
 
 **TITLE**: Relationship selection
-${workflow === "framed" ? "**FRAME PRESET**: standard\n" : ""}**VISUAL BRIEF**:
+**VISUAL BRIEF**:
 \`\`\`yaml
 ${visualBrief(brief)}\`\`\`
 `;

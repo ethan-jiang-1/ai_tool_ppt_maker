@@ -4,6 +4,7 @@ import {
   PAGE_IMAGE_WORKFLOW_PIPELINE,
   probeProductionMarker,
 } from "../../shared/run-bundle/production_marker.mjs";
+import { PAGE_IMAGE_CLASSES } from "../../shared/run-bundle/bundle_layout.mjs";
 import {
   PAGE_IMAGE_CORE_CONTENT_ROLES,
   PAGE_IMAGE_CORE_COPY_POLICIES,
@@ -18,14 +19,14 @@ import {
 } from "./slide_document.mjs";
 
 export const PAGE_IMAGE_WORKFLOW_SOURCE_RECEIPT_SCHEMA = "page-image-workflow-source";
-export const FRAMED_HEADER_PRESET = "standard";
+export { PAGE_IMAGE_CLASSES };
 export const PROVIDER_CONTENT_ROLES = PAGE_IMAGE_CORE_CONTENT_ROLES;
 export const PROVIDER_CONTENT_COPY_POLICIES = PAGE_IMAGE_CORE_COPY_POLICIES;
 
 const HEADER_FIELDS = Object.freeze(["KICKER", "TITLE", "SUBTITLE"]);
 const INLINE_PAGE_IMAGE_FIELDS = Object.freeze([
   ...HEADER_FIELDS,
-  "FRAME PRESET",
+  "PAGE CLASS",
   "VISUAL IDENTITY",
   "IDENTITY SUBJECT COUNT",
   "SUBJECT RESTRICTIONS",
@@ -620,7 +621,6 @@ function parseProviderContent(document, block, bodyBlock, issues) {
 }
 
 function headerPolicy(document, block, workflow, header, fields, issues) {
-  const frameField = oneField(fields, "FRAME PRESET");
   if (workflow === "framed") {
     if (!header.title) {
       issues.push(issue(document, block, "missing_framed_title", "Framed slides require a non-empty **TITLE**", {
@@ -628,27 +628,10 @@ function headerPolicy(document, block, workflow, header, fields, issues) {
         fieldSpan: oneField(fields, "TITLE")?.range || block.heading_text_range,
       }));
     }
-    if (!frameField) {
-      issues.push(issue(document, block, "missing_framed_header_preset", "Framed slides require an explicit **FRAME PRESET**", {
-        field: "FRAME PRESET",
-        fieldSpan: block.heading_text_range,
-        expected: FRAMED_HEADER_PRESET,
-      }));
-    }
-    const framePreset = frameField
-      ? parseOptionalEnum(document, block, frameField, [FRAMED_HEADER_PRESET], null, issues)
-      : null;
     return {
-      frame_preset: framePreset,
       local_header: { ...header },
       context_not_to_render: { ...header },
     };
-  }
-  if (frameField) {
-    issues.push(issue(document, block, "pure_frame_preset_forbidden", "Pure slides must not select FRAME PRESET", {
-      field: "FRAME PRESET",
-      fieldSpan: frameField.range,
-    }));
   }
   return { provider_visible: { ...header } };
 }
@@ -758,6 +741,14 @@ export function parsePageImageSource(sourceText, { source = "slide-specification
   for (const block of document.slides) {
     const fields = scanSlideFields(document, block, issues);
     const header = headerFields(document, block, fields, issues);
+    const pageClass = parseOptionalEnum(
+      document,
+      block,
+      oneField(fields, "PAGE CLASS"),
+      PAGE_IMAGE_CLASSES,
+      "standard",
+      issues,
+    );
     const normalizedHeaderPolicy = headerPolicy(document, block, workflow, header, fields, issues);
     const parsedVisualBlocks = visualBlocks(document, block);
     const visualField = oneField(fields, "VISUAL BRIEF");
@@ -820,6 +811,8 @@ export function parsePageImageSource(sourceText, { source = "slide-specification
     validateVisualSemantics(document, block, identity, count, restrictions, fields, issues);
     const compiledVisualBrief = resolveVisualBrief(registry, {
       workflow,
+      page_class: pageClass,
+      header_policy: normalizedHeaderPolicy,
       visual_brief: visualBrief,
       identity,
       identity_subject_count: count,
@@ -835,6 +828,7 @@ export function parsePageImageSource(sourceText, { source = "slide-specification
     receipts.push({
       slide_id: block.slide_id,
       position: block.position,
+      page_class: pageClass,
       provider_content: providerContent,
       header_policy: normalizedHeaderPolicy,
       visual_brief: visualBrief,

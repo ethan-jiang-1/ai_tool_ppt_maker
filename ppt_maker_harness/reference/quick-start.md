@@ -32,11 +32,14 @@ I want to make a presentation. Read ppt_maker_harness/BOOTSTRAP.md and guide me.
 - Image2: [not needed yet / credentials available / need setup help]
 ```
 
-New work begins with local readiness and source authoring. Provider credentials
-are needed only when a selected raw-generation operation will submit work. Before
-that work, choose one version workflow: `framed` for a transparent local header
-overlay or `pure` when the Provider must render the header too. The choice covers the
-whole version, never an individual slide.
+New work begins with local readiness, a Story Outline, and Design Constraints.
+The Agent then selects one version workflow, uses the current Visual Language
+registry to preview a page plan, and asks you once whether that content and
+structure are right before it writes canonical Page Source. Provider credentials
+are needed only when a selected raw-generation operation will submit work.
+Choose `framed` for a transparent local header overlay or `pure` when the Provider
+must render the header too. The choice covers the whole version, never an
+individual slide.
 
 ## What The Agent Does
 

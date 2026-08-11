@@ -20,7 +20,6 @@ production:
 ## Slide 01: \`DeckGo\`
 
 **TITLE**: Framed Style Master scope
-**FRAME PRESET**: standard
 **VISUAL BRIEF**:
 \`\`\`yaml
 recipe: editorial-systems
