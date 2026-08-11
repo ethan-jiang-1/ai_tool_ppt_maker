@@ -1,6 +1,6 @@
 # Progressive Plan: Schema-First Page Image Recovery
 
-> Type: progressive coordination plan | Updated: 2026-08-11 | Status: active
+> Type: progressive coordination plan | Updated: 2026-08-11 | Status: active (C1 archived; C2 proposal next)
 >
 > **This is the only route document for Page Image recovery.** Three earlier
 > plans were closed on 2026-08-11 as CLS-025/026/027; everything from them that
@@ -990,7 +990,7 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done with evidence
 - [x] `page-render-model` and `page-generation-spec` each carry a "does not contain" clause naming the other
 - [x] `schema/frozen-identifiers.yaml` — both entry kinds, every entry has a `reason:`
 - [x] Verify the diff has no production-runtime `.mjs` change; the approved static directory assertion and one contracts-only test are the only `.mjs` exceptions
-- [ ] Archive the change
+- [x] Archive the change
 - [x] **Checkpoint 1** — the owner has read `flow.yaml` and the 19 stage files and agrees the flow is right
 
 > Evidence: 2026-08-11 — the owner approved the C1 flow, nineteen definitions,
@@ -998,7 +998,9 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done with evidence
 > tests/contracts/test_page_image_schema_definitions.mjs` passed (4 tests), the
 > font-authority sweep passed (13 tests), `npm test`, `git diff --check`, and
 > `openspec validate publish-production-schema-definitions --strict` passed.
-> The archive path and main-spec synchronization are recorded when archival completes.
+> The delta was synced to `harness-directory-layout`, then archived at
+> `openspec/changes/archive/2026-08-11-publish-production-schema-definitions/`.
+> Completion commit: `7be177f`.
 
 ### C2 — `conform-code-to-schema-definitions`
 
