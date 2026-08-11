@@ -21,8 +21,10 @@ any production Run Bundle.
   body-safe composition, with provenance and one exact digest binding.
 - Preserve parsed source `subject_restrictions` through Page Image Core into
   Framed-only raw contracts and canonical provider requests.
-- Keep exact header literals exclusively in the deterministic local renderer;
-  provider instructions receive non-text composition guidance instead.
+- Keep Header Rendering Policy literals as deterministic local-renderer facts;
+  provider instructions receive non-text composition guidance instead. An
+  independently source-owned provider-content literal may still match a header
+  literal by spelling without becoming header context.
 - Reuse existing planning, invalidation, Task-Mandate, transport, and Complete
   Page Review control paths.
 
@@ -30,9 +32,9 @@ any production Run Bundle.
 
 - Claiming that a prompt has pixel-level enforcement, adding a native provider
   region/mask field, or changing the opaque shared transport.
-- Adding a local body renderer, a second page-layout authority, an OCR runtime
-  dependency, an automatic acceptance/rejection decision, or a C6-specific
-  control state.
+- Adding a local body renderer, a second page-layout authority, an occupancy or
+  OCR runtime diagnostic, an automatic acceptance/rejection decision, or a
+  C6-specific control state.
 - Running a paid probe, touching v3, or migrating historical/current production
   data. A paid synthetic probe requires a separate explicit Work Request.
 
@@ -44,25 +46,37 @@ any production Run Bundle.
 serializes the result. The MD Controller only chooses existing source/page
 scope and never supplies geometry.
 
-The resolver will publish a `protected_composition` projection alongside the
-existing Framed profile facts. It uses one declared normalized canvas coordinate
-space (`0..1` per axis), one reserved-header region, and one body-safe region.
-The body-safe region must lie in the canvas and not overlap the reserved region.
-Both are deterministically derived from the selected profile's existing local
-geometry and declared canvas, never from a slide, C5 output, or previous raw
-contract. The C5 page-layout serializes this projection as inspection only;
-the adapter continues to consume the resolver output.
+The current variable-length `protected_geometry` is retired from every current
+Framed profile, projection, renderer, raw contract, request, plan binding, and
+review guide. Its replacement is one profile-owned CSS-pixel `header_region`
+with exactly `x`, `y`, `width`, and `height`. It must lie in the declared
+canvas, contain every permitted local-header field rectangle, and leave a
+positive-height region below its bottom edge.
+
+The resolver publishes one `protected_composition` beside the local profile
+facts. Its exact shape is `coordinate_space: normalized-canvas`, one normalized
+`reserved_header`, and one normalized `body_safe`. `reserved_header` is
+`header_region` divided by the declared CSS canvas dimensions. `body_safe` is
+`{ x: 0, y: reserved_header.y + reserved_header.height, width: 1, height: 1 -
+reserved_header.y - reserved_header.height }`. Both regions must lie in `0..1`, have positive width/height,
+and not overlap. This formula makes the full-width area below the local header
+the only provider-safe region; it does not create a local body band. The facts
+are derived only from the selected profile and canvas, never from a slide, C5
+output, or previous raw contract. C5 `page-layout` serializes this projection
+as inspection only; the adapter continues to consume resolver output.
 
 This replaces bare CSS coordinate lists as the provider-facing semantic
-contract while retaining local CSS geometry for deterministic overlay rendering.
-It keeps the full provider canvas and transparent overlay, so it cannot become
-a blank header band or an implicit local body renderer.
+contract while retaining the one named local header region for deterministic
+overlay rendering. It keeps the full provider canvas and transparent overlay,
+so it cannot become a blank header band or an implicit local body renderer.
 
-The `page-source-receipt`, `page-layout`, and `image2-request` stage
-definitions will collectively declare the source restriction (both workflows),
-Framed composition provenance, and the Framed local-only-header boundary. The
-existing opt-in conformance sweep will assert that boundary from synthetic data
-only; it remains non-runtime and cannot authorize or reject provider work.
+The schema README and the `page-source-receipt`, `layout-config`, `page-layout`,
+and `image2-request` stage definitions will declare the source restriction
+(both workflows), current Framed `header_region`/
+`protected_composition` terms, composition provenance, and the Framed
+local-only-header boundary. The existing opt-in conformance sweep will assert
+that boundary from synthetic data only; it remains non-runtime and cannot
+authorize or reject provider work.
 
 **Alternative rejected:** send CSS pixels with a provider size conversion in
 the adapter. It makes the input depend on a specific output raster size and
@@ -81,21 +95,24 @@ input. The `context_not_to_render` literal mirror is removed from the current
 Framed receipt/Core/request shape. The provider request instead states the
 normalized coordinate system, reserved-header region, body-safe region, and
 the non-text requirements for readable body content and key subjects. It never
-serializes kicker, title, subtitle, or a field derived from their literal
-values.
-
-The request is intentionally a bounded best-effort avoidance instruction. It
+serializes a local-header field or context derived from a kicker, title, or
+subtitle literal. Independently source-owned provider content retains its own
+permitted literal when it happens to match one by spelling. The request is
+intentionally a bounded best-effort avoidance instruction. It
 does not assert provider compliance and does not create a provider-native
 capability claim. This removes the conflicting instruction to imitate the very
 literals that the local renderer will draw.
 
 The clean current-contract cutover updates the parser/receipt, Core, Framed
-overlay and raw-contract readers, compiler, architecture prompt-assembly
-inventory, shared fixtures, and `BOOTSTRAP.md` together. C5 publication keeps
-serializing the adapter-owned exact request as opaque bytes, so it has no
-separate header-context reader. There is no legacy reader, converter, or
-fallback shape: a current Framed receipt containing the removed field is
-invalid at its owning current validator.
+overlay/render-profile/raw-contract readers, compiler, raw-plan bindings,
+invalidation evaluator, review guide, architecture prompt-assembly inventory,
+the run-bundle initializer's current source template, shared fixtures, schema
+terminology, and `BOOTSTRAP.md` together. C5
+publication keeps serializing the adapter-owned exact request as opaque bytes,
+so it has no separate header-context reader. There is no legacy reader,
+converter, or fallback shape: a current Framed receipt containing
+`context_not_to_render`, or a current profile/contract/binding containing
+`protected_geometry`, is invalid at its owning current validator.
 
 **Alternative rejected:** retain literal `context_not_to_render` with stronger
 negative wording. A deterministic request test could prove only the wording,
@@ -128,25 +145,29 @@ the raw lifecycle owns authorization and evidence; Complete Page Review owns
 the sole acceptance decision.
 
 The composition digest and Framed restriction binding become direct compiled
-input/raw-contract bindings. Drift forces the existing raw-rebuild path and a
-new Complete Page Review; it can never select a local-header-only refresh or
-reuse a provider page. Profile/source/configuration integrity failures are
-hard-stops because they protect attributable canonical bytes and raw lineage.
-Their recovery is the existing source/configuration repair followed by the same
-planning checkpoint.
+input/raw-contract bindings. The existing raw-review contribution displays the
+same composition as two labeled normalized guide rectangles,
+`reserved_header` and `body_safe`, bound to that page's profile and raw lineage.
+They are review context, not a quality verdict. Drift forces the existing
+raw-rebuild path and a new Complete Page Review; it can never select a
+local-header-only refresh or reuse a provider page. Profile/source/configuration
+integrity failures are hard-stops because they protect attributable canonical
+bytes and raw lineage. Their recovery is the existing source/configuration
+repair followed by the same planning checkpoint.
 
-Visual observation of a collision is a `guide`: the Agent presents it through
-the existing review and recommends the existing repair path. It is not a
-`confirm`, because routine review is already the human decision, and it cannot
-be a `hard-stop` quality assertion when raster compliance is not reliably
-determinable. No waiver is introduced. This follows the human-centered control
-policy while retaining the shortest direct loop required by the assistance and
-simple-control policies.
+The composition guides are `guide` evidence in the existing review: the Agent
+presents them with the exact provider page and composite and recommends the
+existing repair path when a human sees a collision. C6 adds no occupancy,
+collision, OCR, or other automated observation. It is not a `confirm`, because
+routine review is already the human decision, and it cannot be a `hard-stop`
+quality assertion when raster compliance is not reliably determinable. No
+waiver is introduced. This follows the human-centered control policy while
+retaining the shortest direct loop required by the assistance and simple-control
+policies.
 
-**Alternative rejected:** add OCR as a blocking validator. It would create a
+**Alternative rejected:** add OCR or an occupancy diagnostic. It would create a
 second, host-dependent authority for a fact the provider output cannot be
-reliably evaluated from deterministic inputs. Any observation remains optional
-advisory evidence with a bounded false-positive policy.
+reliably evaluated from deterministic inputs.
 
 ### 5. Native provider capability and paid probe remain external
 
@@ -165,21 +186,25 @@ keeps a future external capability decision from silently widening C6.
 
 - [Prompt-only composition can still be ignored] -> describe the request as
   bounded best effort and keep the existing human Complete Page Review.
-- [Profile geometry is malformed] -> validate normalized containment and
-  non-overlap before C5 publication or provider initialization; repair the
-  owning profile and rerun the same planning checkpoint.
+- [Profile geometry is malformed] -> require one in-canvas `header_region`,
+  containment of permitted header fields, a positive body-safe height, and the
+  fixed normalized derivation before C5 publication or provider initialization;
+  repair the owning profile and rerun the same planning checkpoint.
 - [Clean contract cutover makes former records unreadable] -> active readers
   and writers change together; do not add a legacy reader or migrate production
   records. Historical bytes remain untouched and outside C6 scope.
 - [Restriction propagation leaks into Pure] -> validate workflow isolation in
   Core, both adapters, and contract tests.
-- [A diagnostic becomes a duplicate controller] -> retain no diagnostic unless
-  it is provider-free, advisory, and does not write a decision/state record.
+- [A diagnostic becomes a duplicate controller] -> C6 adds no automated
+  diagnostic; the two deterministic guide rectangles remain evidence for the
+  existing human Complete Page Review only.
 
 ## Migration Plan
 
-1. Update the active schema declarations, resolver, Core, Framed compiler, and
-   current validators together so every newly planned current Framed run uses
+1. Replace `protected_geometry` atomically with `header_region` and the fixed
+   resolver-derived `protected_composition` across active schema declarations,
+   resolver, Core, Framed renderer/compiler, raw-plan binding, invalidation,
+   review guide, and current validators so every newly planned Framed run uses
    the same contract.
 2. Regenerate C5 derived data only through `image2 plan`; do not hand-edit
    `_generated/` or copy a prior request, raw contract, or review record.
@@ -191,16 +216,18 @@ keeps a future external capability decision from silently widening C6.
 
 ## Verification Strategy
 
-- **Unit:** validate normalized composition invariants, Framed-only Core
+- **Unit:** validate the one `header_region` profile shape, permitted-field
+  containment, exact normalized composition formula, Framed-only Core
   restriction propagation, retention of Pure's existing source/identity
-  restriction semantics without a C6 Framed request field, absence of header
-  literals from canonical provider bytes, direct digest changes, and the
-  closed source-restriction grammar. Cover every direct current
-  `context_not_to_render` reader/writer so a removed-field receipt is rejected
-  rather than compatibility-read.
+  restriction semantics without a C6 Framed request field, absence of
+  local-header/context fields from canonical provider input while allowing
+  same-spelling independently sourced provider content, direct digest changes,
+  and the closed source-restriction grammar. Cover every direct current
+  `context_not_to_render` or `protected_geometry` reader/writer so removed-field
+  inputs are rejected rather than compatibility-read.
 - **Integration:** compile representative Framed profiles through resolver,
-  Core, raw contract, C5 publisher, and mock transport; prove Pure isolation,
-  pre-publication hard-stops, and raw-rebuild classification.
+  Core, raw contract, C5 publisher, review guide, and mock transport; prove
+  Pure isolation, pre-publication hard-stops, and raw-rebuild classification.
 - **Static conformance:** extend the existing synthetic sweep to assert C6
   stage-field ownership and Framed/Pure presence/absence without loading a Run
   Bundle or becoming a runtime validator.

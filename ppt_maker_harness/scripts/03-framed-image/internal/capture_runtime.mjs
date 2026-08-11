@@ -192,7 +192,7 @@ function layoutExpectationFor(pageSpec) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     throw new TypeError('render-contract layout expectation is required');
   }
-  if (!value.slide || !Array.isArray(value.fields) || !Array.isArray(value.protected_geometry) || !value.overlay || typeof value.overlay !== 'object') {
+  if (!value.slide || !Array.isArray(value.fields) || !value.header_region || typeof value.header_region !== 'object' || !value.overlay || typeof value.overlay !== 'object') {
     throw new TypeError('render-contract layout expectation is incomplete');
   }
   return value;
@@ -268,13 +268,13 @@ async function verifyRenderContractLayout(page, expectation, expectedLeafMarkers
       if (lineYs.length > expected.max_lines) {
         throw new Error(`field ${expected.id} exceeds ${expected.max_lines} rendered lines`);
       }
-      const protectedZone = layout.protected_geometry.find((zone) => (
-        actual.x >= rootRect.x + zone.x - epsilon
-        && actual.y >= rootRect.y + zone.y - epsilon
-        && actual.right <= rootRect.x + zone.x + zone.width + epsilon
-        && actual.bottom <= rootRect.y + zone.y + zone.height + epsilon
-      ));
-      if (!protectedZone) throw new Error(`field ${expected.id} escapes the protected header geometry`);
+      const headerRegion = layout.header_region;
+      if (actual.x < rootRect.x + headerRegion.x - epsilon
+        || actual.y < rootRect.y + headerRegion.y - epsilon
+        || actual.right > rootRect.x + headerRegion.x + headerRegion.width + epsilon
+        || actual.bottom > rootRect.y + headerRegion.y + headerRegion.height + epsilon) {
+        throw new Error(`field ${expected.id} escapes the header region`);
+      }
       fields[expected.id] = { rect: actual, line_count: lineYs.length, scroll_width: node.scrollWidth, scroll_height: node.scrollHeight };
     }
 

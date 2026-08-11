@@ -53,3 +53,12 @@ fields:
       means: "The parser did not produce a complete page that later work can trace."
       ask: "Which content and approved visual selection belong to this page?"
       never: "Never replace parsed facts with a generated image description."
+  subject_restrictions:
+    type: closed enum
+    description: "The parser-owned normalized visual subject restriction shared by both workflows."
+    rule: "Must be exactly none, no-generic-metal-robot, or no-identity-subject; an omitted authored value normalizes to none before receipt publication."
+    default: none
+    on_violation:
+      means: "The page has no declared current subject-restriction fact that downstream owners can bind."
+      ask: "Choose the supported subject restriction that describes the intended page visual."
+      never: "Never infer a restriction from a prior request, generated page, or workflow-specific fallback."

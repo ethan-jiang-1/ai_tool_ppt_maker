@@ -202,7 +202,7 @@ function finitePositive(value) {
 }
 
 function validateFramedProfile(profile, profileId, source) {
-  exactKeys(profile, ["permitted_fields", "canvas", "font_families", "theme", "protected_geometry", "fields"], `Framed profile ${profileId}`);
+  exactKeys(profile, ["permitted_fields", "canvas", "font_families", "theme", "header_region", "fields"], `Framed profile ${profileId}`);
   if (!Array.isArray(profile.permitted_fields) || profile.permitted_fields.length === 0 ||
     new Set(profile.permitted_fields).size !== profile.permitted_fields.length ||
     !profile.permitted_fields.includes("title") || profile.permitted_fields.some((field) => !HEADER_FIELDS.includes(field))) {
@@ -222,18 +222,15 @@ function validateFramedProfile(profile, profileId, source) {
     ![profile.theme.contrast.offset_x, profile.theme.contrast.offset_y, profile.theme.contrast.blur].every(Number.isFinite)) {
     throw new PageImagePresentationError("page_image_presentation_framed_profile_invalid", `Framed profile ${profileId} has invalid minimal contrast facts`, { source, profile_id: profileId });
   }
-  if (!Array.isArray(profile.protected_geometry) || profile.protected_geometry.length === 0 || !isRecord(profile.fields)) {
+  if (!isRecord(profile.header_region) || !isRecord(profile.fields)) {
     throw new PageImagePresentationError("page_image_presentation_framed_profile_invalid", `Framed profile ${profileId} has invalid geometry facts`, { source, profile_id: profileId });
   }
-  const guides = new Set();
-  for (const guide of profile.protected_geometry) {
-    exactKeys(guide, ["id", "x", "y", "width", "height"], `Framed profile ${profileId}.protected_geometry`);
-    if (typeof guide.id !== "string" || !guide.id || guides.has(guide.id) || ![guide.x, guide.y, guide.width, guide.height].every(Number.isFinite) ||
-      guide.x < 0 || guide.y < 0 || guide.width <= 0 || guide.height <= 0 ||
-      guide.x + guide.width > profile.canvas.css_width || guide.y + guide.height > profile.canvas.css_height) {
-      throw new PageImagePresentationError("page_image_presentation_framed_profile_invalid", `Framed profile ${profileId} has an invalid protected region`, { source, profile_id: profileId });
-    }
-    guides.add(guide.id);
+  exactKeys(profile.header_region, ["x", "y", "width", "height"], `Framed profile ${profileId}.header_region`);
+  const headerRegion = profile.header_region;
+  if (![headerRegion.x, headerRegion.y, headerRegion.width, headerRegion.height].every(Number.isFinite) ||
+    headerRegion.x < 0 || headerRegion.y < 0 || headerRegion.width <= 0 || headerRegion.height <= 0 ||
+    headerRegion.x + headerRegion.width > profile.canvas.css_width || headerRegion.y + headerRegion.height >= profile.canvas.css_height) {
+    throw new PageImagePresentationError("page_image_presentation_framed_profile_invalid", `Framed profile ${profileId} has an invalid header region`, { source, profile_id: profileId });
   }
   for (const field of HEADER_FIELDS) {
     exactKeys(profile.fields[field], ["x", "y", "width", "height", "font_size", "line_height", "weight", "color", "max_lines"], `Framed profile ${profileId}.fields.${field}`);
@@ -242,7 +239,29 @@ function validateFramedProfile(profile, profileId, source) {
       typeof facts.color !== "string" || !/^#[0-9a-f]{6}$/i.test(facts.color) || facts.x + facts.width > profile.canvas.css_width || facts.y + facts.height > profile.canvas.css_height) {
       throw new PageImagePresentationError("page_image_presentation_framed_profile_invalid", `Framed profile ${profileId} has an invalid ${field} local field`, { source, profile_id: profileId });
     }
+    if (profile.permitted_fields.includes(field) && (facts.x < headerRegion.x || facts.y < headerRegion.y || facts.x + facts.width > headerRegion.x + headerRegion.width || facts.y + facts.height > headerRegion.y + headerRegion.height)) {
+      throw new PageImagePresentationError("page_image_presentation_framed_profile_invalid", `Framed profile ${profileId} has a permitted ${field} field outside its header region`, { source, profile_id: profileId });
+    }
   }
+}
+
+function protectedComposition(profile) {
+  const reservedHeader = Object.freeze({
+    x: profile.header_region.x / profile.canvas.css_width,
+    y: profile.header_region.y / profile.canvas.css_height,
+    width: profile.header_region.width / profile.canvas.css_width,
+    height: profile.header_region.height / profile.canvas.css_height,
+  });
+  return Object.freeze({
+    coordinate_space: "normalized-canvas",
+    reserved_header: reservedHeader,
+    body_safe: Object.freeze({
+      x: 0,
+      y: reservedHeader.y + reservedHeader.height,
+      width: 1,
+      height: 1 - reservedHeader.y - reservedHeader.height,
+    }),
+  });
 }
 
 function validateFramedProfiles(document, catalog) {
@@ -309,6 +328,7 @@ export function resolvePageImagePresentation({ package: presentationPackage, wor
     profile_id: profileId,
     defaults: presentationPackage.defaults,
     profile,
+    ...(workflow === "framed" ? { protected_composition: protectedComposition(profile) } : {}),
   };
   return deepFreeze({
     ...binding,

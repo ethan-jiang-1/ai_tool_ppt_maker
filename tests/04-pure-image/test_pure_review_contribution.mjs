@@ -18,7 +18,7 @@ function pureProviderInputBinding(compiled = "a") {
     header_policy_sha256: digest("f"),
     page_presentation_sha256: digest("9"),
     local_header_profile_sha256: null,
-    protected_geometry_sha256: null,
+    protected_composition_sha256: null,
   };
 }
 
@@ -32,12 +32,14 @@ function pureReceipt() {
       {
         slide_id: "DeckGo",
         position: 1,
+        subject_restrictions: "none",
         header_policy: { provider_visible: { kicker: null, title: "Pure first title", subtitle: null } },
         provider_content: { items: [] },
       },
       {
         slide_id: "FlowUp",
         position: 2,
+        subject_restrictions: "none",
         header_policy: { provider_visible: { kicker: null, title: "Pure second title", subtitle: null } },
         provider_content: { items: [] },
       },
@@ -75,7 +77,7 @@ describe("Pure raw-review contribution", () => {
     ]);
     const sharedInput = JSON.stringify(contribution);
     expect(sharedInput).not.toContain("local_header");
-    expect(sharedInput).not.toContain("protected_geometry");
+    expect(sharedInput).not.toContain("protected_composition");
     expect(sharedInput).not.toContain("framed");
     expect(contribution.coverage.items.every((item) => item.guide_primitives.length === 0)).toBe(true);
   });

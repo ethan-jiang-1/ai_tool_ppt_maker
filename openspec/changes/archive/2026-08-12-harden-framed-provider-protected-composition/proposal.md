@@ -13,25 +13,30 @@ creating a second review decision.
 
 ## What Changes
 
-- Define one Framed protected-composition binding derived from the resolved
-  Framed profile: normalized reserved-header geometry, explicit canvas
-  semantics, and a body-safe region. It remains provider-facing guidance and a
+- Replace the current variable-length Framed `protected_geometry` profile
+  field with one CSS-pixel `header_region` that contains the profile's permitted
+  local header fields. The resolver derives the sole normalized
+  `protected_composition`: its `reserved_header` is that region in one declared
+  normalized canvas space and its `body_safe` region is the full-width canvas
+  area below the reserved header. It remains provider-facing guidance and a
   review guide, not source-authored coordinates, an opaque local panel, or a
   native-provider guarantee.
 - Carry the source-owned closed `subject_restrictions` facts through Page Image
   Core into the immutable Framed raw contract and exact provider request.
 - Compile the Framed request from these bindings with an honest bounded
   best-effort instruction: readable provider body text and key subjects must
-  use the body-safe region, and exact local header literals are not serialized
-  as provider context. Changes to any of these bindings require raw rebuild and
+  use the body-safe region, and no local-header field or header-derived context
+  is serialized for the provider. Independently source-owned provider content
+  may retain its own literal even when its spelling matches a local header.
+  Changes to any of these bindings require raw rebuild and
   a new Complete Page Review.
 - Preserve the existing full-canvas provider page, transparent local header,
   exact transport bytes, Task-Mandate lifecycle, and single human Complete Page
   Review `proceed | repair` decision. No C6-specific approval, retry, state,
   or recovery controller is introduced.
-- Add deterministic contract and invalidation coverage. Any optional
-  provider-free occupancy diagnostic remains advisory and must have a defined
-  false-positive policy; OCR does not become a production dependency or an
+- Add deterministic contract and invalidation coverage. C6 introduces no
+  provider-free occupancy diagnostic or OCR dependency: the composition guides
+  are evidence for the existing human Complete Page Review, not an automated
   acceptance gate.
 - Record a bounded synthetic provider probe as an explicit external Work
   Request prerequisite. A native region/mask transport extension is out of
@@ -59,7 +64,8 @@ None.
   local-only header boundary in the schema definitions and opt-in static
   conformance coverage without introducing a runtime controller.
 - `visual-config`: expose the selected Framed profile's normalized protected
-  composition and body-safe facts as workflow-isolated resolver output.
+  composition and body-safe facts as workflow-isolated resolver output, while
+  cleanly retiring the ambiguous variable-length protected-geometry field.
 
 ## Impact
 
@@ -68,6 +74,10 @@ None.
   invalidation route, and the current `BOOTSTRAP.md` workflow guidance. The
   header-contract clean cutover also reaches the Framed overlay/raw-contract
   validators and the architecture guard that inventories prompt assembly.
+- **Schema terminology:** the schema README and the `layout-config`,
+  `page-layout`, and `image2-request` stage definitions will define
+  `header_region` and `protected_composition` as current Framed terms; the
+  former `protected_geometry` shape has no current alias or reader.
 - **Tests:** focused parser/Core/Framed/raw-review coverage, clean-cutover
   coverage for every direct current header reader/writer and shared fixture,
   schema/conformance assertions, and the existing mock-provider path.
@@ -79,6 +89,9 @@ None.
   `openspec/policies/human-centered-gates.md`,
   `openspec/policies/agent-assistance-and-control.md`, and
   `openspec/policies/simple-reliable-control.md`.
-- **Run-bundle contract:** compatible provider-free contract change. Existing
-  production bundles are neither read, migrated, nor rewritten; an explicit
+- **Run-bundle contract:** migration. C6 deliberately provides no automatic
+  reader, converter, or production-bundle migration: a selected older bundle
+  can enter the current contract only after its owned source/configuration is
+  explicitly repaired and provider-free planning is regenerated. Existing
+  production bundles are neither read nor rewritten by this change; an explicit
   synthetic run is required for a paid probe, and v3 repair remains C7 work.

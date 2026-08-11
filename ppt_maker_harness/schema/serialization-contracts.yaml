@@ -240,3 +240,4 @@ implementation_invariants:
   - name: Page Image runtime values are declared by the selector, shared-contract, or wire-schema group above.
   - name: Existing kind fields describe business or action semantics and are not serialization roles.
   - name: C4 materializes source Page Class, four layout-config contracts, and in-memory per-page presentation bindings; C5 publishes only the current provider-free per-page inspection projection.
+  - name: C6 declares subject_restrictions on both workflow receipts, while Framed alone publishes selected-profile header_region and exact normalized protected_composition lineage; current Framed requests omit local header literals, header-derived context, and protected_geometry.

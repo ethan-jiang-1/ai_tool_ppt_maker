@@ -194,13 +194,14 @@ const FRAMED_RAW_CONTRACT_FRAME_KEYS = Object.freeze([
   "profile_digest",
   "presentation_binding_sha256",
   "canvas",
-  "protected_geometry",
+  "protected_composition",
   "local_header",
-  "context_not_to_render",
+  "subject_restrictions",
   "render_profile_digest",
 ]);
-const FRAMED_HEADER_POLICY_KEYS = Object.freeze(["local_header", "context_not_to_render"]);
+const FRAMED_HEADER_POLICY_KEYS = Object.freeze(["local_header"]);
 const FRAMED_HEADER_FIELDS = Object.freeze(["kicker", "title", "subtitle"]);
+const SUBJECT_RESTRICTIONS = new Set(["none", "no-generic-metal-robot", "no-identity-subject"]);
 const SHA256_RE = /^[0-9a-f]{64}$/;
 
 function hasExactKeys(value, keys) {
@@ -208,12 +209,26 @@ function hasExactKeys(value, keys) {
     Object.keys(value).length === keys.length && keys.every((key) => Object.hasOwn(value, key));
 }
 
-function isRectangle(value, canvas) {
+function isNormalizedRectangle(value) {
   return Boolean(value && typeof value === "object" && !Array.isArray(value)) &&
     hasExactKeys(value, ["x", "y", "width", "height"]) &&
     [value.x, value.y, value.width, value.height].every(Number.isFinite) &&
     value.width > 0 && value.height > 0 && value.x >= 0 && value.y >= 0 &&
-    value.x + value.width <= canvas.css_width && value.y + value.height <= canvas.css_height;
+    value.x + value.width <= 1 && value.y + value.height <= 1;
+}
+
+function isProtectedComposition(value) {
+  if (!hasExactKeys(value, ["coordinate_space", "reserved_header", "body_safe"]) ||
+    value.coordinate_space !== "normalized-canvas" ||
+    !isNormalizedRectangle(value.reserved_header) || !isNormalizedRectangle(value.body_safe)) {
+    return false;
+  }
+  const reserved = value.reserved_header;
+  const bodySafe = value.body_safe;
+  return bodySafe.x === 0 && bodySafe.width === 1 &&
+    bodySafe.y === reserved.y + reserved.height &&
+    bodySafe.height === 1 - reserved.y - reserved.height &&
+    reserved.y + reserved.height < 1;
 }
 
 function validateFramedRawContractAgainstProfile(rawContract, renderProfile) {
@@ -239,8 +254,9 @@ function validateFramedRawContractAgainstProfile(rawContract, renderProfile) {
     const frame = rawContract.framed;
     if (frame.profile_id !== renderProfile?.preset?.id ||
       frame.profile_digest !== renderProfile?.preset?.digest ||
-      !Array.isArray(frame.protected_geometry) || frame.protected_geometry.length === 0 ||
-      frame.protected_geometry.some((rectangle) => !isRectangle(rectangle, frame.canvas)) ||
+      !hasExactKeys(frame.canvas, ["css_width", "css_height", "capture_width", "capture_height"]) ||
+      !isProtectedComposition(frame.protected_composition) ||
+      !SUBJECT_RESTRICTIONS.has(frame.subject_restrictions) ||
       !SHA256_RE.test(frame.presentation_binding_sha256 || "") || !SHA256_RE.test(frame.render_profile_digest || "")) {
       throw new FramedImageWorkflowError("framed_raw_contract_invalid", "Framed raw contract has invalid frame facts");
     }
@@ -252,11 +268,9 @@ function validateFramedRawContractAgainstProfile(rawContract, renderProfile) {
     }
     const headerPolicy = normalizePageImageHeaderPolicy({
       local_header: frame.local_header,
-      context_not_to_render: frame.context_not_to_render,
     }, FRAMED_IMAGE_WORKFLOW);
     const providerContent = normalizePageImageProviderContent(rawContract.provider_rendered_content);
     if (canonicalJsonSha256(headerPolicy.local_header) !== canonicalJsonSha256(frame.local_header) ||
-      canonicalJsonSha256(headerPolicy.context_not_to_render) !== canonicalJsonSha256(frame.context_not_to_render) ||
       canonicalJsonSha256(providerContent.items) !== canonicalJsonSha256(rawContract.provider_rendered_content.items)) {
       throw new FramedImageWorkflowError("framed_raw_contract_invalid", "Framed raw contract must retain normalized Page Image Core facts");
     }
@@ -296,19 +310,19 @@ function requireReceipt(receipt) {
   return receipt;
 }
 
-function canonicalFramedFrameFacts(frame) {
+function canonicalFramedFrameFacts(frame, presentation) {
   const layout = frame?.layout;
   const profile = frame?.render_profile;
   if (!layout || !profile || typeof profile.preset?.id !== "string" ||
     !SHA256_RE.test(profile.preset?.digest || "") ||
-    !layout.canvas || !Array.isArray(layout.protected_geometry) || layout.protected_geometry.length === 0) {
+    !layout.canvas || !isProtectedComposition(presentation?.protected_composition)) {
     throw new FramedImageWorkflowError("framed_render_contract_invariant_failed", "Framed render contract is missing canonical raw facts");
   }
   return Object.freeze({
     profile_id: profile.preset.id,
     profile_digest: profile.preset.digest,
     canvas: layout.canvas,
-    protected_geometry: Object.freeze(layout.protected_geometry.map(({ x, y, width, height }) => ({ x, y, width, height }))),
+    protected_composition: presentation.protected_composition,
   });
 }
 
@@ -317,11 +331,10 @@ function framedHeaderOverlayInput(slide) {
   const presentation = slide?.visual_language?.presentation;
   if (!hasExactKeys(policy, FRAMED_HEADER_POLICY_KEYS) ||
     !hasExactKeys(policy.local_header, FRAMED_HEADER_FIELDS) ||
-    !hasExactKeys(policy.context_not_to_render, FRAMED_HEADER_FIELDS) ||
-    canonicalJsonSha256(policy.local_header) !== canonicalJsonSha256(policy.context_not_to_render) ||
     !presentation || presentation.workflow !== FRAMED_IMAGE_WORKFLOW || presentation.page_class !== slide.page_class ||
-    !SHA256_RE.test(presentation.binding_sha256 || "") || !presentation.profile || typeof presentation.profile !== "object") {
-    throw new FramedImageWorkflowError("framed_header_policy_invalid", "Framed slides require one closed local header and matching context-not-to-render facts");
+    !SHA256_RE.test(presentation.binding_sha256 || "") || !presentation.profile || typeof presentation.profile !== "object" ||
+    !isProtectedComposition(presentation.protected_composition)) {
+    throw new FramedImageWorkflowError("framed_header_policy_invalid", "Framed slides require one closed local header and protected composition");
   }
   return Object.freeze({
     slide_id: slide.slide_id,
@@ -418,8 +431,8 @@ export function createFramedRawWorkPlan({
 }
 
 /**
- * Map Framed's canonical header-overlay geometry into the shared review
- * contribution interface. Protected geometry is a provider-avoidance and
+ * Map Framed's canonical protected composition into the shared review
+ * contribution interface. Composition is a provider-avoidance and
  * review fact, never a rendered panel or blank strip.
  */
 export function createFramedTargetRawReviewContribution({ receipt, rawWorkPlan } = {}) {
@@ -448,16 +461,19 @@ export function createFramedTargetRawReviewContribution({ receipt, rawWorkPlan }
   const contribution = createTargetRawReviewContribution({
     workflow: FRAMED_IMAGE_WORKFLOW,
     ordered_stable_ids: rawWorkPlan.ordered_slide_ids,
-    coverage_items: described.map(({ frame }, index) => ({
+    coverage_items: described.map(({ slide, frame }, index) => ({
       stable_id: rawWorkPlan.ordered_slide_ids[index],
       coverage_profile_digest: frame.render_profile.render_profile_digest,
-      guide_primitives: frame.layout.protected_geometry.map((rectangle, guideIndex) => ({
+      guide_primitives: [
+        ["reserved_header", slide.visual_language.presentation.protected_composition.reserved_header],
+        ["body_safe", slide.visual_language.presentation.protected_composition.body_safe],
+      ].map(([guide_id, rectangle]) => ({
         kind: "rectangle",
-        guide_id: `guide_${guideIndex + 1}`,
-        x: rectangle.x / frame.layout.canvas.css_width,
-        y: rectangle.y / frame.layout.canvas.css_height,
-        width: rectangle.width / frame.layout.canvas.css_width,
-        height: rectangle.height / frame.layout.canvas.css_height,
+        guide_id,
+        x: rectangle.x,
+        y: rectangle.y,
+        width: rectangle.width,
+        height: rectangle.height,
       })),
     })),
     projection_labels: described.map(({ title }, index) => ({
@@ -516,7 +532,7 @@ function framedCompletePageReviewInputs({ context, reviewPlan, rawBytesBySlide, 
       raw_provider_page_sha256: providerSha256,
       header_overlay: framedHeaderOverlayInput(slide),
       render_profile_sha256: frame.render_profile.render_profile_digest,
-      protected_geometry_sha256: canonicalJsonSha256(frame.layout.protected_geometry),
+      protected_composition_sha256: canonicalJsonSha256(slide.visual_language.presentation.protected_composition),
     });
   }
   return Object.freeze({
@@ -801,15 +817,15 @@ function framedRawContract(slide, frame, coreSlide) {
     throw new FramedImageWorkflowError("framed_render_contract_invariant_failed", `Framed render contract is unavailable for ${slide.slide_id}`);
   }
   if (coreSlide.slide_id !== slide.slide_id || coreSlide.workflow !== FRAMED_IMAGE_WORKFLOW ||
-    coreSlide.header_policy?.local_header === undefined || coreSlide.header_policy?.context_not_to_render === undefined) {
+    coreSlide.header_policy?.local_header === undefined || !SUBJECT_RESTRICTIONS.has(coreSlide.subject_restrictions)) {
     throw new FramedImageWorkflowError("framed_page_image_core_invalid", `Framed Page Image Core facts are unavailable for ${slide.slide_id}`);
   }
-  const facts = canonicalFramedFrameFacts(frame);
   const presentation = coreSlide.visual_selection?.presentation;
   if (!presentation || presentation.workflow !== FRAMED_IMAGE_WORKFLOW ||
     presentation.page_class !== slide.page_class || !SHA256_RE.test(presentation.binding_sha256 || "")) {
     throw new FramedImageWorkflowError("framed_page_presentation_required", `Framed page presentation is unavailable for ${slide.slide_id}`);
   }
+  const facts = canonicalFramedFrameFacts(frame, presentation);
   const providerClauses = coreSlide.visual_selection?.provider_clauses || null;
   const identityRoleClause = coreSlide.visual_selection?.identity_reference?.provider_reference?.role_clause || null;
   const rawContract = Object.freeze({
@@ -832,7 +848,7 @@ function framedRawContract(slide, frame, coreSlide) {
       ...facts,
       presentation_binding_sha256: presentation.binding_sha256,
       local_header: { ...coreSlide.header_policy.local_header },
-      context_not_to_render: { ...coreSlide.header_policy.context_not_to_render },
+      subject_restrictions: coreSlide.subject_restrictions,
       render_profile_digest: frame.render_profile.render_profile_digest,
     },
   });
@@ -848,10 +864,10 @@ function compileFramedProviderInput({ slideId, rawContract, generationProfile } 
   const utf8 = canonicalJson({
     schema: "page-image-framed-provider-input",
     slide_id: slideId,
-    instruction: "Render one complete premium keynote provider page. Render every provider-rendered content item as readable integrated page typography. Keep the full provider canvas continuous. Do not render, repeat, or approximate the fixed header literals; avoid provider text and key subjects in the protected geometry.",
+    instruction: "Render one complete premium keynote provider page. Render every provider-rendered content item as readable integrated page typography. Keep the full provider canvas continuous. Place readable provider body text and key subjects in the normalized body-safe region; reserve the normalized header region for the deterministic local overlay.",
     provider_rendered_content: rawContract.provider_rendered_content,
-    context_not_to_render: rawContract.framed.context_not_to_render,
-    protected_geometry: rawContract.framed.protected_geometry,
+    subject_restrictions: rawContract.framed.subject_restrictions,
+    protected_composition: rawContract.framed.protected_composition,
     visual: {
       recipe: rawContract.provider_clauses.recipe,
       composition: rawContract.provider_clauses.composition,
@@ -903,7 +919,7 @@ function compileFramedTargetRawPlanCandidate(context) {
       coreSlide,
       compiledProviderInputSha256: compiledProviderInput.sha256,
       localHeaderProfileSha256: frame.render_profile.render_profile_digest,
-      protectedGeometrySha256: canonicalJsonSha256(rawContract.framed.protected_geometry),
+      protectedCompositionSha256: canonicalJsonSha256(rawContract.framed.protected_composition),
     });
   }
   const authorizationScopeSha = canonicalJsonSha256({
@@ -939,7 +955,7 @@ function verifyFramedCandidateProof(candidate, proof) {
   for (const page of proof.pages) {
     const frame = candidate.frames_by_slide?.[page.slide_id];
     if (!frame || page.render_profile_digest !== frame.render_profile.render_profile_digest ||
-      canonicalJson(page.layout?.protected_geometry) !== canonicalJson(frame.layout.protected_geometry)) {
+      canonicalJson(page.layout?.header_region) !== canonicalJson(frame.layout.header_region)) {
       throw new FramedImageWorkflowError("framed_render_profile_stale", `Framed layout proof did not bind the candidate profile and guide for ${page.slide_id}`);
     }
   }

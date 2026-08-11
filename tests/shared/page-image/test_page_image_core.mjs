@@ -15,6 +15,7 @@ function visualSelection(workflow) {
     presentation: {
       workflow,
       page_class: "standard",
+      subject_restrictions: "none",
       binding_sha256: "c".repeat(64),
     },
   };
@@ -31,6 +32,7 @@ function sourceReceipt({ workflow = "framed" } = {}) {
       slide_id: "DeckGo",
       position: 1,
       page_class: "standard",
+      subject_restrictions: "none",
       provider_content: {
         items: [
           { role: "metric", literal: "92%", copy_policy: "exact" },
@@ -40,7 +42,6 @@ function sourceReceipt({ workflow = "framed" } = {}) {
       header_policy: workflow === "framed"
         ? {
           local_header: { kicker: "Operations", title: "A current source", subtitle: null },
-          context_not_to_render: { kicker: "Operations", title: "A current source", subtitle: null },
         }
         : { provider_visible: { kicker: "Operations", title: "A current source", subtitle: null } },
       visual_language: selection,
@@ -70,8 +71,9 @@ describe("Page Image Core", () => {
       slides: [{
         slide_id: "DeckGo",
         position: 1,
+        subject_restrictions: "none",
         header_policy: {
-          context_not_to_render: { title: "A current source" },
+          local_header: { title: "A current source" },
         },
       }],
     });
@@ -87,7 +89,8 @@ describe("Page Image Core", () => {
     const pure = createPageImageCoreFacts(coreInputs(sourceReceipt({ workflow: "pure" })));
 
     expect(framed.slides[0].provider_content).toEqual(pure.slides[0].provider_content);
-    expect(framed.slides[0].header_policy).toHaveProperty("context_not_to_render");
+    expect(framed.slides[0].header_policy).toHaveProperty("local_header");
+    expect(framed.slides[0].header_policy).not.toHaveProperty("context_not_to_render");
     expect(pure.slides[0].header_policy).toHaveProperty("provider_visible");
     expect(framed.slides[0].page_presentation_sha256).toBe("c".repeat(64));
     expect(pure.slides[0].page_presentation_sha256).toBe("c".repeat(64));
@@ -113,7 +116,15 @@ describe("Page Image Core", () => {
     expect(() => normalizePageImageHeaderPolicy({
       local_header: { kicker: null, title: "A title", subtitle: null },
       context_not_to_render: { kicker: null, title: "A different title", subtitle: null },
-    }, "framed")).toThrow(/same exact literals/);
+    }, "framed")).toThrow(/local_header only/);
+
+    const missingRestriction = sourceReceipt();
+    delete missingRestriction.slides[0].subject_restrictions;
+    expect(() => createPageImageCoreFacts(coreInputs(missingRestriction))).toThrow(/source receipt/);
+
+    const malformedRestriction = sourceReceipt();
+    malformedRestriction.slides[0].subject_restrictions = "no-robot";
+    expect(() => createPageImageCoreFacts(coreInputs(malformedRestriction))).toThrow(/source receipt/);
 
     const scopeMismatch = coreInputs(receipt);
     scopeMismatch.styleMasterSelection.workflow = "pure";

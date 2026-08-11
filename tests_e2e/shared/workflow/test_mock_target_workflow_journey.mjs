@@ -42,7 +42,7 @@ production:
 ${slides.map((slide, index) => `## Slide ${String(index + 1).padStart(2, "0")}: \`${slide.id}\`
 
 **TITLE**: ${slide.title}
-${slide.pageClass ? `**PAGE CLASS**: ${slide.pageClass}\n` : ""}${header(slide)}**SLIDE BODY**:
+${slide.pageClass ? `**PAGE CLASS**: ${slide.pageClass}\n` : ""}${slide.subjectRestrictions ? `**SUBJECT RESTRICTIONS**: ${slide.subjectRestrictions}\n` : ""}${header(slide)}**SLIDE BODY**:
 \`\`\`yaml
 items:
   - role: callout
@@ -437,6 +437,65 @@ describe("mock TARGET workflow journey", () => {
       ], provider.env));
       await authorizeBatch(fixture.runDir, provider.env, plan.plan_hash, pilot.batch, "pure");
       expect(provider.calls).toHaveLength(callsBeforePlan);
+    } finally {
+      await provider.close();
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
+  }, 90_000);
+
+  it("retains the exact Framed C6 request binding through public authorization and review", async () => {
+    const slides = [{
+      id: "FramGo",
+      title: "C6 public request binding",
+      note: "C6 public workflow fixture.",
+      subjectRestrictions: "no-identity-subject",
+    }];
+    const fixture = createTargetFixture("target-framed-c6-public-", "framed", slides);
+    const provider = await startMockProvider(pngBytes("#5d277f"));
+    try {
+      const lifecycle = await runTargetRawLifecycle(fixture.runDir, provider.env, slides);
+      const paths = pageImageWorkflowPaths(fixture.runDir);
+      const pagePaths = pageImageDerivedPagePaths(fixture.runDir, "FramGo");
+      const inspection = JSON.parse(readFileSync(paths.target_provider_request_inspection, "utf8"));
+      const c5Request = JSON.parse(readFileSync(pagePaths.image2_request, "utf8"));
+      const inspectedRequest = JSON.parse(inspection.items[0].prompt);
+      const providerInput = JSON.parse(inspectedRequest.compiled_provider_input.utf8);
+      const providerCall = provider.calls.find((call) => {
+        try {
+          return JSON.parse(call.body?.prompt || "{}").schema === "page-image-framed-provider-input";
+        } catch {
+          return false;
+        }
+      });
+
+      expect(inspection).toMatchObject({
+        workflow: "framed",
+        progressive_raw_work_plan_sha256: lifecycle.rawPlan.plan_hash,
+        target_raw_work_plan_sha256: expect.stringMatching(/^[0-9a-f]{64}$/),
+      });
+      expect(c5Request.payload).toMatchObject({
+        canonical_utf8: inspectedRequest.compiled_provider_input.utf8,
+        request_digest: inspectedRequest.compiled_provider_input.sha256,
+        adapter_binding: inspection.items[0].provider_input_binding,
+      });
+      expect(providerInput).toMatchObject({
+        subject_restrictions: "no-identity-subject",
+        protected_composition: {
+          coordinate_space: "normalized-canvas",
+          reserved_header: expect.any(Object),
+          body_safe: expect.objectContaining({ x: 0, width: 1 }),
+        },
+      });
+      expect(providerInput).not.toHaveProperty("local_header");
+      expect(providerInput).not.toHaveProperty("context_not_to_render");
+      expect(providerInput).not.toHaveProperty("protected_geometry");
+      expect(providerCall?.body?.prompt).toBe(inspectedRequest.compiled_provider_input.utf8);
+      expect(lifecycle.authorization).toMatchObject({ plan_hash: lifecycle.rawPlan.plan_hash });
+      expect(lifecycle.review).toMatchObject({ complete_raw_review_sha256: expect.stringMatching(/^[0-9a-f]{64}$/) });
+      expect(lifecycle.accepted).toMatchObject({
+        complete_raw_review_sha256: expect.stringMatching(/^[0-9a-f]{64}$/),
+        accepted_raw_evidence_sha256: expect.stringMatching(/^[0-9a-f]{64}$/),
+      });
     } finally {
       await provider.close();
       rmSync(fixture.root, { recursive: true, force: true });
