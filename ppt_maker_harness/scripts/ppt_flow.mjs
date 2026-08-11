@@ -1581,7 +1581,7 @@ const TARGET_GATE_CODES = new Set([
 ]);
 
 function isTargetArtifactFailure(code) {
-  if (["target_style_master_unavailable", "target_style_master_stale", "framed_raw_contract_profile_stale", "human_navigation_invalid"].includes(code)) return true;
+  if (["target_style_master_unavailable", "target_style_master_stale", "target_page_derived_publication_invalid", "framed_raw_contract_profile_stale", "human_navigation_invalid"].includes(code)) return true;
   return /^target_(?:source_receipt|source_state|raw_plan|raw_evidence|raw_review|accepted_raw_evidence|final_manifest|final_bytes|delivery)_.*(?:stale|required|missing|invalid|mismatch|drift)$/.test(code)
     || code === "target_raw_review_contribution_stale";
 }
@@ -2648,14 +2648,7 @@ async function rebuildTargetPageImageArtifactView(route) {
     sha256: currentRaw.plan.plan_hash,
   }));
   if (existsSync(paths.target_provider_request_inspection)) {
-    deckArtifacts.push(artifactReferenceEntry({
-      label: "provider input inspection",
-      artifactType: "provider input inspection",
-      purpose: "Inspect the compiled provider input without using it as a selector or authorization record.",
-      locator: paths.target_provider_request_inspection,
-      kind: "input",
-      sha256: currentRaw.plan.plan_hash,
-    }));
+    unavailable.push(artifactUnavailable("Provider input", "detailed provider input remains outside Human Navigation"));
   } else {
     unavailable.push(artifactUnavailable("Provider input", "the current raw plan has no provider-input inspection projection"));
   }

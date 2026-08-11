@@ -166,6 +166,7 @@
       "interfaces": [
         "shared/image2/content_address_store.mjs",
         "shared/image2/credentials.mjs",
+        "shared/image2/page_derived_data.mjs",
         "shared/image2/page_image_artifacts.mjs",
         "shared/image2/page_image_complete_page_review.mjs",
         "shared/image2/page_image_final_manifest.mjs",
@@ -186,6 +187,7 @@
         "tests/shared/image2/test_credentials.mjs",
         "tests/shared/image2/test_final_manifest.mjs",
         "tests/shared/image2/test_human_artifact_reference.mjs",
+        "tests/shared/image2/test_page_derived_data.mjs",
         "tests/shared/image2/test_page_image_media_contract.mjs",
         "tests/shared/image2/test_png_raster_projection.mjs",
         "tests/shared/image2/test_progressive_raw_owner.mjs",

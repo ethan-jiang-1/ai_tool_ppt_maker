@@ -9,6 +9,8 @@ import {
   BACKBONE_CONSTRAINTS,
   BACKBONE_STORY_OUTLINE,
   DEFAULT_INIT_MODE,
+  GEN_PAGE_IMAGE_DERIVED_SUBDIR,
+  PAGE_DERIVED_ARTIFACT_FILENAMES,
   PAGE_CLASS_CATALOG_FILE,
   PAGE_IMAGE_DECK_DEFAULTS_FILE,
   PAGE_IMAGE_PRESENTATION_FILES,
@@ -21,6 +23,7 @@ import {
   createVersion,
   initBundle,
   pageImageWorkflowPaths,
+  pageImageDerivedPagePaths,
   pageImageProgressiveRawPaths,
   pageImageStyleMasterPaths,
   PURE_DECK_VISUAL_SYSTEM_FILE,
@@ -61,6 +64,18 @@ describe("Page Image bundle layout", () => {
       expect(paths.final_manifest).toContain("_generated/page_image_workflow/final/manifest.json");
       expect(paths.delivery_media_root).toContain("_generated/page_image_workflow/final/delivery-media");
       expect(paths.delivery_media_manifest).toContain("_generated/page_image_workflow/final/delivery-media-manifest.json");
+      expect(paths.derived_root).toContain("_generated/page_image_workflow/derived");
+      expect(paths.derived_index).toContain("_generated/page_image_workflow/derived/index.json");
+      const derived = pageImageDerivedPagePaths(runDir, "DeckGo");
+      expect(derived.root).toContain("_generated/page_image_workflow/derived/pages/DeckGo");
+      expect(derived.source_receipt).toContain(PAGE_DERIVED_ARTIFACT_FILENAMES.source_receipt);
+      expect(derived.layout).toContain(PAGE_DERIVED_ARTIFACT_FILENAMES.layout);
+      expect(derived.render_model).toContain(PAGE_DERIVED_ARTIFACT_FILENAMES.render_model);
+      expect(derived.generation_spec).toContain(PAGE_DERIVED_ARTIFACT_FILENAMES.generation_spec);
+      expect(derived.image2_request).toContain(PAGE_DERIVED_ARTIFACT_FILENAMES.image2_request);
+      expect(derived.framed_header_html).toContain(PAGE_DERIVED_ARTIFACT_FILENAMES.framed_header_html);
+      expect(derived.artifact_index).toContain(PAGE_DERIVED_ARTIFACT_FILENAMES.artifact_index);
+      expect(() => pageImageDerivedPagePaths(runDir, "../unsafe")).toThrow("safe stable slide ID");
       expect(paths.human_navigation_root).toContain("_generated/nav");
       expect(paths.human_navigation_index).toContain("_generated/nav/index.md");
       expect(paths.human_navigation_artifacts_root).toContain("_generated/nav/art");
@@ -71,6 +86,8 @@ describe("Page Image bundle layout", () => {
       expect(renderTree()).toContain("p-1234abcd.png");
       expect(renderTree()).not.toContain("reference/human-artifact-reference.md");
       expect(renderTree()).toContain("page_image_workflow");
+      expect(renderTree()).toContain(GEN_PAGE_IMAGE_DERIVED_SUBDIR);
+      expect(renderTree()).toContain("page-render-model.json");
       expect(renderTree()).toContain(PURE_DECK_VISUAL_SYSTEM_FILE);
       expect(renderTree()).not.toContain("html_production");
       expect(renderTree()).toContain("page-image-style-master-iterations");

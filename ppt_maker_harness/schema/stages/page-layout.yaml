@@ -1,10 +1,16 @@
 schema: page-layout
 kind: derived
 scope: version-page
-purpose: "Represent the in-memory workflow-isolated Page Class projection used to compile one current page."
+purpose: "Represent the workflow-isolated Page Class projection used to compile and inspect one current page."
 answers: "Which selected profile and presentation facts bind this page's current raw input, and where did they come from?"
-owner: "scripts/02-visual-system/internal/page_image_presentation.mjs -> Page Image Core and the selected adapter"
+owner: "scripts/shared/image2/page_derived_data.mjs materializes resolver-owned facts"
 producer_status: materialized
+publication:
+  role: resolved-presentation
+  current_producer: scripts/shared/image2/page_derived_data.mjs
+  workflow_presence:
+    framed: required
+    pure: required
 inputs:
   - page-source-receipt
   - layout-config
@@ -14,12 +20,12 @@ outputs:
   - image-generation-plan
 provenance:
   source: "One normalized Page Source receipt plus its resolved layout-config projection."
-  requirement: "Keep normalized class, selected profile, selected defaults, provenance, and binding digest in immutable raw lineage only."
+  requirement: "Keep normalized class, selected profile, selected defaults, provenance, and binding digest in immutable raw lineage and its read-only C5 publication."
 downstream_consumers:
   - page-generation-spec
   - image-generation-plan
 does_not_contain:
-  - "A C5 per-page file, provider transport bytes, a provider response, or a review decision."
+  - "Provider transport bytes, a provider response, or a review decision."
   - "A second source of record for the author-authored page content."
 fields:
   resolved_class:

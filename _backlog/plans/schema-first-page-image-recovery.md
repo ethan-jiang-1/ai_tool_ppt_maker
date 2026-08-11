@@ -1,6 +1,6 @@
 # Progressive Plan: Schema-First Page Image Recovery
 
-> Type: progressive coordination plan | Updated: 2026-08-11 | Status: active (C1-C3 archived; C4 is apply-ready)
+> Type: progressive coordination plan | Updated: 2026-08-11 | Status: active (C1-C4 archived; C5 is apply-ready)
 >
 > **This is the only route document for Page Image recovery.** Three earlier
 > plans were closed on 2026-08-11 as CLS-025/026/027; everything from them that
@@ -577,8 +577,8 @@ unreviewable or unsafe to land partially.
 | **C1** Publish schema definitions | `ppt_maker_harness/schema/` only; zero runtime behaviour | This is the artifact the owner reviews. Mixing it with code changes makes the review impossible. Landing it alone is risk-free. **Archived 2026-08-11.** |
 | **C2** Clean-cutover the contract | One unversioned value per durable selector/wire schema; replace all readers and writers together; zero version-suffixed literal in active source, tests, or accepted specs | Archived 2026-08-11 at `openspec/changes/archive/2026-08-11-conform-code-to-schema-definitions/`; completion commit `c473d14`. |
 | **C3** Upstream gap | `story-outline`, `design-constraints`, pagination | Archived 2026-08-11 at `openspec/changes/archive/2026-08-11-close-upstream-narrative-gap/`; completion commit `ec8ec8b`. |
-| **C4** Page Class + layout config | Parser, Core, resolver, both adapters, invalidation | The `XL` change. Needs C1/C2 vocabulary settled first or it re-scatters the schema. |
-| **C5** Per-page derived data on disk | `image2 plan` writer, path layout | Depends on C4's resolver existing. Provider-free, so it can land and be inspected before any spend. |
+| **C4** Page Class + layout config | Parser, Core, resolver, both adapters, invalidation | Archived 2026-08-11 at `openspec/changes/archive/2026-08-11-land-page-class-and-layout-config/`; completion commit `1aa1994`. |
+| **C5** Per-page derived data on disk | `image2 plan` writer, path layout | [`publish-per-page-derived-data`](../../openspec/changes/publish-per-page-derived-data/) is proposal-ready and strict-valid. It depends on C4's resolver and remains provider-free, so it can land and be inspected before any spend. |
 | **C6** Framed hardening | `subject_restrictions` propagation, normalized geometry, body-safe region | Carries external provider risk. Must not block C1–C5. |
 | **C7** v3 repair | Production data path only | Not Harness maintenance. Runs under the Task Mandate, not OpenSpec. |
 
@@ -790,13 +790,22 @@ specification. Read it before proposing. In particular:
 resolved view shows inherited values; unselected-profile edits provably
 invalidate nothing.
 
-**Status: proposal ready 2026-08-11.** All four OpenSpec planning artifacts
-for [`land-page-class-and-layout-config`](../../openspec/changes/land-page-class-and-layout-config/)
-are complete and strict-valid. The proposed clean cutover uses the four source
-documents under `visual-style/page-image-presentation/`, keeps
-`pure-deck-visual-system.yaml` Pure-only, binds the selected projection to the
-existing raw lifecycle, and publishes no C5 derived page data. Implementation
-has not started.
+**Status: archived 2026-08-11.**
+[`land-page-class-and-layout-config`](../../openspec/changes/archive/2026-08-11-land-page-class-and-layout-config/)
+completed the clean cutover: `PAGE CLASS` is now the only current page-level
+presentation selector; the four source documents resolve one workflow-isolated,
+provenance-carrying projection per page; selected drift rebuilds raw work and
+requires a new Complete Page Review; valid unselected sibling changes do not
+invalidate a page. The seven delta specs were synced to accepted specs before
+archive. Focused C4 regression coverage (146 passing tests, 3 existing TODOs),
+the selected mock E2E, `npm test`, strict OpenSpec validation, layout
+self-check, and `git diff --check` passed without production Run Bundle or
+research input access. Completion commit: `1aa1994`.
+
+The archived ledger retains one user-approved warning: its repository-wide
+`npm run test:sweep` did not exit clean because a CLI diagnostic expectation and
+two clean-target-draft State assertions reproduce outside C4's touched source;
+the C4 Pure raw-binding expectation was corrected and passes in isolation.
 
 ---
 
@@ -835,6 +844,17 @@ exactly the owner's "我都能指正起来".
 **Exit evidence.** For one page, a human can read every stage from source to
 exact provider bytes without running anything, and each derived file names what
 produced it.
+
+**Status: proposal-ready 2026-08-11.**
+[`publish-per-page-derived-data`](../../openspec/changes/publish-per-page-derived-data/)
+has all four strict-valid OpenSpec artifacts. It fixes one generated output
+tree at `_generated/page_image_workflow/derived/`: independent per-page
+receipt/layout/render-model/generation-spec/request/index files plus the
+Framed HTML-only header and a deck index. The plan writes only after a valid
+candidate is compiled and before the current progressive raw plan exposes
+authorization; it deliberately creates no provider work, new gate, second
+acceptance state, Human Navigation copy, migration, or historical reader.
+Implementation has not started.
 
 ---
 
@@ -1153,32 +1173,31 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done with evidence
 
 - [x] Read all of "Absorbed Design Decisions" Q2–Q13 — that is this change's specification
 - [x] **Resolve the previously unresolved selector:** `**PAGE CLASS**` supersedes `**FRAME PRESET**`; remove the latter completely rather than retaining compatibility or a parallel control plane
-- [x] Write the proposal, delta specs, design, and implementation tasks in [`land-page-class-and-layout-config`](../../openspec/changes/land-page-class-and-layout-config/) — rated `XL`; common contracts, both adapters, paths, and regression suites are planned
-- [ ] `**PAGE CLASS**` source field — closed set `standard | opening | transition | closing`, omission normalizes to `standard`
-- [ ] Omission never errors and never blocks; a better-fitting class is an Agent suggestion, not a prompt
-- [ ] The four-document config package
-- [ ] The resolver — deterministic, one projection per page, provenance on every inherited value
-- [ ] Framed adapter consumes the resolved profile
-- [ ] Pure adapter consumes the same class through its whole-page visual system
-- [ ] Invalidation: editing a *selected* profile forces raw rebuild and new review
-- [ ] Invalidation: editing an *unselected* profile invalidates nothing — prove it
-- [ ] `pure-deck-visual-system.yaml` stays Pure-only; its digest stays forbidden for Framed
-- [ ] Archive the change
-- [ ] **Checkpoint 4** — a page resolves exactly one workflow projection; inherited values show their origin
+- [x] Write the proposal, delta specs, design, and implementation tasks in [`land-page-class-and-layout-config`](../../openspec/changes/archive/2026-08-11-land-page-class-and-layout-config/) — rated `XL`; common contracts, both adapters, paths, and regression suites are planned
+- [x] `**PAGE CLASS**` source field — closed set `standard | opening | transition | closing`, omission normalizes to `standard`
+- [x] Omission never errors and never blocks; a better-fitting class is an Agent suggestion, not a prompt
+- [x] The four-document config package
+- [x] The resolver — deterministic, one projection per page, provenance on every inherited value
+- [x] Framed adapter consumes the resolved profile
+- [x] Pure adapter consumes the same class through its whole-page visual system
+- [x] Invalidation: editing a *selected* profile forces raw rebuild and new review
+- [x] Invalidation: editing an *unselected* profile invalidates nothing — prove it
+- [x] `pure-deck-visual-system.yaml` stays Pure-only; its digest stays forbidden for Framed
+- [x] Archive the change
+- [x] **Checkpoint 4** — a page resolves exactly one workflow projection; inherited values show their origin
 
-> Planning evidence: 2026-08-11 —
-> [`land-page-class-and-layout-config`](../../openspec/changes/land-page-class-and-layout-config/)
-> is apply-ready. The proposal records the clean-cutover decision that
-> `PAGE CLASS` replaces `FRAME PRESET`; seven delta specs, design, and tasks
-> cover the four-file package, isolated resolver, raw-binding invalidation, and
-> synthetic test evidence. `openspec validate land-page-class-and-layout-config
-> --strict`, `openspec validate --all --strict` (29/29), and `git diff --check`
-> passed. Implementation evidence remains pending: an archived change path, one
-> resolved page showing inheritance, and the unselected-profile invalidation proof.
+> Completion evidence: 2026-08-11 — archived at
+> [`openspec/changes/archive/2026-08-11-land-page-class-and-layout-config/`](../../openspec/changes/archive/2026-08-11-land-page-class-and-layout-config/).
+> All seven delta specs were synced before archive. The C4 focused suite (146
+> passing tests, 3 existing TODOs), selected mock E2E, `npm test`, strict
+> OpenSpec validation, layout self-check, and `git diff --check` passed. The
+> archived ledger records the user-approved C4 `5.2` warning: the full sweep
+> has reproducible non-C4 CLI/State baseline failures. Completion commit:
+> `1aa1994`.
 
 ### C5 — `publish-per-page-derived-data`
 
-- [ ] Write the proposal — provider-free scope, no new gate
+- [x] Write the proposal, six delta specs, design, and implementation tasks in [`publish-per-page-derived-data`](../../openspec/changes/publish-per-page-derived-data/) — provider-free scope, no new gate; strict OpenSpec validation passed on 2026-08-11
 - [ ] Publish at `image2 plan` — after the plan exists, before authorization
 - [ ] Write each per-page file: `page-source-receipt`, `page-layout`, `page-render-model`, `page-generation-spec`, `image2-request`, `page-artifact-index`
 - [ ] Framed additionally publishes `framed-header-html` — HTML only, no sibling JSON

@@ -5,6 +5,7 @@ import { EXECUTABLE_INVENTORY } from "../../ppt_maker_harness/scripts/contracts/
 import {
   ACTIVE_PHASES,
   HUMAN_NAVIGATION_INTERFACE,
+  PAGE_DERIVED_DATA_INTERFACE,
   PAGE_IMAGE_CORE_INTERFACE,
   PAGE_IMAGE_CORE_SEAM_CONSUMERS,
   PAGE_IMAGE_PROVIDER_INPUT_COMPILER_ADAPTERS,
@@ -91,6 +92,11 @@ function walkHarnessScripts(root, files = []) {
 }
 
 describe("Harness architecture contract", () => {
+  it("registers the one provider-free C5 publisher as a public shared interface", () => {
+    expect(PAGE_DERIVED_DATA_INTERFACE).toBe("shared/image2/page_derived_data.mjs");
+    expect(PUBLIC_SHARED_INTERFACES).toContain(PAGE_DERIVED_DATA_INTERFACE);
+  });
+
   it("registers the one derived Human Navigation Path writer as a public shared interface", () => {
     expect(HUMAN_NAVIGATION_INTERFACE).toBe("shared/image2/page_image_human_artifact_reference.mjs");
     expect(PUBLIC_SHARED_INTERFACES).toContain(HUMAN_NAVIGATION_INTERFACE);

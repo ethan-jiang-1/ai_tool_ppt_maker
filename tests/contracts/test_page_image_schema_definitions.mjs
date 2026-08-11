@@ -143,15 +143,17 @@ describe("Page Image schema definitions", () => {
     ]);
   });
 
-  it("materializes C4 ownership while keeping C5 per-page publication planned", () => {
+  it("materializes C4 and C5 ownership without a planned publication route", () => {
     const flow = parseYamlFile(join(SCHEMA_ROOT, "flow.yaml"));
     const flowEntries = [
       ...(flow?.sources || []),
       ...(flow?.transformations || []),
     ];
-    const planned = flowEntries.filter((entry) => entry.route_ref === "C5");
+    const plannedC5 = flowEntries.filter((entry) => entry.route_ref === "C5");
     const materializedC4 = flowEntries.filter((entry) =>
       entry.schema === "layout-config" || entry.name === "resolve-page-layout");
+    const materializedC5 = flowEntries.filter((entry) =>
+      entry.name === "build-page-render-model" || entry.name === "publish-page-artifact-index");
     const scriptFiles = walkFiles(join(process.cwd(), "ppt_maker_harness", "scripts"));
     const runtimeText = scriptFiles
       .filter((path) => !path.endsWith("shared/run-bundle/bundle_layout.mjs"))
@@ -161,10 +163,12 @@ describe("Page Image schema definitions", () => {
     const stateText = readFileSync(join(process.cwd(), "ppt_maker_harness", "scripts", "shared", "state", "state.mjs"), "utf8");
     const cliText = readFileSync(join(process.cwd(), "ppt_maker_harness", "scripts", "ppt_flow.mjs"), "utf8");
 
-    expect(planned.length).toBeGreaterThan(0);
-    expect(planned.every((entry) => entry.producer_status === "planned" && entry.route_ref === "C5")).toBe(true);
+    expect(plannedC5).toEqual([]);
     expect(materializedC4).toHaveLength(2);
     expect(materializedC4.every((entry) => entry.producer_status === "materialized" && !Object.hasOwn(entry, "route_ref"))).toBe(true);
+    expect(materializedC5).toHaveLength(2);
+    expect(materializedC5.every((entry) => entry.producer_status === "materialized" &&
+      entry.owner === "scripts/shared/image2/page_derived_data.mjs" && !Object.hasOwn(entry, "route_ref"))).toBe(true);
     expect(runtimeText).toMatch(/\bpage_class\b/);
     expect(stateText).not.toMatch(/\bpage_class\b|\b(?:layout-config|page-layout|page-render-model|page-artifact-index)\b/);
     expect(cliText).not.toMatch(/\bpage_class\b|\b(?:layout-config|page-layout|page-render-model|page-artifact-index)\b/);
@@ -197,5 +201,30 @@ describe("Page Image schema definitions", () => {
       Array.isArray(entry.anchors) && entry.anchors.length > 0,
     )).toBe(true);
     expect(existsSync(join(SCHEMA_ROOT, "frozen-identifiers.yaml"))).toBe(false);
+  });
+
+  it("declares every C5 publication role and workflow-specific presence rule", () => {
+    const expected = {
+      "page-source-receipt": { role: "parsed-source", framed: "required", pure: "required" },
+      "page-layout": { role: "resolved-presentation", framed: "required", pure: "required" },
+      "page-render-model": { role: "reviewable-page", framed: "required", pure: "required" },
+      "page-generation-spec": { role: "compiled-page-facts", framed: "required", pure: "required" },
+      "image2-request": { role: "provider-input", framed: "required", pure: "required" },
+      "framed-header-html": { role: "local-header-overlay", framed: "required", pure: "forbidden" },
+      "page-artifact-index": { role: "page-derived-index", framed: "required", pure: "required" },
+    };
+
+    for (const [stage, rule] of Object.entries(expected)) {
+      const definition = parseYamlFile(join(STAGES_ROOT, `${stage}.yaml`));
+      expect(definition).toMatchObject({
+        schema: stage,
+        producer_status: "materialized",
+        publication: {
+          role: rule.role,
+          current_producer: "scripts/shared/image2/page_derived_data.mjs",
+          workflow_presence: { framed: rule.framed, pure: rule.pure },
+        },
+      });
+    }
   });
 });

@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createCanvas } from "@napi-rs/canvas";
@@ -193,9 +193,13 @@ describe("human artifact reference CLI", () => {
       const view = readFileSync(paths.human_navigation_index, "utf8");
       expect(view).toContain("# Page Image Human Navigation");
       expect(view).toContain("local-existing");
-      expect(view).toContain("provider input inspection");
+      expect(view).toContain("Provider input: detailed provider input remains outside Human Navigation");
       expect(view).toContain("Final media: accepted complete-page review evidence is not available");
       expect(view).not.toContain("Current reference view");
+      expect(view).not.toContain("provider input inspection");
+      expect(view).not.toContain("Render one complete premium keynote page");
+      expect(view).not.toContain("_generated/page_image_workflow/derived");
+      expect(existsSync(paths.target_provider_request_inspection)).toBe(true);
       expect(view).toMatch(/Locator: `art\/[A-Za-z0-9._~-]{1,24}`/);
       expect(view).not.toMatch(/[0-9a-f]{64}/i);
       expect(readFileSync(join(deck, "_state", "state.yaml"))).toEqual(stateBefore);
@@ -368,7 +372,7 @@ describe("human artifact reference CLI", () => {
       const result = flow(["image2", "artifact-view", runDir]);
       expect(result.status).toBe(1);
       expect(finalDiagnostic(result)).toMatchObject({
-        diagnostic: { operation: "export-current-protocol-invalid", next: { action: "export" } },
+        diagnostic: { operation: "repair-current-protocol", reason: { kind: "current_protocol_invalid" }, next: { action: "repair_prerequisite" } },
       });
       expect(pageImageWorkflowPaths(runDir).human_navigation_index).not.toBeUndefined();
       expect(() => readFileSync(pageImageWorkflowPaths(runDir).human_navigation_index)).toThrow();

@@ -12,6 +12,18 @@ export const GEN_PAGE_IMAGE_REVIEW_SUBDIR = "review";
 export const GEN_PAGE_IMAGE_FINAL_SUBDIR = "final";
 export const GEN_PAGE_IMAGE_NAV_SUBDIR = "nav";
 export const GEN_PAGE_IMAGE_NAV_ARTIFACTS_SUBDIR = "art";
+export const GEN_PAGE_IMAGE_DERIVED_SUBDIR = "derived";
+export const GEN_PAGE_IMAGE_DERIVED_PAGES_SUBDIR = "pages";
+
+export const PAGE_DERIVED_ARTIFACT_FILENAMES = Object.freeze({
+  source_receipt: "page-source-receipt.json",
+  layout: "page-layout.json",
+  render_model: "page-render-model.json",
+  generation_spec: "page-generation-spec.json",
+  image2_request: "image2-request.json",
+  framed_header_html: "framed-header.html",
+  artifact_index: "page-artifact-index.json",
+});
 
 // Style Master candidate history is append-mostly source evidence, not a
 // version-generated artifact. The small per-scope head is its sole mutable
@@ -54,6 +66,9 @@ export const PAGE_IMAGE_WORKFLOW_PATHS = Object.freeze({
   final_projection: `${GENERATED_SUBDIR}/${GEN_PAGE_IMAGE_WORKFLOW_SUBDIR}/${GEN_PAGE_IMAGE_FINAL_SUBDIR}/projection.png`,
   delivery_media_root: `${GENERATED_SUBDIR}/${GEN_PAGE_IMAGE_WORKFLOW_SUBDIR}/${GEN_PAGE_IMAGE_FINAL_SUBDIR}/delivery-media`,
   delivery_media_manifest: `${GENERATED_SUBDIR}/${GEN_PAGE_IMAGE_WORKFLOW_SUBDIR}/${GEN_PAGE_IMAGE_FINAL_SUBDIR}/delivery-media-manifest.json`,
+  derived_root: `${GENERATED_SUBDIR}/${GEN_PAGE_IMAGE_WORKFLOW_SUBDIR}/${GEN_PAGE_IMAGE_DERIVED_SUBDIR}`,
+  derived_index: `${GENERATED_SUBDIR}/${GEN_PAGE_IMAGE_WORKFLOW_SUBDIR}/${GEN_PAGE_IMAGE_DERIVED_SUBDIR}/index.json`,
+  derived_pages_root: `${GENERATED_SUBDIR}/${GEN_PAGE_IMAGE_WORKFLOW_SUBDIR}/${GEN_PAGE_IMAGE_DERIVED_SUBDIR}/${GEN_PAGE_IMAGE_DERIVED_PAGES_SUBDIR}`,
 });
 
 export function isPageImageVersionDir(runDir) {
@@ -70,6 +85,29 @@ export function pageImageWorkflowPaths(runDir) {
   return Object.freeze(Object.fromEntries(
     Object.entries(PAGE_IMAGE_WORKFLOW_PATHS).map(([key, relativePath]) => [key, path.join(root, ...relativePath.split("/"))]),
   ));
+}
+
+function requireDerivedPageId(slideId) {
+  if (typeof slideId !== "string" || !/^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(slideId)) {
+    throw new Error("Page Image derived paths require one safe stable slide ID");
+  }
+  return slideId;
+}
+
+/** Canonical independent C5 derived-artifact locations for one stable page. */
+export function pageImageDerivedPagePaths(runDir, slideId) {
+  const paths = pageImageWorkflowPaths(runDir);
+  const pageRoot = path.join(paths.derived_pages_root, requireDerivedPageId(slideId));
+  return Object.freeze({
+    root: pageRoot,
+    source_receipt: path.join(pageRoot, PAGE_DERIVED_ARTIFACT_FILENAMES.source_receipt),
+    layout: path.join(pageRoot, PAGE_DERIVED_ARTIFACT_FILENAMES.layout),
+    render_model: path.join(pageRoot, PAGE_DERIVED_ARTIFACT_FILENAMES.render_model),
+    generation_spec: path.join(pageRoot, PAGE_DERIVED_ARTIFACT_FILENAMES.generation_spec),
+    image2_request: path.join(pageRoot, PAGE_DERIVED_ARTIFACT_FILENAMES.image2_request),
+    framed_header_html: path.join(pageRoot, PAGE_DERIVED_ARTIFACT_FILENAMES.framed_header_html),
+    artifact_index: path.join(pageRoot, PAGE_DERIVED_ARTIFACT_FILENAMES.artifact_index),
+  });
 }
 
 /** Canonical Style Master candidate-history paths for one current run. */

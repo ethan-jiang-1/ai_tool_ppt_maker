@@ -3,8 +3,14 @@ kind: derived
 scope: version-page
 purpose: "Represent the exact canonical request bytes prepared for the selected image provider."
 answers: "What exact bytes will image2 receive for this page?"
-owner: "ppt_maker_harness/scripts/03-framed-image/index.mjs and ppt_maker_harness/scripts/04-pure-image/index.mjs"
+owner: "scripts/shared/image2/page_derived_data.mjs materializes selected adapter bytes"
 producer_status: materialized
+publication:
+  role: provider-input
+  current_producer: scripts/shared/image2/page_derived_data.mjs
+  workflow_presence:
+    framed: required
+    pure: required
 inputs:
   - page-generation-spec
 outputs:
@@ -12,7 +18,7 @@ outputs:
   - image-generation-record
 provenance:
   source: "One selected adapter's compiled provider input and its binding to core page facts."
-  requirement: "Retain the canonical UTF-8 bytes and sha256 digest used by the provider submission."
+  requirement: "Retain the canonical UTF-8 bytes and sha256 digest selected by the adapter for provider submission."
 downstream_consumers:
   - image-generation-plan
   - image-generation-record

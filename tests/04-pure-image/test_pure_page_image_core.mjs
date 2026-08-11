@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { createCanvas } from "@napi-rs/canvas";
 
 import {
@@ -15,7 +15,8 @@ import {
   initBundle,
   pureDeckVisualSystemAsset,
 } from "../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
-import { pageImageWorkflowPaths } from "../../ppt_maker_harness/scripts/shared/run-bundle/page_image_paths.mjs";
+import { pageImageDerivedPagePaths, pageImageWorkflowPaths } from "../../ppt_maker_harness/scripts/shared/run-bundle/page_image_paths.mjs";
+import { inspectProgressiveRawLifecycle } from "../../ppt_maker_harness/scripts/shared/image2/page_image_progressive_raw_owner.mjs";
 import { statePath } from "../../ppt_maker_harness/scripts/shared/state/state.mjs";
 import { acceptLocalStyleMasterFixture } from "../helpers/accepted_style_master.mjs";
 
@@ -246,6 +247,8 @@ describe("Pure Page Image Core adapter", () => {
       const firstInput = JSON.parse(firstRequest.compiled_provider_input.utf8);
       const secondInput = JSON.parse(secondRequest.compiled_provider_input.utf8);
       const inspection = JSON.parse(readFileSync(join(runDir, plan.provider_request_inspection.path), "utf8"));
+      const paths = pageImageWorkflowPaths(runDir);
+      const derivedIndex = JSON.parse(readFileSync(paths.derived_index, "utf8"));
 
       expect(first.provider_input_binding.page_presentation_sha256)
         .not.toBe(second.provider_input_binding.page_presentation_sha256);
@@ -259,6 +262,75 @@ describe("Pure Page Image Core adapter", () => {
       expect(JSON.stringify(inspection)).not.toMatch(/api[_-]?key|authorization|data:image|accepted|selector|pixel/i);
       expect(inspection).not.toHaveProperty("accepted_raw_evidence_sha256");
       expect(sourceBefore.source_sha256).toBe(plan.receipt.source_sha256);
+      expect(plan.derived_data_publication).toMatchObject({
+        root: paths.derived_root,
+        index: paths.derived_index,
+        workflow: "pure",
+        source_receipt_sha256: plan.receipt.source_sha256,
+        raw_work_plan_sha256: plan.raw_work_plan.sha256,
+        progressive_raw_work_plan_sha256: plan.progressive_raw_work_plan.sha256,
+      });
+      expect(derivedIndex.publication).toMatchObject({
+        workflow: "pure",
+        source_receipt_sha256: plan.receipt.source_sha256,
+        progressive_raw_work_plan_sha256: plan.progressive_raw_work_plan.sha256,
+      });
+      expect(derivedIndex.payload.pages.map((page) => [page.position, page.slide_id]))
+        .toEqual([[1, "DeckGo"], [2, "FlowUp"]]);
+      for (const id of ["DeckGo", "FlowUp"]) {
+        const pagePaths = pageImageDerivedPagePaths(runDir, id);
+        for (const path of [
+          pagePaths.source_receipt,
+          pagePaths.layout,
+          pagePaths.render_model,
+          pagePaths.generation_spec,
+          pagePaths.image2_request,
+          pagePaths.artifact_index,
+        ]) expect(existsSync(path)).toBe(true);
+        expect(existsSync(pagePaths.framed_header_html)).toBe(false);
+        const request = JSON.parse(readFileSync(pagePaths.image2_request, "utf8"));
+        expect(request.payload.canonical_utf8).toBe(plan.provider_requests_by_slide[id].compiled_provider_input.utf8);
+        expect(request.payload.request_digest).toBe(plan.provider_requests_by_slide[id].compiled_provider_input.sha256);
+        expect(JSON.parse(readFileSync(pagePaths.artifact_index, "utf8")).payload.artifact_references)
+          .not.toHaveProperty("framed_header_html");
+      }
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("stops before current-plan publication when C5 replacement is invalid, then repairs through the same plan checkpoint", async () => {
+    const root = mkdtempSync(join(tmpdir(), "pure-page-derived-publication-failure-"));
+    const deck = join(root, "deck_pure_page_derived_failure");
+    const runDir = join(deck, "3_versions", "v1");
+    const image = createCanvas(2000, 1125);
+    image.getContext("2d").fillRect(0, 0, 2000, 1125);
+    try {
+      initBundle(deck, null, "keynote", "dark-executive");
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+      writeFileSync(join(runDir, "slide-specifications.md"), SOURCE);
+      await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir));
+      const paths = pageImageWorkflowPaths(runDir);
+      const outside = join(root, "outside-derived");
+      mkdirSync(outside);
+      mkdirSync(dirname(paths.derived_root), { recursive: true });
+      symlinkSync(outside, paths.derived_root);
+
+      const error = captureError(() => buildPureProgressiveTargetRawPlan(runDir));
+      expect(error).toMatchObject({
+        code: "target_page_derived_publication_invalid",
+        next_action: "rebuild_target_raw_plan",
+      });
+      const lifecycle = inspectProgressiveRawLifecycle({ runDir, workflow: "pure" });
+      expect(lifecycle).toMatchObject({ ok: true, plan: null });
+      expect(lifecycle).not.toHaveProperty("grant");
+      expect(lifecycle).not.toHaveProperty("attempts");
+      expect(lifecycle).not.toHaveProperty("review");
+
+      rmSync(paths.derived_root);
+      const repaired = buildPureProgressiveTargetRawPlan(runDir);
+      expect(repaired.derived_data_publication.index).toBe(paths.derived_index);
+      expect(repaired.progressive_raw_work_plan.sha256).toMatch(/^[0-9a-f]{64}$/);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

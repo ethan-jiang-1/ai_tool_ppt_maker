@@ -85,6 +85,8 @@ import {
 } from './run_bundle_locator.mjs';
 import {
     GENERATED_SUBDIR,
+    GEN_PAGE_IMAGE_DERIVED_PAGES_SUBDIR,
+    GEN_PAGE_IMAGE_DERIVED_SUBDIR,
     GEN_PAGE_IMAGE_FINAL_SUBDIR,
     GEN_PAGE_IMAGE_NAV_ARTIFACTS_SUBDIR,
     GEN_PAGE_IMAGE_NAV_SUBDIR,
@@ -94,6 +96,8 @@ import {
     GEN_PAGE_IMAGE_REVIEW_SUBDIR,
     isPageImageVersionDir,
     PAGE_IMAGE_WORKFLOW_PATHS,
+    PAGE_DERIVED_ARTIFACT_FILENAMES,
+    pageImageDerivedPagePaths,
     pageImageWorkflowPaths,
     STYLE_MASTER_ITERATIONS_RELATIVE_PATH,
     STYLE_MASTER_STAGING_SUBDIR,
@@ -115,6 +119,8 @@ export { PRODUCTION_MODES, canonicalVersionKey, isProductionMode, normalizeRunVe
 export { verifyDeckHarnessBinding };
 export {
     GENERATED_SUBDIR,
+    GEN_PAGE_IMAGE_DERIVED_PAGES_SUBDIR,
+    GEN_PAGE_IMAGE_DERIVED_SUBDIR,
     GEN_PAGE_IMAGE_FINAL_SUBDIR,
     GEN_PAGE_IMAGE_NAV_ARTIFACTS_SUBDIR,
     GEN_PAGE_IMAGE_NAV_SUBDIR,
@@ -123,6 +129,8 @@ export {
     GEN_PAGE_IMAGE_RECEIPTS_SUBDIR,
     GEN_PAGE_IMAGE_REVIEW_SUBDIR,
     PAGE_IMAGE_WORKFLOW_PATHS,
+    PAGE_DERIVED_ARTIFACT_FILENAMES,
+    pageImageDerivedPagePaths,
     pageImageWorkflowPaths,
     STYLE_MASTER_ITERATIONS_RELATIVE_PATH,
     STYLE_MASTER_STAGING_SUBDIR,
@@ -1762,6 +1770,8 @@ deck_\${NAME}/
     │   │   └── ${GEN_PAGE_IMAGE_WORKFLOW_SUBDIR}/
     │   │       ├── ${GEN_PAGE_IMAGE_RECEIPTS_SUBDIR}/source-receipt.json
     │   │       ├── ${GEN_PAGE_IMAGE_RAW_SUBDIR}/{work-plan.json, <slide_id>.png}
+    │   │       ├── ${GEN_PAGE_IMAGE_DERIVED_SUBDIR}/index.json
+    │   │       │   └── ${GEN_PAGE_IMAGE_DERIVED_PAGES_SUBDIR}/<slide_id>/{${PAGE_DERIVED_ARTIFACT_FILENAMES.source_receipt}, ${PAGE_DERIVED_ARTIFACT_FILENAMES.layout}, ${PAGE_DERIVED_ARTIFACT_FILENAMES.render_model}, ${PAGE_DERIVED_ARTIFACT_FILENAMES.generation_spec}, ${PAGE_DERIVED_ARTIFACT_FILENAMES.image2_request}, ${PAGE_DERIVED_ARTIFACT_FILENAMES.framed_header_html} (Framed only), ${PAGE_DERIVED_ARTIFACT_FILENAMES.artifact_index}}
     │   │       ├── ${GEN_PAGE_IMAGE_REVIEW_SUBDIR}/{complete-page-review.png, complete-page-coverage.json}
     │   │       └── ${GEN_PAGE_IMAGE_FINAL_SUBDIR}/{final-slide-manifest.json, NN_slideID.png, projection.png, delivery-media/{NN_slideID.jpg}, delivery-media-manifest.json, deck.pptx, notes-receipt.json}
     │   └── ${SCRATCH_SUBDIR}/                         ← version-local temporary output only

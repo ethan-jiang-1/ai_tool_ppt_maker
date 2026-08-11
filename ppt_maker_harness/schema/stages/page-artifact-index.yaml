@@ -1,11 +1,16 @@
 schema: page-artifact-index
 kind: derived
 scope: version-page
-purpose: "Index one page's inspectable source, derived, request, record, and final artifacts without creating a second control state."
-answers: "Where are this page's artifacts, and what stage is each artifact in?"
-owner: "publish-per-page-derived-data planned change (C5)"
-producer_status: planned
-route_ref: C5
+purpose: "Index one page's inspectable pre-provider artifacts without creating a second control state."
+answers: "Where are this page's current planning artifacts, and what produces or invalidates each one?"
+owner: "scripts/shared/image2/page_derived_data.mjs"
+producer_status: materialized
+publication:
+  role: page-derived-index
+  current_producer: scripts/shared/image2/page_derived_data.mjs
+  workflow_presence:
+    framed: required
+    pure: required
 inputs:
   - page-source-receipt
   - page-layout
@@ -15,15 +20,11 @@ inputs:
   - framed-header-html
 outputs:
   - image-generation-plan
-  - final-page-list
-  - delivery-package
 provenance:
-  source: "References to the independently published page artifacts at image2 plan time and later lifecycle records."
-  requirement: "Every entry names its producing artifact and the page identity it belongs to."
+  source: "References to independently published page artifacts at image2 plan time."
+  requirement: "Every entry names its producing artifact, page identity, purpose, adjustment scope, downstream controller, and rebuild impact."
 downstream_consumers:
   - production inspection
-  - final-page-list
-  - delivery-package
 does_not_contain:
   - "A duplicate page artifact payload or raw provider prose in a navigation tree."
   - "An authorization, a new acceptance gate, or a substitute lifecycle state."
@@ -38,7 +39,7 @@ fields:
       never: "Never group artifacts by their current position alone."
   artifact_references:
     type: mapping of artifact names to paths and digests
-    description: "Locations and stable references for the source-to-delivery artifact chain."
+    description: "Locations and stable references for the source-to-provider-request artifact chain."
     rule: "Must reference independent artifacts without copying their full payloads."
     on_violation:
       means: "A reviewer cannot trace the page without relying on a duplicate authority."
