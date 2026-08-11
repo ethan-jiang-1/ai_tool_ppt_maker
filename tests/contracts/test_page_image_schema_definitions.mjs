@@ -143,25 +143,26 @@ describe("Page Image schema definitions", () => {
     ]);
   });
 
-  it("keeps C3-C5 planned stages declarative without a runtime substitute", () => {
+  it("keeps C4-C5 planned stages declarative without a runtime substitute", () => {
     const flow = parseYamlFile(join(SCHEMA_ROOT, "flow.yaml"));
     const planned = [
       ...(flow?.sources || []),
       ...(flow?.transformations || []),
-    ].filter((entry) => ["C3", "C4", "C5"].includes(entry.route_ref));
+    ].filter((entry) => ["C4", "C5"].includes(entry.route_ref));
     const scriptFiles = walkFiles(join(process.cwd(), "ppt_maker_harness", "scripts"));
     const runtimeText = scriptFiles
       .filter((path) => !path.endsWith("shared/run-bundle/bundle_layout.mjs"))
+      .filter((path) => !path.endsWith("01-content/internal/narrative_source.mjs"))
       .map((path) => readFileSync(path, "utf8"))
       .join("\n");
     const stateText = readFileSync(join(process.cwd(), "ppt_maker_harness", "scripts", "shared", "state", "state.mjs"), "utf8");
     const cliText = readFileSync(join(process.cwd(), "ppt_maker_harness", "scripts", "ppt_flow.mjs"), "utf8");
 
     expect(planned.length).toBeGreaterThan(0);
-    expect(planned.every((entry) => entry.producer_status === "planned" && /^C[3-5]$/.test(entry.route_ref))).toBe(true);
+    expect(planned.every((entry) => entry.producer_status === "planned" && /^C[4-5]$/.test(entry.route_ref))).toBe(true);
     expect(runtimeText).not.toMatch(/\bpage_class\b|\bpage-(?:layout|render-model|artifact-index)\b/);
     expect(stateText).not.toMatch(/\bpage_class\b|\b(?:story-outline|design-constraints|layout-config|page-layout|page-render-model|page-artifact-index)\b/);
-    expect(cliText).not.toMatch(/\b(?:story-outline|design-constraints|layout-config|page-layout|page-render-model|page-artifact-index)\b/);
+    expect(cliText).not.toMatch(/\bpage_class\b|\b(?:layout-config|page-layout|page-render-model|page-artifact-index)\b/);
   });
 
   it("makes the serialization inventory the one current contract declaration", () => {

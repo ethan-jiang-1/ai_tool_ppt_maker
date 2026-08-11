@@ -160,7 +160,7 @@ production:
     }
   });
 
-  it("projects a fresh authoring draft as a workflow-choice confirm without writes", () => {
+  it("projects a fresh authoring draft as narrative-authoring guidance without writes", () => {
     const root = mkdtempSync(join(tmpdir(), "workflow-inspect-target-draft-"));
     const deck = join(root, "deck_target_page_image");
     const runDir = join(deck, "3_versions", "v1");
@@ -169,9 +169,9 @@ production:
       const before = treeSnapshot(deck);
       const inspection = inspectWorkflow({ runDir });
       expect(inspection).toMatchObject({
-        posture: "confirm",
-        root_cause: { owner: "01-content", kind: "TARGET_WORKFLOW_SELECTION_REQUIRED" },
-        primary_action: { action_id: "select-target-page-image-workflow", requires_human: true },
+        posture: "guide",
+        root_cause: { owner: "narrative-authoring", kind: "NARRATIVE_SOURCES_REQUIRED" },
+        primary_action: { action_id: "author-target-narrative-sources", requires_human: false },
         evidence_summary: { pipeline: "page-image-workflow", mode: null, workflow: null },
       });
       expect(isWorkflowInspectionSourceReady(inspection)).toBe(false);

@@ -89,7 +89,7 @@ negative_constraints:
 }
 
 describe("workflow inspection observation flow", () => {
-  it("keeps a fresh target workflow-selection gate observable without writes", () => {
+  it("keeps fresh narrative authoring observable without writes", () => {
     const root = mkdtempSync(join(tmpdir(), "workflow-inspection-e2e-"));
     const deck = join(root, "deck_target_inspection");
     const runDir = join(deck, "3_versions", "v1");
@@ -103,12 +103,12 @@ describe("workflow inspection observation flow", () => {
       expect(JSON.parse(status.stdout)).toMatchObject({
         pipeline: "page-image-workflow",
         structure_issues: [],
-        current_node: "select-target-page-image-workflow",
+        current_node: "author-target-narrative-sources",
       });
       expect(JSON.parse(state.stdout).workflow_inspection).toMatchObject({
-        posture: "confirm",
-        root_cause: { owner: "01-content", kind: "TARGET_WORKFLOW_SELECTION_REQUIRED" },
-        primary_action: { action_id: "select-target-page-image-workflow", requires_human: true },
+        posture: "guide",
+        root_cause: { owner: "narrative-authoring", kind: "NARRATIVE_SOURCES_REQUIRED" },
+        primary_action: { action_id: "author-target-narrative-sources", requires_human: false },
       });
       expect(treeSnapshot(deck)).toEqual(before);
     } finally {

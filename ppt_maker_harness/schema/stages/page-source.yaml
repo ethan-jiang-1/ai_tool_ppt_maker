@@ -1,16 +1,14 @@
 schema: page-source
 kind: source
 scope: version-page
-purpose: "Hold one page's authored content, visual selection, stable identity, and normalized class before parsing."
-answers: "What does this page say, show, and declare about its treatment?"
-owner: "land-page-class-and-layout-config planned change (C4); current source grammar is partially owned by 01-content"
-producer_status: planned
-route_ref: C4
+purpose: "Hold one page's authored content, visual selection, and stable identity before parsing; C4 later adds Page Class."
+answers: "What does this page say, show, and identify before parsing?"
+owner: "ppt_maker_harness/scripts/01-content/internal/narrative_page_plan.mjs; Page Class remains owned by C4"
+producer_status: materialized
 inputs:
   - story-outline
   - design-constraints
   - visual-language
-  - layout-config
 outputs:
   - page-source-receipt
 provenance:
@@ -45,6 +43,8 @@ fields:
     description: "The optional source-authored presentation class for this page."
     rule: "Must be standard, opening, transition, or closing when supplied."
     default: standard
+    producer_status: planned
+    route_ref: C4
     on_violation:
       means: "The page treatment is not one the version can resolve."
       ask: "Does this page need the usual treatment, a section opening, a transition, or a closing?"

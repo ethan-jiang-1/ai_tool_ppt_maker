@@ -4,6 +4,7 @@ import { basename, join, resolve } from "node:path";
 import { canonicalJson } from "../../contracts/canonical_json.mjs";
 import { checkBundle, deckRoot } from "../run-bundle/bundle_layout.mjs";
 import { PAGE_IMAGE_WORKFLOW_PIPELINE, PAGE_IMAGE_WORKFLOW_SELECTION_REQUIRED_MESSAGE, isPageImageWorkflowSelectionPending, probeProductionMarker } from "../run-bundle/production_marker.mjs";
+import { resolveTargetAuthoringDraftRoute } from "../state/target_authoring_draft_route.mjs";
 import {
   inspectCurrentPageImageTaskMandate,
   readTargetProgressiveControllerDecision,
@@ -331,6 +332,22 @@ export function inspectWorkflow({ runDir } = {}) {
         posture: "hard-stop",
         rootCause: { owner: "run-bundle-layout", kind: "layout-invalid", detail: layoutIssues[0] },
         primaryAction: ownerAction("run-bundle-layout", "repair-layout", "repair", false, "Repair the reported bundle-layout issue."),
+        evidenceSummary: { pipeline: PAGE_IMAGE_WORKFLOW_PIPELINE, mode: null, workflow: null },
+      });
+    }
+    const draftRoute = resolveTargetAuthoringDraftRoute(resolved);
+    if (draftRoute?.workflow === null && draftRoute.current_node === "author-target-narrative-sources") {
+      return report({
+        runDir: resolved,
+        posture: "guide",
+        rootCause: { owner: "narrative-authoring", kind: "NARRATIVE_SOURCES_REQUIRED" },
+        primaryAction: ownerAction(
+          "01-content",
+          "author-target-narrative-sources",
+          "guide",
+          false,
+          "Write or repair the Story Outline and Design Constraints before selecting a target workflow.",
+        ),
         evidenceSummary: { pipeline: PAGE_IMAGE_WORKFLOW_PIPELINE, mode: null, workflow: null },
       });
     }

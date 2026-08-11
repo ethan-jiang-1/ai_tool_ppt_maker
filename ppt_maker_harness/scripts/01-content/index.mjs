@@ -36,6 +36,23 @@ export {
 } from "./internal/page_image_source.mjs";
 
 export {
+  DESIGN_CONSTRAINTS_SCHEMA,
+  STORY_OUTLINE_SCHEMA,
+  NarrativeSourceError,
+  parseDesignConstraints,
+  parseStoryOutline,
+} from "./internal/narrative_source.mjs";
+
+export {
+  NARRATIVE_PAGE_GROUPING_CANDIDATE_SCHEMA,
+  NARRATIVE_PAGE_PLAN_SCHEMA,
+  NarrativePagePlanError,
+  applyNarrativePagePlan,
+  parseNarrativePageGroupingCandidate,
+  previewNarrativePagePlan,
+} from "./internal/narrative_page_plan.mjs";
+
+export {
   TARGET_STRUCTURAL_PLAN_SCHEMA,
   applyTargetStructuralVersion,
   deriveTargetStructuralSource,

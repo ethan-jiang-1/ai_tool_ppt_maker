@@ -10,16 +10,25 @@ feeds_into:
 # Phase 1: Page Image Content
 
 Turn the brief into an ordered, reviewable Page Image source before any raw
-generation. Start with the core metaphor, formula, and Block Map, then give every
-slide a stable mnemonic ID, one reviewable claim, and a closed `VISUAL BRIEF`.
-Before source validation/provider work, bind the whole version to one `framed`
-or `pure` workflow; slides do not select authority individually.
+generation. First record the shared `2_backbone/story-outline.md` and focused
+`2_backbone/design-constraints.md`: the argument comes before page grouping.
+After the Deck Author selects the version-wide `framed` or `pure` workflow, use
+the current Visual Language registry, prepare one Agent candidate, preview its
+page plan, obtain one content-and-structure confirmation, and then publish only
+that exact Page Source plan. Slides do not select authority individually.
 
 The canonical source is `3_versions/vN/slide-specifications.md`. It declares
 `production.pipeline: page-image-workflow`, `production.workflow: framed|pure`,
 and `identity.scheme: mnemonic`. `position` is snapshot order; `slide_id` is
 cross-version identity. An undeclared source is an owner-issued
 `repair-current-protocol-identity` hard-stop and cannot enter current authoring.
+
+The Agent chooses how Block beats group into pages, writes a confined narrative
+candidate, and previews its provenance-carrying page plan. The Deck Author reviews
+that content and structure decision once before the exact plan can materialize
+canonical Page Source. That conversation is not a persisted approval, provider
+grant, or review result. Visual Language supplies registered visual selections;
+Page Class, layout, and density policy are not narrative-source fields.
 
 Read in order:
 

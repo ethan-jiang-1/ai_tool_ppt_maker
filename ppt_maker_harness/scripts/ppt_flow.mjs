@@ -81,12 +81,14 @@ const contentApi = !directRootEntry || !["doctor", "--help", "-h", undefined].in
   : Object.create(null);
 const {
   applySlideEdit,
+  applyNarrativePagePlan,
   applyTargetStructuralVersion,
   computeSlideEditPlanSha256,
   formatAvailableSlideIds,
   formatSlideCandidate,
   parseSlideDocument,
   parsePageImageSource,
+  previewNarrativePagePlan,
   planSlideEdit,
   previewTargetStructuralVersion,
   resolveSlideBindings,
@@ -1102,6 +1104,17 @@ function renderSlidesResult(result, asJson) {
     }
     return;
   }
+  if (result.kind === "narrative-page-plan") {
+    const label = result.applied ? "Applied" : "Preview";
+    console.log(`${label}: ${result.plan_sha256}`);
+    console.log(`Target: ${result.target_run_version} (${result.target_workflow})`);
+    if (result.plan_path) console.log(`Plan: ${result.plan_path}`);
+    for (const page of result.pages || []) {
+      const lineage = page.blocks.map((block) => `Block ${block.block_ordinal} beats ${block.beat_ordinals.join(",")}`).join("; ");
+      console.log(`${String(page.position).padStart(2, "0")}: ${page.slide_id} - ${lineage}`);
+    }
+    return;
+  }
   const label = result.applied ? "Applied" : "Preview";
   console.log(`${label}: ${result.transaction.plan_sha256}`);
   console.log(`Before: ${result.transaction.before_order.join(" -> ")}`);
@@ -1175,6 +1188,11 @@ async function parseTargetStructuralReceipt(context, sourceText) {
     source: context.document.source,
     registry: createPageImageSourceResolver({ deckDir: deckRoot(context.runDir), visualLanguage }),
   });
+}
+
+async function narrativeVisualSystem() {
+  const { createPageImageSourceResolver, loadPageImageVisualLanguage } = await import("./02-visual-system/index.mjs");
+  return Object.freeze({ createPageImageSourceResolver, loadPageImageVisualLanguage });
 }
 
 /** Bind a current same-workflow structural vNext to the existing exact preview. */
@@ -1301,6 +1319,47 @@ function slideOperationsFor(subcommand, args, opts) {
 async function commandSlides(subcommand, runDir, args = [], opts = {}) {
   if (!resolveRunHarnessBinding(runDir, `ppt_flow.slides.${subcommand}.binding`)) return 1;
   try {
+    if (subcommand === "narrative-plan") {
+      const result = previewNarrativePagePlan({
+        sourceRunDir: runDir,
+        candidatePath: opts.candidate,
+        visualSystem: await narrativeVisualSystem(),
+      });
+      renderSlidesResult(result, opts.json);
+      return 0;
+    }
+    if (subcommand === "apply-plan") {
+      if (!opts.apply) throw new Error("apply-plan requires explicit --apply");
+      const resolvedRunDir = resolve(runDir);
+      const scratch = resolve(resolvedRunDir, SCRATCH_SUBDIR);
+      const planPath = resolve(opts.plan);
+      const rel = relative(scratch, planPath);
+      if (!rel || rel === ".." || rel.startsWith(`..${sep}`)) {
+        throw new Error("apply-plan input must be inside the current version _scratch/");
+      }
+      const realScratch = realpathSync(scratch);
+      const realPlan = realpathSync(planPath);
+      const realRel = relative(realScratch, realPlan);
+      if (!realRel || realRel === ".." || realRel.startsWith(`..${sep}`)) {
+        throw new Error("apply-plan realpath must remain inside the current version _scratch/");
+      }
+      const persisted = JSON.parse(readFileSync(planPath, "utf8"));
+      if (persisted?.schema === "narrative-page-plan") {
+        if (!opts.planSha256) {
+          const error = new Error("narrative apply-plan requires --plan-sha256 from the confirmed narrative preview");
+          error.code = "missing_plan_sha256";
+          throw error;
+        }
+        const result = applyNarrativePagePlan({
+          sourceRunDir: runDir,
+          plan: persisted,
+          planSha256: opts.planSha256,
+          visualSystem: await narrativeVisualSystem(),
+        });
+        renderSlidesResult(result, opts.json);
+        return 0;
+      }
+    }
     const context = readCanonicalSlideSource(runDir);
     const slides = context.document.slides.map((slide) => ({
       slide_id: slide.slide_id,
@@ -1317,7 +1376,6 @@ async function commandSlides(subcommand, runDir, args = [], opts = {}) {
       return 0;
     }
     if (subcommand === "apply-plan") {
-      if (!opts.apply) throw new Error("apply-plan requires explicit --apply");
       const scratch = resolve(context.runDir, SCRATCH_SUBDIR);
       const planPath = resolve(opts.plan);
       const rel = relative(scratch, planPath);
@@ -3403,20 +3461,21 @@ Examples:
   // ---- slides ----
   program
     .command("slides")
-    .description("Preview and apply stable-ID slide order edits")
-    .argument("<subcommand>", "list, resolve, normalize, move, delete, insert, or apply-plan")
+    .description("Preview stable-ID edits or narrative page plans; apply only an exact confirmed plan")
+    .argument("<subcommand>", "list, resolve, normalize, move, delete, insert, narrative-plan, or apply-plan")
     .argument("<run_dir>", "Path to current version dir")
     .argument("[selectors...]", "Slide selectors for resolve/move/delete")
     .option("--after <selector>", "Place target after snapshot selector")
     .option("--before <selector>", "Place target before snapshot selector")
     .option("--to <edge>", "Place target at start or end")
     .option("--source <path>", "Insert source containing one complete slide block")
-    .option("--plan <path>", "Persisted edit plan under current _scratch/")
+    .option("--candidate <path>", "Agent-authored narrative candidate under current _scratch/")
+    .option("--plan <path>", "Persisted exact plan under current _scratch/")
     .option("--apply", "Apply the confirmed preview")
-    .option("--plan-sha256 <hash>", "Canonical hash from the confirmed preview")
+    .option("--plan-sha256 <hash>", "Exact hash from the confirmed preview; required for narrative publication")
     .option("--json", "Output one machine-readable report")
     .action(async (subcommand, runDir, selectors, opts) => {
-      const allowed = new Set(["list", "resolve", "normalize", "move", "delete", "insert", "apply-plan"]);
+      const allowed = new Set(["list", "resolve", "normalize", "move", "delete", "insert", "narrative-plan", "apply-plan"]);
       if (!allowed.has(subcommand)) {
         exitUsage("ppt_flow.slides.subcommand", `unknown slides subcommand ${JSON.stringify(subcommand)}`, `Use one of: ${[...allowed].join(", ")}`);
       }
@@ -3434,6 +3493,9 @@ Examples:
       if (subcommand === "insert" && !opts.source) {
         exitUsage("ppt_flow.slides.insert", "insert requires --source", "Pass --source <one-slide-block.md>");
       }
+      if (subcommand === "narrative-plan" && !opts.candidate) {
+        exitUsage("ppt_flow.slides.narrative-plan", "narrative-plan requires --candidate", "Create one narrative candidate JSON under the current _scratch/ and pass its path");
+      }
       if (subcommand === "apply-plan" && !opts.plan) {
         exitUsage("ppt_flow.slides.apply-plan", "apply-plan requires --plan", "Pass a plan file inside the current version _scratch/");
       }
@@ -3445,6 +3507,7 @@ Examples:
         before: opts.before,
         to: opts.to,
         source: opts.source,
+        candidate: opts.candidate || null,
         plan: opts.plan,
         apply: opts.apply ?? false,
         planSha256: opts.planSha256 || null,

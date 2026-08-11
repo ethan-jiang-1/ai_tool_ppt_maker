@@ -8,6 +8,7 @@ depends_on:
 - workflow/01-content/template-core-metaphor.md
 - workflow/01-content/template-core-formula.md
 - workflow/01-content/template-design-constraints.md
+- workflow/01-content/template-story-outline.md
 feeds_into: []
 agent_action: reference
 ---

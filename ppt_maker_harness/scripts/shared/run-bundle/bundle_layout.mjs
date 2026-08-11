@@ -29,7 +29,7 @@
  *     │   ├── core-metaphor.md
  *     │   ├── core-formula.md
  *     │   ├── design-constraints.md
- *     │   ├── outline.md
+ *     │   ├── story-outline.md
  *     │   ├── manuscript/
  *     │   └── visual-style/
  *     │       ├── style-master-prompt.md   the prompt that GENERATES style_master
@@ -217,7 +217,7 @@ export const LESSONS_DIR_README = `\
 export const BACKBONE_METAPHOR = 'core-metaphor.md';
 export const BACKBONE_FORMULA = 'core-formula.md';
 export const BACKBONE_CONSTRAINTS = 'design-constraints.md';
-export const BACKBONE_OUTLINE = 'outline.md';
+export const BACKBONE_STORY_OUTLINE = 'story-outline.md';
 export const BACKBONE_MANUSCRIPT_SUBDIR = 'manuscript';
 export const BACKBONE_STYLE_SUBDIR = 'visual-style';
 
@@ -377,7 +377,7 @@ export const BACKBONE_FILE_SEEDS = Object.freeze({
     [BACKBONE_METAPHOR]:    'workflow/01-content/template-core-metaphor.md',
     [BACKBONE_FORMULA]:     'workflow/01-content/template-core-formula.md',
     [BACKBONE_CONSTRAINTS]: 'workflow/01-content/template-design-constraints.md',
-    [BACKBONE_OUTLINE]:     null,
+    [BACKBONE_STORY_OUTLINE]: 'workflow/01-content/template-story-outline.md',
 });
 
 export const BACKBONE_SUBDIRS = Object.freeze([BACKBONE_MANUSCRIPT_SUBDIR, BACKBONE_STYLE_SUBDIR]);
@@ -1268,7 +1268,7 @@ const _PAGE_IMAGE_SEEDS = Object.freeze({
 });
 
 /** Canonical current authoring draft. It becomes runnable only after workflow selection. */
-function _pageImageSeedSource(deckType = null) {
+export function pageImageInitialDraftSource(deckType = null) {
     const seed = _PAGE_IMAGE_SEEDS[deckType || 'generic'];
     return `---
 identity:
@@ -1291,7 +1291,7 @@ closed \`VISUAL BRIEF\` selection from the visual-language registry.
 
 /** Source text + label for a production mode's canonical seed. */
 function _seedSourceForMode(deckType) {
-    return { source: _pageImageSeedSource(deckType), label: 'Page Image Image2 authoring draft' };
+    return { source: pageImageInitialDraftSource(deckType), label: 'Page Image Image2 authoring draft' };
 }
 
 const _DIR_READMES = {
@@ -1313,8 +1313,8 @@ const _DIR_READMES = {
         '**这里放什么:** 整个 deck 的骨架,全版本共享的「默认事实源」:\n' +
         '- `core-metaphor.md` — 核心隐喻\n' +
         '- `core-formula.md` — 核心公式\n' +
-        '- `design-constraints.md` — 设计约束(语言/禁忌/文字密度)\n' +
-        '- `outline.md` — 大纲主干\n' +
+        '- `design-constraints.md` — 内容约束(受众/语言与语气/禁忌主张/必要术语)\n' +
+        '- `story-outline.md` — Block-first 叙事主干\n' +
         '- `manuscript/` — 讲稿主干\n' +
         '- `visual-style/` — 视觉主干(见里面的 README)\n\n' +
         '**你做什么:** 改这里 = 影响所有版本。想只改某一版,去那一版的 `overrides/`。\n'
@@ -1595,7 +1595,7 @@ function initBundleForMode(deckDir, harnessDir = null, deckType = null, style = 
         state.gates.content = 'pending';
         state.gates.visual = 'pending';
         setNodeStatus(state, 'checkpoint-intake', 'completed');
-        state.current_node = 'select-target-page-image-workflow';
+        state.current_node = 'author-target-narrative-sources';
         writeState(deckDir, state);
         log.push(`state: ${STATE_DIR}/${STATE_FILE} (mode:${mode})`);
     }
@@ -1642,7 +1642,7 @@ deck_\${NAME}/
 │   ├── ${BACKBONE_METAPHOR}
 │   ├── ${BACKBONE_FORMULA}
 │   ├── ${BACKBONE_CONSTRAINTS}
-│   ├── ${BACKBONE_OUTLINE}
+│   ├── ${BACKBONE_STORY_OUTLINE}
 │   ├── ${BACKBONE_MANUSCRIPT_SUBDIR}/
 │   └── ${BACKBONE_STYLE_SUBDIR}/
 │       ├── ${STYLE_MASTER_PROMPT}
@@ -1716,7 +1716,7 @@ export function selfCheck() {
     }
 
     const tree = renderTree();
-    for (const n of [UPSTREAM_DIR, BACKBONE_DIR, VERSIONS_DIR, GENERATED_SUBDIR, SCRATCH_SUBDIR, SLIDE_SPECS_NAME, STATE_DIR, LESSONS_DIR, BACKBONE_ASSETS_SUBDIR, ASSET_MANIFEST_FILE]) {
+    for (const n of [UPSTREAM_DIR, BACKBONE_DIR, VERSIONS_DIR, GENERATED_SUBDIR, SCRATCH_SUBDIR, SLIDE_SPECS_NAME, STATE_DIR, LESSONS_DIR, BACKBONE_STORY_OUTLINE, BACKBONE_ASSETS_SUBDIR, ASSET_MANIFEST_FILE]) {
         if (!tree.includes(n)) {
             problems.push(`renderTree() is missing canonical entry ${JSON.stringify(n)} (stale hardcoded literal?)`);
         }

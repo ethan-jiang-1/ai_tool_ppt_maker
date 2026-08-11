@@ -3083,7 +3083,7 @@ export function createTargetAuthoringState(deckName, deckType, style) {
   state.pipeline = PAGE_IMAGE_WORKFLOW_PIPELINE;
   state.deck = { name: String(deckName || ""), type: String(deckType || ""), style: String(style || "") };
   startPlaybook(state, "create-deck", { runVersion: "v1" });
-  state.current_node = "select-target-page-image-workflow";
+  state.current_node = "author-target-narrative-sources";
   return state;
 }
 

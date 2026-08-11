@@ -47,6 +47,11 @@ language conversationally, then follow these existing owners:
 - New work hands off from local foundation and initialization to the existing
   [create-deck controller](playbook/create-deck.md). The controller retains
   lifecycle, evidence, and authorization decisions.
+- New-deck authoring records Story Outline and Design Constraints before the
+  version workflow is selected. The Agent then uses the current Visual Language
+  registry to prepare and preview one page plan; canonical Page Source is written
+  only after the Deck Author confirms that content and structure recommendation.
+  This confirmation is not provider authorization or a persisted approval.
 - Channel diagnostics use
   [probe-image-channels](playbook/probe-image-channels.md). Direct environment
   recovery is only for a pre-install or unavailable main entry.

@@ -57,6 +57,7 @@ export function resolveTargetAuthoringDraftRoute(runDir, { playbookDir = DEFAULT
     run_version: runVersion,
     workflow,
     marker,
+    current_node: state.current_node,
     draft_route_nodes: Object.freeze([...controllerDraftRouteNodes(index, "create-deck", workflow)]),
   });
 }

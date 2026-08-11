@@ -157,15 +157,28 @@ Block 之间直接跳。上一个 Block 最后一张 slide 在讲数据策略，
 
 **修复**：在 major Block 之间插入 divider/pivot slides。它们不需要很多文字——有时一段强有力的视觉 + 一句话就够了。但它们的存在让叙事呼吸。
 
-## 产出物：Block Map
+## 产出物：Story Outline
 
-在进入下一阶段前，你应该有一个 Block Map，包含：
+在进入下一阶段前，把 Block-first argument 写入
+`2_backbone/story-outline.md`。它包含一个 central claim、一个 audience outcome，
+以及顺序明确的 Blocks：
 
 ```
-Block 1: [名称]
-  叙事问题: [这个 Block 回答的问题]
-  Slides: [数量]
-  论证功能: [在整体叙事中的作用]
+## Central Claim
+
+[观众应带走的结论]
+
+## Audience Outcome
+
+[观众应理解、决定或采取的行动]
+
+## Block 1: [名称]
+
+**Audience Question**: [这个 Block 回答的问题]
+**Argument Function**: [在整体论证中的作用]
+**Evidence / Reasoning Beats**:
+- [第一条证据或推理]
+**Intended Page Range**: 1-2
 
 Block 2: [名称]
   ...
@@ -174,7 +187,9 @@ Block N: [名称]
   ...
 ```
 
-这个 Block Map 是接下来 slide-by-slide 规格化的蓝图。值得在开始写具体 slide 之前，先检查 Block Map 的叙事完整性：
+`Intended Page Range` 是作者对节奏的边界，不是逐页设计。每个 Block 的具体
+beat 如何合并成页面由 Agent 提出候选方案，Deck Author 在看到 page plan 后确认。
+先检查 Story Outline 的叙事完整性：
 - 每个 Block 有没有清晰的问题？
 - Block 之间有没有逻辑递进（不是简单的并列）？
 - 有没有 Block 过于庞大或过于单薄？
@@ -182,4 +197,4 @@ Block N: [名称]
 
 ---
 
-> **Next**: `03-specify-structured-slides.md` — 有了 Block Map 之后，怎么为每张 slide 写四层精确规格。
+> **Next**: `03-specify-structured-slides.md` — 有了 Story Outline 之后，怎么把确认后的 page plan 写成每页的精确规格。

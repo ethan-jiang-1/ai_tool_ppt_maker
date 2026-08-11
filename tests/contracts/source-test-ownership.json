@@ -25,6 +25,9 @@
       "executables": [],
       "unit_integration": [
         "tests/01-content/test_clean_page_image_new_version_cli.mjs",
+        "tests/01-content/test_narrative_page_plan.mjs",
+        "tests/01-content/test_narrative_page_plan_cli.mjs",
+        "tests/01-content/test_narrative_source.mjs",
         "tests/01-content/test_page_image_source.mjs",
         "tests/01-content/test_slide_document.mjs",
         "tests/01-content/test_slide_ids.mjs",
@@ -266,6 +269,7 @@
       ],
       "e2e": [
         "tests_e2e/shared/workflow/test-workflow-inspection-flow.mjs",
+        "tests_e2e/shared/workflow/test_mock_narrative_authoring_journey.mjs",
         "tests_e2e/shared/workflow/test_mock_selected_journey.mjs",
         "tests_e2e/shared/workflow/test_mock_target_workflow_journey.mjs"
       ]

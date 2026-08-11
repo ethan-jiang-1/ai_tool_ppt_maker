@@ -341,10 +341,12 @@ export function controllerDraftRouteNodes(index, playbook, workflow = null) {
   if (workflow === null) {
     const framed = Array.isArray(routes.framed) ? routes.framed : [];
     const pure = Array.isArray(routes.pure) ? routes.pure : [];
-    // Before a workflow is selected, the Controller may route only through
-    // its common selection entry. Shared later nodes become routable only
-    // after the canonical source binds framed or pure.
-    return framed.length > 0 && framed[0] === pure[0] ? [framed[0]] : [];
+    // Before a workflow is selected, expose only the common narrative and
+    // workflow-selection prefix. Shared visual and production nodes become
+    // routable only after the canonical source binds framed or pure.
+    const common = framed.filter((nodeId, index) => pure[index] === nodeId);
+    const selectionIndex = common.indexOf("select-target-page-image-workflow");
+    return selectionIndex >= 0 ? common.slice(0, selectionIndex + 1) : [];
   }
   if (!PAGE_IMAGE_WORKFLOWS.includes(workflow) || !Array.isArray(routes[workflow])) return [];
   return [...routes[workflow]];

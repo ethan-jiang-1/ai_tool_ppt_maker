@@ -106,6 +106,19 @@ shared_contracts:
       - scripts/00-setup/internal
 
 wire_schema_groups:
+  - stage_ref: story-outline
+    role: narrative-source
+    values:
+      - story-outline
+  - stage_ref: design-constraints
+    role: narrative-source
+    values:
+      - design-constraints
+  - stage_ref: page-source
+    role: narrative-page-plan-exchange
+    values:
+      - narrative-page-grouping-candidate
+      - narrative-page-plan
   - stage_ref: visual-language
     role: visual-system-source
     values:
@@ -211,4 +224,4 @@ wire_schema_groups:
 implementation_invariants:
   - name: Page Image runtime values are declared by the selector, shared-contract, or wire-schema group above.
   - name: Existing kind fields describe business or action semantics and are not serialization roles.
-  - name: C3-C5 planned stages remain declarative; this inventory does not materialize their producers.
+  - name: C4-C5 planned stages remain declarative; this inventory does not materialize their producers.

@@ -154,14 +154,22 @@ function setDraftState(fixtureValue, { currentNode = "author-target-page-image-c
   writeState(fixtureValue.deck, state);
 }
 
+function patchStateField(deckDir, field, value) {
+  const path = join(deckDir, "_state", "state.yaml");
+  const source = readFileSync(path, "utf8");
+  writeFileSync(path, source.replace(new RegExp(`^${field}:.*$`, "m"), `${field}: ${value}`));
+}
+
 describe("target authoring draft route", () => {
   it("uses only a validated selected-workflow manifest route", () => {
     const value = fixture();
     const rejected = [];
-    const freshRejectedFixture = (options) => {
+    const freshRejectedFixture = (options = {}) => {
       const candidate = fixture();
       rejected.push(candidate);
-      setDraftState(candidate, options);
+      setDraftState(candidate, { bound: options.bound });
+      if (options.currentNode) patchStateField(candidate.deck, "current_node", options.currentNode);
+      if (options.playbook) patchStateField(candidate.deck, "playbook", options.playbook);
       return candidate;
     };
     try {
@@ -238,6 +246,7 @@ describe("target authoring draft route", () => {
       const state = readState(value.deck, { purpose: "observe", runDir: value.runDir });
       state.playbook = "edit-visual";
       state.current_node = "refresh-target-framed-visual";
+      state.nodes = {};
       writeState(value.deck, state);
       expect(resolveTargetAuthoringDraftRoute(value.runDir)).toBeNull();
     } finally {
@@ -245,9 +254,12 @@ describe("target authoring draft route", () => {
     }
   });
 
-  it("allows only workflow selection before the source records a selected workflow", () => {
+  it("allows narrative authoring and workflow selection before the source records a selected workflow", () => {
     const value = harnessFixture("framed");
     try {
+      setHarnessDraft(value, { currentNode: "author-target-narrative-sources", workflow: null });
+      expect(resolveTargetAuthoringDraftRoute(value.runDir)).toMatchObject({ workflow: null });
+
       setHarnessDraft(value, { currentNode: "select-target-page-image-workflow", workflow: null });
       expect(resolveTargetAuthoringDraftRoute(value.runDir)).toMatchObject({ workflow: null });
 

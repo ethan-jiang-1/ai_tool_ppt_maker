@@ -6,6 +6,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import {
+  BACKBONE_CONSTRAINTS,
+  BACKBONE_STORY_OUTLINE,
   DEFAULT_INIT_MODE,
   PAGE_IMAGE_WORKFLOW_PATHS,
   checkBundle,
@@ -22,6 +24,10 @@ import {
   STYLE_MASTER_IMAGE,
   styleAsset,
 } from "../../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
+import {
+  parseDesignConstraints,
+  parseStoryOutline,
+} from "../../../ppt_maker_harness/scripts/01-content/index.mjs";
 import {
   PAGE_IMAGE_WORKFLOW_PRODUCTION_MODE,
   initialProductionModeRecord,
@@ -85,10 +91,39 @@ describe("Page Image bundle layout", () => {
       const state = readState(deck, { purpose: "observe", heal: false, runVersion: "v1" });
       expect(state.pipeline).toBe(PAGE_IMAGE_WORKFLOW_PIPELINE);
       expect(state.production_mode.by_version["3_versions/v1"]).toBeUndefined();
-      expect(state.current_node).toBe("select-target-page-image-workflow");
+      expect(state.current_node).toBe("author-target-narrative-sources");
       expect(existsSync(pageImageWorkflowPaths(runDir).root)).toBe(false);
       expect(existsSync(pureDeckVisualSystemPath)).toBe(true);
       expect(readFileSync(pureDeckVisualSystemPath, "utf8")).toContain("schema: pptmaker-pure-deck-visual-system");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("seeds only the current editable narrative-source pair with ordinary Controller state", () => {
+    const root = mkdtempSync(join(tmpdir(), "narrative-source-init-"));
+    try {
+      const deck = join(root, "deck_current");
+      initBundle(deck, null, "keynote", "dark-executive");
+      const backbone = join(deck, "2_backbone");
+      const storyPath = join(backbone, BACKBONE_STORY_OUTLINE);
+      const constraintsPath = join(backbone, BACKBONE_CONSTRAINTS);
+      const statePath = join(deck, "_state", "state.yaml");
+      const runDir = join(deck, "3_versions", "v1");
+
+      expect(existsSync(storyPath)).toBe(true);
+      expect(existsSync(constraintsPath)).toBe(true);
+      expect(existsSync(join(backbone, "outline.md"))).toBe(false);
+      expect(parseStoryOutline(readFileSync(storyPath, "utf8"))).toMatchObject({ schema: "story-outline" });
+      expect(parseDesignConstraints(readFileSync(constraintsPath, "utf8"))).toMatchObject({ schema: "design-constraints" });
+
+      const state = readFileSync(statePath, "utf8");
+      expect(state).toContain("current_node:");
+      expect(state).not.toContain("page_image_target_evidence");
+      expect(state).not.toContain("provider_authorization");
+      expect(state).not.toContain("page_review");
+      expect(existsSync(join(runDir, "_scratch", "narrative-plans"))).toBe(false);
+      expect(existsSync(pageImageWorkflowPaths(runDir).root)).toBe(false);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
