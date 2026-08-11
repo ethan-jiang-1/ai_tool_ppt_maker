@@ -1,0 +1,47 @@
+schema: image2-request
+kind: derived
+scope: version-page
+purpose: "Represent the exact canonical request bytes prepared for the selected image provider."
+answers: "What exact bytes will image2 receive for this page?"
+owner: "ppt_maker_harness/scripts/03-framed-image/index.mjs and ppt_maker_harness/scripts/04-pure-image/index.mjs"
+producer_status: materialized
+inputs:
+  - page-generation-spec
+outputs:
+  - image-generation-plan
+  - image-generation-record
+provenance:
+  source: "One selected adapter's compiled provider input and its binding to core page facts."
+  requirement: "Retain the canonical UTF-8 bytes and sha256 digest used by the provider submission."
+downstream_consumers:
+  - image-generation-plan
+  - image-generation-record
+  - provider-request-inspection
+does_not_contain:
+  - "A human review decision, delivery artifact, or a replacement source document."
+  - "Local Framed header HTML as a duplicate provider payload."
+fields:
+  canonical_utf8:
+    type: UTF-8 bytes
+    description: "The exact canonical request serialization prepared by the selected adapter."
+    rule: "Must be canonicalized before its digest or submission is used."
+    on_violation:
+      means: "The provider request cannot be reproduced or compared reliably."
+      ask: "Which approved generation choices should be sent exactly as planned?"
+      never: "Never edit a prepared request after its plan has been reviewed."
+  request_digest:
+    type: sha256 digest
+    description: "The digest that binds the submitted bytes to the page generation facts."
+    rule: "Must match the canonical request bytes exactly."
+    on_violation:
+      means: "The recorded submission cannot prove which request it sent."
+      ask: "Which planned request should this page submit?"
+      never: "Never reuse a request digest for different bytes."
+  adapter_binding:
+    type: mapping
+    description: "The selected adapter's binding to the page semantic and workflow-specific configuration digests."
+    rule: "Must bind the request to one selected page and one selected workflow."
+    on_violation:
+      means: "The request may not belong to the page or workflow being reviewed."
+      ask: "Which page and selected production treatment should this request represent?"
+      never: "Never submit a request assembled from mixed page treatments."

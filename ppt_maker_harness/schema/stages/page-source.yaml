@@ -1,0 +1,59 @@
+schema: page-source
+kind: source
+scope: version-page
+purpose: "Hold one page's authored content, visual selection, stable identity, and normalized class before parsing."
+answers: "What does this page say, show, and declare about its treatment?"
+owner: "land-page-class-and-layout-config planned change (C4); current source grammar is partially owned by 01-content"
+producer_status: planned
+route_ref: C4
+inputs:
+  - story-outline
+  - design-constraints
+  - visual-language
+  - layout-config
+outputs:
+  - page-source-receipt
+provenance:
+  source: "Human-authored version source document."
+  recomputable: false
+  requirement: "Keep the stable page identity and authored choices together."
+downstream_consumers:
+  - page-source-receipt
+  - page-layout
+does_not_contain:
+  - "A resolved layout, provider instruction, provider bytes, or review decision."
+  - "A generated image or delivery artifact."
+fields:
+  stable_page_identity:
+    type: mnemonic identifier
+    description: "The page identity that persists across version snapshots while position may change."
+    rule: "Must be a valid stable identifier unique within the version."
+    on_violation:
+      means: "The page cannot be tracked reliably through reordering or regeneration."
+      ask: "Which stable page identifier should remain attached to this content?"
+      never: "Never reuse another page's identifier because its position looks similar."
+  production_workflow:
+    type: enum
+    description: "The version-level image workflow selected before provider work."
+    rule: "Must be framed or pure and must match the version's one recorded workflow."
+    on_violation:
+      means: "The page is trying to use an unsupported or mixed production treatment."
+      ask: "Which single workflow was chosen for this version before provider work?"
+      never: "Never combine framed and pure treatments on one version."
+  page_class:
+    type: enum
+    description: "The optional source-authored presentation class for this page."
+    rule: "Must be standard, opening, transition, or closing when supplied."
+    default: standard
+    on_violation:
+      means: "The page treatment is not one the version can resolve."
+      ask: "Does this page need the usual treatment, a section opening, a transition, or a closing?"
+      never: "Never require a special treatment merely to let the page proceed."
+  visual_selection:
+    type: registered selection
+    description: "The chosen visual recipe, composition, motifs, and optional relationship."
+    rule: "Must resolve through the deck's approved visual language."
+    on_violation:
+      means: "The page's imagery cannot be traced to an approved visual direction."
+      ask: "Which approved visual selection best supports this page's message?"
+      never: "Never substitute an unregistered visual preference after planning."

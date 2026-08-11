@@ -1,0 +1,184 @@
+flow: page-image-production
+authority: conceptual-vocabulary
+execution: descriptive-only
+
+sources:
+  - schema: story-outline
+    owner: "close-upstream-narrative-gap planned change (C3)"
+    producer_status: planned
+    route_ref: C3
+    invalidated_by:
+      - "A human changes the deck argument, evidence order, or audience outcome."
+  - schema: visual-language
+    owner: "ppt_maker_harness/scripts/02-visual-system/internal/page_image_visual_language.mjs"
+    producer_status: materialized
+    invalidated_by:
+      - "A human changes the canonical visual-language registry or a selected visual record."
+  - schema: design-constraints
+    owner: "close-upstream-narrative-gap planned change (C3)"
+    producer_status: planned
+    route_ref: C3
+    invalidated_by:
+      - "A human changes audience, claim boundaries, tone, or required terminology."
+  - schema: layout-config
+    owner: "land-page-class-and-layout-config planned change (C4)"
+    producer_status: planned
+    route_ref: C4
+    invalidated_by:
+      - "A human changes deck defaults or a profile selected by a page class."
+
+transformations:
+  - name: derive-page-source
+    inputs:
+      - story-outline
+      - design-constraints
+      - visual-language
+    output: page-source
+    owner: "close-upstream-narrative-gap planned change (C3)"
+    producer_status: planned
+    route_ref: C3
+    invalidated_by:
+      - "A story, constraint, visual selection, or source-authored page change."
+  - name: parse-page-source
+    inputs:
+      - page-source
+      - visual-language
+    output: page-source-receipt
+    owner: "ppt_maker_harness/scripts/01-content/internal/page_image_source.mjs"
+    producer_status: materialized
+    invalidated_by:
+      - "A page source byte change or selected visual-language registry change."
+  - name: resolve-page-layout
+    inputs:
+      - page-source-receipt
+      - layout-config
+      - visual-language
+    output: page-layout
+    owner: "land-page-class-and-layout-config planned change (C4)"
+    producer_status: planned
+    route_ref: C4
+    invalidated_by:
+      - "A parsed page change, a deck-default change, or a selected class profile change."
+  - name: build-page-render-model
+    inputs:
+      - page-source-receipt
+      - page-layout
+      - visual-language
+      - framed-header-html
+    output: page-render-model
+    owner: "publish-per-page-derived-data planned change (C5)"
+    producer_status: planned
+    route_ref: C5
+    invalidated_by:
+      - "A receipt, resolved layout, visual selection, or local framed-header change."
+  - name: compile-page-generation-spec
+    inputs:
+      - page-source-receipt
+      - visual-language
+      - visual-style-candidates
+    output: page-generation-spec
+    owner: "ppt_maker_harness/scripts/shared/page-image/page_image_core.mjs"
+    producer_status: materialized
+    invalidated_by:
+      - "A normalized source, selected visual language, selected style candidate, generation profile, or header policy change."
+  - name: compile-image2-request
+    inputs:
+      - page-generation-spec
+    output: image2-request
+    owner: "ppt_maker_harness/scripts/03-framed-image/index.mjs and ppt_maker_harness/scripts/04-pure-image/index.mjs"
+    producer_status: materialized
+    invalidated_by:
+      - "A generation-spec change or selected workflow adapter configuration change."
+  - name: render-framed-header-html
+    inputs:
+      - page-source-receipt
+    output: framed-header-html
+    owner: "ppt_maker_harness/scripts/03-framed-image/internal/header_overlay.mjs"
+    producer_status: materialized
+    invalidated_by:
+      - "A framed header policy or the selected overlay preset change."
+  - name: publish-page-artifact-index
+    inputs:
+      - page-source-receipt
+      - page-layout
+      - page-render-model
+      - page-generation-spec
+      - image2-request
+      - framed-header-html
+    output: page-artifact-index
+    owner: "publish-per-page-derived-data planned change (C5)"
+    producer_status: planned
+    route_ref: C5
+    invalidated_by:
+      - "Any referenced page artifact is replaced or becomes unavailable."
+  - name: record-visual-style-candidates
+    inputs:
+      - visual-language
+      - production-progress-state
+    output: visual-style-candidates
+    owner: "ppt_maker_harness/scripts/shared/image2/style_master_schema.mjs"
+    producer_status: materialized
+    invalidated_by:
+      - "A style candidate source, selected workflow, or source context change."
+  - name: record-production-progress
+    inputs:
+      - page-source-receipt
+      - image-generation-plan
+      - page-review-decision
+      - delivery-package
+    output: production-progress-state
+    owner: "ppt_maker_harness/scripts/shared/state/state.mjs"
+    producer_status: materialized
+    invalidated_by:
+      - "A runtime-owned source epoch or recorded lifecycle handoff change."
+  - name: build-image-generation-plan
+    inputs:
+      - page-generation-spec
+      - image2-request
+      - visual-style-candidates
+      - production-progress-state
+    output: image-generation-plan
+    owner: "ppt_maker_harness/scripts/03-framed-image/index.mjs and ppt_maker_harness/scripts/04-pure-image/index.mjs"
+    producer_status: materialized
+    invalidated_by:
+      - "A selected page request, style candidate, source epoch, or workflow configuration change."
+  - name: record-image-generation
+    inputs:
+      - image-generation-plan
+      - image2-request
+    output: image-generation-record
+    owner: "ppt_maker_harness/scripts/shared/image2/page_image_progressive_schema.mjs"
+    producer_status: materialized
+    invalidated_by:
+      - "Never rewritten; a new provider attempt creates a new record."
+  - name: record-page-review-decision
+    inputs:
+      - image-generation-plan
+      - image-generation-record
+    output: page-review-decision
+    owner: "ppt_maker_harness/scripts/shared/image2/page_image_progressive_schema.mjs"
+    producer_status: materialized
+    invalidated_by:
+      - "Never rewritten; a new review is recorded for a new or current exact plan."
+  - name: select-final-page-list
+    inputs:
+      - image-generation-record
+      - page-review-decision
+    output: final-page-list
+    owner: "ppt_maker_harness/scripts/05-delivery/index.mjs with shared final-manifest validation"
+    producer_status: materialized
+    invalidated_by:
+      - "A repair outcome, a changed accepted-evidence set, or a new finalization."
+  - name: assemble-delivery-package
+    inputs:
+      - final-page-list
+      - page-source
+    output: delivery-package
+    owner: "ppt_maker_harness/scripts/05-delivery/index.mjs"
+    producer_status: materialized
+    invalidated_by:
+      - "A final-page-list change or a source-owned notes refresh."
+
+notes:
+  - "This flow shows provenance and rebuild impact only. It is not a lifecycle controller, authorization path, or second state machine."
+  - "A planned C3-C5 producer names its planned change rather than an implementation module."

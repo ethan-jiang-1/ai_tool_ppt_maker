@@ -1,0 +1,47 @@
+schema: visual-language
+kind: source
+scope: deck
+purpose: "Describe the deck-level visual register and resolve permitted visual selections without provider-visible text content."
+answers: "What should the deck look like: type, color roles, imagery register, and eligible visual selections?"
+owner: "ppt_maker_harness/scripts/02-visual-system/internal/page_image_visual_language.mjs"
+producer_status: materialized
+inputs:
+  - page-source
+outputs:
+  - page-layout
+  - page-generation-spec
+provenance:
+  source: "Canonical deck visual-language registry and the selected page visual brief."
+  requirement: "Retain semantic and registry digests for each resolved selection."
+downstream_consumers:
+  - page-layout
+  - page-generation-spec
+  - image2-request
+does_not_contain:
+  - "Slide copy, local framed-header content, or a raw provider request."
+  - "A substitute for a workflow-specific layout profile."
+fields:
+  visual_clause:
+    type: content-neutral string
+    description: "A reusable visual direction for a recipe, composition, motif, or relationship."
+    rule: "Must be non-empty and must not request readable text, labels, or other forbidden provider content."
+    on_violation:
+      means: "The visual direction would ask the image provider to invent content that belongs in the presentation."
+      ask: "How should the scene feel without asking the image to render words, labels, or charts?"
+      never: "Never hide presentation copy inside an imagery instruction."
+  workflow_eligibility:
+    type: list of workflow names
+    description: "The workflows for which a visual record may be selected."
+    rule: "Must include only framed or pure and must match the selected production workflow."
+    on_violation:
+      means: "The chosen visual treatment is not valid for this presentation workflow."
+      ask: "Should this visual direction support the selected framed or pure treatment?"
+      never: "Never reuse a treatment that belongs only to the other workflow."
+  selection_compatibility:
+    type: relationship set
+    description: "Allowed recipe, composition, motif, relationship, and identity-subject combinations."
+    rule: "Every selected combination must be registered as compatible."
+    on_violation:
+      means: "The chosen visual elements do not form an approved visual language."
+      ask: "Which registered combination best supports the page's subject and message?"
+      never: "Never combine visual elements solely because their names sound compatible."

@@ -1,0 +1,60 @@
+schema_home: page-image-production-definitions
+authority: conceptual-vocabulary
+execution: non-executable
+
+naming:
+  stage_name: "Use the established unversioned kebab-case conceptual name."
+  version_suffix: "Do not add a new -vN suffix to a conceptual stage name."
+  frozen_identifier: "Keep historical serialized names only in frozen-identifiers.yaml."
+
+stage_definition:
+  required_keys:
+    - schema
+    - kind
+    - scope
+    - purpose
+    - answers
+    - owner
+    - producer_status
+    - inputs
+    - outputs
+    - provenance
+    - downstream_consumers
+    - does_not_contain
+    - fields
+  kind_values:
+    - source
+    - derived
+    - record
+  producer_status_values:
+    - human-authored
+    - materialized
+    - planned
+  planned_producer:
+    required_key: route_ref
+    meaning: "A route label defined by recovery-route.yaml for a producer that has not materialized."
+    boundary: "A route reference explains future ownership; it never authorizes implementation or provider work."
+  owner_rule: "Materialized stages name a real current owner. Planned C3-C5 stages name their planned change or capability, never a speculative module path."
+  provenance_rule: "Every derived or record stage identifies the source, configuration, or upstream record needed to explain how it was made."
+
+field_definition:
+  required_keys:
+    - type
+    - description
+  constrained_field:
+    detection: "A field is constrained when it declares rule."
+    required_keys:
+      - type
+      - description
+      - rule
+      - on_violation
+  on_violation:
+    required_keys:
+      - means
+      - ask
+      - never
+    author_language: "Use Deck Author terms. Do not name schema filenames or source field names."
+    boundary: "Collaboration projection only; never an authorization, gate, record, state mutation, or CLI diagnostic."
+  default:
+    meaning: "An omitted value intentionally normalizes to this value."
+    boundary: "A declared default is not an author error and is applied by a later runtime owner."

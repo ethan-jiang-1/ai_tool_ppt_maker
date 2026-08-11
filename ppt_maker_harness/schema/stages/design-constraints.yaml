@@ -1,0 +1,48 @@
+schema: design-constraints
+kind: source
+scope: deck
+purpose: "Capture audience, tone, claim boundaries, and terminology that constrain every derived page."
+answers: "What may this deck claim, how should it speak, and what terms must it use?"
+owner: "close-upstream-narrative-gap planned change (C3)"
+producer_status: planned
+route_ref: C3
+inputs: []
+outputs:
+  - page-source
+  - page-generation-spec
+provenance:
+  source: "Human-authored deck brief and content policy."
+  recomputable: false
+  requirement: "Preserve the author decision that constrained later content."
+downstream_consumers:
+  - page-source
+  - page-layout
+  - page-generation-spec
+does_not_contain:
+  - "A page-specific layout, prompt, or provider request."
+  - "A final review decision or a delivery record."
+fields:
+  audience:
+    type: string
+    description: "The people whose context and decisions the deck addresses."
+    rule: "Must identify the intended audience well enough to guide tone and evidence."
+    on_violation:
+      means: "The deck cannot choose an appropriate level of detail or tone."
+      ask: "Who will use this presentation, and what do they already know?"
+      never: "Never substitute a visual style for an audience decision."
+  forbidden_claims:
+    type: list of strings
+    description: "Claims, implications, or assurances the deck must not make."
+    rule: "Must preserve any known claim boundaries from the content owner."
+    on_violation:
+      means: "The presentation may overstate what its evidence supports."
+      ask: "Which promises, comparisons, or conclusions must this deck avoid?"
+      never: "Never treat an omitted warning as permission to make a stronger claim."
+  required_terminology:
+    type: list of strings
+    description: "Terms that must remain consistent in the deck's content."
+    rule: "Must use the content owner's approved terminology when terminology is specified."
+    on_violation:
+      means: "The deck could use conflicting language for the same idea."
+      ask: "Which names or phrases must remain exact for this audience?"
+      never: "Never replace an approved term with a stylistic synonym."

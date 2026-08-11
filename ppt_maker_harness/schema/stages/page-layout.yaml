@@ -1,0 +1,51 @@
+schema: page-layout
+kind: derived
+scope: version-page
+purpose: "Resolve page class, deck defaults, and workflow-specific profile facts into one page treatment with provenance."
+answers: "What geometry and presentation treatment has this page resolved to, and where did each value come from?"
+owner: "land-page-class-and-layout-config planned change (C4)"
+producer_status: planned
+route_ref: C4
+inputs:
+  - page-source-receipt
+  - layout-config
+  - visual-language
+outputs:
+  - page-render-model
+  - page-generation-spec
+  - framed-header-html
+provenance:
+  source: "One parsed page receipt plus the selected class profile and inherited deck defaults."
+  requirement: "Retain a source reference for every resolved geometry and treatment value."
+downstream_consumers:
+  - page-render-model
+  - page-generation-spec
+  - framed-header-html
+does_not_contain:
+  - "Provider transport bytes, a provider response, or a review decision."
+  - "A second source of record for the author-authored page content."
+fields:
+  resolved_class:
+    type: enum
+    description: "The class after applying the normalized page source and version catalog."
+    rule: "Must resolve to exactly one class profile for the selected workflow."
+    on_violation:
+      means: "The page has no unambiguous presentation treatment."
+      ask: "Which existing treatment should this page use in the selected workflow?"
+      never: "Never merge two class treatments to make a new one."
+  geometry:
+    type: mapping
+    description: "Resolved regions, spacing, and workflow-specific presentation geometry."
+    rule: "Must be complete for the selected treatment and identify its value origins."
+    on_violation:
+      means: "The page cannot be rendered or reviewed as one coherent treatment."
+      ask: "Which approved layout profile supplies the page's regions and spacing?"
+      never: "Never leave a geometry choice unexplained or infer it from a provider image."
+  provenance_map:
+    type: mapping
+    description: "A reference from each resolved value to its source, deck default, or selected profile."
+    rule: "Must account for every inherited or overridden presentation value."
+    on_violation:
+      means: "A future change cannot determine what this page needs to rebuild."
+      ask: "Where did each page treatment choice come from?"
+      never: "Never report a resolved value without its origin."

@@ -1,0 +1,48 @@
+schema: framed-header-html
+kind: derived
+scope: version-page
+purpose: "Publish the exact deterministic local header overlay for a framed page."
+answers: "What local HTML overlays the accepted framed page body?"
+owner: "ppt_maker_harness/scripts/03-framed-image/internal/header_overlay.mjs"
+producer_status: materialized
+inputs:
+  - page-layout
+  - page-source-receipt
+outputs:
+  - page-render-model
+  - page-artifact-index
+provenance:
+  source: "The parsed Framed header policy and the one resolved header-overlay preset."
+  requirement: "Retain the selected preset and render-profile digest with the exact HTML."
+downstream_consumers:
+  - page-render-model
+  - page-artifact-index
+  - final-page-list
+does_not_contain:
+  - "A sibling JSON header controller or a second structured header authority."
+  - "Provider-rendered body content, provider instructions, or review decisions."
+fields:
+  format:
+    type: literal
+    description: "The published local overlay representation."
+    rule: "Must be html for a framed page."
+    on_violation:
+      means: "The local overlay is not in the one deterministic format the framed workflow can render."
+      ask: "Should this page use the framed local header treatment?"
+      never: "Never publish a second structured header format beside the HTML."
+  header_content:
+    type: mapping
+    description: "The local kicker, title, and subtitle values allowed by the framed treatment."
+    rule: "Must contain only the header content allowed by the resolved framed profile."
+    on_violation:
+      means: "The local overlay is trying to own content that belongs in the page body."
+      ask: "Which short header text should remain outside the provider-rendered body?"
+      never: "Never move body copy, charts, or callouts into the local header."
+  render_profile_digest:
+    type: sha256 digest
+    description: "The digest of the resolved local overlay profile and geometry."
+    rule: "Must match the preset and layout used to create the HTML."
+    on_violation:
+      means: "The header HTML cannot prove which local treatment it used."
+      ask: "Which approved framed header treatment should this page use?"
+      never: "Never reuse local header HTML after changing its treatment."

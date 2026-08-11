@@ -1,6 +1,6 @@
 # Progressive Plan: Schema-First Page Image Recovery
 
-> Type: progressive coordination plan | Updated: 2026-08-11 | Status: active
+> Type: progressive coordination plan | Updated: 2026-08-11 | Status: active (C1 archived; C2 proposal next)
 >
 > **This is the only route document for Page Image recovery.** Three earlier
 > plans were closed on 2026-08-11 as CLS-025/026/027; everything from them that
@@ -977,23 +977,30 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done with evidence
 
 ### C1 — `publish-production-schema-definitions`
 
-- [ ] Confirm the capability name against `openspec/config.yaml`; do not invent one
-- [ ] Write the OpenSpec proposal — schema-only scope, zero runtime change
-- [ ] `schema/README.md` — authority boundary: YAML authoritative, code is mirror
-- [ ] `schema/META.yaml` — how a definition file is shaped
-- [ ] `schema/META.yaml` requires an `on_violation` block on every constrained field
-- [ ] `schema/flow.yaml` — per transformation: input, output, owning module, invalidator
-- [ ] `schema/stages/` — all 19 definitions written
-- [ ] Every constrained field carries `means` / `ask` / `never` in the author's terms
-- [ ] Every field that can be defaulted has a `default:` rather than an error path
-- [ ] Test: every constrained field in `stages/` has an `on_violation` block
-- [ ] `page-render-model` and `page-generation-spec` each carry a "does not contain" clause naming the other
-- [ ] `schema/frozen-identifiers.yaml` — both entry kinds, every entry has a `reason:`
-- [ ] Verify the diff touches no `.mjs` file at all
-- [ ] Archive the change
-- [ ] **Checkpoint 1** — the owner has read `flow.yaml` and the 19 stage files and agrees the flow is right
+- [x] Confirm the capability name against `openspec/config.yaml`; do not invent one
+- [x] Write the OpenSpec proposal — schema-only scope, zero runtime change
+- [x] `schema/README.md` — authority boundary: YAML authoritative, code is mirror
+- [x] `schema/META.yaml` — how a definition file is shaped
+- [x] `schema/META.yaml` requires an `on_violation` block on every constrained field
+- [x] `schema/flow.yaml` — per transformation: input, output, owning module, invalidator
+- [x] `schema/stages/` — all 19 definitions written
+- [x] Every constrained field carries `means` / `ask` / `never` in the author's terms
+- [x] Every field that can be defaulted has a `default:` rather than an error path
+- [x] Test: every constrained field in `stages/` has an `on_violation` block
+- [x] `page-render-model` and `page-generation-spec` each carry a "does not contain" clause naming the other
+- [x] `schema/frozen-identifiers.yaml` — both entry kinds, every entry has a `reason:`
+- [x] Verify the diff has no production-runtime `.mjs` change; the approved static directory assertion and one contracts-only test are the only `.mjs` exceptions
+- [x] Archive the change
+- [x] **Checkpoint 1** — the owner has read `flow.yaml` and the 19 stage files and agrees the flow is right
 
-> Evidence: _(archived change path; owner's confirmation)_
+> Evidence: 2026-08-11 — the owner approved the C1 flow, nineteen definitions,
+> and C1-C7 route authority for archival. `npm run test:sweep --
+> tests/contracts/test_page_image_schema_definitions.mjs` passed (4 tests), the
+> font-authority sweep passed (13 tests), `npm test`, `git diff --check`, and
+> `openspec validate publish-production-schema-definitions --strict` passed.
+> The delta was synced to `harness-directory-layout`, then archived at
+> `openspec/changes/archive/2026-08-11-publish-production-schema-definitions/`.
+> Completion commit: `7be177f`.
 
 ### C2 — `conform-code-to-schema-definitions`
 

@@ -1,0 +1,48 @@
+schema: page-generation-spec
+kind: derived
+scope: version-page
+purpose: "Compile normalized page semantics into the workflow-neutral facts from which one adapter prepares a provider request."
+answers: "What generation facts must the selected workflow apply to this page?"
+owner: "ppt_maker_harness/scripts/shared/page-image/page_image_core.mjs"
+producer_status: materialized
+inputs:
+  - page-source-receipt
+  - page-layout
+  - visual-language
+outputs:
+  - image2-request
+  - image-generation-plan
+provenance:
+  source: "The normalized source receipt, selected visual language, generation profile, style-master selection, and resolved layout."
+  requirement: "Retain canonical semantic digests for the page facts and all selected configuration."
+downstream_consumers:
+  - image2-request
+  - image-generation-plan
+does_not_contain:
+  - "page-render-model or a human-reviewable complete page representation."
+  - "Provider response bytes, an authorization, or a review decision."
+fields:
+  workflow:
+    type: enum
+    description: "The adapter family that will compile the page's provider-visible request."
+    rule: "Must be framed or pure and must match the normalized source receipt."
+    on_violation:
+      means: "The page's generation facts do not match its selected production treatment."
+      ask: "Which workflow was selected for this version's page generation?"
+      never: "Never switch workflow while translating a page into generation facts."
+  canonical_semantic_digest:
+    type: sha256 digest
+    description: "The canonical digest binding content, visual, profile, and layout semantics for one page."
+    rule: "Must be derived from the complete normalized page semantics."
+    on_violation:
+      means: "The next generation step cannot prove which page facts it is using."
+      ask: "Which reviewed page choices should this generation step preserve?"
+      never: "Never reuse a digest after changing a page's content or presentation."
+  configuration_bindings:
+    type: mapping
+    description: "Digests for selected visual, style, generation-profile, header-policy, and workflow configuration."
+    rule: "Must bind the configuration actually selected for this page and workflow."
+    on_violation:
+      means: "The provider instruction could be compiled from unrelated configuration."
+      ask: "Which approved visual and presentation choices should this page use?"
+      never: "Never bind unselected sibling configuration to the page."

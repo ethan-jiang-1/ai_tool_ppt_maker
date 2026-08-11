@@ -1,0 +1,234 @@
+## Context
+
+See [proposal.md](proposal.md) for the motivation. C1 is deliberately the first
+and non-executable part of the Page Image recovery route: it publishes the
+vocabulary before C2 aligns implementation constants, validation, and author
+messages. Existing identifiers include both mutable implementation names and
+historical evidence that cannot be renamed without invalidating records.
+
+The directory capability already owns the Harness soft-bundle map. The new
+definition home belongs there, not in a Run Bundle, a script module, or an
+OpenSpec capability of its own.
+
+The target vocabulary intentionally includes C3-C5 artifacts that do not yet
+have an implementation. C1 must make their data relationship visible without
+pre-selecting the module paths that their later changes will design.
+
+## Goals / Non-Goals
+
+**Goals:**
+
+- Publish one complete, readable source-to-delivery vocabulary that a human,
+  an Agent, and later deterministic code can use without code archaeology.
+- Make data ownership, provenance, and invalidation visible before new upstream
+  or layout behavior is built.
+- Record immutable historical names with their precise preservation reason.
+- Make author-term Repair Guidance part of each constrained-field definition.
+
+**Non-Goals:**
+
+- Changing production-runtime `.mjs` files, CLI behavior, state, records,
+  provider requests, or existing user-facing diagnostics.
+- Renaming constants, enforcing schema-to-code drift, or routing Repair
+  Guidance through a runtime handoff. Those are C2.
+- Implementing Story Outline, Design Constraint Set, pagination, Page Class,
+  layout resolution, or derived artifact publication. Those are C3-C5.
+- Reading, migrating, or using any `deck_*` or `dpt_*` data as a fixture.
+
+## Decisions
+
+### One top-level schema definition home
+
+`ppt_maker_harness/schema/` contains only non-executable Markdown and YAML:
+
+```text
+schema/
+  README.md
+  META.yaml
+  flow.yaml
+  recovery-route.yaml
+  frozen-identifiers.yaml
+  stages/
+    <one YAML definition for each conceptual schema>
+```
+
+The directory is inside the Harness because it describes reusable production
+methodology rather than one Deck's data. `README.md` makes the ownership
+boundary explicit: YAML owns the conceptual vocabulary, current code is an
+implementation inventory until C2 annotates its mirrors, and neither source
+nor record data in a Run Bundle is rewritten.
+
+`recovery-route.yaml` owns the C1-C7 recovery-route legend. Those labels occur
+in planned-owner citations, but they are not stages, lifecycle phases, modules,
+or authorizations. Each structured entry records its name, execution kind,
+responsibility, boundary, and exit evidence. The README points readers there;
+it is a discovery surface, not a competing authority. Planned stage and flow
+entries use `route_ref`, which the static check resolves against this YAML.
+C7 is explicitly production work, not an OpenSpec change or a Harness migration.
+
+Alternative considered: define schemas beside the owning `.mjs` modules. It
+was rejected because it repeats the present code-archeology problem and cannot
+show the complete flow in one place.
+
+### One file per conceptual schema, with a declarative meta-shape
+
+`META.yaml` defines the common shape for the nineteen definition files:
+
+- identity and data kind (`source`, `derived`, or `record`);
+- scope, purpose, and the question the artifact answers;
+- ownership, inputs, outputs, and provenance obligations;
+- fields and their deterministic rules;
+- an explicit `does_not_contain` boundary where a nearby artifact is commonly
+  confused with it.
+
+A field is constrained when it declares a `rule`. Every constrained field must
+carry `on_violation.means`, `on_violation.ask`, and `on_violation.never`. A
+field that normalizes when omitted declares `default`; it is not described as
+an author failure. The field rule is structured for future JS use, while the
+three guidance strings remain author-facing language. C1 records them but does
+not route them through a runtime diagnostic.
+
+Alternative considered: a single giant YAML document. It was rejected because
+field-level review and targeted later edits would become difficult, and the
+owner specifically needs to be able to correct one stage at a time.
+
+### Flow documents transformations, not a second lifecycle controller
+
+`flow.yaml` lists the logical transformations from deck-level source through
+per-page derivation, production records, final selection, and delivery. Every
+entry has `inputs`, `output`, `owner`, `producer_status`, and `invalidated_by`.
+For a current artifact, `owner` names the real owning module. For an
+unimplemented C3-C5 artifact, it names the planned owning change or capability
+and `producer_status` is `planned`; C1 does not invent a module path. The file
+expresses provenance and rebuild impact only; it does not create a controller,
+state machine, gate, or an execution order separate from the existing
+playbooks.
+
+The flow includes future schemas that C3-C5 will implement so that the data
+model is complete before the implementation exists. Their definitions mark
+their current producer status rather than pretending they already materialize.
+
+Alternative considered: derive the flow automatically from imports. It was
+rejected because imports cannot express human-owned source data, semantic
+invalidation, or planned upstream stages.
+
+### Frozen identifiers preserve evidence without creating a second schema generation
+
+`frozen-identifiers.yaml` contains two explicit kinds:
+
+1. historical record-schema identifiers, readable forever but not a vocabulary
+   for newly written records; and
+2. live protocol, mode, and identity literals, still written but frozen against
+   renaming because exact identity bindings depend on them.
+
+Every entry includes the specific evidence or binding it protects. The schema
+definition vocabulary itself has no new `-vN` suffix. This avoids both a silent
+history migration and a parallel versioning system.
+
+The C1 file enumerates the fifteen known persisted record-schema identifiers
+and three live literals selected by the route. It is not a claim that those are
+the only schema-shaped strings in current code: C2 owns the complete source
+inventory and maps the remaining implementation details to a conceptual stage
+or another explicit treatment.
+
+Alternative considered: rename all existing identifiers as soon as the YAML
+exists. It was rejected because paid provider evidence and idempotency keys
+would become unreadable; the planned C2 inventory instead classifies every
+implementation identifier before any code change.
+
+### Verification remains static and scoped to C1
+
+This change adds no executable Harness module. It adds one test-only contracts
+test, `tests/contracts/test_page_image_schema_definitions.mjs`, using the
+existing Node `yaml` dependency. The test rejects a missing or extra stage,
+stage-name/schema mismatch, a missing, non-mapping, or empty-string
+`means`/`ask`/`never` member for every declared `rule`, an incomplete C1-C7
+route entry, or an unresolved planned-producer `route_ref`. It reports the
+declared defaults for manual review against the normalizing semantics in
+`META.yaml`.
+
+The contracts test-owner ledger registers the test. It is intentionally not in
+the `npm test` core inventory: that inventory rejects bare dependencies, while
+the correct YAML parser is the declared `yaml` package. C1 runs this test as a
+targeted sweep. The schema README names the test owner but contains no
+executable validation implementation.
+
+`git diff --check`, `openspec validate`, and the documented `npm test` core
+baseline are required checks. Root `README.md` declares that core baseline for
+every normal Harness change. Because C1 updates the existing static
+Harness-root directory assertion and adds the schema-contract test, it also
+runs:
+
+```sh
+npm run test:sweep -- tests/00-setup/test_html_fonts.mjs
+npm run test:sweep -- tests/contracts/test_page_image_schema_definitions.mjs
+```
+
+Those targeted sweeps preserve the font-authority coverage and enforce the
+schema contract. Mock E2E and real E2E checks are not selected for C1 because
+it introduces no runtime behavior, public journey, or provider interaction.
+
+Apart from the approved static assertion update and schema-contract test, unit,
+integration, and E2E suites are not changed: C1 adds no runtime behavior or
+public interface. C2 owns the durable regression test that checks code-to-YAML
+drift and author-facing output.
+
+### Control-policy boundary
+
+Repair Guidance is not a new validation or control path in C1. It is authored
+alongside a future validation rule so C2 can project it through the existing
+owner. Therefore this change creates no `guide`, `confirm`, or `hard-stop`
+outcome, no confirmation record, and no recovery route. The policy references
+in `human-centered-gates.md`, `agent-assistance-and-control.md`, and
+`simple-reliable-control.md` constrain C2's eventual routing but do not justify
+adding a parallel evaluator or gate now.
+
+## Risks / Trade-offs
+
+- [YAML and implementation can drift before C2] -> C1 makes the vocabulary
+  inspectable and C2 is explicitly scoped to add the code-anchor/drift test;
+  C1 does not falsely claim runtime enforcement.
+- [A definition can become overly detailed before its producer exists] -> C1
+  distinguishes conceptual contract from current producer status and defers
+  behavior to C3-C5.
+- [A future maintainer may mistake a `-v1` suffix for an easy rename] -> every
+  frozen entry records its kind and the exact protected evidence.
+- [Guidance can be technically correct but unhelpful] -> every constrained
+  field carries its author-term `means`, `ask`, and `never` at definition time.
+
+## Migration Plan
+
+1. Add the schema definition home, apply the approved parent README map and
+   static directory-assertion updates, and add the test-only schema-contract
+   check with its ownership registration, without modifying production-runtime
+   source or Run Bundle data.
+2. Run the schema-contract and font-authority targeted sweeps, the core
+   baseline, OpenSpec validation, and a diff audit confirming that no
+   production-runtime `.mjs` files changed.
+3. Obtain Checkpoint 1 review of `flow.yaml` and all nineteen definitions.
+4. Only after approval, start C2 to map existing implementation identifiers and
+   make code a tested mirror.
+
+The change is additive and has no deployed data migration. Before C2 consumes
+the definition home, rollback is removal of this new directory and its accepted
+spec change; no record, state, provider evidence, or Deck source needs repair.
+
+## Approved Scope Decision
+
+The owner approved the narrow compatibility exception required by the selected
+`ppt_maker_harness/schema/` location, plus one test-only schema-contract check.
+C1 may make these supporting edits:
+
+1. Add `schema/` to the Source Directories map in
+   `ppt_maker_harness/README.md`.
+2. Add `schema` to the exact Harness-root directory list in
+   `tests/00-setup/test_html_fonts.mjs`, retaining that test's font-authority
+   and third-party-font-toolchain assertions.
+3. Add `tests/contracts/test_page_image_schema_definitions.mjs` and register it
+   in `tests/contracts/source-test-ownership-v1.json`; it may use the existing
+   `yaml` dependency and is run as a targeted sweep, not by the core inventory.
+
+This exception does not permit production-runtime `.mjs`, `scripts/`, CLI,
+state, record, provider, or Run Bundle changes. Deferring either test update to
+C2 remains unsafe because C1 would otherwise land with a known failing
+assertion or an unenforced definition contract.
