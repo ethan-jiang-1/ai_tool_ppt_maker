@@ -15,11 +15,11 @@ an exact-plan materialization path before C4 adds Page Class or layout policy.
 ## What Changes
 
 - Introduce the `narrative-authoring` capability. It owns the canonical,
-  deck-level Story Outline and Design Constraints source contracts plus
-  deterministic pagination into a page plan. A Story Outline has one central
-  claim and audience outcome followed by ordered Blocks; each Block records its
-  audience question, argument function, supporting evidence or reasoning
-  beats, and intended page range.
+  deck-level Story Outline and Design Constraints source contracts plus the
+  deterministic compilation of an Agent-authored pagination candidate into a
+  page plan. A Story Outline has one central claim and audience outcome followed
+  by ordered Blocks; each Block records its audience question, argument
+  function, supporting evidence or reasoning beats, and intended page range.
 - Establish `2_backbone/story-outline.md` as the current Story Outline source.
   **BREAKING:** remove `2_backbone/outline.md` from the active Run Bundle
   layout, seeds, templates, guidance, tests, and source lookup. Do not add a
@@ -28,9 +28,10 @@ an exact-plan materialization path before C4 adds Page Class or layout policy.
 - Refocus `design-constraints.md` on audience, language and tone, claim
   boundaries, and required terminology. Visual direction remains owned by
   `visual-language`; per-page layout and density policy remain C4 work.
-- Paginate the Story Outline with Design Constraints and the selected Visual
-  Language into a reviewable page plan. Each proposed page carries source
-  digests and Block/beat lineage; the plan is a derived projection, not a
+- The Agent uses the Story Outline, Design Constraints, and selected Visual
+  Language to make the creative page-grouping decision. C3 validates and
+  compiles that candidate into a reviewable page plan. Each proposed page carries
+  source digests and Block/beat lineage; the plan is a derived projection, not a
   second editable page-order source, lifecycle ledger, or acceptance state.
 - The Agent presents the proposed page plan in the Deck Author's terms. The
   author confirms a consequential content/structure decision once; only the
@@ -55,6 +56,8 @@ an exact-plan materialization path before C4 adds Page Class or layout policy.
 
 - `harness-directory-layout`: materialize C3's declared schema producers and
   preserve the schema-home producer/anchor contract.
+- `cli-surface`: extend the existing structural `ppt_flow slides` interface
+  with deterministic narrative-plan preview and exact-plan publication.
 - `playbook-execution`: make Block-first narrative authoring the create-deck
   path before page authoring without adding another controller.
 - `run-bundle-layout`: reserve `story-outline.md` and the focused
@@ -72,20 +75,21 @@ an exact-plan materialization path before C4 adds Page Class or layout policy.
   content-authoring modules, Controller playbooks, and workflow/templates gain
   the upstream source and pagination behavior. `openspec/`, `tests/`, and
   `tests_e2e/` receive corresponding specifications and focused coverage.
-- **Run Bundle contract:** `migration`. New/current source work uses
-  `2_backbone/story-outline.md`; the prior active `outline.md` path is removed.
-  This is a clean cutover in Harness source only: no `deck_*` or `dpt_*` path
-  is read, altered, migrated, deleted, or used as a fixture.
+- **Run Bundle contract:** breaking clean cutover, with no supported data
+  migration. New/current source work uses `2_backbone/story-outline.md`; the
+  prior active `outline.md` path is removed. No `deck_*` or `dpt_*` path is
+  read, altered, migrated, deleted, or used as a fixture.
 - **Human control:** applying the page plan is a `confirm` only because it
   commits a new content and structural meaning selected by the Deck Author.
   The existing exact plan, source-byte, identity, and clean-target checks remain
   hard stops protecting integrity and recoverability. Ordinary deterministic
   planning, diagnostics, and validation remain Agent-owned work under the
   Task Mandate.
-- **Control simplicity:** the path is direct source -> one deterministic page
-  plan -> conversational review -> exact materialization -> existing source
-  validation. It deliberately adds no persistent approval state, fallback,
-  migration branch, or provider/CLI control path. The design follows
+- **Control simplicity:** the path is direct source + Agent pagination candidate
+  -> one deterministic page plan -> conversational review -> exact
+  materialization -> existing source validation. It deliberately adds no
+  persistent approval state, fallback, migration branch, or parallel
+  provider/control path. The design follows
   `openspec/policies/human-centered-gates.md`,
   `openspec/policies/agent-assistance-and-control.md`, and
   `openspec/policies/simple-reliable-control.md`.

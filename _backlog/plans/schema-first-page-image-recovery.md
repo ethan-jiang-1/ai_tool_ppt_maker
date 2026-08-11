@@ -1,6 +1,6 @@
 # Progressive Plan: Schema-First Page Image Recovery
 
-> Type: progressive coordination plan | Updated: 2026-08-11 | Status: active (C1 and C2 archived; C3 proposal in progress)
+> Type: progressive coordination plan | Updated: 2026-08-11 | Status: active (C1 and C2 archived; C3 proposal is apply-ready)
 >
 > **This is the only route document for Page Image recovery.** Three earlier
 > plans were closed on 2026-08-11 as CLS-025/026/027; everything from them that
@@ -1115,14 +1115,18 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done with evidence
 
 - [x] **Grill the owner on what a Story Outline actually contains** — owner confirmed the Block-first model and its required content on 2026-08-11
 - [x] Decide whether C3 runs before or after C4 — owner chose C3 first on 2026-08-11
-- [~] Write the proposal
+- [x] Write the proposal — `close-upstream-narrative-gap` is apply-ready; all planning artifacts and strict validation completed on 2026-08-11
 - [ ] `story-outline` as Source Data — editable, not recomputable from pages
 - [ ] `design-constraints` as Source Data
 - [ ] The pagination step: story → page list, carrying provenance
 - [ ] Archive the change
 - [ ] **Checkpoint 3** — a deck expresses its argument and constraints in source, and a page list derives from them
 
-> Evidence: _(archived change path; the derived page list and its provenance)_
+> Planning evidence: `openspec/changes/close-upstream-narrative-gap/` contains
+> the proposal, seven capability deltas, design, and a 17-task apply ledger.
+> `openspec validate close-upstream-narrative-gap --strict` and
+> `openspec validate --all --strict` passed on 2026-08-11. Implementation and
+> page-plan provenance evidence remain pending apply/archive.
 
 ### C4 — `land-page-class-and-layout-config`
 

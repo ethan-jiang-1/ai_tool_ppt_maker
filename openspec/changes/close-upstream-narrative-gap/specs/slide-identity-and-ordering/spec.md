@@ -3,9 +3,10 @@
 ### Requirement: Page-plan publication reuses exact structural source protections
 When a confirmed narrative page plan creates, inserts, deletes, or reorders
 canonical page source, its publication SHALL use the existing structural
-preview and exact-plan path. The plan SHALL bind its Story Outline, Design
-Constraints, Visual Language, source-byte, target-workflow, target-version, and
-ordered slide identity facts before publication.
+preview and exact-plan path. The plan SHALL bind its Agent-authored
+page-grouping candidate, Story Outline, Design Constraints, Visual Language,
+source-byte, target-workflow, target-version, and ordered slide identity facts
+before publication.
 
 Publication SHALL revalidate those bindings and the current source grammar
 before it creates a target source. Any stale input, changed source, invalid
@@ -13,6 +14,13 @@ mnemonic identity, target conflict, or plan-hash mismatch SHALL hard-stop before
 source, state, derived-artifact, or provider mutation. A successful publication
 creates no provider call and records `needs_render` only through the existing
 render-debt path.
+
+An initialized known page-source draft MAY be materialized in place only when
+its canonical bytes still match the current initial seed and no source receipt,
+State evidence, derived artifact, provider record, review, final, or delivery
+fact exists. Every other version SHALL use the existing clean vNext structural
+publication path. The initial-draft exception uses the same source-byte and
+exact-plan checks; it is not a general in-place structural edit path.
 
 #### Scenario: Confirmed page plan creates a clean source target
 - **WHEN** an exact confirmed page plan has current matching inputs and target
@@ -22,9 +30,18 @@ render-debt path.
 - **AND** it retains existing clean-target behavior with no raw, review, final,
   or delivery acceptance inheritance
 
+#### Scenario: An untouched initial draft receives its first page source
+- **WHEN** the exact plan binds the known initial source bytes and the initial
+  draft has no receipt, State evidence, derived artifact, provider, review,
+  final, or delivery fact
+- **THEN** publication may materialize the first canonical page source in that
+  draft with the same exact-plan checks and zero provider calls
+- **AND** a later structural publication cannot use this initial-draft path
+
 #### Scenario: A page-plan input drifts before apply
-- **WHEN** a Story Outline, Design Constraints, Visual Language, source byte,
-  target version, or plan hash differs from the previewed binding
+- **WHEN** a Story Outline, Design Constraints, Visual Language, page-grouping
+  candidate, source byte, target version, or plan hash differs from the
+  previewed binding
 - **THEN** publication stops before creating or mutating a target
 - **AND** it returns the nearest action to regenerate and confirm the current
   plan rather than falling back to a prior source or plan

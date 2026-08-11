@@ -32,18 +32,20 @@ per-class text-density policy.
   the nearest owning source in Deck Author terms
 - **AND** it does not treat the misplaced value as a current narrative input
 
-### Requirement: Pagination produces one provenance-carrying page plan
-Pagination SHALL consume the current Story Outline, Design Constraints, and
-selected Visual Language to produce an ordered page plan. Each proposed page
-SHALL identify its source digests and its originating Block and evidence or
-reasoning beats. The page plan SHALL identify the target workflow and complete
-canonical Page Source it would materialize, including current mnemonic slide
-identities where a new identity is required.
+### Requirement: Pagination compiles one Agent-authored candidate into a provenance-carrying page plan
+The Agent SHALL make the creative decision that groups Blocks and beats into
+proposed pages. The narrative planner SHALL consume that candidate with the
+current Story Outline, Design Constraints, and selected Visual Language to
+produce an ordered page plan. Each proposed page SHALL identify its source
+digests and its originating Block and evidence or reasoning beats. The page
+plan SHALL identify the target workflow and complete canonical Page Source it
+would materialize, including current mnemonic slide identities where a new
+identity is required.
 
 The page plan is derived and reviewable. It SHALL NOT become another editable
 page-order source, lifecycle ledger, acceptance record, state-machine node, or
-provider input. Re-running pagination from unchanged inputs SHALL reproduce the
-same plan identity and contents.
+provider input. Re-running compilation from unchanged narrative inputs and the
+same candidate SHALL reproduce the same plan identity and contents.
 
 #### Scenario: A page can be traced to the story
 - **WHEN** an Agent or Deck Author inspects a proposed page
@@ -51,9 +53,9 @@ same plan identity and contents.
   Visual Language inputs and the Block and beats that justify that page
 - **AND** it does not require source order alone to explain the page's purpose
 
-#### Scenario: A narrative input changes after planning
-- **WHEN** a Story Outline, Design Constraints, or selected Visual Language
-  input changes after a page plan was created
+#### Scenario: A narrative input or candidate changes after planning
+- **WHEN** a Story Outline, Design Constraints, selected Visual Language, or
+  Agent-provided page-grouping candidate changes after a page plan was created
 - **THEN** that plan is no longer eligible for materialization
 - **AND** the Agent's nearest action is to regenerate and present one current
   page plan
@@ -61,9 +63,9 @@ same plan identity and contents.
 ### Requirement: Narrative planning keeps human content decisions and runtime integrity distinct
 The Agent SHALL present a page plan as a content and structure recommendation in
 Deck Author terms. Materializing a new plan requires one explicit Deck Author
-confirmation because it commits a new argument-to-page structure; routine
-parsing, provenance calculation, source validation, and rendering-debt
-calculation remain Agent/Harness work under the Task Mandate.
+confirmation because it commits the Agent's argument-to-page structure; routine
+candidate validation, provenance calculation, source validation, and
+rendering-debt calculation remain Agent/Harness work under the Task Mandate.
 
 Missing or malformed narrative source is a `guide` when the Agent can repair it
 from already supplied content, and otherwise a `confirm` for the smallest new
@@ -83,4 +85,3 @@ review decision, or evidence of completed rendering.
   identity no longer match the current direct sources
 - **THEN** the operation hard-stops before source or state mutation
 - **AND** it directs the Agent to regenerate the plan from the current sources
-
