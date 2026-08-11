@@ -1,6 +1,6 @@
 # Progressive Plan: Schema-First Page Image Recovery
 
-> Type: progressive coordination plan | Updated: 2026-08-11 | Status: active (C1 archived; C2 proposal next)
+> Type: progressive coordination plan | Updated: 2026-08-11 | Status: active (C1 archived; C2 proposal ready)
 >
 > **This is the only route document for Page Image recovery.** Three earlier
 > plans were closed on 2026-08-11 as CLS-025/026/027; everything from them that
