@@ -1,5 +1,5 @@
 /** Closed producer-side return audit.  This is data, not a second CLI parser. */
-export const CLI_RETURN_AUDIT_SCHEMA = "pptmaker-cli-return-audit-v1";
+export const CLI_RETURN_AUDIT_SCHEMA = "pptmaker-cli-return-audit";
 export const CLI_RETURN_CATEGORIES = Object.freeze(["help", "usage", "validation", "gate", "conflict", "stale", "commit", "internal"]);
 export const IMAGE2_RETURN_CASES = Object.freeze([
   "raw_plan",

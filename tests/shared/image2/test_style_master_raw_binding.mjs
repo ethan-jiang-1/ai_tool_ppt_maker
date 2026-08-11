@@ -74,9 +74,9 @@ function source({ motifs = [], relationship = null } = {}) {
   const relationshipYaml = relationship ? `relationship: ${relationship}\n` : "";
   return `---
 identity:
-  scheme: mnemonic-v1
+  scheme: mnemonic
 production:
-  pipeline: page-image-workflow-v1
+  pipeline: page-image-workflow
   workflow: pure
 ---
 
@@ -144,7 +144,7 @@ describe("accepted Style Master raw binding", () => {
     }
   });
 
-  it("keeps immutable selected bytes when the compatibility payload drifts", async () => {
+  it("keeps immutable selected bytes when the presentation JPEG projection drifts", async () => {
     const value = await fixture({ accepted: true });
     try {
       const before = buildTargetRawGenerationProfile({
@@ -168,7 +168,7 @@ describe("accepted Style Master raw binding", () => {
     }
   });
 
-  it("submits the plan-bound immutable bytes after compatibility payload drift", async () => {
+  it("submits the plan-bound immutable bytes after presentation JPEG projection drift", async () => {
     const value = await fixture({ accepted: true });
     try {
       const plan = buildPureTargetRawPlan(value.runDir);
@@ -194,11 +194,11 @@ describe("accepted Style Master raw binding", () => {
       await submit({
         request: plan.provider_requests_by_slide.DeckGo,
         item: { slide_id: "DeckGo" },
-        provider_idempotency_key: `page-image-workflow-v1-${"a".repeat(64)}`,
+        provider_idempotency_key: `page-image-workflow-${"a".repeat(64)}`,
       });
       expect(providerBody.image).toBe(`data:image/png;base64,${referenceBytes.toString("base64")}`);
       expect(providerBody.image).not.toContain(localImageBytes(1).toString("base64"));
-      expect(providerIdempotencyKey).toBe(`page-image-workflow-v1-${"a".repeat(64)}`);
+      expect(providerIdempotencyKey).toBe(`page-image-workflow-${"a".repeat(64)}`);
       expect(providerCalls).toBe(1);
     } finally {
       rmSync(value.root, { recursive: true, force: true });
@@ -227,7 +227,7 @@ describe("accepted Style Master raw binding", () => {
       await expect(submit({
         request,
         item: { slide_id: "DeckGo" },
-        provider_idempotency_key: `page-image-workflow-v1-${"b".repeat(64)}`,
+        provider_idempotency_key: `page-image-workflow-${"b".repeat(64)}`,
       })).rejects.toMatchObject({ code: "PAGE_IMAGE_PROVIDER_REQUEST_INVALID" });
       expect(credentialCalls).toBe(0);
       expect(transportCalls).toBe(0);
@@ -258,7 +258,7 @@ describe("accepted Style Master raw binding", () => {
       await submit({
         request: plan.provider_requests_by_slide.DeckGo,
         item: { slide_id: "DeckGo" },
-        provider_idempotency_key: `page-image-workflow-v1-${"f".repeat(64)}`,
+        provider_idempotency_key: `page-image-workflow-${"f".repeat(64)}`,
       });
 
       const serializedPrompt = JSON.parse(providerBody.prompt);
@@ -305,7 +305,7 @@ describe("accepted Style Master raw binding", () => {
       const result = await submit({
         request: plan.provider_requests_by_slide.DeckGo,
         item: { slide_id: "DeckGo" },
-        provider_idempotency_key: `page-image-workflow-v1-${"c".repeat(64)}`,
+        provider_idempotency_key: `page-image-workflow-${"c".repeat(64)}`,
       });
 
       expect(result).toEqual(VALID_PROVIDER_PNG);
@@ -331,7 +331,7 @@ describe("accepted Style Master raw binding", () => {
       const args = {
         request: plan.provider_requests_by_slide.DeckGo,
         item: { slide_id: "DeckGo" },
-        provider_idempotency_key: `page-image-workflow-v1-${"d".repeat(64)}`,
+        provider_idempotency_key: `page-image-workflow-${"d".repeat(64)}`,
       };
       const asyncSubmit = (pollResponse, options = {}) => targetPageImageSubmitFactory(plan, {
         credentialResolver: () => ({ base_url: "https://image.example", api_key: "test-key" }),
@@ -398,7 +398,7 @@ describe("accepted Style Master raw binding", () => {
       const args = {
         request: plan.provider_requests_by_slide.DeckGo,
         item: { slide_id: "DeckGo" },
-        provider_idempotency_key: `page-image-workflow-v1-${"b".repeat(64)}`,
+        provider_idempotency_key: `page-image-workflow-${"b".repeat(64)}`,
       };
       let httpBodyRead = false;
       const http = targetPageImageSubmitFactory(plan, {
@@ -478,7 +478,7 @@ describe("accepted Style Master raw binding", () => {
       const args = {
         request: plan.provider_requests_by_slide.DeckGo,
         item: { slide_id: "DeckGo" },
-        provider_idempotency_key: `page-image-workflow-v1-${"e".repeat(64)}`,
+        provider_idempotency_key: `page-image-workflow-${"e".repeat(64)}`,
       };
       let clock = 0;
       const calls = [];
@@ -649,40 +649,40 @@ describe("accepted Style Master raw binding", () => {
     }
   });
 
-  it("treats a legacy raw profile without selection binding as rebuild debt", async () => {
+  it("treats an unbound raw profile as rebuild debt", async () => {
     const value = await fixture({ accepted: true });
     try {
       buildPureTargetRawPlan(value.runDir);
       const stored = JSON.parse(readFileSync(value.paths.target_raw_plan, "utf8"));
-      const compatibilityBytes = readFileSync(styleAsset(value.runDir, STYLE_MASTER_IMAGE));
-      const legacyProfile = {
-        schema: "page-image-target-raw-generation-profile-v1",
-        provider: { provider: "image2", model: "gpt-image-2", api_revision: "page-image-workflow-v1" },
+      const styleMasterBytes = readFileSync(styleAsset(value.runDir, STYLE_MASTER_IMAGE));
+      const unboundProfile = {
+        schema: "page-image-target-raw-generation-profile",
+        provider: { provider: "image2", model: "gpt-image-2", api_revision: "page-image-workflow" },
         output: { format: "png", width: 2000, height: 1125 },
-        reference_transport: { style_master: "image-reference-v1", identity_reference: "none" },
-        effective_style_master: { sha256: sha256(compatibilityBytes), bytes: compatibilityBytes.length },
+        reference_transport: { style_master: "image-reference", identity_reference: "none" },
+        effective_style_master: { sha256: sha256(styleMasterBytes), bytes: styleMasterBytes.length },
       };
-      const legacyProviderProfileSha = canonicalJsonSha256(legacyProfile);
-      const legacyPlan = {
+      const unboundProviderProfileSha = canonicalJsonSha256(unboundProfile);
+      const unboundPlan = {
         ...stored,
-        provider_profile_sha256: legacyProviderProfileSha,
+        provider_profile_sha256: unboundProviderProfileSha,
         authorization_scope_sha256: canonicalJsonSha256({
           source_receipt_sha256: stored.source_receipt_sha256,
           workflow: stored.workflow,
-          provider_profile_sha256: legacyProviderProfileSha,
+          provider_profile_sha256: unboundProviderProfileSha,
           ordered_slide_ids: stored.ordered_slide_ids,
           raw_contracts_by_slide: Object.fromEntries(stored.items.map((item) => [item.slide_id, item.raw_contract_sha256])),
         }),
       };
-      writeFileSync(value.paths.target_raw_plan, `${JSON.stringify(legacyPlan)}\n`);
-      const legacyBytes = readFileSync(value.paths.target_raw_plan);
+      writeFileSync(value.paths.target_raw_plan, `${JSON.stringify(unboundPlan)}\n`);
+      const unboundBytes = readFileSync(value.paths.target_raw_plan);
       const stateBefore = readFileSync(statePath(value.deck));
 
       expect(captureError(() => readPureTargetStoredPlanContext(value.runDir))).toMatchObject({
         code: "target_raw_plan_stale",
         next_action: "rebuild_target_raw_plan",
       });
-      expect(readFileSync(value.paths.target_raw_plan)).toEqual(legacyBytes);
+      expect(readFileSync(value.paths.target_raw_plan)).toEqual(unboundBytes);
       expect(readFileSync(statePath(value.deck))).toEqual(stateBefore);
       expect(sourceEpoch(value)).toBe(1);
     } finally {

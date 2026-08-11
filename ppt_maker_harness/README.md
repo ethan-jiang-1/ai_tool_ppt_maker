@@ -36,7 +36,7 @@ created by `bundle_layout.mjs`; `_generated/` is always rebuildable derived data
 06 workflow-aware refresh and structural versioning
 ```
 
-New decks use only `image2-page-workflow-v1` / `page-image-workflow-v1` and
+New decks use only `image2-page-workflow` / `page-image-workflow` and
 record exactly one version workflow, `framed` or `pure`, before provider work.
 The method graph is `03-framed-image XOR 04-pure-image -> 05-delivery ->
 06-iteration`. Framed supports only deterministic local header overlay; both
@@ -53,9 +53,9 @@ authorization only when it submits a nonzero provider batch.
 | Add, remove, move, reorder, or switch workflow | `06-iteration` Structural Versioning Path |
 
 Structural preview and apply preserve stable IDs, bind an exact plan hash, and
-report `needs_render` as debt rather than permission. A v2, partial,
+report `needs_render` as debt rather than permission. A partial,
 hybrid, or mismatched source/state pair is a byte-preserving
-`unsupported-protocol/export` hard-stop, not a current lifecycle branch.
+`repair-current-protocol-identity` hard-stop, not a current lifecycle branch.
 
 ## Where To Start
 

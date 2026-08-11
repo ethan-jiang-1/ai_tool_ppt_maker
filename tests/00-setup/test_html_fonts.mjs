@@ -17,7 +17,7 @@ import { currentFramedHeaderOverlayRenderProfile } from '../../ppt_maker_harness
 const INVENTORY_PATH = join(HTML_FONT_ROOT, 'inventory.json');
 
 function headerOverlay(fields = {}) {
-  return { preset: 'standard-v1', kicker: null, title: 'Heading', subtitle: null, ...fields };
+  return { preset: 'standard', kicker: null, title: 'Heading', subtitle: null, ...fields };
 }
 
 function injectedRead(replacements = new Map()) {
@@ -99,7 +99,7 @@ describe('HTML font bundle', () => {
   it('validates the checked-in render inventory and selects only required Latin, Han, and mixed faces', () => {
     const inventory = loadFramedFontRenderInventory();
     expect(inventory).toMatchObject({
-      schema: 'pptmaker-framed-font-render-inventory-v1',
+      schema: 'pptmaker-framed-font-render-inventory',
       families: [
         { family: 'Source Sans 3', platform_family_name: 'SourceSans3VF' },
         { family: 'Noto Sans SC', platform_family_name: 'Noto Sans SC Thin' },

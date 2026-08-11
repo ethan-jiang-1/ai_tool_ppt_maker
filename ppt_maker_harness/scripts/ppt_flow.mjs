@@ -28,6 +28,7 @@ import { Command } from "commander";
 import { decode as decodePng } from "fast-png";
 import {
   CLI_ERROR_CODES,
+  CLI_DIAGNOSTIC_SCHEMA,
   CLI_JSON_REPORT_SCHEMAS,
   CLI_PROGRESS_ENV,
   CLI_TRANSACTION_SYMBOL,
@@ -89,20 +90,15 @@ const {
   planSlideEdit,
   previewTargetStructuralVersion,
   resolveSlideBindings,
-  resolveSlideIds,
   validateSlideDocument,
   verifySlideEditPlanHash,
 } = contentApi;
 import {
-  PAGE_IMAGE_WORKFLOW_V1_PIPELINE,
+  PAGE_IMAGE_WORKFLOW_PIPELINE,
   PAGE_IMAGE_WORKFLOW_SELECTION_REQUIRED_MESSAGE,
   isPageImageWorkflowSelectionPending,
   probeProductionMarker,
 } from "./shared/run-bundle/production_marker.mjs";
-import {
-  UNSUPPORTED_PROTOCOL_CODE,
-  evaluateReplacementIdentity,
-} from "./shared/run-bundle/page_image_workflow_identity.mjs";
 import { sha256Bytes } from "./shared/identity/byte_hash.mjs";
 import {
   inspectExactPageImagePng,
@@ -131,9 +127,9 @@ const DECK_TYPES_SORTED = () => Object.keys(DECK_TYPE_TEMPLATES).sort();
 /** Emit FAILED envelope; caller still returns/exits the numeric code (D13). */
 function emitFailed(where, message, hint = "Inspect the diagnostic evidence before retrying", diagnostic = undefined) {
   const childResult = runNode.lastChildResult;
-  const historicalReplacement = /\breplacement_required\b/.test(String(message || ""));
-  const inferred = diagnostic || (historicalReplacement ? {
-    version: 1,
+  const replacementRequired = /\breplacement_required\b/.test(String(message || ""));
+  const inferred = diagnostic || (replacementRequired ? {
+    schema: CLI_DIAGNOSTIC_SCHEMA,
     category: "artifact",
     operation: where.split(".").at(-1).replaceAll("_", "-"),
     reason: { kind: "replacement_required" },
@@ -147,7 +143,7 @@ function emitFailed(where, message, hint = "Inspect the diagnostic evidence befo
     overflow: childResult.overflow,
     next: createCliNext("inspect", { default: "Inspect the retained child evidence and parent command context before retrying." }),
   }) : {
-    version: 1,
+    schema: CLI_DIAGNOSTIC_SCHEMA,
     category: /(?:init|status|new-version)/.test(where) ? "structure" : /doctor/.test(where) ? "environment" : "artifact",
     operation: where.split(".").at(-1).replaceAll("_", "-"),
     next: createCliNext(/doctor/.test(where) ? "repair_environment" : "repair_prerequisite", {
@@ -171,7 +167,7 @@ function emitUsage(where, message, hint) {
     hint,
     where,
     diagnostic: {
-      version: 1,
+      schema: CLI_DIAGNOSTIC_SCHEMA,
       category: "usage",
       operation: where.split(".").at(-1).replaceAll("_", "-"),
       next: createCliNext("fix_arguments", {
@@ -207,27 +203,21 @@ function preflightAdapterSource(resolved, where) {
   const source = existsSync(canonicalSource) ? canonicalSource : findSlideSpecs(resolved);
   if (!source) return false;
 
-  const sourceLocator = relative(deckRoot(resolved), source).split(sep).join("/");
   const sourceBytes = readFileSync(source);
-  const identity = evaluateReplacementIdentity({ sourceBytes, sourcePath: sourceLocator });
-  if (!identity.ok) {
-    emitUnsupportedProtocol(where, resolved, identity.code);
-    return true;
-  }
   const marker = probeProductionMarker(sourceBytes, { source: basename(source) });
   if (marker.branch === "invalid") {
     if (isPageImageWorkflowSelectionPending(marker)) return false;
-    const unsupportedHistoricalMarker = marker.issues.some((issue) =>
+    const markerRequiresOwnerValidation = marker.issues.some((issue) =>
       ["missing_production_marker", "unsupported_pipeline_marker"].includes(issue.code)
     );
-    if (unsupportedHistoricalMarker) return false;
+    if (markerRequiresOwnerValidation) return false;
     emitCliError({
       code: CLI_ERROR_CODES.FAILED,
       message: "Leading source frontmatter is invalid.",
       hint: "Repair the canonical source marker before routing production work.",
       where: `${where}.source`,
       diagnostic: {
-        version: 1,
+        schema: CLI_DIAGNOSTIC_SCHEMA,
         category: "source_validation",
         operation: "probe-production-marker",
         source: marker.issues[0]?.source || { path: sourceLocator },
@@ -243,7 +233,7 @@ function preflightAdapterSource(resolved, where) {
 /**
  * A fresh current bundle has no durable mode record until its authored source has a
  * valid workflow receipt.  This narrow draft route lets the selected adapter
- * create that first binding; it never applies to a mixed/historical protocol or an active
+ * create that first binding; it never applies to an undeclared protocol or an active
  * non-draft execution.
  */
 async function resolveTargetAuthoringDraftAdapter(resolved, deckDir, harnessDir) {
@@ -253,30 +243,29 @@ async function resolveTargetAuthoringDraftAdapter(resolved, deckDir, harnessDir)
   return Object.freeze({
     ok: true,
     run_version: draft.run_version,
-    mode: "image2-page-workflow-v1",
+    mode: "image2-page-workflow",
     workflow: draft.workflow,
-    policy: { adapter: "page-image-workflow-v1", pipeline: PAGE_IMAGE_WORKFLOW_V1_PIPELINE },
-    adapter: "page-image-workflow-v1",
+    policy: { adapter: "page-image-workflow", pipeline: PAGE_IMAGE_WORKFLOW_PIPELINE },
+    adapter: "page-image-workflow",
     draft: true,
     target_workflow_selection_required: draft.workflow === null,
   });
 }
 
-function emitUnsupportedProtocol(where, resolved, code = UNSUPPORTED_PROTOCOL_CODE) {
+function emitCurrentProtocolError(where, resolved, code = "CURRENT_PROTOCOL_INVALID") {
   emitCliError({
     code: CLI_ERROR_CODES.FAILED,
-    message: "UNSUPPORTED_PROTOCOL: this run is not an exact current Page Image Workflow source/state pair.",
-    hint: "Preserve existing bytes and export the named run; current Harness commands do not select, decode, or migrate another protocol.",
+    message: "This run does not contain an exact current Page Image Workflow source/state pair.",
+    hint: "Repair the current source or state marker through its owner before continuing.",
     where,
     diagnostic: {
-      version: 1,
+      schema: CLI_DIAGNOSTIC_SCHEMA,
       category: "gate",
-      operation: "export-unsupported-protocol",
+      operation: "repair-current-protocol",
       source: { path: resolved },
-      reason: { kind: "unsupported_protocol", actual: code },
-      next: createCliNext("export", {
-        requiresHuman: true,
-        default: "Export the named unsupported run unchanged. Any later conversion requires separately authorized deck-scoped work.",
+      reason: { kind: "current_protocol_invalid", actual: code },
+      next: createCliNext("repair_prerequisite", {
+        default: "Repair the current source or state marker through its owner, then retry.",
       }),
     },
   });
@@ -292,7 +281,7 @@ function emitExecutionRunVersionMismatch(where, resolved, result) {
     hint: "Inspect the active execution before selecting a mutation target; this command made no changes.",
     where,
     diagnostic: {
-      version: 1,
+      schema: CLI_DIAGNOSTIC_SCHEMA,
       category: "gate",
       operation: "select-active-execution",
       source: { path: resolved },
@@ -317,7 +306,7 @@ function emitUnsupportedHarnessBinding(where, resolved, binding) {
     hint: "Preserve the existing Bundle unchanged; reconstruct a new current Bundle before resuming this content.",
     where,
     diagnostic: {
-      version: 1,
+      schema: CLI_DIAGNOSTIC_SCHEMA,
       category: "gate",
       operation: "verify-harness-binding",
       source: { path: resolved },
@@ -349,20 +338,20 @@ async function resolveRunAdapter(runDir, where) {
   if (targetDraft) return Object.freeze({ ...targetDraft, run_dir: resolved, deck_dir: deckDir, harness_dir: harnessDir });
   const { resolveRunProductionAdapter } = await import("./shared/state/state.mjs");
   const route = resolveRunProductionAdapter(deckDir, { runDir: resolved, purpose: "observe" });
-  if (route.ok && route.adapter === "page-image-workflow-v1") {
+  if (route.ok && route.adapter === "page-image-workflow") {
     return Object.freeze({ ...route, run_dir: resolved, deck_dir: deckDir, harness_dir: harnessDir });
   }
   if (route.code === "execution_run_version_mismatch") {
     emitExecutionRunVersionMismatch(where, resolved, route);
     return null;
   }
-  emitUnsupportedProtocol(where, resolved, route.code);
+  emitCurrentProtocolError(where, resolved, route.code);
   return null;
 }
 
 function createGateDiagnostic({ operation, source, issues = [], action = "review", invocation, defaultText }) {
   return {
-    version: 1,
+    schema: CLI_DIAGNOSTIC_SCHEMA,
     category: "gate",
     operation,
     ...(source ? { source: { path: source } } : {}),
@@ -586,7 +575,7 @@ async function enrichStatusWithState(status, runDir, route = null) {
   const { readState, buildResumeCard, statePath, inspectRunProductionMode } = await import("./shared/state/state.mjs");
   const root = deckRoot(runDir);
   status.state_present = existsSync(statePath(root));
-  // Status projects only exact, current run-bound authority. Historical state
+  // Status projects only exact, current run-bound authority. Unsupported state
   // is a hard-stop and is never upgraded from visible topology.
   const s = readState(root, { purpose: "observe", heal: false, runDir });
   if (s.replacement_required) {
@@ -642,7 +631,7 @@ export async function buildControllerGateContext(runDir, { workflowInspection = 
     deckDir: deckRoot(resolved),
     runDir: resolved,
     runVersion: basename(resolved),
-    pipeline: PAGE_IMAGE_WORKFLOW_V1_PIPELINE,
+    pipeline: PAGE_IMAGE_WORKFLOW_PIPELINE,
     harnessDir,
     slideSpecsValid: isWorkflowInspectionSourceReady(inspection),
   };
@@ -862,7 +851,7 @@ async function commandStatus(runDir, { json: asJson }) {
   const resolved = route.run_dir;
   const status = collectStatus(resolved);
   if (route.target_workflow_selection_required) {
-    status.pipeline = PAGE_IMAGE_WORKFLOW_V1_PIPELINE;
+    status.pipeline = PAGE_IMAGE_WORKFLOW_PIPELINE;
     status.structure_issues = status.structure_issues
       .filter((issue) => issue !== PAGE_IMAGE_WORKFLOW_SELECTION_REQUIRED_MESSAGE);
   }
@@ -957,7 +946,7 @@ async function commandPageImageRefresh(route, {
       "Use the canonical receipt-bound lifecycle and select only title or notes refresh work."
     );
   }
-  if (route.adapter === "page-image-workflow-v1") {
+  if (route.adapter === "page-image-workflow") {
     if (kind === "visual") {
       return emitUsage(
         "ppt_flow.refresh.target.visual",
@@ -994,7 +983,7 @@ async function commandPageImageRefresh(route, {
           hint: "Use the selected target raw plan and review lifecycle before target finalization.",
           where: "ppt_flow.refresh.target.title",
           diagnostic: {
-            version: 1,
+            schema: CLI_DIAGNOSTIC_SCHEMA,
             category: "gate",
             operation: "target-framed-refresh",
             source: { path: route.run_dir },
@@ -1043,7 +1032,7 @@ async function commandNewVersion(runDir, { name }) {
     } = await import("./shared/state/state.mjs");
     const sourceRoute = resolveRunProductionAdapter(deckDir, { runDir: resolved, purpose: "observe" });
     const activateTargetDraft = sourceRoute.ok &&
-      sourceRoute.adapter === "page-image-workflow-v1";
+      sourceRoute.adapter === "page-image-workflow";
     const target = createVersion(resolved, name);
     const activation = activateTargetDraft
       ? activateCleanPageImageTargetDraft(deckDir, { sourceRunDir: resolved, targetRunDir: target })
@@ -1137,7 +1126,7 @@ function collectDeckHistoryIds(runDir) {
       );
       ids.push(...document.slides.map((slide) => slide.slide_id).filter(Boolean));
     } catch {
-      // A malformed historical source remains inspectable but cannot silently
+      // A malformed source cannot silently
       // contribute invented IDs. Current source validation still fails closed.
     }
   }
@@ -1168,7 +1157,7 @@ async function validateProjectedSlideSource(context, projectedText) {
     error.issues = marker.issues;
     throw error;
   }
-  if (marker.branch !== PAGE_IMAGE_WORKFLOW_V1_PIPELINE) {
+  if (marker.branch !== PAGE_IMAGE_WORKFLOW_PIPELINE) {
     throw new Error("projected source must remain an exact current Page Image marker");
   }
   return marker.branch;
@@ -1190,7 +1179,7 @@ async function parseTargetStructuralReceipt(context, sourceText) {
 
 /** Bind a current same-workflow structural vNext to the existing exact preview. */
 async function enrichTargetPageImageStructuralPlan(context, transaction, applied, targetBranch) {
-  if (targetBranch !== PAGE_IMAGE_WORKFLOW_V1_PIPELINE || transaction.publication.mode !== "next-version") return null;
+  if (targetBranch !== PAGE_IMAGE_WORKFLOW_PIPELINE || transaction.publication.mode !== "next-version") return null;
   const marker = probeProductionMarker(applied.text, { source: context.document.source });
   const workflow = marker.frontmatter?.metadata?.production?.workflow;
   const baseSlidePlan = targetStructuralBaseSlidePlan(transaction);
@@ -1257,7 +1246,7 @@ async function applyConfirmedSlideTransaction(context, transaction, expectedHash
         ...applied.receipt,
         source_run_dir: context.runDir,
         target_run_dir: publication.target_run_dir,
-        pipeline: PAGE_IMAGE_WORKFLOW_V1_PIPELINE,
+        pipeline: PAGE_IMAGE_WORKFLOW_PIPELINE,
         workflow: publication.workflow,
         needs_render: publication.needs_raw_generation,
         page_image_target_structural: {
@@ -1383,7 +1372,7 @@ async function commandSlides(subcommand, runDir, args = [], opts = {}) {
         : "Inspect the current slide source and operation, then retry",
       where: `ppt_flow.slides.${subcommand}`,
       diagnostic: {
-        version: 1,
+        schema: CLI_DIAGNOSTIC_SCHEMA,
         category: error.code === "missing_plan_sha256" ? "usage"
           : /ambiguous/.test(error.message) ? "source_validation"
             : /structure|version|staging|reservation/.test(error.message) ? "structure"
@@ -1458,7 +1447,7 @@ async function commandBuildWrapped(runDir, opts) {
 
 async function resolveImage2Run(runDir, where) {
   const route = await resolveRunAdapter(runDir, where);
-  return route?.adapter === "page-image-workflow-v1" ? route.run_dir : null;
+  return route?.adapter === "page-image-workflow" ? route.run_dir : null;
 }
 const PAGE_IMAGE_OPERATIONS = new Set([
   "plan",
@@ -1474,7 +1463,7 @@ const PAGE_IMAGE_OPERATIONS = new Set([
   "reconcile",
 ]);
 const PAGE_IMAGE_HASH_RE = /^[0-9a-f]{64}$/;
-const PAGE_IMAGE_PROVIDER_IDEMPOTENCY_KEY_RE = /^page-image-workflow-v1-[0-9a-f]{64}$/;
+const PAGE_IMAGE_PROVIDER_IDEMPOTENCY_KEY_RE = /^page-image-workflow-[0-9a-f]{64}$/;
 
 function pageImageDiagnosticReasonKind(value, fallback = "page_image_operation_failed") {
   const normalized = String(value || fallback)
@@ -1549,13 +1538,13 @@ function isTargetProviderFailure(code) {
 function targetPageImageFailure(operation, route, error) {
   const reason = pageImageDiagnosticReasonKind(error?.code);
   const common = {
-    version: 1,
+    schema: CLI_DIAGNOSTIC_SCHEMA,
     operation: `target-page-image-${operation}`,
     reason: { kind: reason },
   };
   const source = { path: join(route.run_dir, SLIDE_SPECS_NAME) };
 
-  if (reason.startsWith("progressive_raw") || reason === "progressive_raw_legacy_replan_required") {
+  if (reason.startsWith("progressive_raw")) {
     if (reason === "progressive_raw_attempt_chain_invalid") {
       return {
         code: CLI_ERROR_CODES.FAILED,
@@ -1992,8 +1981,8 @@ const IMAGE2_PROVIDER_TASK_POLL_INTERVAL_MS = 1_000;
 
 function image2ProviderOperationTiming({ providerDeadlineMs, taskPollTimeoutMs, taskPollIntervalMs }) {
   return Object.freeze({
-    // taskPollTimeoutMs is retained as a test-only compatibility seam. It now
-    // bounds the complete operation rather than granting polls a fresh window.
+    // taskPollTimeoutMs remains test-only and bounds the complete operation
+    // rather than granting polls a fresh window.
     timeoutMs: Number.isSafeInteger(providerDeadlineMs) && providerDeadlineMs > 0
       ? providerDeadlineMs
       : Number.isSafeInteger(taskPollTimeoutMs) && taskPollTimeoutMs > 0
@@ -2888,7 +2877,7 @@ async function commandTargetPageImageImage2(operation, route, opts = {}) {
       if (!planHash || !decision) return 1;
       output = await operations.accept(route.run_dir, { planHash, decision });
     } else {
-      const planHash = requiredPageImageHash(operation, "--plan-hash", opts.planHash, "historical full plan");
+      const planHash = requiredPageImageHash(operation, "--plan-hash", opts.planHash, "full plan");
       const attemptSha256 = requiredPageImageHash(operation, "--attempt-sha256", opts.attemptSha256, "submitted attempt");
       if (!planHash || !attemptSha256) return 1;
       output = await operations.reconcile(route.run_dir, { planHash, attemptSha256 });
@@ -2977,21 +2966,21 @@ function requestedStyleMasterCandidateCount(opts) {
 function styleMasterFailure(operation, route, error) {
   const reason = pageImageDiagnosticReasonKind(error?.code, "style_master_operation_failed");
   const common = {
-    version: 1,
+    schema: CLI_DIAGNOSTIC_SCHEMA,
     operation: `style-master-${operation}`,
-    reason: error?.reason?.kind === "compatibility_projection_failed"
-      ? Object.freeze({ kind: "compatibility_projection_failed" })
+    reason: error?.reason?.kind === "presentation_jpeg_projection_failed"
+      ? Object.freeze({ kind: "presentation_jpeg_projection_failed" })
       : Object.freeze({ kind: reason }),
   };
   const source = { path: join(route.run_dir, SLIDE_SPECS_NAME) };
 
-  if (reason === "style_master_compatibility_projection_failed" &&
+  if (reason === "style_master_presentation_jpeg_projection_failed" &&
     error?.subject?.kind === "style_master_selection" && STYLE_MASTER_PLAN_HASH_RE.test(error?.replay?.plan_sha256 || "") &&
     error?.replay?.decision === "proceed" && typeof error?.replay?.candidate_id === "string") {
     return {
       code: CLI_ERROR_CODES.FAILED,
-      message: "The Style Master selection committed, but its compatibility JPEG projection needs replay.",
-      hint: "Rerun the exact accepted selection so its derived compatibility JPEG can be rebuilt.",
+      message: "The Style Master selection committed, but its presentation JPEG projection needs replay.",
+      hint: "Rerun the exact accepted selection so its derived presentation JPEG can be rebuilt.",
       diagnostic: {
         ...common,
         category: "artifact",
@@ -3002,7 +2991,7 @@ function styleMasterFailure(operation, route, error) {
             decision: "proceed",
             candidateId: error.replay.candidate_id,
           }),
-          default: "Rerun this exact accept invocation to repair only the derived compatibility JPEG.",
+          default: "Rerun this exact accept invocation to repair only the derived presentation JPEG.",
         }),
       },
     };
@@ -3019,7 +3008,7 @@ function styleMasterFailure(operation, route, error) {
     return {
       code: CLI_ERROR_CODES.FAILED,
       message: "The current Style Master intent, visual context, or local candidate is invalid.",
-      hint: "Repair the canonical source or local compatibility asset, then rerun the Style Master operation.",
+      hint: "Repair the canonical source or local presentation asset, then rerun the Style Master operation.",
       diagnostic: {
         ...common,
         category: "source_validation",
@@ -3534,7 +3523,7 @@ Examples:
               hint: "Preserve the state bytes and use the named owner action for the reported integrity condition.",
               where: "ppt_flow.state.repair-known-execution-mismatch",
               diagnostic: {
-                version: 1,
+                schema: CLI_DIAGNOSTIC_SCHEMA,
                 category: "gate",
                 operation: "repair-known-execution-mismatch",
                 source: { path: resolved },
@@ -3569,7 +3558,7 @@ Examples:
             hint: "Use the reported field paths to rebuild artifacts or repair the owning state record through its public workflow.",
             where: "ppt_flow.state.validate-state",
             diagnostic: {
-              version: 1,
+              schema: CLI_DIAGNOSTIC_SCHEMA,
               category: "artifact",
               operation: "validate-state",
               reason: { kind: "state_validation_failed" },
@@ -3586,8 +3575,8 @@ Examples:
       // collection, controller indexing, or a route initializer.
       const { inspectWorkflow } = await import("./shared/workflow/inspect_workflow.mjs");
       const workflowInspection = inspectWorkflow({ runDir: resolved });
-      if (workflowInspection.root_cause.kind === "unsupported-protocol") {
-        emitUnsupportedProtocol("ppt_flow.state.identity", resolved, "UNSUPPORTED_PROTOCOL");
+      if (workflowInspection.root_cause.kind === "current-protocol-invalid") {
+        emitCurrentProtocolError("ppt_flow.state.identity", resolved);
         process.exitCode = 1;
         return;
       }
@@ -3602,16 +3591,16 @@ Examples:
           hint: currentRepair
             ? "Retry the owning current-state operation; do not edit YAML or infer a replacement route."
             : "Preserve its bytes; start a fresh explicitly initialized run instead of editing or inferring a route from unsupported state.",
-          where: "ppt_flow.state.unsupported-protocol",
+          where: "ppt_flow.state.current-protocol-invalid",
           diagnostic: {
-            version: 1,
+            schema: CLI_DIAGNOSTIC_SCHEMA,
             category: "artifact",
             operation: "observe-state",
             reason: { kind: currentRepair ? "current_state_repair_required" : "replacement_required" },
             next: createCliNext("repair_prerequisite", {
               default: currentRepair
                 ? "Retry the owning current-state operation so it can canonicalize the one-to-one defect; do not edit YAML or infer a route."
-                : "Preserve the existing bytes and run ppt_flow init for a fresh current run; do not edit or infer a route from unsupported historical state.",
+                : "Preserve the existing bytes and run ppt_flow init for a fresh current run; do not edit or infer a route from unsupported state.",
             }),
           },
         }, 2);
@@ -3649,7 +3638,7 @@ Examples:
         const report = {
           durable_state: s,
           production_mode: indexedCard.production_mode,
-          pipeline: s.pipeline || PAGE_IMAGE_WORKFLOW_V1_PIPELINE,
+          pipeline: s.pipeline || PAGE_IMAGE_WORKFLOW_PIPELINE,
           state_present: existsSync(statePath(deckDir)),
           playbook: indexedCard.playbook,
           current_node: indexedCard.current_node,
@@ -3745,7 +3734,7 @@ Examples:
         message: "Command arguments are invalid.",
         hint: "Run with --help for usage",
         where: "ppt_flow.main",
-        diagnostic: { version: 1, category: "usage", operation: "parse-command", next: createCliNext("fix_arguments", { invocation: { program: "node", args: [__filename, "--help"] }, default: "Inspect --help, correct the command arguments, then rerun." }) },
+        diagnostic: { schema: CLI_DIAGNOSTIC_SCHEMA, category: "usage", operation: "parse-command", next: createCliNext("fix_arguments", { invocation: { program: "node", args: [__filename, "--help"] }, default: "Inspect --help, correct the command arguments, then rerun." }) },
       },
       typeof err?.exitCode === "number" && err.exitCode !== 0 ? err.exitCode : 1
     );
@@ -3775,7 +3764,7 @@ if (isMain) {
         message: "ppt_flow failed unexpectedly.",
         hint: "Inspect the command location and report the Harness failure.",
         where: "ppt_flow.main",
-        diagnostic: { version: 1, category: "internal", operation: "run-command", next: createCliNext("report_internal", { default: "Inspect ppt_flow.mjs without relying on captured exception prose, then report the defect." }) },
+        diagnostic: { schema: CLI_DIAGNOSTIC_SCHEMA, category: "internal", operation: "run-command", next: createCliNext("report_internal", { default: "Inspect ppt_flow.mjs without relying on captured exception prose, then report the defect." }) },
       },
       1
     );

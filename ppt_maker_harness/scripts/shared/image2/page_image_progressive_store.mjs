@@ -21,7 +21,6 @@ import {
   PAGE_PRODUCTION_STAGING_SUBDIR,
   pageImageProgressiveRawPaths,
 } from "../run-bundle/page_image_paths.mjs";
-import { evaluateReplacementIdentity } from "../run-bundle/page_image_workflow_identity.mjs";
 import {
   ProgressiveRawSchemaError,
   validateProgressiveAcceptedRawEvidence,
@@ -36,9 +35,7 @@ import {
   validateProgressiveRawWorkPlan,
 } from "./page_image_progressive_schema.mjs";
 import {
-  CONTENT_ADDRESS_LEGACY_NAME_RE,
   CONTENT_ADDRESS_SHORT_NAME_RE,
-  assertNoActiveMigration,
   nameMatchesAddress,
   resolveContentAddressName,
   shortName,
@@ -160,8 +157,6 @@ function canonicalRecordAddress(pathname) {
 }
 
 function parseCanonicalRecord(bytes, label) {
-  const identity = evaluateReplacementIdentity({ record: bytes, recordKind: "progressive-record", recordPath: label });
-  if (!identity.ok) fail(identity.code, `${label} is an unsupported retained protocol record`);
   let parsed;
   try {
     parsed = JSON.parse(Buffer.from(bytes).toString("utf8"));
@@ -264,7 +259,6 @@ function writeStagedImmutableRecord(runDir, {
   const targetPath = assertInside(paths.plan_root, target, "immutable direct record");
   ensureRealDirectoryBelowDeck(paths.deck_root, dirname(targetPath), "immutable direct record parent");
   return withExclusiveDirectoryLock(join(dirname(targetPath), `.${basename(targetPath)}.lock`), () => {
-    assertNoActiveMigration(paths.deck_root);
     const existing = readBytesOrNull(targetPath);
     if (existing !== null) {
       const read = readCanonicalValidatedRecord(targetPath, validator, options);
@@ -402,7 +396,6 @@ export function publishProgressiveRawStagedPlan(runDir, { staging_path, plan_sha
   if (staged.sha256 !== plan_sha256) fail("progressive_raw_store_record_invalid", "staged plan digest does not match the publication path");
   ensureRealDirectoryBelowDeck(paths.deck_root, paths.plans_root, "progressive raw plans root");
   return withExclusiveDirectoryLock(join(paths.plans_root, `.${shortName(plan_sha256)}.lock`), () => {
-    assertNoActiveMigration(paths.deck_root);
     if (existsSync(paths.plan_root)) {
       const existing = readProgressiveRawWorkPlan(runDir, { plan_sha256 });
       if (existing.sha256 !== plan_sha256 || !equalBytes(existing.bytes, staged.bytes)) {
@@ -447,7 +440,6 @@ export function writeProgressiveRawScopeHeadCas(runDir, { workflow, head, plan, 
   const desired = canonicalBytes(head);
   ensureRealDirectoryBelowDeck(paths.deck_root, paths.scope_root, "progressive raw scope root");
   return withExclusiveDirectoryLock(paths.scope_lock, () => {
-    assertNoActiveMigration(paths.deck_root);
     const actual = readBytesOrNull(paths.scope_head);
     if ((expected === null && actual !== null) || (expected !== null && !equalBytes(expected, actual))) {
       fail("progressive_raw_head_conflict", "progressive raw scope head changed before compare-and-swap");
@@ -464,7 +456,6 @@ export async function withProgressiveRawPlanLock(runDir, { plan_sha256, action }
   const paths = progressiveRawStorePaths(runDir, { plan_sha256 });
   realDirectory(paths.plan_root, "progressive raw plan container");
   return withExclusiveDirectoryLockAsync(paths.plan_lock, async () => {
-    assertNoActiveMigration(paths.deck_root);
     return action();
   });
 }
@@ -580,7 +571,6 @@ export function publishProgressiveRawMaterialization(runDir, { plan, provenance,
     if (staged.sha256 !== provenanceCheck.sha256) fail("progressive_raw_store_record_invalid", "staged materialization provenance digest drifted");
     ensureRealDirectoryBelowDeck(paths.deck_root, paths.materializations_root, "progressive raw materializations root");
     return withExclusiveDirectoryLock(join(paths.materializations_root, `.${shortName(provenanceCheck.sha256)}.lock`), () => {
-      assertNoActiveMigration(paths.deck_root);
       if (existsSync(paths.materialization_root)) {
         const existing = readProgressiveRawMaterialization(runDir, { plan_sha256: planCheck.sha256, provenance_sha256: provenanceCheck.sha256, plan });
         if (!equalBytes(existing.provenance.bytes, staged.bytes) || !equalBytes(existing.bytes, payload)) {
@@ -614,9 +604,14 @@ export function readProgressiveRawMaterialization(runDir, { plan_sha256, provena
 function listRecordFiles(root, label) {
   if (!existsSync(root)) return [];
   realDirectory(root, label);
-  return readdirSync(root, { withFileTypes: true })
-    .filter((entry) => entry.isFile() && !entry.isSymbolicLink() && /^(?:[0-9a-f]{8}|[0-9a-f]{64})\.json$/.test(entry.name))
-    .map((entry) => join(root, entry.name));
+  const paths = [];
+  for (const entry of readdirSync(root, { withFileTypes: true })) {
+    if (!entry.isFile() || entry.isSymbolicLink() || !/^[0-9a-f]{8}\.json$/.test(entry.name)) {
+      fail("progressive_raw_store_record_invalid", `${label} contains a noncanonical immutable record`);
+    }
+    paths.push(join(root, entry.name));
+  }
+  return paths;
 }
 
 function listBatchDirectories(root) {
@@ -625,7 +620,7 @@ function listBatchDirectories(root) {
   const paths = [];
   for (const entry of readdirSync(root, { withFileTypes: true })) {
     if (!entry.isDirectory() || entry.isSymbolicLink() ||
-      !(CONTENT_ADDRESS_SHORT_NAME_RE.test(entry.name) || CONTENT_ADDRESS_LEGACY_NAME_RE.test(entry.name))) {
+      !CONTENT_ADDRESS_SHORT_NAME_RE.test(entry.name)) {
       fail("progressive_raw_store_record_invalid", "batches root contains a noncanonical immutable batch container");
     }
     paths.push(join(root, entry.name));
@@ -650,7 +645,7 @@ export function readProgressiveRawPlanDirectRecords(runDir, { plan_sha256 } = {}
   const attempts = listRecordFiles(paths.attempts_root, "progressive raw attempts root").map((pathname) => {
     const record = readCanonicalValidatedRecord(pathname, validateProgressiveRawItemAttempt, { plan: plan.record }, "progressive raw item attempt");
     const fileName = basename(pathname);
-    if (fileName !== `${shortName(record.sha256)}.json` && fileName !== `${record.sha256}.json`) {
+    if (fileName !== `${shortName(record.sha256)}.json`) {
       fail("progressive_raw_store_record_invalid", "attempt file does not match its canonical record digest");
     }
     return record;
@@ -660,7 +655,7 @@ export function readProgressiveRawPlanDirectRecords(runDir, { plan_sha256 } = {}
     realDirectory(paths.materializations_root, "progressive raw materializations root");
     for (const entry of readdirSync(paths.materializations_root, { withFileTypes: true })) {
       if (!entry.isDirectory() || entry.isSymbolicLink() ||
-        !(CONTENT_ADDRESS_SHORT_NAME_RE.test(entry.name) || CONTENT_ADDRESS_LEGACY_NAME_RE.test(entry.name))) {
+        !CONTENT_ADDRESS_SHORT_NAME_RE.test(entry.name)) {
         fail("progressive_raw_store_record_invalid", "materializations root contains a noncanonical immutable bundle");
       }
       const provenance = readCanonicalValidatedRecord(
@@ -710,10 +705,10 @@ export function findProgressiveRawMaterializationByProvenance(runDir, { provenan
   let found = null;
   for (const entry of readdirSync(root.plans_root, { withFileTypes: true })) {
     if (!entry.isDirectory() || entry.isSymbolicLink()) {
-      if (/^\.[0-9a-f]{8}\.lock$/.test(entry.name) || /^\.[0-9a-f]{64}\.lock$/.test(entry.name)) continue;
+      if (/^\.[0-9a-f]{8}\.lock$/.test(entry.name)) continue;
       fail("progressive_raw_store_record_invalid", "plans root contains a noncanonical entry");
     }
-    if (!(CONTENT_ADDRESS_SHORT_NAME_RE.test(entry.name) || CONTENT_ADDRESS_LEGACY_NAME_RE.test(entry.name))) {
+    if (!CONTENT_ADDRESS_SHORT_NAME_RE.test(entry.name)) {
       fail("progressive_raw_store_record_invalid", "plans root contains a noncanonical plan container");
     }
     const planDir = join(root.plans_root, entry.name);
@@ -750,10 +745,10 @@ export function findProgressiveRawCompleteReviewBySha(runDir, { complete_raw_rev
   let found = null;
   for (const entry of readdirSync(root.plans_root, { withFileTypes: true })) {
     if (!entry.isDirectory() || entry.isSymbolicLink()) {
-      if (/^\.[0-9a-f]{8}\.lock$/.test(entry.name) || /^\.[0-9a-f]{64}\.lock$/.test(entry.name)) continue;
+      if (/^\.[0-9a-f]{8}\.lock$/.test(entry.name)) continue;
       fail("progressive_raw_store_record_invalid", "plans root contains a noncanonical entry");
     }
-    if (!(CONTENT_ADDRESS_SHORT_NAME_RE.test(entry.name) || CONTENT_ADDRESS_LEGACY_NAME_RE.test(entry.name))) {
+    if (!CONTENT_ADDRESS_SHORT_NAME_RE.test(entry.name)) {
       fail("progressive_raw_store_record_invalid", "plans root contains a noncanonical plan container");
     }
     const planDir = join(root.plans_root, entry.name);

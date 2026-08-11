@@ -12,15 +12,15 @@ labels:
   - id: C1
     work: publish-production-schema-definitions
     execution_kind: openspec-change
-    responsibility: "Publish the non-executable Page Image schema vocabulary, flow, route, and frozen identifier inventory."
+    responsibility: "Publish the non-executable Page Image schema vocabulary, flow, route, and serialization inventory."
     boundary: "No production runtime behavior, provider work, record migration, or Run Bundle mutation."
     exit_evidence: "The owner confirms that flow.yaml and all nineteen stage definitions express the intended data flow."
   - id: C2
     work: conform-code-to-schema-definitions
     execution_kind: openspec-change
     responsibility: "Make implementation constants, defaults, drift checks, and author-facing repair projections conform to C1."
-    boundary: "No semantic behavior change and no rename of a frozen identifier."
-    exit_evidence: "Core tests pass, deliberate constant drift fails, and historical attempt records remain valid."
+    boundary: "One declared current contract with no implementation-only substitute."
+    exit_evidence: "Core tests pass and deliberate contract drift fails."
   - id: C3
     work: close-upstream-narrative-gap
     execution_kind: openspec-change

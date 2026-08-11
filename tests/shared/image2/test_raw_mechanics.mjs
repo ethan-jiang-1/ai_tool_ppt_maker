@@ -36,16 +36,16 @@ function rawWorkPlan(sourceReceiptSha256) {
 function targetDeck() {
   const deck = mkdtempSync(join(tmpdir(), "deck_page_image_v2_raw_"));
   const runDir = join(deck, "3_versions", "v1");
-  const source = "---\nproduction:\n  pipeline: page-image-workflow-v1\n  workflow: pure\n---\n";
+  const source = "---\nproduction:\n  pipeline: page-image-workflow\n  workflow: pure\n---\n";
   mkdirSync(runDir, { recursive: true });
   writeFileSync(join(runDir, "slide-specifications.md"), source, "utf8");
-  writeState(deck, createInitialState("gated", "keynote", "dark", { mode: "image2-page-workflow-v1", workflow: "pure" }));
+  writeState(deck, createInitialState("gated", "keynote", "dark", { mode: "image2-page-workflow", workflow: "pure" }));
   return {
     deck,
     runDir,
     sourceReceipt: {
-      schema: "page-image-workflow-source-v1",
-      pipeline: "page-image-workflow-v1",
+      schema: "page-image-workflow-source",
+      pipeline: "page-image-workflow",
       workflow: "pure",
       source_sha256: createHash("sha256").update(source).digest("hex"),
       slides: [{ slide_id: "DeckGo", position: 1 }],
@@ -86,7 +86,7 @@ describe("Page Image shared raw mechanics", () => {
         rawWorkPlan: plan,
         raw_review_sha256: digest("e"),
         raw_bytes_by_slide: { DeckGo: Buffer.from("raw") },
-      })).toMatchObject({ schema: "page-image-adapter-accepted-raw-evidence-v1", workflow: "pure" });
+      })).toMatchObject({ schema: "page-image-adapter-accepted-raw-evidence", workflow: "pure" });
 
       const stalePlan = createRawWorkPlan({
         ...plan,

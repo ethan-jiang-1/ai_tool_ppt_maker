@@ -1,5 +1,5 @@
 export {
-  IDENTITY_SCHEME_MNEMONIC_V1,
+  IDENTITY_SCHEME_MNEMONIC,
   SlideDocumentError,
   applySlideEdit,
   canonicalSlideEditJson,
@@ -17,15 +17,12 @@ export {
   SlideIdentityError,
   SlideSelectorError,
   buildSlideIdReservation,
-  classifySlideId,
   formatAvailableSlideIds,
   formatSlideCandidate,
-  isLegacySlideId,
   isMnemonicSlideId,
   normalizeSpokenKey,
   parseMnemonicSlideId,
   resolveSlideBindings,
-  resolveSlideIds,
   validateNewSlideId,
 } from "./internal/slide_ids.mjs";
 

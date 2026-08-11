@@ -13,14 +13,14 @@ outputs:
   - image-generation-plan
 provenance:
   source: "Candidate plans, grants, attempts, generated and local provenance, review decisions, and the candidate head."
-  requirement: "Records are append-only and retain their historical serialized identifiers."
+  requirement: "Records are append-only and use the current serialized identifiers declared in serialization-contracts.yaml."
 downstream_consumers:
   - page-generation-spec
   - image-generation-plan
   - production-progress-state
 does_not_contain:
   - "Per-page source copy, a provider request for a page, or a final page list."
-  - "A mutable replacement for historical candidate evidence."
+  - "A mutable replacement for prior candidate evidence."
 fields:
   candidate_lineage:
     type: append-only record chain

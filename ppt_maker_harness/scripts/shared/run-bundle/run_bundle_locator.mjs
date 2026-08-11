@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { isAlias, isMap, isScalar, parseDocument } from "yaml";
 import { checkDeckRootControls } from "./bundle_layout.mjs";
 
-export const RUN_BUNDLE_SCHEMA = "pptmaker-run-bundle-v2";
+export const RUN_BUNDLE_SCHEMA = "pptmaker-run-bundle";
 export const RUN_BUNDLE_FILE = "RUN_BUNDLE.md";
 
 const MANIFEST_FIELDS = Object.freeze([

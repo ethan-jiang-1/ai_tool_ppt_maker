@@ -20,7 +20,7 @@ import { basename, join } from "node:path";
 import { parseDocument } from "yaml";
 import { PRODUCTION_MODES, PAGE_IMAGE_WORKFLOW_PRODUCTION_MODE, productionPolicyForMode } from "../run-bundle/production_mode.mjs";
 import {
-  PAGE_IMAGE_WORKFLOW_V1_PIPELINE,
+  PAGE_IMAGE_WORKFLOW_PIPELINE,
   PAGE_IMAGE_WORKFLOWS,
 } from "../run-bundle/production_marker.mjs";
 
@@ -36,7 +36,7 @@ export const METHOD_MODULES = Object.freeze([
 ]);
 export const RESERVED_NODE_IDS = Object.freeze([]);
 export const SUPPORTED_PIPELINES = Object.freeze([
-  PAGE_IMAGE_WORKFLOW_V1_PIPELINE,
+  PAGE_IMAGE_WORKFLOW_PIPELINE,
 ]);
 export const SUPPORTED_PRODUCTION_MODES = Object.freeze([...PRODUCTION_MODES]);
 export const SUPPORTED_PRODUCTION_WORKFLOWS = Object.freeze([...PAGE_IMAGE_WORKFLOWS]);
@@ -147,7 +147,7 @@ function normalizeNode(raw, meta) {
     id: raw?.node == null ? "" : String(raw.node),
     lifecyclePhase: raw?.lifecycle_phase == null ? "" : String(raw.lifecycle_phase),
     methodModule: raw?.method_module == null ? "" : String(raw.method_module),
-    legacyPhase: raw?.phase,
+    unsupportedPhase: raw?.phase,
     requires: asStringArray(raw?.requires),
     entry: asStringArray(raw?.entry),
     exit: asStringArray(raw?.exit),
@@ -223,13 +223,7 @@ export function parseControllerFile(filePath) {
   };
 }
 
-const CONTROLLER_MANIFEST_FILE = "controller-manifest-v3.json";
-const RETIRED_ONE_SHOT_RAW_NODES = Object.freeze([
-  "authorize-target-framed-raw",
-  "generate-target-framed-raw",
-  "authorize-target-pure-raw",
-  "generate-target-pure-raw",
-]);
+const CONTROLLER_MANIFEST_FILE = "controller-manifest.json";
 
 function progressiveRawNodeIds(workflow) {
   return Object.freeze([
@@ -394,8 +388,8 @@ function validateNodeShape(node, errors) {
   if (RESERVED_NODE_IDS.includes(node.id)) {
     addError(errors, node, "reserved-id", `${node.id} is reserved for system evidence`);
   }
-  if (node.legacyPhase != null) {
-    addError(errors, node, "legacy-phase", "replace phase with lifecycle_phase and method_module");
+  if (node.unsupportedPhase != null) {
+    addError(errors, node, "unsupported-phase", "replace phase with lifecycle_phase and method_module");
   }
   if (Object.hasOwn(node.raw || {}, "draft_route") && node.raw.draft_route !== true) {
     addError(errors, node, "draft-route", "draft_route may only be the literal Boolean true when present");
@@ -421,10 +415,10 @@ function validateNodeShape(node, errors) {
   if (node.methodModule === "06-iteration" && node.lifecyclePhase !== "5") {
     addError(errors, node, "target-lifecycle", "06-iteration must use lifecycle_phase 5");
   }
-  if (targetStageFour && node.adapter !== "page-image-workflow-v1") addError(errors, node, "image-production-adapter", "target 03/04/05 nodes require adapter: page-image-workflow-v1");
+  if (targetStageFour && node.adapter !== "page-image-workflow") addError(errors, node, "image-production-adapter", "target 03/04/05 nodes require adapter: page-image-workflow");
   if (!targetStageFour && node.adapter != null) addError(errors, node, "image-production-adapter", "only target Page Image production nodes may declare an adapter");
   if (targetStageFour && (!targetModeOnly || node.playbook !== "create-deck")) {
-    addError(errors, node, "image-production-adapter", "target 03/04/05 production is owned by create-deck and requires image2-page-workflow-v1");
+    addError(errors, node, "image-production-adapter", "target 03/04/05 production is owned by create-deck and requires image2-page-workflow");
   }
   if (node.productionWorkflows.length > 0) {
     if (new Set(node.productionWorkflows).size !== node.productionWorkflows.length) {
@@ -436,7 +430,7 @@ function validateNodeShape(node, errors) {
       }
     }
     if (!targetModeOnly) {
-      addError(errors, node, "production-workflows", "production_workflows require image2-page-workflow-v1 only");
+      addError(errors, node, "production-workflows", "production_workflows require image2-page-workflow only");
     }
   }
   if (targetWorkflow && !hasExactSet(node.productionWorkflows, [targetWorkflow])) {
@@ -446,7 +440,7 @@ function validateNodeShape(node, errors) {
     addError(errors, node, "production-workflows", "05-delivery must apply to both target workflows without a semantic branch");
   }
   if (node.methodModule === "06-iteration" && (!targetModeOnly || node.productionWorkflows.length === 0)) {
-    addError(errors, node, "production-workflows", "06-iteration requires one or both target workflows on image2-page-workflow-v1");
+    addError(errors, node, "production-workflows", "06-iteration requires one or both target workflows on image2-page-workflow");
   }
   if (!Array.isArray(node.raw?.requires) || !Array.isArray(node.raw?.entry) || !Array.isArray(node.raw?.exit)) {
     addError(errors, node, "node-lists", "requires, entry, and exit must be YAML arrays");
@@ -550,7 +544,7 @@ function validateControllerManifest(index, errors) {
   for (const message of index.manifestErrors || []) errors.push({ rule: "manifest", source: index.manifestPath, line: 1, message });
   const manifest = index.controllerManifest;
   if (!manifest) return;
-  if (manifest.schema !== "pptmaker-controller-manifest-v3" || !Array.isArray(manifest.shared_nodes) ||
+  if (manifest.schema !== "pptmaker-controller-manifest" || !Array.isArray(manifest.shared_nodes) ||
     !manifest.controllers || typeof manifest.controllers !== "object" || Array.isArray(manifest.controllers)) {
     errors.push({ rule: "manifest", source: index.manifestPath, line: 1, message: "controller manifest has an invalid top-level schema" });
     return;
@@ -588,11 +582,7 @@ function validateProgressivePageProductionNodes(controller, errors) {
   if (controller.playbook !== "create-deck") return;
   const nodes = new Map(controller.nodes.map((node) => [node.id, node]));
   const presentProgressive = [...nodes.keys()].some((id) => /^(?:plan|recommend|authorize|generate|review)-target-(?:framed|pure)-(?:progressive-raw|pilot|expansion|raw)$/.test(id));
-  const presentRetired = RETIRED_ONE_SHOT_RAW_NODES.filter((id) => nodes.has(id));
-  if (!presentProgressive && presentRetired.length === 0) return;
-  for (const id of presentRetired) {
-    addError(errors, nodes.get(id), "progressive-page-production", `${id} is retired; use the progressive Page Image checkpoints`);
-  }
+  if (!presentProgressive) return;
   for (const workflow of PAGE_IMAGE_WORKFLOWS) {
     const expected = progressiveRawNodeIds(workflow);
     for (const id of expected) {

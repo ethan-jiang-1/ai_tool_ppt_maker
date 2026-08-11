@@ -11,7 +11,7 @@ import {
 
 export const SLIDE_DOCUMENT_SCHEMA_VERSION = 1;
 export const SLIDE_EDIT_SCHEMA_VERSION = 1;
-export const IDENTITY_SCHEME_MNEMONIC_V1 = "mnemonic-v1";
+export const IDENTITY_SCHEME_MNEMONIC = "mnemonic";
 
 const SLIDE_LIKE_HEADING_RE = /^##[ \t]+Slide\b/i;
 const NUMERIC_SLIDE_LIKE_HEADING_RE = /^##[ \t]+Slide\b.*(?:^|[^A-Za-z0-9])\d+(?:$|[^A-Za-z0-9])/i;
@@ -402,7 +402,7 @@ function identityMarkerIssues(document) {
     issues.push({
       severity: "ERROR",
       code: "invalid_identity_marker",
-      message: "frontmatter identity must be a mapping with scheme: mnemonic-v1",
+      message: "frontmatter identity must be a mapping with scheme: mnemonic",
       source: { path: document.source, line: 1, column: 1 },
     });
     return { issues, scheme: null };
@@ -418,20 +418,20 @@ function identityMarkerIssues(document) {
       });
     }
   }
-  if (identity.scheme !== IDENTITY_SCHEME_MNEMONIC_V1) {
+  if (identity.scheme !== IDENTITY_SCHEME_MNEMONIC) {
     issues.push({
       severity: "ERROR",
       code: "unsupported_identity_scheme",
-      message: "identity.scheme must equal mnemonic-v1",
+      message: "identity.scheme must equal mnemonic",
       source: { path: document.source, line: 1, column: 1 },
     });
     return { issues, scheme: null };
   }
-  return { issues, scheme: IDENTITY_SCHEME_MNEMONIC_V1 };
+  return { issues, scheme: IDENTITY_SCHEME_MNEMONIC };
 }
 
 /**
- * Validate source invariants. Existing retained IDs remain readable; mnemonic-v1
+ * Validate source invariants. Existing retained IDs remain readable; mnemonic
  * is an assertion that every current ID follows the strict syntax.
  */
 export function validateSlideDocument(document, { historyIds = [] } = {}) {
@@ -464,7 +464,7 @@ export function validateSlideDocument(document, { historyIds = [] } = {}) {
       const spokenKey = normalizeSpokenKey(id);
       if (!spoken.has(spokenKey)) spoken.set(spokenKey, []);
       spoken.get(spokenKey).push(block);
-      if (marker.scheme === IDENTITY_SCHEME_MNEMONIC_V1) {
+      if (marker.scheme === IDENTITY_SCHEME_MNEMONIC) {
         const parsed = parseMnemonicSlideId(id);
         for (const problem of parsed.problems) {
           issues.push(
@@ -528,23 +528,23 @@ export function validateSlideDocument(document, { historyIds = [] } = {}) {
     }
   }
 
-  // Historical IDs reserve creation, but their continued current use is legal.
-  const historicalSpoken = new Map();
+  // Prior IDs reserve creation, but their continued current use is legal.
+  const priorSpoken = new Map();
   for (const id of historyIds || []) {
     const key = normalizeSpokenKey(id);
-    if (!historicalSpoken.has(key)) historicalSpoken.set(key, new Set());
-    historicalSpoken.get(key).add(String(id));
+    if (!priorSpoken.has(key)) priorSpoken.set(key, new Set());
+    priorSpoken.get(key).add(String(id));
   }
   for (const block of document.slides) {
-    const history = historicalSpoken.get(normalizeSpokenKey(block.slide_id));
-    if (!history || history.has(block.slide_id)) continue;
+    const prior = priorSpoken.get(normalizeSpokenKey(block.slide_id));
+    if (!prior || prior.has(block.slide_id)) continue;
     issues.push(
       issueForBlock(
         document,
         block,
-        "historical_spoken_key_conflict",
-        `slide ID ${JSON.stringify(block.slide_id)} conflicts with historical ID(s): ` +
-          [...history].sort().join(", ")
+        "prior_spoken_key_conflict",
+        `slide ID ${JSON.stringify(block.slide_id)} conflicts with prior ID(s): ` +
+          [...prior].sort().join(", ")
       )
     );
   }

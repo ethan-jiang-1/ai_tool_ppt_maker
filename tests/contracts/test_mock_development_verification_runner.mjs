@@ -19,7 +19,7 @@ describe("mock development verifier runner", () => {
     const result = await runDevelopmentVerification({ resolveVitest: () => "/mock/vitest.mjs", spawnChild: () => mockChild({ output: "dot progress" }) });
     expect(result.exitCode).toBe(0);
     expect(Object.keys(result.output)).toEqual(["schema", "tier", "result", "duration_ms", "next_action"]);
-    expect(result.output).toMatchObject({ schema: "development-verification-v1", tier: "core", result: "passed" });
+    expect(result.output).toMatchObject({ schema: "development-verification", tier: "core", result: "passed" });
   });
 
   it("maps a failed child, unavailable runner, bounded tail, and timeout to one nonzero result", async () => {
@@ -38,7 +38,7 @@ describe("mock development verifier runner", () => {
     try {
       const contracts = join(root, "tests/contracts");
       mkdirSync(contracts, { recursive: true });
-      const inventory = join(contracts, "development-verification-core-v1.json");
+      const inventory = join(contracts, "development-verification-core.json");
       writeFileSync(inventory, "{");
       let resolved = false;
       let spawned = false;
@@ -48,7 +48,7 @@ describe("mock development verifier runner", () => {
       expect(spawned).toBe(false);
 
       writeFileSync(join(contracts, "test_mock_prohibited_entry.mjs"), 'import "playwright";\n');
-      writeFileSync(inventory, JSON.stringify({ schema: "pptmaker-development-verification-core-v1", budget_ms: 60000, entries: ["tests/contracts/test_mock_prohibited_entry.mjs"] }));
+      writeFileSync(inventory, JSON.stringify({ schema: "pptmaker-development-verification-core", budget_ms: 60000, entries: ["tests/contracts/test_mock_prohibited_entry.mjs"] }));
       const prohibited = await runDevelopmentVerification({ root, resolveVitest: () => { resolved = true; return "/mock/vitest.mjs"; }, spawnChild: () => { spawned = true; return mockChild(); } });
       expect(prohibited.output.result).toBe("invalid_inventory");
       expect(spawned).toBe(false);

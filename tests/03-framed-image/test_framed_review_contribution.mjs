@@ -26,7 +26,7 @@ function framedProviderInputBinding(compiled) {
 function headerPolicy(title) {
   const header = { kicker: null, title, subtitle: null };
   return {
-    frame_preset: "standard-v1",
+    frame_preset: "standard",
     local_header: header,
     context_not_to_render: { ...header },
   };
@@ -34,8 +34,8 @@ function headerPolicy(title) {
 
 function framedReceipt({ firstTitle = "First framed title", secondTitle = "Second framed title" } = {}) {
   return {
-    schema: "page-image-workflow-source-v1",
-    pipeline: "page-image-workflow-v1",
+    schema: "page-image-workflow-source",
+    pipeline: "page-image-workflow",
     workflow: "framed",
     source_sha256: digest("a"),
     slides: [

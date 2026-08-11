@@ -1,0 +1,8 @@
+{
+  "schema": "pptmaker-development-verification-core",
+  "budget_ms": 60000,
+  "entries": [
+    "tests/contracts/test_development_verification_admission.mjs",
+    "tests/contracts/test_harness_architecture.mjs"
+  ]
+}

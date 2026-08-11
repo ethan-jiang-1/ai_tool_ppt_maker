@@ -217,7 +217,7 @@ export function describeFramedHeaderOverlay({ slide_id, frame_preset, local_head
   const layoutGeometry = compileFramedHeaderOverlayGeometry();
   const layout = contractLayout(headerOverlay, layoutGeometry, selection);
   return Object.freeze({
-    schema: 'pptmaker-framed-header-overlay-contract-v1',
+    schema: 'pptmaker-framed-header-overlay-contract',
     slide_id: slideId,
     header_overlay: headerOverlay,
     layout,

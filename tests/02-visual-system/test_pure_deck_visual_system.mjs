@@ -18,7 +18,7 @@ import {
 } from "../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
 
 function source({ whitespace = "generous" } = {}) {
-  return `schema: pptmaker-pure-deck-visual-system-v1
+  return `schema: pptmaker-pure-deck-visual-system
 revision: 1
 typography:
   voices:
@@ -81,22 +81,22 @@ typography:
     text: editorial-sans
     display: editorial-serif
 revision: 1
-schema: pptmaker-pure-deck-visual-system-v1
+schema: pptmaker-pure-deck-visual-system
 `;
 }
 
 const FRAMED_SOURCE = `---
 identity:
-  scheme: mnemonic-v1
+  scheme: mnemonic
 production:
-  pipeline: page-image-workflow-v1
+  pipeline: page-image-workflow
   workflow: framed
 ---
 
 ## Slide 01: \`DeckGo\`
 
 **TITLE**: Framed keeps its own visual configuration
-**FRAME PRESET**: standard-v1
+**FRAME PRESET**: standard
 **SLIDE BODY**:
 \`\`\`yaml
 items:
@@ -206,7 +206,7 @@ describe("Pure deck visual system", () => {
     }
   });
 
-  it("fails closed for missing legacy source and an escaping override directory", () => {
+  it("fails closed for a missing source and an escaping override directory", () => {
     const root = mkdtempSync(join(tmpdir(), "pure-deck-visual-system-confined-"));
     try {
       const deck = join(root, "deck_visual_system");

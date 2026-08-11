@@ -207,58 +207,6 @@ editor, compatibility, or arbitrary key-removal form.
 - **AND** it makes no state, history, source, generated-artifact, or provider
   write
 
-### Requirement: Run-scoped CLI accepts only current Page Image Workflow identity
-
-Every run-scoped CLI operation SHALL first verify the exact local Harness
-binding through the existing locator evaluator, then require the exact
-`page-image-workflow-v1` source and `image2-page-workflow-v1` state pair. A
-missing/invalid binding remains an unsupported-binding hard-stop. For every
-Page Image mutation, including progressive handoffs and final delivery, the
-selected run SHALL exactly equal the State owner's active execution
-`run_version` before it reads a derived artifact, initializes a provider,
-publishes review, changes source/generated artifacts, or changes state/history.
-An inactive selection SHALL emit the registered producer-owned failure envelope
-with `FAILED` code, `gate` category, reason kind
-`execution_run_version_mismatch`, the requested version as `reason.actual`,
-and the active version as `reason.expected`. Its only next action SHALL be the
-existing non-writing `inspect` action scoped to the active run; it SHALL not
-automatically retarget the requested operation or report an
-`unsupported-protocol/export` route. No compatibility or recovery mutation is
-implied by the failure.
-
-After a valid binding, a v2 Page Authority marker, receipt, plan, review,
-manifest, or delivery record SHALL be an `unsupported-protocol/export`
-hard-stop before state repair or mutation, provider initialization,
-generated-artifact reads, review publication, or production work. The CLI
-SHALL preserve supplied v2 bytes and shall not decode, convert, adopt, or
-expose a compatibility command.
-
-`bundle_layout --check --structure-only` remains a non-authoritative structure
-inspection. It may report a physical tree but SHALL not select a current run,
-read production state, establish a binding, or perform an execution action.
-
-#### Scenario: An inactive production request is fenced before work
-
-- **WHEN** a state with active `run_version: v2` receives a build, delivery,
-  review, refresh, Page Image planning, or another Page Image mutation request
-  for `v1`
-- **THEN** the CLI returns the bounded execution-version mismatch hard-stop
-  before any source/state/history/generated-artifact mutation or provider
-  initialization
-- **AND** a later read-only state validation sees the same pre-request state
-  grammar and bytes
-- **AND** the final failure envelope retains `v1` as `reason.actual`, `v2` as
-  `reason.expected`, and the active-run `inspect` action
-
-#### Scenario: A v2 production request is fenced before work
-
-- **WHEN** a v2 run requests validation, planning, generation, review,
-  refresh, delivery, or a stateful operation
-- **THEN** the CLI returns only the bounded `unsupported-protocol/export` next
-  action
-- **AND** it does not initialize a provider, read legacy evidence, or mutate
-  source/state/generated artifacts
-
 ### Requirement: Public CLI exposes only replacement Page Image Workflow operations
 
 The registered `style-master` and `image2` command families SHALL operate only
@@ -335,53 +283,6 @@ as final acceptance.
 - **THEN** it returns raw provider and production-equivalent composite evidence
   for one `proceed` or `repair` action
 - **AND** it does not expose another local-composite approval operation
-
-### Requirement: Explicit artifact view preserves the machine CLI contract
-
-On a current supported Page Image run, `image2 artifact-view <run-dir>` SHALL
-perform no provider work and rebuild only the canonical Human Navigation Path
-tree. Its success result SHALL identify the short navigation index locator,
-the short navigation root, and the exact run/workflow scope; it SHALL not
-print raw prompt prose, credentials, provider responses, original
-content-addressed artifact locators, or a broad dump of owner records.
-
-Existing success JSON for `status`, `state`, `style-master`, and the other
-`image2` operations SHALL retain their current machine-oriented schema. The
-artifact-view success result SHALL retain its existing view locator field for
-the new short index and add only the short navigation-root field. The command
-SHALL not add a short-hash selector, change any exact SHA-256 argument grammar,
-provide a direct lifecycle/authorization/review command, or write any
-`_state/` file including the Page Production task projection.
-
-Current protocol identity remains the earliest prerequisite. For an unsupported
-or unresolved scope, the command SHALL preserve the existing bounded
-owner-issued diagnostic and SHALL not write the navigation tree, initialize a
-provider, read legacy media, or mutate source/state/generated authority.
-
-#### Scenario: Artifact view is explicitly requested for a current run
-
-- **WHEN** an Agent invokes `image2 artifact-view` for an exact current Pure or Framed run
-- **THEN** the CLI rebuilds and returns the run-scoped short navigation index and root without a
-  provider request or lifecycle transition
-- **AND** the complete `_state/` tree and ordinary `status`/`state` observations remain unchanged
-  unless separately invoked
-
-#### Scenario: Artifact view does not expose canonical artifact paths
-
-- **WHEN** the current view contains available artifacts held below SHA-named immutable owner
-  directories
-- **THEN** the CLI success result and its human navigation index expose only their derived short
-  physical paths
-- **AND** they do not serialize the source artifact locators or add a navigation path as a CLI
-  lifecycle selector
-
-#### Scenario: Artifact view receives an unsupported v2 run
-
-- **WHEN** `image2 artifact-view` is requested for a `page-authority-image2-v2` source/state pair
-- **THEN** the CLI returns the existing `unsupported-protocol/export` boundary before reading
-  artifacts or writing the navigation tree
-- **AND** it does not create an alias, compatibility report, adoption path, or short-path
-  migration for the unsupported run
 
 ### Requirement: Artifact-view success covers a valid successor with matching predecessor bindings
 
@@ -640,3 +541,63 @@ provider work as an executable recovery.
   diagnostic
 - **AND** it does not advertise generic rebuild, retry, force, state editing,
   replacement authorization, or provider work as a recovery
+
+### Requirement: Run-scoped CLI validates the current Page Image Workflow identity
+
+Every run-scoped CLI operation SHALL first verify the exact local Harness
+binding through the existing locator evaluator, then require the exact current
+schema-declared Page Image source pipeline and production-mode pair. Every
+direct CLI failure diagnostic SHALL use the inventory-declared
+`schema: pptmaker-cli-diagnostic`; producer and consumer validation SHALL
+reject an absent, numeric-version, or undeclared diagnostic schema. A missing,
+invalid, or undeclared contract value remains an owner-issued hard failure
+before any read that depends on production authority, mutation, or provider
+work. The CLI SHALL not scan for, decode, convert, or export a known
+historical contract.
+
+#### Scenario: CLI receives an undeclared source/state marker
+
+- **WHEN** a run-scoped operation encounters a source or state selector absent
+  from the current serialization inventory
+- **THEN** it returns the existing owner-issued current-contract failure before
+  dependent work
+- **AND** it does not create a compatibility inspection or migration path
+
+#### Scenario: An inactive production request is fenced before work
+
+- **WHEN** a CLI request names a run other than the active current binding
+- **THEN** it retains the existing non-writing execution-version mismatch failure
+- **AND** it does not retarget the request or inspect historical artifacts
+
+#### Scenario: An undeclared production request is fenced before work
+
+- **WHEN** a CLI request supplies an undeclared production contract
+- **THEN** it fails exact-current validation before dependent work
+- **AND** it does not classify the value, create a migration, or initialize a provider
+
+### Requirement: Current artifact view preserves the machine CLI contract
+
+On a current supported Page Image run, artifact view SHALL retain its existing
+provider-free, derived navigation behavior and machine-oriented success shape.
+It SHALL validate only the declared current locator and lineage before rebuilding
+the navigation tree; an undeclared marker stops through ordinary owner
+validation without an artifact read, compatibility report, or migration.
+
+#### Scenario: Artifact view is explicitly requested for a current run
+
+- **WHEN** an Agent invokes artifact view for an exact current Pure or Framed run
+- **THEN** it returns the existing run-scoped derived navigation result without a
+  provider request or lifecycle transition
+- **AND** ordinary status/state observations remain unchanged unless separately invoked
+
+#### Scenario: Artifact view does not expose canonical artifact paths
+
+- **WHEN** the current view contains immutable owner artifacts
+- **THEN** it retains the existing bounded derived navigation paths
+- **AND** it does not serialize canonical source locators as lifecycle selectors
+
+#### Scenario: Artifact view receives an unsupported run
+
+- **WHEN** artifact view encounters an undeclared source/state marker
+- **THEN** it fails before navigation-tree work through the ordinary current owner
+- **AND** it does not alias, adopt, or migrate the run

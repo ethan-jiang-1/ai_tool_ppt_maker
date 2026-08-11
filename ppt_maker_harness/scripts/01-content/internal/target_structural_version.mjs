@@ -4,7 +4,7 @@ import { basename, dirname, join, resolve } from "node:path";
 import { stringify } from "yaml";
 
 import { canonicalJsonSha256 } from "../../shared/identity/canonical_json.mjs";
-import { PAGE_IMAGE_WORKFLOW_V1_PIPELINE, probeProductionMarker } from "../../shared/run-bundle/production_marker.mjs";
+import { PAGE_IMAGE_WORKFLOW_PIPELINE, probeProductionMarker } from "../../shared/run-bundle/production_marker.mjs";
 import { nextVersionName, publishStructuralVersion } from "../../shared/run-bundle/bundle_layout.mjs";
 import {
   inspectRunProductionMode,
@@ -13,7 +13,7 @@ import {
 } from "../../shared/state/state.mjs";
 import { applySlideEdit, parseSlideDocument, verifySlideEditPlanHash } from "./slide_document.mjs";
 
-export const TARGET_STRUCTURAL_PLAN_SCHEMA = "page-image-target-structural-plan-v1";
+export const TARGET_STRUCTURAL_PLAN_SCHEMA = "page-image-target-structural-plan";
 
 const SHA256_RE = /^[0-9a-f]{64}$/;
 const PAGE_IMAGE_WORKFLOWS = new Set(["framed", "pure"]);
@@ -42,7 +42,7 @@ function requireWorkflow(workflow) {
 }
 
 function targetReceiptFacts(receipt, sourceText, workflow, expectedOrder) {
-  if (!receipt || receipt.schema !== "page-image-workflow-source-v1" || receipt.pipeline !== PAGE_IMAGE_WORKFLOW_V1_PIPELINE ||
+  if (!receipt || receipt.schema !== "page-image-workflow-source" || receipt.pipeline !== PAGE_IMAGE_WORKFLOW_PIPELINE ||
     receipt.workflow !== workflow || receipt.source_sha256 !== sha256(sourceText) || !Array.isArray(receipt.slides) || receipt.slides.length === 0) {
     throw new Error("target structural source receipt does not bind the candidate source");
   }
@@ -57,7 +57,7 @@ function targetReceiptFacts(receipt, sourceText, workflow, expectedOrder) {
 
 function validateTargetSource(sourceText, workflow, expectedOrder, receipt) {
   const marker = probeProductionMarker(sourceText, { source: "slide-specifications.md" });
-  if (marker.branch !== PAGE_IMAGE_WORKFLOW_V1_PIPELINE || marker.frontmatter?.metadata?.production?.workflow !== workflow) {
+  if (marker.branch !== PAGE_IMAGE_WORKFLOW_PIPELINE || marker.frontmatter?.metadata?.production?.workflow !== workflow) {
     throw new Error("target structural source must carry the exact current Page Image Workflow marker");
   }
   const document = parseSlideDocument(sourceText, "slide-specifications.md");
@@ -123,11 +123,11 @@ export function deriveTargetStructuralSource({ sourceText, slideEditPlan, target
     throw new Error("target structural source requires canonical frontmatter");
   }
   const marker = probeProductionMarker(applied.text, { source: "slide-specifications.md" });
-  if (marker.branch !== PAGE_IMAGE_WORKFLOW_V1_PIPELINE) {
+  if (marker.branch !== PAGE_IMAGE_WORKFLOW_PIPELINE) {
     throw new Error("target structural source requires the exact current Page Image source marker");
   }
   const metadata = { ...document.frontmatter.metadata };
-  metadata.production = { pipeline: PAGE_IMAGE_WORKFLOW_V1_PIPELINE, workflow };
+  metadata.production = { pipeline: PAGE_IMAGE_WORKFLOW_PIPELINE, workflow };
   const newline = document.newline;
   const prefix = applied.text.startsWith("\uFEFF") ? "\uFEFF" : "";
   const frontmatter = stringify(metadata).replaceAll("\n", newline);

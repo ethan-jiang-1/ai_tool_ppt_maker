@@ -1,0 +1,45 @@
+{
+  "schema": "pptmaker-harness-governance-ledger",
+  "rules": [
+    {
+      "id": "import-private-boundary",
+      "source": "scripts/contracts/harness_architecture.mjs:validateImportEdge",
+      "invariant": "Cross-owner callers only use declared public interfaces.",
+      "failure_story": "A caller can bind to an implementation detail that changes without its contract, causing a hidden runtime break after relocation.",
+      "owner": "harness-architecture",
+      "next_action": "replace the private import with the owning public interface",
+      "classification": "hard-stop",
+      "disposition": "retain"
+    },
+    {
+      "id": "provider-load-isolation",
+      "source": "scripts/04-pure-image/index.mjs",
+      "invariant": "Provider clients initialize only after an authorized provider operation reaches its adapter boundary.",
+      "failure_story": "A status or help command can load credentials or provider transport before authorization, violating dry-run and human-control boundaries.",
+      "owner": "image-production-adapter",
+      "next_action": "move the provider import behind the adapter operation boundary",
+      "classification": "hard-stop",
+      "disposition": "retain"
+    },
+    {
+      "id": "production-data-scope",
+      "source": "scripts/contracts/harness_architecture.mjs:validateArchitectureSnapshot",
+      "invariant": "Harness tests never treat deck_* or dpt_* production data as fixtures.",
+      "failure_story": "A regression test can mutate or encode a real production bundle, making tests non-reproducible and risking user data.",
+      "owner": "harness-tests",
+      "next_action": "replace the production-data fixture with a temporary synthetic fixture",
+      "classification": "hard-stop",
+      "disposition": "retain"
+    },
+    {
+      "id": "page-image-state-integrity",
+      "source": "scripts/shared/state/state.mjs:validateProductionModeStructure",
+      "invariant": "One exact run version has one Page Image state and evidence graph.",
+      "failure_story": "Conflicting records could select a different authorization or delivery lineage for the same version.",
+      "owner": "shared-state",
+      "next_action": "run the state owner's Page Image repair checkpoint without hand-editing records",
+      "classification": "hard-stop",
+      "disposition": "retain"
+    }
+  ]
+}

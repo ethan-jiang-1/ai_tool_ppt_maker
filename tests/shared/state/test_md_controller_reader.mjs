@@ -20,7 +20,7 @@ import {
 
 const PLAYBOOK_DIR = "ppt_maker_harness/playbook";
 
-const CHECKED_MANIFEST = JSON.parse(readFileSync(join(PLAYBOOK_DIR, "controller-manifest-v3.json"), "utf8"));
+const CHECKED_MANIFEST = JSON.parse(readFileSync(join(PLAYBOOK_DIR, "controller-manifest.json"), "utf8"));
 export const EXPECTED_CONTROLLER_MANIFEST = Object.freeze(Object.fromEntries(
   Object.entries(CHECKED_MANIFEST.controllers).map(([playbook, value]) => [playbook, value.nodes]),
 ));
@@ -73,7 +73,7 @@ describe("MD Controller reader characterization", () => {
     expect(index.controllers.has("production-mode-transition")).toBe(false);
     expect(index.controllers.has("image2-refine")).toBe(false);
     expect(index.controllers.get("create-deck").supportedPipelines).toEqual([
-      "page-image-workflow-v1",
+      "page-image-workflow",
     ]);
   });
 
@@ -81,16 +81,16 @@ describe("MD Controller reader characterization", () => {
     const index = buildPlaybookIndex(PLAYBOOK_DIR);
     const pageImage = index.nodesById.get("generate-target-framed-pilot");
     const createDeck = index.controllers.get("create-deck");
-    expect(pageImage).toMatchObject({ lifecyclePhase: "4", methodModule: "03-framed-image", adapter: "page-image-workflow-v1", productionModes: ["image2-page-workflow-v1"] });
-    expect(nodeAppliesToMode(pageImage, createDeck.supportedProductionModes, "image2-page-workflow-v1")).toBe(true);
+    expect(pageImage).toMatchObject({ lifecyclePhase: "4", methodModule: "03-framed-image", adapter: "page-image-workflow", productionModes: ["image2-page-workflow"] });
+    expect(nodeAppliesToMode(pageImage, createDeck.supportedProductionModes, "image2-page-workflow")).toBe(true);
     expect(nodeAppliesToMode(pageImage, createDeck.supportedProductionModes, "unsupported-mode")).toBe(false);
   });
 
   it("projects one bound target workflow through 03 XOR 04, then common delivery and iteration", () => {
     const index = buildPlaybookIndex(PLAYBOOK_DIR);
-    const framed = controllerActiveNodeIds(index, "create-deck", "image2-page-workflow-v1", "framed");
-    const pure = controllerActiveNodeIds(index, "create-deck", "image2-page-workflow-v1", "pure");
-    const unresolved = controllerActiveNodeIds(index, "create-deck", "image2-page-workflow-v1");
+    const framed = controllerActiveNodeIds(index, "create-deck", "image2-page-workflow", "framed");
+    const pure = controllerActiveNodeIds(index, "create-deck", "image2-page-workflow", "pure");
+    const unresolved = controllerActiveNodeIds(index, "create-deck", "image2-page-workflow");
 
     expect(unresolved).toEqual(["checkpoint-intake", "select-target-page-image-workflow"]);
     expect(framed).toEqual([
@@ -176,17 +176,17 @@ describe("MD Controller reader characterization", () => {
       "plan-target-pure-progressive-raw",
     ]);
 
-    expect(controllerActiveNodeIds(index, "edit-text", "image2-page-workflow-v1", "framed")).toEqual([
+    expect(controllerActiveNodeIds(index, "edit-text", "image2-page-workflow", "framed")).toEqual([
       "classify-change",
       "refresh-target-framed-text",
       "review-target-text-delivery",
     ]);
-    expect(controllerActiveNodeIds(index, "edit-text", "image2-page-workflow-v1", "pure")).toEqual([
+    expect(controllerActiveNodeIds(index, "edit-text", "image2-page-workflow", "pure")).toEqual([
       "classify-change",
       "refresh-target-pure-text",
       "review-target-text-delivery",
     ]);
-    expect(controllerActiveNodeIds(index, "edit-notes", "image2-page-workflow-v1", "framed")).toEqual([
+    expect(controllerActiveNodeIds(index, "edit-notes", "image2-page-workflow", "framed")).toEqual([
       "classify-change",
       "refresh-target-speaker-notes",
       "verify-target-speaker-notes",
@@ -197,7 +197,7 @@ describe("MD Controller reader characterization", () => {
     expect(nodeAppliesToWorkflow(framedNode, "pure")).toBe(false);
 
     const state = createInitialState("target", "keynote", "dark", {
-      mode: "image2-page-workflow-v1",
+      mode: "image2-page-workflow",
       workflow: "framed",
     });
     const card = buildResumeCard(state, null, { index, ctx: { runVersion: "v1" } });
@@ -220,7 +220,7 @@ describe("MD Controller reader characterization", () => {
       expect(result.errors.some((error) => error.rule === "dependency-cycle")).toBe(true);
       expect(result.errors.some((error) => error.rule === "decision-value")).toBe(true);
       expect(result.errors.some((error) => error.rule === "self-entry")).toBe(true);
-      expect(result.errors.some((error) => error.rule === "legacy-phase")).toBe(true);
+      expect(result.errors.some((error) => error.rule === "unsupported-phase")).toBe(true);
       expect(result.errors.some((error) => error.rule === "phase4-ownership")).toBe(true);
       expect(result.errors.some((error) => error.rule === "duplicate-id")).toBe(true);
       expect(result.errors.some((error) => error.rule === "steps")).toBe(true);
@@ -234,7 +234,7 @@ describe("MD Controller reader characterization", () => {
     const controller = [
       "---",
       "playbook: create-deck",
-      "supported_pipelines: [page-image-workflow-v1]",
+      "supported_pipelines: [page-image-workflow]",
       "includes: []",
       "---",
       "",
@@ -242,7 +242,7 @@ describe("MD Controller reader characterization", () => {
       "node: select-target-page-image-workflow",
       "lifecycle_phase: 1",
       "method_module: 01-content",
-      "production_modes: [image2-page-workflow-v1]",
+      "production_modes: [image2-page-workflow]",
       "draft_route: true",
       "requires: []",
       "entry: []",
@@ -254,12 +254,12 @@ describe("MD Controller reader characterization", () => {
     ].join("\n");
     try {
       writeFileSync(join(dir, "create-deck.md"), controller);
-      writeFileSync(join(dir, "controller-manifest-v3.json"), JSON.stringify({
-        schema: "pptmaker-controller-manifest-v3",
+      writeFileSync(join(dir, "controller-manifest.json"), JSON.stringify({
+        schema: "pptmaker-controller-manifest",
         shared_nodes: [],
         controllers: {
           "create-deck": {
-            supported_pipelines: ["page-image-workflow-v1"],
+            supported_pipelines: ["page-image-workflow"],
             nodes: ["select-target-page-image-workflow"],
             draft_route_nodes: {
               framed: ["select-target-page-image-workflow"],
@@ -273,9 +273,9 @@ describe("MD Controller reader characterization", () => {
       expect(controllerDraftRouteNodes(index, "create-deck", "framed")).toEqual(["select-target-page-image-workflow"]);
       expect(controllerDraftRouteNodes(index, "create-deck", null)).toEqual(["select-target-page-image-workflow"]);
 
-      const manifest = JSON.parse(readFileSync(join(dir, "controller-manifest-v3.json"), "utf8"));
+      const manifest = JSON.parse(readFileSync(join(dir, "controller-manifest.json"), "utf8"));
       manifest.controllers["create-deck"].draft_route_nodes.pure = ["unknown-node"];
-      writeFileSync(join(dir, "controller-manifest-v3.json"), JSON.stringify(manifest));
+      writeFileSync(join(dir, "controller-manifest.json"), JSON.stringify(manifest));
       const mismatched = buildPlaybookIndex(dir);
       expect(validatePlaybookIndex(mismatched).errors.some((error) => error.rule === "draft-route")).toBe(true);
       expect(controllerDraftRouteNodes(mismatched, "create-deck", "pure")).toEqual([]);
@@ -288,7 +288,7 @@ describe("MD Controller reader characterization", () => {
     const controllerLines = (value, duplicate = false) => [
       "---",
       "playbook: create-deck",
-      "supported_pipelines: [page-image-workflow-v1]",
+      "supported_pipelines: [page-image-workflow]",
       "includes: []",
       "---",
       "",
@@ -296,7 +296,7 @@ describe("MD Controller reader characterization", () => {
       "node: select-target-page-image-workflow",
       "lifecycle_phase: 1",
       "method_module: 01-content",
-      "production_modes: [image2-page-workflow-v1]",
+      "production_modes: [image2-page-workflow]",
       `draft_route: ${value}`,
       ...(duplicate ? [`draft_route: ${value}`] : []),
       "requires: []",

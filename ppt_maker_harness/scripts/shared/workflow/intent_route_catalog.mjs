@@ -6,9 +6,9 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-export const INTENT_ROUTE_CATALOG_SCHEMA = "pptmaker-intent-routes-v1";
+export const INTENT_ROUTE_CATALOG_SCHEMA = "pptmaker-intent-routes";
 
-const CATALOG_PATH = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "playbook", "intent-routes-v1.json");
+const CATALOG_PATH = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "playbook", "intent-routes.json");
 const TERMINAL_ROUTE_ID = "orientation-unrouted-intent";
 const ROUTE_FIELDS = [
   "id",

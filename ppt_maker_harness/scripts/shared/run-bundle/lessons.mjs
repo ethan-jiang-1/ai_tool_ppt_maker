@@ -13,7 +13,7 @@
  */
 
 import "../cli/cli_bootstrap.mjs?entry=shared/run-bundle/lessons.mjs";
-import { CLI_ERROR_CODES, createCliNext, emitCliError } from "../cli/cli_error.mjs";
+import { CLI_DIAGNOSTIC_SCHEMA, CLI_ERROR_CODES, createCliNext, emitCliError } from "../cli/cli_error.mjs";
 
 import fs from "node:fs";
 import path from "node:path";
@@ -33,7 +33,7 @@ function resolveBoundDeckRoot(runDir, where) {
     hint: "Preserve the existing Bundle unchanged; reconstruct a new current Bundle before resuming this content.",
     where,
     diagnostic: {
-      version: 1,
+      schema: CLI_DIAGNOSTIC_SCHEMA,
       category: "gate",
       operation: "verify-harness-binding",
       source: { path: root },
@@ -154,7 +154,7 @@ function cmdAdd(runDir, title) {
       message: "Missing required --title for add.",
       hint: "Provide a kebab-case slug: lessons add <runDir> --title \"my-lesson\"",
       where: "lessons.add.title",
-      diagnostic: { version: 1, category: "usage", operation: "add" },
+      diagnostic: { schema: CLI_DIAGNOSTIC_SCHEMA, category: "usage", operation: "add" },
     });
     return 1;
   }
@@ -172,7 +172,7 @@ function cmdAdd(runDir, title) {
       hint: "Choose a different title or review the existing lesson.",
       where: "lessons.add.exists",
       diagnostic: {
-        version: 1,
+        schema: CLI_DIAGNOSTIC_SCHEMA,
         category: "structure",
         operation: "add",
         subject: { kind: "lesson", id: title },
@@ -222,7 +222,7 @@ function cmdSearch(runDir, keyword) {
       message: "Missing search keyword.",
       hint: "Provide a keyword: lessons search <runDir> <keyword>",
       where: "lessons.search.keyword",
-      diagnostic: { version: 1, category: "usage", operation: "search" },
+      diagnostic: { schema: CLI_DIAGNOSTIC_SCHEMA, category: "usage", operation: "search" },
     });
     return 1;
   }

@@ -26,7 +26,7 @@ function unsupportedFixture(prefix) {
   const deck = join(root, "deck_unsupported");
   const runDir = join(deck, "3_versions", "v1");
   initBundle(deck, null, "keynote", "dark-executive");
-  writeFileSync(join(runDir, "slide-specifications.md"), "---\nproduction:\n  pipeline: unsupported-protocol-v0\n---\n");
+  writeFileSync(join(runDir, "slide-specifications.md"), "---\nproduction:\n  pipeline: current-protocol-invalid\n---\n");
   return { root, deck, runDir };
 }
 
@@ -39,8 +39,8 @@ describe("workflow inspection protocol fence", () => {
       expect(first).toMatchObject({
         schema: WORKFLOW_INSPECTION_SCHEMA,
         posture: "hard-stop",
-        root_cause: { owner: "production-protocol", kind: "unsupported-protocol" },
-        primary_action: { action_id: "unsupported-protocol/export", kind: "export" },
+        root_cause: { owner: "production-protocol", kind: "current-protocol-invalid" },
+        primary_action: { action_id: "repair-current-protocol-identity", kind: "export" },
         observations: [],
       });
       expect(canonicalJson(first)).toBe(canonicalJson(second));

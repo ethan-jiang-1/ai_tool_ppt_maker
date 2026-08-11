@@ -1,12 +1,6 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, posix, relative, resolve } from "node:path";
 import { EXECUTABLE_INVENTORY, normalizeExecutablePath } from "./executable_inventory.mjs";
-import {
-  LEGACY_TOKEN_EXCEPTIONS,
-  scanRetiredWholePageTerms,
-  validateLegacyTokenExceptions,
-  validateRetiredWholePageTokenExceptions,
-} from "./harness_static_coherence.mjs";
 
 export const ACTIVE_PHASES = Object.freeze([
   "00-setup",
@@ -42,7 +36,6 @@ export const PUBLIC_SHARED_INTERFACES = Object.freeze([
   "shared/cli/cli_error.mjs",
   "shared/run-bundle/bundle_layout.mjs",
   "shared/run-bundle/page_image_paths.mjs",
-  "shared/run-bundle/page_image_workflow_identity.mjs",
   "shared/run-bundle/production_marker.mjs",
   "shared/state/state.mjs",
   "shared/state/md_controller_reader.mjs",
@@ -86,8 +79,8 @@ export const PAGE_IMAGE_PROVIDER_INPUT_COMPILER_ADAPTERS = Object.freeze([
 ]);
 
 export const PAGE_IMAGE_PROVIDER_INPUT_COMPILER_SCHEMA_BY_ADAPTER = Object.freeze({
-  "03-framed-image/index.mjs": "page-image-framed-provider-input-v1",
-  "04-pure-image/index.mjs": "page-image-pure-provider-input-v1",
+  "03-framed-image/index.mjs": "page-image-framed-provider-input",
+  "04-pure-image/index.mjs": "page-image-pure-provider-input",
 });
 
 export const SHARED_WORKFLOW_SEMANTIC_HELPERS = Object.freeze([
@@ -127,8 +120,6 @@ const REQUIRED_MANIFEST_INTERFACES = Object.freeze([
   "contracts/executable_inventory.mjs",
   "contracts/harness_architecture.mjs",
   "contracts/harness_document_command_audit.mjs",
-  "contracts/harness_static_coherence.mjs",
-  "contracts/retirement_ledger_audit.mjs",
 ]);
 
 function normalized(value) {
@@ -152,6 +143,65 @@ function targetMethodModuleOf(path) {
 
 function addIssue(issues, code, path, message) {
   issues.push({ code, path: normalized(path), message });
+}
+
+const VERSION_SUFFIX = /-v[1-9][0-9]*\b/;
+const CONTRACT_VALUE = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
+
+/**
+ * Evaluate a parsed serialization-contract snapshot without reading files or
+ * importing YAML. Repository scans construct this snapshot separately.
+ */
+export function evaluateProductionSchemaConformance(snapshot = {}) {
+  const issues = [];
+  for (const key of ["stage_names", "anchors", "selectors", "wire_schemas", "shared_contracts", "contract_fields", "literal_occurrences"]) {
+    if (!Array.isArray(snapshot[key])) issues.push({ code: "contract-snapshot-incomplete", path: key, message: `${key} must be an array` });
+  }
+  const stageNames = new Set(snapshot.stage_names || []);
+  const anchors = new Set(snapshot.anchors || []);
+  const selectors = Array.isArray(snapshot.selectors) ? snapshot.selectors : [];
+  const wireSchemas = Array.isArray(snapshot.wire_schemas) ? snapshot.wire_schemas : [];
+  const sharedContracts = Array.isArray(snapshot.shared_contracts) ? snapshot.shared_contracts : [];
+  const fieldAssignments = Array.isArray(snapshot.contract_fields) ? snapshot.contract_fields : [];
+  const literals = Array.isArray(snapshot.literal_occurrences) ? snapshot.literal_occurrences : [];
+  const declaredValues = new Set();
+
+  const declare = (entry, type) => {
+    const value = entry?.value;
+    if (typeof value !== "string" || !CONTRACT_VALUE.test(value) || VERSION_SUFFIX.test(value)) {
+      issues.push({ code: "contract-declaration-invalid", path: entry?.location || type, message: `${type} must declare an unversioned kebab-case value` });
+      return;
+    }
+    declaredValues.add(value);
+  };
+
+  for (const entry of selectors) declare(entry, "selector");
+  for (const entry of wireSchemas) {
+    declare(entry, "wire schema");
+    if (!stageNames.has(entry?.stage_ref) || typeof entry?.role !== "string" || !entry.role.trim()) {
+      issues.push({ code: "wire-stage-role-invalid", path: entry?.location || "wire schema", message: `${entry?.value || "wire schema"} must reference one declared stage and role` });
+    }
+  }
+  for (const entry of sharedContracts) {
+    declare(entry, "shared contract");
+    if (typeof entry?.name !== "string" || !entry.name || typeof entry?.field !== "string" || !entry.field) {
+      issues.push({ code: "shared-contract-incomplete", path: entry?.location || "shared contract", message: "shared contract requires name, value, and owning field" });
+    }
+    for (const anchor of entry?.anchors || []) {
+      if (!anchors.has(anchor)) issues.push({ code: "contract-anchor-missing", path: entry?.location || entry?.name || "shared contract", message: `missing declared anchor ${anchor}` });
+    }
+  }
+  for (const assignment of fieldAssignments) {
+    if (!declaredValues.has(assignment?.value)) {
+      issues.push({ code: "contract-field-undeclared", path: assignment?.location || assignment?.field || "contract field", message: `${assignment?.value || "missing value"} is not declared` });
+    }
+  }
+  for (const literal of literals) {
+    if (VERSION_SUFFIX.test(String(literal?.value || ""))) {
+      issues.push({ code: "version-suffixed-production-literal", path: literal?.location || "literal", message: `${literal.value} has a prohibited version suffix` });
+    }
+  }
+  return Object.freeze({ ok: issues.length === 0, issues: Object.freeze(issues) });
 }
 
 export function collectLiteralImports(source) {
@@ -229,15 +279,15 @@ function validateImportEdge(files, importer, target, issues) {
 }
 
 function validateManifest(files, manifest, issues, { requireCompleteManifest }) {
-  if (!manifest || manifest.schema !== "pptmaker-source-test-ownership-v1" || !Array.isArray(manifest.owners)) {
-    addIssue(issues, "ownership-schema", "tests/contracts/source-test-ownership-v1.json", "invalid ownership manifest schema");
+  if (!manifest || manifest.schema !== "pptmaker-source-test-ownership" || !Array.isArray(manifest.owners)) {
+    addIssue(issues, "ownership-schema", "tests/contracts/source-test-ownership.json", "invalid ownership manifest schema");
     return;
   }
   const seenInterfaces = new Map();
   const seenExecutables = new Map();
   const seenTests = new Map();
   const owners = manifest.owners.map((entry) => entry.owner);
-  if (owners.join("\n") !== [...owners].sort().join("\n")) addIssue(issues, "ownership-order", "tests/contracts/source-test-ownership-v1.json", "owners must be sorted");
+  if (owners.join("\n") !== [...owners].sort().join("\n")) addIssue(issues, "ownership-order", "tests/contracts/source-test-ownership.json", "owners must be sorted");
   for (const entry of manifest.owners) {
     const unitPrefix = `tests/${entry.owner}/`;
     const e2ePrefix = `tests_e2e/${entry.owner}/`;
@@ -265,7 +315,7 @@ function validateManifest(files, manifest, issues, { requireCompleteManifest }) 
     for (const path of REQUIRED_MANIFEST_INTERFACES) if (!seenInterfaces.has(path)) addIssue(issues, "missing-interface-owner", path, "required interface has no owner");
     const actual = [...seenExecutables.keys()].sort();
     const expected = [...EXECUTABLE_INVENTORY].sort();
-    if (actual.join("\n") !== expected.join("\n")) addIssue(issues, "executable-owner-union", "tests/contracts/source-test-ownership-v1.json", `manifest executable union [${actual.join(", ")}] differs from canonical registry [${expected.join(", ")}]`);
+    if (actual.join("\n") !== expected.join("\n")) addIssue(issues, "executable-owner-union", "tests/contracts/source-test-ownership.json", `manifest executable union [${actual.join(", ")}] differs from canonical registry [${expected.join(", ")}]`);
     for (const path of files.keys()) {
       if (/^tests\/.*\/test[_-].*\.mjs$/.test(path) && !seenTests.has(path)) addIssue(issues, "unowned-test", path, "recursive unit/integration suite has no manifest owner");
       if (/^tests_e2e\/.*\/test[_-].*\.mjs$/.test(path) && !seenTests.has(path)) addIssue(issues, "unowned-test", path, "recursive E2E suite has no manifest owner");
@@ -294,16 +344,6 @@ function validateSingleDeliveryOwner(files, issues) {
     addIssue(issues, "second-delivery-owner", path, "workflow code may not own PPTX, notes, or delivery writing");
   }
 }
-
-const RETIRED_PROTOCOL_PATH = `compatibility/${["current", "v1"].join("-")}-page-image`;
-const RETIRED_PROTOCOL_IMPORT_SEGMENT = /(?:^|\/)(?:page_authority(?:_|$)|page-authority(?:_|-|$))/i;
-const retiredDispatchToken = (...parts) => parts.join("");
-const RETIRED_PROTOCOL_DISPATCH_IDENTIFIERS = Object.freeze([
-  retiredDispatchToken("parsePage", "AuthoritySource"),
-  retiredDispatchToken("createPage", "AuthoritySourceResolver"),
-  retiredDispatchToken("page", "AuthorityImage2Paths"),
-  retiredDispatchToken("Page", "Authority"),
-]);
 
 function validatePageImageCoreSeam(files, issues) {
   if (!files.has(PAGE_IMAGE_CORE_INTERFACE)) {
@@ -358,24 +398,6 @@ function validatePageImageProviderInputCompilation(files, issues) {
   }
 }
 
-function validateRetiredProtocolAbsence(files, issues) {
-  for (const [path, source] of files) {
-    if (path.startsWith("tests/") || path.startsWith("tests_e2e/")) continue;
-    if (normalized(path).includes(RETIRED_PROTOCOL_PATH)) {
-      addIssue(issues, "retired-protocol-owner", path, "retired protocol paths may not exist in active roots");
-    }
-    const retiredImport = collectLiteralImports(source).find((specifier) => RETIRED_PROTOCOL_IMPORT_SEGMENT.test(specifier));
-    if (retiredImport) {
-      addIssue(issues, "retired-protocol-import", path, `active source imports retired protocol implementation ${retiredImport}`);
-    }
-    const retiredDispatch = RETIRED_PROTOCOL_DISPATCH_IDENTIFIERS.find((identifier) =>
-      new RegExp(`\\b${identifier}\\b`).test(String(source)));
-    if (retiredDispatch) {
-      addIssue(issues, "retired-protocol-dispatch", path, `active source dispatches retired protocol identifier ${retiredDispatch}`);
-    }
-  }
-}
-
 export function validateArchitectureSnapshot({ files: inputFiles, manifest = null, requireCompleteManifest = true }) {
   const files = new Map(Object.entries(inputFiles instanceof Map ? Object.fromEntries(inputFiles) : inputFiles).map(([path, value]) => [normalized(path), String(value)]));
   const issues = [];
@@ -383,14 +405,11 @@ export function validateArchitectureSnapshot({ files: inputFiles, manifest = nul
   validatePageImageProviderInputCompilation(files, issues);
   validateSharedWorkflowSemanticBoundaries(files, issues);
   validateSingleDeliveryOwner(files, issues);
-  validateRetiredProtocolAbsence(files, issues);
-  for (const legacyIssue of validateLegacyTokenExceptions(LEGACY_TOKEN_EXCEPTIONS)) addIssue(issues, legacyIssue.rule, legacyIssue.file, legacyIssue.message);
-  for (const retiredIssue of validateRetiredWholePageTokenExceptions()) addIssue(issues, retiredIssue.rule, retiredIssue.file, retiredIssue.message);
   const scriptFiles = new Map([...files].filter(([path]) => !path.startsWith("tests/") && !path.startsWith("tests_e2e/")));
   const rootEntries = new Set([...scriptFiles].map(([path]) => path.split("/")[0]));
   for (const entry of rootEntries) if (!ROOT_WHITELIST.has(entry)) addIssue(issues, "root-whitelist", entry, "unexpected scripts-root entry");
   for (const name of FORBIDDEN_GENERIC_ROOTS) if (rootEntries.has(name)) addIssue(issues, "generic-root", name, "forbidden generic scripts root");
-  if ([...scriptFiles].some(([path]) => path === "lib" || path.startsWith("lib/"))) addIssue(issues, "legacy-lib", "lib", "scripts/lib is forbidden");
+  if ([...scriptFiles].some(([path]) => path === "lib" || path.startsWith("lib/"))) addIssue(issues, "retired-lib", "lib", "scripts/lib is forbidden");
   for (const phase of ACTIVE_PHASES) if (!scriptFiles.has(`${phase}/index.mjs`)) addIssue(issues, "missing-phase-interface", `${phase}/index.mjs`, "active Phase interface is missing");
   for (const path of TARGET_WORKFLOW_INTERFACES) if (!scriptFiles.has(path)) addIssue(issues, "missing-workflow-interface", path, "target workflow interface is missing");
   for (const path of TARGET_DELIVERY_INTERFACES) if (!scriptFiles.has(path)) addIssue(issues, "missing-delivery-interface", path, "target delivery interface is missing");
@@ -440,16 +459,7 @@ export function validateRepositoryArchitecture(repoRoot = process.cwd()) {
     const absolute = resolve(repoRoot, testRoot);
     for (const [path, source] of Object.entries(walk(absolute))) files[`${testRoot}/${path}`] = source;
   }
-  const manifest = JSON.parse(files["tests/contracts/source-test-ownership-v1.json"] || readFileSync(resolve(repoRoot, "tests/contracts/source-test-ownership-v1.json"), "utf8"));
+  const manifest = JSON.parse(files["tests/contracts/source-test-ownership.json"] || readFileSync(resolve(repoRoot, "tests/contracts/source-test-ownership.json"), "utf8"));
   const result = validateArchitectureSnapshot({ files, manifest });
-  const activeSurfaceFiles = {};
-  for (const [path, source] of Object.entries(files)) {
-    const activePath = path.startsWith("tests/") || path.startsWith("tests_e2e/")
-      ? path
-      : `ppt_maker_harness/scripts/${path}`;
-    activeSurfaceFiles[activePath] = source;
-  }
-  const retiredIssues = scanRetiredWholePageTerms(activeSurfaceFiles)
-    .map((entry) => ({ code: entry.rule, path: entry.file, message: entry.message }));
-  return Object.freeze({ ...result, ok: result.ok && retiredIssues.length === 0, issues: [...result.issues, ...retiredIssues] });
+  return Object.freeze(result);
 }

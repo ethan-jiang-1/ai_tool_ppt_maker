@@ -28,9 +28,9 @@ negative_constraints:
 \`\`\``;
   return `---
 identity:
-  scheme: mnemonic-v1
+  scheme: mnemonic
 production:
-  pipeline: page-image-workflow-v1
+  pipeline: page-image-workflow
   workflow: pure
 ---
 
@@ -59,7 +59,7 @@ function runCli(args) {
 
 function targetSelection() {
   return {
-    schema: "page-image-style-master-selection-v1",
+    schema: "page-image-style-master-selection",
     run_version: "v2",
     workflow: "pure",
     plan_sha256: "a".repeat(64),
@@ -88,7 +88,7 @@ describe("TARGET structural slides CLI", () => {
       const originalSource = source();
       writeFileSync(join(runDir, "slide-specifications.md"), originalSource);
       const state = createInitialState("target", "keynote", "dark-executive", {
-        mode: "image2-page-workflow-v1",
+        mode: "image2-page-workflow",
         workflow: "pure",
       });
       state.continuation_target_version = "v1";
@@ -114,7 +114,7 @@ describe("TARGET structural slides CLI", () => {
         applied: true,
         target_run_dir: join(deck, "3_versions", "v2"),
         receipt: {
-          pipeline: "page-image-workflow-v1",
+          pipeline: "page-image-workflow",
           workflow: "pure",
           needs_render: ["BodyMap", "DeckGo"],
           page_image_target_structural: {
@@ -128,7 +128,7 @@ describe("TARGET structural slides CLI", () => {
         .toContain("## Slide 01: `BodyMap`");
       const after = readState(deck, { purpose: "observe", runVersion: "v1" });
       expect(after.production_mode.by_version["3_versions/v2"]).toEqual({
-        mode: "image2-page-workflow-v1",
+        mode: "image2-page-workflow",
         workflow: "pure",
         source_epoch: 1,
       });
@@ -147,7 +147,7 @@ describe("TARGET structural slides CLI", () => {
       initBundle(deck, null, "keynote", "dark-executive");
       writeFileSync(join(runDir, "slide-specifications.md"), source());
       const state = createInitialState("target", "keynote", "dark-executive", {
-        mode: "image2-page-workflow-v1",
+        mode: "image2-page-workflow",
         workflow: "pure",
       });
       state.continuation_target_version = "v1";
@@ -194,7 +194,7 @@ describe("TARGET structural slides CLI", () => {
       initBundle(deck, null, "keynote", "dark-executive");
       writeFileSync(join(runDir, "slide-specifications.md"), source());
       const state = createInitialState("target", "keynote", "dark-executive", {
-        mode: "image2-page-workflow-v1",
+        mode: "image2-page-workflow",
         workflow: "pure",
       });
       state.continuation_target_version = "v1";

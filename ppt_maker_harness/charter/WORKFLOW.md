@@ -1,7 +1,7 @@
 # Workflow
 
-New authoring uses the exact `page-image-workflow-v1` /
-`image2-page-workflow-v1` pair. Before provider work, a human records one
+New authoring uses the exact `page-image-workflow` /
+`image2-page-workflow` pair. Before provider work, a human records one
 version workflow: `framed` or `pure`. The workflow is source- and state-bound;
 it is never inferred from a slide, artifact, directory, or deck type.
 
@@ -34,7 +34,7 @@ to the current snapshot. Structural work, including a Framed/Pure switch, is
 previewed and exact-hash applied before any target materialization.
 `_generated/` is never edited by hand.
 
-A v2 source/state pair is a byte-preserving
-unsupported-protocol hard-stop. Normal observation and production commands do
+A source/state pair with an undeclared marker is a
+current-protocol-invalid hard-stop. Normal observation and production commands do
 not infer a workflow, decode it, or modify it; export is the only immediate
 action.

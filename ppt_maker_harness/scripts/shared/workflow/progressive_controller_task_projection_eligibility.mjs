@@ -14,7 +14,7 @@ import {
   validatePlaybookIndex,
 } from "../state/md_controller_reader.mjs";
 
-export const PROGRESSIVE_TASK_PROJECTION_MODE = "image2-page-workflow-v1";
+export const PROGRESSIVE_TASK_PROJECTION_MODE = "image2-page-workflow";
 
 const HARNESS_PLAYBOOK_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "playbook");
 

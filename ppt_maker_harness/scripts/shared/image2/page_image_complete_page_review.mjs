@@ -14,11 +14,11 @@ import { canonicalJson, canonicalJsonSha256 } from "../identity/canonical_json.m
 import { pageImageOrdinalImageFilename } from "./page_image_artifacts.mjs";
 import { createPngRasterProjectionCanvas } from "./png_raster_projection.mjs";
 import { pageImageWorkflowPaths } from "../run-bundle/page_image_paths.mjs";
-import { assertNoActiveMigration, resolveContentAddressName, shortName } from "./content_address_store.mjs";
+import { resolveContentAddressName, shortName } from "./content_address_store.mjs";
 
-export const PAGE_IMAGE_COMPLETE_PAGE_REVIEW_PRESENTATION_SCHEMA = "page-image-complete-page-review-presentation-v1";
-export const PAGE_IMAGE_PILOT_PAGE_REVIEW_PRESENTATION_SCHEMA = "page-image-pilot-page-review-presentation-v1";
-export const PAGE_IMAGE_COMPLETE_PAGE_REVIEW_CAPTURE_PROFILE_SCHEMA = "page-image-complete-page-review-capture-profile-v1";
+export const PAGE_IMAGE_COMPLETE_PAGE_REVIEW_PRESENTATION_SCHEMA = "page-image-complete-page-review-presentation";
+export const PAGE_IMAGE_PILOT_PAGE_REVIEW_PRESENTATION_SCHEMA = "page-image-pilot-page-review-presentation";
+export const PAGE_IMAGE_COMPLETE_PAGE_REVIEW_CAPTURE_PROFILE_SCHEMA = "page-image-complete-page-review-capture-profile";
 
 const SHA256_RE = /^[0-9a-f]{64}$/;
 const WORKFLOWS = new Set(["framed", "pure"]);
@@ -53,7 +53,7 @@ const CAPTURE_PROFILE = Object.freeze({
   row_gap: 16,
   background: "#ffffff",
   label: { family: "Arial", weight: 700, size: 16, color: "#17212b", baseline_offset: 22 },
-  capture: { format: "png", encoder: "napi-rs-canvas-v1" },
+  capture: { format: "png", encoder: "napi-rs-canvas" },
 });
 
 export class PageImageCompletePageReviewError extends Error {
@@ -125,8 +125,8 @@ function atomicWrite(pathname, bytes) {
   renameSync(temporary, pathname);
 }
 
-/** Serialize one review-root publication; fail when a content-address migration is active. */
-async function withReviewPublishLock(paths, deckRoot, action) {
+/** Serialize one review-root publication. */
+async function withReviewPublishLock(paths, action) {
   const lock = paths.publish_lock;
   mkdirSync(dirname(lock), { recursive: true, mode: 0o700 });
   try {
@@ -141,7 +141,6 @@ async function withReviewPublishLock(paths, deckRoot, action) {
     throw error;
   }
   try {
-    assertNoActiveMigration(deckRoot);
     return await action();
   } finally {
     try { rmdirSync(lock); } catch { /* best effort */ }
@@ -166,7 +165,7 @@ function presentationPaths(runDir, rawWorkPlanSha256) {
   const reviewRoot = pageImageWorkflowPaths(runDir).review_root;
   const completePageRoot = join(reviewRoot, "complete-page");
   const root = join(completePageRoot, resolveContentAddressName(completePageRoot, rawWorkPlanSha256, {
-    recordHashReader: (pathname) => reviewEvidenceAddress("raw_work_plan_sha256")(join(pathname, "complete-page-review-evidence-v1.json")),
+    recordHashReader: (pathname) => reviewEvidenceAddress("raw_work_plan_sha256")(join(pathname, "complete-page-review-evidence.json")),
   }));
   return Object.freeze({
     root,
@@ -174,7 +173,7 @@ function presentationPaths(runDir, rawWorkPlanSha256) {
     provider_page_root: join(root, "provider-page"),
     complete_page_root: join(root, "complete-page"),
     projection: join(root, "complete-page-review.png"),
-    evidence: join(root, "complete-page-review-evidence-v1.json"),
+    evidence: join(root, "complete-page-review-evidence.json"),
   });
 }
 
@@ -183,7 +182,7 @@ function pilotPresentationPaths(runDir, batchSha256) {
   const reviewRoot = pageImageWorkflowPaths(runDir).review_root;
   const pilotRoot = join(reviewRoot, "pilot");
   const root = join(pilotRoot, resolveContentAddressName(pilotRoot, batchSha256, {
-    recordHashReader: (pathname) => reviewEvidenceAddress("batch_sha256")(join(pathname, "pilot-page-review-evidence-v1.json")),
+    recordHashReader: (pathname) => reviewEvidenceAddress("batch_sha256")(join(pathname, "pilot-page-review-evidence.json")),
   }));
   return Object.freeze({
     root,
@@ -191,7 +190,7 @@ function pilotPresentationPaths(runDir, batchSha256) {
     provider_page_root: join(root, "provider-page"),
     complete_page_root: join(root, "complete-page"),
     projection: join(root, "pilot-page-review.png"),
-    evidence: join(root, "pilot-page-review-evidence-v1.json"),
+    evidence: join(root, "pilot-page-review-evidence.json"),
   });
 }
 
@@ -371,7 +370,7 @@ export async function publishCompletePageReviewPresentation({
   const bindings = requireExactBindingMap(adapterCompletePageBindingsBySlide, ids);
   const paths = presentationPaths(runDir, rawWorkPlanSha256);
 
-  return withReviewPublishLock(paths, dirname(dirname(runDir)), async () => {
+  return withReviewPublishLock(paths, async () => {
     for (const [index, slideId] of ids.entries()) {
       const filename = pageImageOrdinalImageFilename(index + 1, slideId);
       atomicWrite(join(paths.provider_page_root, filename), raw[slideId]);
@@ -534,7 +533,7 @@ export async function publishPilotPageReviewPresentation({
   const bindings = requireExactBindingMap(adapterCompletePageBindingsBySlide, selection.pilot);
   const paths = pilotPresentationPaths(runDir, batchSha256);
 
-  return withReviewPublishLock(paths, dirname(dirname(runDir)), async () => {
+  return withReviewPublishLock(paths, async () => {
     for (const slideId of selection.pilot) {
       const filename = pageImageOrdinalImageFilename(selection.positions_by_slide[slideId], slideId);
       atomicWrite(join(paths.provider_page_root, filename), raw[slideId]);

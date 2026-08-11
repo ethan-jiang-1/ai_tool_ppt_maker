@@ -217,30 +217,29 @@ The restructure controller's final verification SHALL inspect the target PPTX an
 
 The `create-deck` Controller SHALL obtain one human semantic choice, `framed`
 or `pure`, for a new version before provider-facing work. It SHALL author the
-`page-image-workflow-v1` source selection, configure common visual semantics,
-route to the selected Style Master lifecycle, and then route to the selected
-Page Image adapter. The Controller SHALL never ask for a per-slide authority
-choice or offer `hybrid` as a workflow. Fresh Style Master work may use a
-validated draft, while first raw-page planning materializes the current
-source/state receipt pair only after the Style Master prerequisite is current.
+schema-declared `page-image-workflow` source selection, configure common visual
+semantics, and route to the selected Style Master lifecycle and Page Image
+adapter. It SHALL not ask for per-slide authority or author a historical,
+version-suffixed, migration, or compatibility selection.
 
-On resume, the Controller SHALL obtain the selected workflow and one nearest
-legal action from Workflow Inspection. It SHALL not reconstruct a receipt,
-mode, provider authorization, review decision, or recovery path from Markdown,
-task cards, generated files, or conversation history.
+#### Scenario: Controller authors a current workflow selection
+
+- **WHEN** a Deck Author starts a new production version
+- **THEN** the Controller records one declared current pipeline and selected
+  workflow
+- **AND** it does not create an alternative historical route
 
 #### Scenario: A Framed deck has one straight selected route
 
-- **WHEN** a human selects `framed` for a valid fresh version
-- **THEN** the Controller presents only the Framed Style Master and Page Image
-  handoffs before shared delivery
-- **AND** it does not expose a Pure or per-slide policy choice
+- **WHEN** a Deck Author selects Framed for a current version
+- **THEN** the Controller follows the existing selected Framed owner route
+- **AND** it does not route through Pure or a historical branch
 
 #### Scenario: A current resume preserves owner evaluation
 
-- **WHEN** a current Page Image Workflow Controller resumes with blocked work
-- **THEN** it presents Workflow Inspection's owner-issued primary action
-- **AND** it does not infer a different route or evidence from a task card
+- **WHEN** the Controller resumes a valid current production run
+- **THEN** it obtains lifecycle facts from the existing owning evaluator
+- **AND** it does not recreate them through compatibility logic
 
 ### Requirement: Page Image Workflow gates have one direct recovery and review path
 

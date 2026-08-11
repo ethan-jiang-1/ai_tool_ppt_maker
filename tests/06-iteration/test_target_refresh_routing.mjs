@@ -13,8 +13,8 @@ const digest = (letter) => letter.repeat(64);
 
 function framedReceipt(source = "a", title = "Framed title") {
   return {
-    schema: "page-image-workflow-source-v1",
-    pipeline: "page-image-workflow-v1",
+    schema: "page-image-workflow-source",
+    pipeline: "page-image-workflow",
     workflow: "framed",
     source_sha256: digest(source),
     slides: [{
@@ -22,7 +22,7 @@ function framedReceipt(source = "a", title = "Framed title") {
       position: 1,
       provider_content: { items: [] },
       header_policy: {
-        frame_preset: "standard-v1",
+        frame_preset: "standard",
         local_header: { kicker: null, title, subtitle: null },
         context_not_to_render: { kicker: null, title, subtitle: null },
       },
@@ -33,8 +33,8 @@ function framedReceipt(source = "a", title = "Framed title") {
 
 function pureReceipt(source = "a", title = "Pure title") {
   return {
-    schema: "page-image-workflow-source-v1",
-    pipeline: "page-image-workflow-v1",
+    schema: "page-image-workflow-source",
+    pipeline: "page-image-workflow",
     workflow: "pure",
     source_sha256: digest(source),
     slides: [{
@@ -181,7 +181,7 @@ describe("TARGET refresh routing", () => {
       position: 2,
       provider_content: { items: [] },
       header_policy: {
-        frame_preset: "standard-v1",
+        frame_preset: "standard",
         local_header: { kicker: null, title: "Body", subtitle: null },
         context_not_to_render: { kicker: null, title: "Body", subtitle: null },
       },

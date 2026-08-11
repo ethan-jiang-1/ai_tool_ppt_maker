@@ -7,35 +7,30 @@ exposes a human review projection before finalization.
 ## Requirements
 ### Requirement: Page Image Workflow compiles one auditable provider input per slide
 
-For a current `page-image-workflow-v1` receipt, the selected workflow adapter
-SHALL compile exactly one immutable provider input for each slide from the
-canonical source receipt, selected visual language, accepted Style Master
-selection, generation profile, and Header Rendering Policy. The compiled input
-bytes and SHA-256 digest SHALL be bound into the raw contract, full plan,
-inspection projection, authorization scope, attempt, provenance,
-reconciliation, and final evidence.
+For a current schema-declared `page-image-workflow` receipt, the selected
+workflow adapter SHALL compile exactly one immutable provider input for each
+slide from the canonical source receipt, selected visual language, accepted
+Style Master facts, and current adapter policy. The compiled input SHALL carry
+the declared `image2-request` schema and role, retain existing digest and
+immutability rules, and use no version-suffixed or alternate protocol marker.
 
-For `pure`, the provider input SHALL instruct rendering of all visible page
-content, including exact kicker, title, and subtitle. For `framed`, it SHALL
-include the exact header literals as context not to render, the closed
-Provider Content Schema, and protected geometry with a duplicate-header
-prohibition. The shared transport SHALL submit only the bound bytes; it SHALL
-not compile, append, replace, or reinterpret workflow prompt semantics.
+#### Scenario: A current provider input is compiled
+
+- **WHEN** a valid current receipt reaches its selected adapter
+- **THEN** it emits one immutable declared Image2 request per slide
+- **AND** no historical receipt or protocol branch participates
 
 #### Scenario: Framed compilation binds non-rendering header context
 
-- **WHEN** a current Framed receipt is compiled for raw planning
-- **THEN** the provider input contains exact kicker, title, and subtitle as
-  context not to render plus the protected geometry
-- **AND** its bound digest changes when any of those literals changes
+- **WHEN** a current Framed source reaches compilation
+- **THEN** its compiled declared request retains the existing non-rendering header context
+- **AND** it does not create a second or historical request contract
 
 #### Scenario: Transport cannot rewrite an adapter input
 
-- **WHEN** raw generation is authorized from a compiled provider input
-- **THEN** the submitted request bytes match the bytes bound into the current
-  authorization and attempt lineage
-- **AND** transport does not append a Pure/Framed prompt branch or replace the
-  digest
+- **WHEN** the current transport receives a compiled declared request
+- **THEN** it submits the exact adapter-owned input under existing controls
+- **AND** it does not rewrite its schema, role, or protocol value
 
 ### Requirement: Current raw contracts preserve content authority and literal policy
 
@@ -351,24 +346,6 @@ attempt, provenance, review, or receipt binding.
 - **THEN** its human-facing projection uses the position-ten ordinal and stable
   slide ID
 - **AND** the subset does not renumber it to position one
-
-### Requirement: v2 bytes cannot become current raw authority
-
-`page-authority-image2-v2` source/state, receipt, plan, authorization, raw
-evidence, review evidence, or delivery evidence SHALL fail at the current
-protocol identity check before raw planning, provider initialization,
-authorization, generated-artifact reads, review publication, or state
-mutation. The failure SHALL preserve the supplied bytes and identify the
-`unsupported-protocol/export` recovery boundary; it SHALL not decode, convert,
-reuse, or reinterpret those bytes.
-
-#### Scenario: v2 raw evidence cannot seed a current plan
-
-- **WHEN** a caller presents v2 accepted raw evidence to a current Page Image
-  Workflow operation
-- **THEN** the operation returns the `unsupported-protocol/export` hard-stop
-  before inspecting its media or provenance
-- **AND** it does not issue a new plan, grant, or current evidence reference
 
 ### Requirement: Page Image review projections render supported provider PNG layouts as derived evidence
 

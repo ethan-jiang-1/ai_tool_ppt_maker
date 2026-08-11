@@ -1,10 +1,12 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { parse as parseYaml } from "yaml";
 
 const SCHEMA_ROOT = join(process.cwd(), "ppt_maker_harness", "schema");
 const STAGES_ROOT = join(SCHEMA_ROOT, "stages");
+const SERIALIZATION_CONTRACTS = join(SCHEMA_ROOT, "serialization-contracts.yaml");
+const UNVERSIONED_IDENTIFIER = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
 const EXPECTED_STAGE_NAMES = [
   "story-outline",
   "visual-language",
@@ -53,6 +55,15 @@ function visit(value, path, callback) {
 
 function formatPath(path) {
   return path.length ? path.join(".") : "<root>";
+}
+
+function walkFiles(root, files = []) {
+  for (const entry of readdirSync(root, { withFileTypes: true })) {
+    const path = join(root, entry.name);
+    if (entry.isDirectory()) walkFiles(path, files);
+    else if (entry.isFile() && path.endsWith(".mjs")) files.push(path);
+  }
+  return files;
 }
 
 describe("Page Image schema definitions", () => {
@@ -130,5 +141,55 @@ describe("Page Image schema definitions", () => {
       { stage: "layout-config", path: "fields.page_class", value: "standard" },
       { stage: "page-source", path: "fields.page_class", value: "standard" },
     ]);
+  });
+
+  it("keeps C3-C5 planned stages declarative without a runtime substitute", () => {
+    const flow = parseYamlFile(join(SCHEMA_ROOT, "flow.yaml"));
+    const planned = [
+      ...(flow?.sources || []),
+      ...(flow?.transformations || []),
+    ].filter((entry) => ["C3", "C4", "C5"].includes(entry.route_ref));
+    const scriptFiles = walkFiles(join(process.cwd(), "ppt_maker_harness", "scripts"));
+    const runtimeText = scriptFiles
+      .filter((path) => !path.endsWith("shared/run-bundle/bundle_layout.mjs"))
+      .map((path) => readFileSync(path, "utf8"))
+      .join("\n");
+    const stateText = readFileSync(join(process.cwd(), "ppt_maker_harness", "scripts", "shared", "state", "state.mjs"), "utf8");
+    const cliText = readFileSync(join(process.cwd(), "ppt_maker_harness", "scripts", "ppt_flow.mjs"), "utf8");
+
+    expect(planned.length).toBeGreaterThan(0);
+    expect(planned.every((entry) => entry.producer_status === "planned" && /^C[3-5]$/.test(entry.route_ref))).toBe(true);
+    expect(runtimeText).not.toMatch(/\bpage_class\b|\bpage-(?:layout|render-model|artifact-index)\b/);
+    expect(stateText).not.toMatch(/\bpage_class\b|\b(?:story-outline|design-constraints|layout-config|page-layout|page-render-model|page-artifact-index)\b/);
+    expect(cliText).not.toMatch(/\b(?:story-outline|design-constraints|layout-config|page-layout|page-render-model|page-artifact-index)\b/);
+  });
+
+  it("makes the serialization inventory the one current contract declaration", () => {
+    const inventory = parseYamlFile(SERIALIZATION_CONTRACTS);
+    const selectors = Object.values(inventory?.selectors || {});
+    const sharedContracts = inventory?.shared_contracts || [];
+    const wireGroups = inventory?.wire_schema_groups || [];
+    const wireValues = wireGroups.flatMap((group) => group.values || []);
+
+    expect(inventory).toMatchObject({
+      schema_home: "page-image-production-definitions",
+      authority: "active-serialization-contracts",
+      execution: "non-executable",
+    });
+    expect([...selectors, ...sharedContracts.map((entry) => entry.value), ...wireValues].every(
+      (value) => typeof value === "string" && UNVERSIONED_IDENTIFIER.test(value),
+    )).toBe(true);
+    expect(wireGroups.every((group) =>
+      EXPECTED_STAGE_NAMES.includes(group.stage_ref) &&
+      typeof group.role === "string" && group.role.length > 0 &&
+      Array.isArray(group.values) && group.values.length > 0,
+    )).toBe(true);
+    expect(new Set(wireValues).size).toBe(wireValues.length);
+    expect(new Set(sharedContracts.map((entry) => entry.name)).size).toBe(sharedContracts.length);
+    expect(sharedContracts.every((entry) =>
+      typeof entry.field === "string" && entry.field.length > 0 &&
+      Array.isArray(entry.anchors) && entry.anchors.length > 0,
+    )).toBe(true);
+    expect(existsSync(join(SCHEMA_ROOT, "frozen-identifiers.yaml"))).toBe(false);
   });
 });

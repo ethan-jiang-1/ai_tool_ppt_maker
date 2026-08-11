@@ -92,9 +92,9 @@ function framedSource({
 } = {}) {
   return `---
 identity:
-  scheme: mnemonic-v1
+  scheme: mnemonic
 production:
-  pipeline: page-image-workflow-v1
+  pipeline: page-image-workflow
   workflow: framed
 ---
 
@@ -103,7 +103,7 @@ production:
 **KICKER**: ${kicker}
 **TITLE**: ${title}
 **SUBTITLE**: ${subtitle}
-**FRAME PRESET**: standard-v1
+**FRAME PRESET**: standard
 ${subjectRestrictions ? `**SUBJECT RESTRICTIONS**: ${subjectRestrictions}
 ` : ""}**SLIDE BODY**:
 \`\`\`yaml
@@ -123,8 +123,8 @@ function runFlow(args) {
 }
 
 const receipt = {
-  schema: "page-image-workflow-source-v1",
-  pipeline: "page-image-workflow-v1",
+  schema: "page-image-workflow-source",
+  pipeline: "page-image-workflow",
   workflow: "framed",
   source_sha256: digest("a"),
   slides: [{
@@ -132,7 +132,7 @@ const receipt = {
     position: 1,
     provider_content: { items: [{ role: "label", literal: "Provider-owned content remains readable.", copy_policy: "exact" }] },
     header_policy: {
-      frame_preset: "standard-v1",
+      frame_preset: "standard",
       local_header: { kicker: null, title: "A title", subtitle: null },
       context_not_to_render: { kicker: null, title: "A title", subtitle: null },
     },
@@ -140,8 +140,8 @@ const receipt = {
 };
 
 describe("Framed target workflow", () => {
-  it("normalizes standard-v1 to only closed header-overlay facts", () => {
-    const preset = resolveFramedHeaderOverlayPreset("standard-v1");
+  it("normalizes standard to only closed header-overlay facts", () => {
+    const preset = resolveFramedHeaderOverlayPreset("standard");
     expect(preset).toMatchObject({
       canvas: { css_width: 1000, css_height: 562.5, capture_width: 2000, capture_height: 1125 },
       protected_geometry: [{ id: "header", x: 40, y: 28, width: 920, height: 238 }],
@@ -249,7 +249,7 @@ relationship: causal-flow`,
       await submit({
         request: plan.provider_requests_by_slide.DeckGo,
         item: { slide_id: "DeckGo" },
-        provider_idempotency_key: `page-image-workflow-v1-${"f".repeat(64)}`,
+        provider_idempotency_key: `page-image-workflow-${"f".repeat(64)}`,
       });
 
       const boundRequest = plan.provider_requests_by_slide.DeckGo;
@@ -270,7 +270,7 @@ relationship: causal-flow`,
   it("rejects the 28-W regression through the canonical browser render contract", async () => {
     await expect(verifyFramedHeaderOverlays([{
       slide_id: "WideW",
-      frame_preset: "standard-v1",
+      frame_preset: "standard",
       local_header: {
         kicker: null,
         title: "W".repeat(28),
@@ -602,12 +602,12 @@ relationship: causal-flow`,
       const initialInspection = JSON.parse(initialInspectionBytes.toString("utf8"));
       const initialRequest = initial.provider_requests_by_slide.DeckGo;
       expect(initial.provider_request_inspection).toMatchObject({
-        path: "_generated/page_image_workflow/raw/provider-input-inspection-v1.json",
+        path: "_generated/page_image_workflow/raw/provider-input-inspection.json",
         sha256: expect.stringMatching(/^[0-9a-f]{64}$/),
         plan_hash: initialPlanHash,
       });
       expect(initialInspection).toMatchObject({
-        schema: "page-image-provider-request-inspection-v1",
+        schema: "page-image-provider-request-inspection",
         progressive_raw_work_plan_sha256: initialPlanHash,
         target_raw_work_plan_sha256: initial.raw_work_plan.sha256,
         source_receipt_sha256: initial.receipt.source_sha256,
@@ -737,16 +737,16 @@ relationship: causal-flow`,
     const slides = ["DeckGo", "FlowGo", "DataGo", "ToneGo", "FormGo", "GridGo", "LineGo", "RoleGo", "PathGo", "DataMap"];
     const source = `---
 identity:
-  scheme: mnemonic-v1
+  scheme: mnemonic
 production:
-  pipeline: page-image-workflow-v1
+  pipeline: page-image-workflow
   workflow: framed
 ---
 
 ${slides.map((slideId, index) => `## Slide ${String(index + 1).padStart(2, "0")}: \`${slideId}\`
 
 **TITLE**: Framed Pilot ${index + 1}
-**FRAME PRESET**: standard-v1
+**FRAME PRESET**: standard
 **SLIDE BODY**:
 \`\`\`yaml
 items:
@@ -785,14 +785,14 @@ negative_constraints:
       });
       const paths = pageImageWorkflowPaths(runDir);
       const pilotRoot = join(paths.review_root, "pilot", resolveContentAddressName(join(paths.review_root, "pilot"), pilot.batch.batch_hash));
-      const presentation = JSON.parse(readFileSync(join(pilotRoot, "pilot-page-review-evidence-v1.json"), "utf8"));
+      const presentation = JSON.parse(readFileSync(join(pilotRoot, "pilot-page-review-evidence.json"), "utf8"));
       expect(evidence).toMatchObject({ pilot_evidence_sha256: expect.stringMatching(/^[0-9a-f]{64}$/) });
       expect(readFileSync(join(pilotRoot, "provider-page", "10_DataMap.png"))).toEqual(rawBytes);
       expect(existsSync(join(pilotRoot, "complete-page", "10_DataMap.png"))).toBe(true);
       expect(existsSync(join(pilotRoot, "provider-page", "DataMap.png"))).toBe(false);
       expect(existsSync(join(pilotRoot, "complete-page", "DataMap.png"))).toBe(false);
       expect(presentation).toMatchObject({
-        schema: "page-image-pilot-page-review-presentation-v1",
+        schema: "page-image-pilot-page-review-presentation",
         workflow: "framed",
         raw_work_plan_sha256: planHash,
         batch_sha256: pilot.batch.batch_hash,
@@ -838,16 +838,16 @@ negative_constraints:
     context.fillRect(0, 0, 2000, 1125);
     const source = `---
 identity:
-  scheme: mnemonic-v1
+  scheme: mnemonic
 production:
-  pipeline: page-image-workflow-v1
+  pipeline: page-image-workflow
   workflow: framed
 ---
 
 ## Slide 01: \`DeckGo\`
 
 **TITLE**: Framed finalization fact
-**FRAME PRESET**: standard-v1
+**FRAME PRESET**: standard
 **SLIDE BODY**:
 \`\`\`yaml
 items:

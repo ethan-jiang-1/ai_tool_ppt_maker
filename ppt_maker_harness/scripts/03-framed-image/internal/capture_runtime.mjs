@@ -4,7 +4,7 @@ import { HTML_RUNTIME_PROFILE, launchPinnedChromium } from '../../00-setup/index
 import { normalizeDecodedPngForProjection } from '../../shared/image2/png_raster_projection.mjs';
 
 export const HTML_CAPTURE_PROFILE = Object.freeze({
-  id: 'html-capture-v1',
+  id: 'html-capture',
   cssWidth: 1000,
   cssHeight: 562.5,
   viewportHeight: 563,
@@ -13,7 +13,7 @@ export const HTML_CAPTURE_PROFILE = Object.freeze({
   outputHeight: 1125,
   rawCaptureHeight: 1126,
   geometryEpsilonCssPx: 0.5,
-  reencode: 'fast-png-crop-final-device-row-v1',
+  reencode: 'fast-png-crop-final-device-row',
 });
 export const HTML_RENDER_TIMEOUT_MS = 30_000;
 export const HTML_RENDER_PAGE_TIMEOUT_MS = 15_000;

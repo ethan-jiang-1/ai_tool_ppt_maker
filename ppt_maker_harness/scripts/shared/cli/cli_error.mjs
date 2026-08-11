@@ -73,12 +73,13 @@ export const CLI_BOUNDS = Object.freeze({
   streamBytes: 1024 * 1024,
 });
 
-export const CLI_TRANSACTION_SYMBOL = Symbol.for("pptmaker.cli.transaction.v1");
+export const CLI_TRANSACTION_SYMBOL = Symbol.for("pptmaker.cli.transaction");
+export const CLI_DIAGNOSTIC_SCHEMA = "pptmaker-cli-diagnostic";
 export const CLI_PROGRESS_ENV = "PPTMAKER_CLI_DELEGATED_PROGRESS";
 export const CLI_PROGRESS_MARKER = "pptmaker_cli_progress";
 export const CLI_JSON_REPORT_SCHEMAS = Object.freeze({
-  ENV_CHECK: "env-check-v1",
-  STATE_FAILURE: "ppt-flow-state-failure-v1",
+  ENV_CHECK: "env-check",
+  STATE_FAILURE: "ppt-flow-state-failure",
 });
 
 const REQUIRED = ["code", "message", "hint", "where"];
@@ -236,7 +237,7 @@ function minimalDiagnostic(category = "internal") {
         ? "repair_environment"
         : "report_internal";
   return {
-    version: 1,
+    schema: CLI_DIAGNOSTIC_SCHEMA,
     category: normalized,
     next: {
       action,
@@ -255,7 +256,7 @@ function minimalDiagnostic(category = "internal") {
 export function sanitizeCliDiagnostic(input, { fallbackOnInvalid = true } = {}) {
   const invalid = () => fallbackOnInvalid ? minimalDiagnostic("internal") : null;
   if (!input || typeof input !== "object" || Array.isArray(input)) return invalid();
-  if (input.version !== 1 || !CATEGORY_VALUES.has(input.category)) return invalid();
+  if (input.schema !== CLI_DIAGNOSTIC_SCHEMA || !CATEGORY_VALUES.has(input.category)) return invalid();
   if (!input.next || typeof input.next !== "object" || Array.isArray(input.next)) return invalid();
   const action = ACTION_VALUES.has(input.next.action) ? input.next.action : null;
   const requiresHuman = typeof input.next.requires_human === "boolean" ? input.next.requires_human : null;
@@ -265,7 +266,7 @@ export function sanitizeCliDiagnostic(input, { fallbackOnInvalid = true } = {}) 
   if (HUMAN_ACTIONS.has(action) && requiresHuman !== true) return invalid();
 
   const out = {
-    version: 1,
+    schema: CLI_DIAGNOSTIC_SCHEMA,
     category: input.category,
     next: { action, requires_human: requiresHuman, default: defaultText },
   };
@@ -364,7 +365,7 @@ function defaultCategoryForCode(code) {
 function defaultDiagnosticForCode(code) {
   if (code === CLI_ERROR_CODES.GATE_BLOCKED || code === CLI_ERROR_CODES.TITLE_REVIEW_REQUIRED) {
     return {
-      version: 1,
+      schema: CLI_DIAGNOSTIC_SCHEMA,
       category: "gate",
       next: {
         action: "review",
@@ -375,7 +376,7 @@ function defaultDiagnosticForCode(code) {
   }
   if (code === CLI_ERROR_CODES.STATE_CORRUPTED) {
     return {
-      version: 1,
+      schema: CLI_DIAGNOSTIC_SCHEMA,
       category: "artifact",
       next: {
         action: "repair_prerequisite",
@@ -448,10 +449,10 @@ export function parseCliErrorLine(line) {
       hint: value.hint.slice(0, CLI_BOUNDS.textChars),
       where: value.where.slice(0, CLI_BOUNDS.whereChars),
     };
-    if (value.diagnostic?.version === 1) {
-      const diagnostic = sanitizeCliDiagnostic(value.diagnostic, { fallbackOnInvalid: false });
-      if (diagnostic) parsed.diagnostic = diagnostic;
-    }
+    if (value.diagnostic?.schema !== CLI_DIAGNOSTIC_SCHEMA) return null;
+    const diagnostic = sanitizeCliDiagnostic(value.diagnostic, { fallbackOnInvalid: false });
+    if (!diagnostic) return null;
+    parsed.diagnostic = diagnostic;
     return parsed;
   } catch {
     return null;
@@ -459,7 +460,7 @@ export function parseCliErrorLine(line) {
 }
 
 export function hasSupportedCliDiagnostic(envelope) {
-  return !!envelope?.diagnostic && envelope.diagnostic.version === 1 &&
+  return !!envelope?.diagnostic && envelope.diagnostic.schema === CLI_DIAGNOSTIC_SCHEMA &&
     !!sanitizeCliDiagnostic(envelope.diagnostic, { fallbackOnInvalid: false });
 }
 
@@ -549,7 +550,7 @@ export function validateCliJsonReport(report, schema = null) {
         && (check.foundation === undefined || typeof check.foundation === "boolean")
         && (check.detail === undefined || check.detail === null || typeof check.detail === "string")
         && (check.fix === undefined || check.fix === null || typeof check.fix === "string"));
-    if (!valid) throw new Error("CLI JSON report does not match env-check-v1");
+    if (!valid) throw new Error("CLI JSON report does not match env-check");
     return safe;
   }
   if (schema === CLI_JSON_REPORT_SCHEMAS.STATE_FAILURE) {
@@ -557,7 +558,7 @@ export function validateCliJsonReport(report, schema = null) {
       && safe.corrupted === true
       && Number.isSafeInteger(safe.error_count)
       && safe.error_count >= 0;
-    if (!valid) throw new Error("CLI JSON report does not match ppt-flow-state-failure-v1");
+    if (!valid) throw new Error("CLI JSON report does not match ppt-flow-state-failure");
     return safe;
   }
   throw new Error(`Unknown CLI JSON report schema: ${schema}`);
@@ -664,7 +665,7 @@ export function renderCliHumanError(envelope) {
 }
 
 export function installStandaloneFailureEnvelope() {
-  // Compatibility shim. Direct entries install through cli_bootstrap.mjs first.
+  // Direct entries install through cli_bootstrap.mjs first.
   return !!transactionState()?.installed;
 }
 
@@ -760,7 +761,7 @@ export function buildDelegatedDiagnostic({ invocation, childError, category, sta
     });
   }
   return sanitizeCliDiagnostic({
-    version: 1,
+    schema: CLI_DIAGNOSTIC_SCHEMA,
     category: "delegated",
     ...(operation ? { operation } : {}),
     delegated,

@@ -2,7 +2,7 @@
 node: classify-change
 lifecycle_phase: "5"
 method_module: 06-iteration
-production_modes: [image2-page-workflow-v1]
+production_modes: [image2-page-workflow]
 production_workflows: [framed, pure]
 requires: []
 entry: [slide_specs_exists]
@@ -27,8 +27,8 @@ proves compiled provider input, protected geometry, raw contract, and local
 header profile are unchanged. Route header-literal, Provider Content Schema,
 visual, geometry, and profile changes to Generated Image Rebuild; notes-only
 work to Delivery; and structural or whole-workflow changes to Structural
-Versioning Path. A v2 source/state pair remains the owner-issued
-`unsupported-protocol/export` hard-stop.
+Versioning Path. An undeclared source/state pair remains the owner-issued
+`repair-current-protocol-identity` hard-stop.
 
 **Step 3 — CLI**: Record the selected IDs and owner-valid path. Raw work stays
 unauthorized until the user approves its exact generation scope.

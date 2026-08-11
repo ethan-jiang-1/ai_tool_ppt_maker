@@ -7,7 +7,7 @@ import {
   deckRoot,
 } from "../run-bundle/bundle_layout.mjs";
 import {
-  PAGE_IMAGE_WORKFLOW_V1_PIPELINE,
+  PAGE_IMAGE_WORKFLOW_PIPELINE,
   isPageImageWorkflowSelectionPending,
   probeProductionMarker,
 } from "../run-bundle/production_marker.mjs";
@@ -33,7 +33,7 @@ export function resolveTargetAuthoringDraftRoute(runDir, { playbookDir = DEFAULT
 
   const marker = probeProductionMarker(readFileSync(sourcePath), { source: SLIDE_SPECS_NAME });
   const selectionPending = isPageImageWorkflowSelectionPending(marker);
-  if (marker.branch !== PAGE_IMAGE_WORKFLOW_V1_PIPELINE && !selectionPending) return null;
+  if (marker.branch !== PAGE_IMAGE_WORKFLOW_PIPELINE && !selectionPending) return null;
 
   const workflow = selectionPending ? null : marker.frontmatter?.metadata?.production?.workflow || null;
   const deckDir = realpathSync.native(deckRoot(resolvedRunDir));
@@ -44,7 +44,7 @@ export function resolveTargetAuthoringDraftRoute(runDir, { playbookDir = DEFAULT
   const runVersion = basename(resolvedRunDir);
   const versionKey = `3_versions/${runVersion}`;
   const isDraft = state && !state.replacement_required && !state.corrupted &&
-    state.pipeline === PAGE_IMAGE_WORKFLOW_V1_PIPELINE &&
+    state.pipeline === PAGE_IMAGE_WORKFLOW_PIPELINE &&
     state.production_mode?.by_version?.[versionKey] === undefined &&
     state.playbook === "create-deck" &&
     state.run_version === runVersion &&

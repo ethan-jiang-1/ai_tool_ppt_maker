@@ -21,7 +21,7 @@ function controllerNode(id, { workflow = null, draftRoute = false } = {}) {
     `node: ${id}`,
     "lifecycle_phase: 1",
     "method_module: 01-content",
-    "production_modes: [image2-page-workflow-v1]",
+    "production_modes: [image2-page-workflow]",
     ...(workflow ? [`production_workflows: [${workflow}]`] : []),
     ...(draftRoute ? ["draft_route: true"] : []),
     "requires: []",
@@ -39,7 +39,7 @@ function writePlaybook(playbookDir) {
   writeFileSync(join(playbookDir, "create-deck.md"), [
     "---",
     "playbook: create-deck",
-    "supported_pipelines: [page-image-workflow-v1]",
+    "supported_pipelines: [page-image-workflow]",
     "includes: []",
     "---",
     "",
@@ -48,12 +48,12 @@ function writePlaybook(playbookDir) {
     controllerNode("target-pure-draft-entry", { workflow: "pure", draftRoute: true }),
     controllerNode("target-framed-post-entry", { workflow: "framed" }),
   ].join("\n"));
-  writeFileSync(join(playbookDir, "controller-manifest-v3.json"), JSON.stringify({
-    schema: "pptmaker-controller-manifest-v3",
+  writeFileSync(join(playbookDir, "controller-manifest.json"), JSON.stringify({
+    schema: "pptmaker-controller-manifest",
     shared_nodes: [],
     controllers: {
       "create-deck": {
-        supported_pipelines: ["page-image-workflow-v1"],
+        supported_pipelines: ["page-image-workflow"],
         nodes: ["select-target-page-image-workflow", "author-target-page-image-content", "target-pure-draft-entry", "target-framed-post-entry"],
         draft_route_nodes: {
           framed: ["select-target-page-image-workflow", "author-target-page-image-content"],
@@ -73,7 +73,7 @@ function fixture() {
   writeFileSync(join(runDir, SLIDE_SPECS_NAME), [
     "---",
     "production:",
-    "  pipeline: page-image-workflow-v1",
+    "  pipeline: page-image-workflow",
     "  workflow: framed",
     "---",
     "",
@@ -93,9 +93,9 @@ function harnessFixture(workflow) {
   writeFileSync(join(runDir, SLIDE_SPECS_NAME), [
     "---",
     "identity:",
-    "  scheme: mnemonic-v1",
+    "  scheme: mnemonic",
     "production:",
-    "  pipeline: page-image-workflow-v1",
+    "  pipeline: page-image-workflow",
     `  workflow: ${workflow}`,
     "---",
     "",
@@ -118,7 +118,7 @@ function setHarnessDraft(value, { currentNode, workflow = "framed", playbook = "
   const source = [
     "---",
     "production:",
-    "  pipeline: page-image-workflow-v1",
+    "  pipeline: page-image-workflow",
     ...(workflow ? [`  workflow: ${workflow}`] : []),
     "---",
     "",
@@ -144,7 +144,7 @@ function setDraftState(fixtureValue, { currentNode = "author-target-page-image-c
     state.production_mode = {
       by_version: {
         "3_versions/v1": {
-          mode: "image2-page-workflow-v1",
+          mode: "image2-page-workflow",
           workflow: "framed",
           source_epoch: 1,
         },
@@ -170,7 +170,7 @@ describe("target authoring draft route", () => {
       expect(validatePlaybookIndex(index)).toMatchObject({ valid: true });
       expect(controllerDraftRouteNodes(index, "create-deck", "framed")).toEqual(["select-target-page-image-workflow", "author-target-page-image-content"]);
       expect(readState(value.deck, { purpose: "observe", runDir: value.runDir })).toMatchObject({
-        pipeline: "page-image-workflow-v1",
+        pipeline: "page-image-workflow",
         playbook: "create-deck",
         run_version: "v1",
         current_node: "author-target-page-image-content",
@@ -193,7 +193,7 @@ describe("target authoring draft route", () => {
       expect(resolveTargetAuthoringDraftRoute(bound.runDir, { playbookDir: bound.playbookDir })).toBeNull();
 
       const mismatch = freshRejectedFixture();
-      const manifestPath = join(mismatch.playbookDir, "controller-manifest-v3.json");
+      const manifestPath = join(mismatch.playbookDir, "controller-manifest.json");
       const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
       manifest.controllers["create-deck"].draft_route_nodes.framed = ["select-target-page-image-workflow", "target-framed-post-entry"];
       writeFileSync(manifestPath, JSON.stringify(manifest));

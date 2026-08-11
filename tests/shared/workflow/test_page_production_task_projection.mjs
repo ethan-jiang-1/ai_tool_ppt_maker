@@ -29,7 +29,7 @@ const PPT_FLOW = resolve(process.cwd(), "ppt_maker_harness/scripts/ppt_flow.mjs"
 function progressiveInspection({ actionId, latestBatch = null, progress = null } = {}) {
   return {
     evidence_summary: {
-      mode: "image2-page-workflow-v1",
+      mode: "image2-page-workflow",
       workflow: "pure",
       plan_hash: "a".repeat(64),
       latest_batch: latestBatch,
@@ -52,7 +52,7 @@ function digest(letter) {
 
 function taskProjectionPayload({ note = null } = {}) {
   return {
-    schema: "page-production-task-projection-v1",
+    schema: "page-production-task-projection",
     run_version: "v1",
     workflow: "pure",
     controller: { current_node: "review-target-pure-pilot", checkpoint_node: "review-target-pure-pilot" },
@@ -110,9 +110,9 @@ async function fixture() {
   writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
   writeFileSync(join(runDir, "slide-specifications.md"), `---
 identity:
-  scheme: mnemonic-v1
+  scheme: mnemonic
 production:
-  pipeline: page-image-workflow-v1
+  pipeline: page-image-workflow
   workflow: pure
 ---
 

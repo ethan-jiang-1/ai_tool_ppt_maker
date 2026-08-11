@@ -41,13 +41,13 @@ async function createSelectedTargetFixture(workflow) {
   initBundle(deck, null, "keynote", "dark-executive");
   writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), pngBytes());
   const header = workflow === "framed"
-    ? "**KICKER**: Operations\n**SUBTITLE**: Current provider-rendered page composition\n**FRAME PRESET**: standard-v1\n"
+    ? "**KICKER**: Operations\n**SUBTITLE**: Current provider-rendered page composition\n**FRAME PRESET**: standard\n"
     : "**KICKER**: Operations\n**SUBTITLE**: Current provider-rendered page composition\n";
   const source = `---
 identity:
-  scheme: mnemonic-v1
+  scheme: mnemonic
 production:
-  pipeline: page-image-workflow-v1
+  pipeline: page-image-workflow
   workflow: ${workflow}
 ---
 
@@ -73,7 +73,7 @@ negative_constraints:
 `;
   writeFileSync(join(runDir, "slide-specifications.md"), source, "utf8");
   const state = createInitialState("target", "keynote", "dark-executive", {
-    mode: "image2-page-workflow-v1",
+    mode: "image2-page-workflow",
     workflow,
   });
   state.continuation_target_version = "v1";
@@ -101,7 +101,7 @@ describe("workflow inspection observation flow", () => {
       expect(status.status, status.stderr).toBe(0);
       expect(state.status, state.stderr).toBe(0);
       expect(JSON.parse(status.stdout)).toMatchObject({
-        pipeline: "page-image-workflow-v1",
+        pipeline: "page-image-workflow",
         structure_issues: [],
         current_node: "select-target-page-image-workflow",
       });
@@ -141,11 +141,11 @@ describe("workflow inspection observation flow", () => {
     }
   });
 
-  it("keeps a v2 workflow mismatch behind its marker/state hard-stop without coercion", async () => {
+  it("keeps a workflow mismatch behind its marker/state hard-stop without coercion", async () => {
     const fixture = await createSelectedTargetFixture("pure");
     try {
       const state = createInitialState("target", "keynote", "dark-executive", {
-        mode: "image2-page-workflow-v1",
+        mode: "image2-page-workflow",
         workflow: "framed",
       });
       state.continuation_target_version = "v1";
@@ -157,7 +157,7 @@ describe("workflow inspection observation flow", () => {
       expect(JSON.parse(status.stderr)).toMatchObject({
         ok: false,
         code: "FAILED",
-        message: expect.stringContaining("UNSUPPORTED_PROTOCOL"),
+        message: expect.stringContaining("CURRENT_PROTOCOL_INVALID"),
       });
       expect(stateResult.status, stateResult.stderr).toBe(0);
       expect(JSON.parse(stateResult.stdout).workflow_inspection).toMatchObject({

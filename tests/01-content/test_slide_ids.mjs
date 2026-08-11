@@ -1,56 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import {
-  classifySlideId,
   findNearConfusions,
   formatAvailableSlideIds,
   isMnemonicSlideId,
   normalizeSpokenKey,
   parseMnemonicSlideId,
   resolveSlideBindings,
-  resolveSlideIds,
   validateNewSlideId,
 } from '../../ppt_maker_harness/scripts/01-content/internal/slide_ids.mjs';
-
-const slides = [
-  { id: 's01_opener' },
-  { id: 's02_problem' },
-  { id: 's03_one_tool_two_modes' },
-  { id: 's04_closer' },
-];
-
-describe('resolveSlideIds', () => {
-  it('resolves exact id', () => {
-    expect(resolveSlideIds(['s03_one_tool_two_modes'], slides)).toEqual([
-      's03_one_tool_two_modes',
-    ]);
-  });
-
-  it('resolves s03 prefix', () => {
-    expect(resolveSlideIds(['s03'], slides)).toEqual(['s03_one_tool_two_modes']);
-  });
-
-  it('resolves 1-based page number', () => {
-    expect(resolveSlideIds(['3'], slides)).toEqual(['s03_one_tool_two_modes']);
-  });
-
-  it('resolves unique substring', () => {
-    expect(resolveSlideIds(['two_modes'], slides)).toEqual([
-      's03_one_tool_two_modes',
-    ]);
-  });
-
-  it('rejects unknown with available ids in message', () => {
-    expect(() => resolveSlideIds(['slide_03'], slides)).toThrow(/Available ids/);
-  });
-
-  it('rejects ambiguous substring', () => {
-    expect(() => resolveSlideIds(['s'], slides)).toThrow(/ambiguous/i);
-  });
-
-  it('formatAvailableSlideIds lists ids', () => {
-    expect(formatAvailableSlideIds(slides)).toContain('s01_opener');
-  });
-});
 
 describe('mnemonic slide identity', () => {
   it.each(['UXGap', 'AIFee', 'IDFix', 'PPTGo', 'AICost', 'WebWin', 'DataWin', 'WebGrow'])(
@@ -68,10 +25,9 @@ describe('mnemonic slide identity', () => {
     expect(parseMnemonicSlideId(id).valid).toBe(false);
   });
 
-  it('classifies retained IDs without rejecting legacy syntax', () => {
-    expect(classifySlideId('UXGap')).toBe('mnemonic');
-    expect(classifySlideId('s07_problem')).toBe('legacy');
-    expect(classifySlideId('')).toBe('empty');
+  it('rejects IDs outside the mnemonic syntax', () => {
+    expect(isMnemonicSlideId('s07_problem')).toBe(false);
+    expect(isMnemonicSlideId('')).toBe(false);
   });
 
   it('normalizes voice-friendly variants without changing formal identity', () => {
@@ -117,7 +73,7 @@ describe('resolveSlideBindings', () => {
     { id: 'DeckGo', position: 1, headline: 'Open with the central claim' },
     { id: 'UXGap', position: 2, headline: 'Why the old workflow breaks' },
     { id: 'AICost', position: 3, headline: 'The cost of image generation' },
-    { id: 's07_problem', position: 4, headline: 'Legacy problem framing' },
+    { id: 'BodyMap', position: 4, headline: 'Problem framing' },
   ];
 
   it('uses shared precedence and preserves one binding per original token', () => {
@@ -128,11 +84,10 @@ describe('resolveSlideBindings', () => {
     ]);
   });
 
-  it('supports pN, unique title fragments, and legacy prefix only as fallback', () => {
-    expect(resolveSlideBindings(['p3', 'central claim', 's07'], mnemonicSlides)).toEqual([
+  it('supports pN and unique title fragments', () => {
+    expect(resolveSlideBindings(['p3', 'central claim'], mnemonicSlides)).toEqual([
       { token: 'p3', slide_id: 'AICost', position: 3, matched_by: 'position' },
       { token: 'central claim', slide_id: 'DeckGo', position: 1, matched_by: 'title' },
-      { token: 's07', slide_id: 's07_problem', position: 4, matched_by: 'legacy_prefix' },
     ]);
   });
 

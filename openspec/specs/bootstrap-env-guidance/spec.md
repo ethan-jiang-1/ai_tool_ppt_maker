@@ -126,31 +126,29 @@ The Agent and Harness SHALL NOT automatically initialize a repository, stage fil
 
 ### Requirement: Bootstrap exposes current Page Image Workflow readiness without false local-refresh claims
 
-Active BOOTSTRAP and top-level onboarding SHALL describe local foundation and
-operation-scoped readiness for `page-image-workflow-v1` only. They SHALL state
-that ordinary foundation checks are offline, credentials are needed only when
-the selected operation submits to Image2, and a live probe requires disclosed
-submission count plus explicit human confirmation. They SHALL describe
-Framed local browser/font prerequisites for its deterministic header overlay,
-but SHALL not imply that a complete Framed page, a header literal change, or
-provider-visible content can be produced without current provider-page work.
+Active BOOTSTRAP and top-level onboarding SHALL describe operation-scoped
+readiness only for the current `page-image-workflow` contract declared by the
+schema serialization inventory. They SHALL state that ordinary foundation
+checks are offline, credentials are needed only when the selected operation
+submits to Image2, and a live probe requires disclosed separate authorization.
+They SHALL NOT name a version-suffixed, retired, compatibility, or alternative
+production contract.
 
-For a new deck, onboarding SHALL retain the durable handoff `local foundation
--> init -> user content and necessary choices -> create-deck Controller/current
-owner action`. It SHALL not prescribe a fixed provider command sequence,
-promise compatibility, or present v2 Page Authority data as a current route.
+#### Scenario: An Agent starts current raw-generation readiness
+
+- **WHEN** BOOTSTRAP directs an Agent to prepare current Page Image raw work
+- **THEN** it names the one schema-declared current workflow and the applicable
+  operation-scoped credential check
+- **AND** it does not present a historical or parallel workflow as usable input
 
 #### Scenario: Framed local readiness is scoped correctly
 
-- **WHEN** an operator follows BOOTSTRAP for a Framed operation
-- **THEN** it identifies browser/font readiness for the local header overlay
-- **AND** it does not claim that provider-visible page content or changed
-  header context can skip its raw-page lifecycle
+- **WHEN** a user prepares only local Framed work
+- **THEN** guidance distinguishes local readiness from Image2 submission readiness
+- **AND** it does not imply an obsolete workflow contract
 
 #### Scenario: Fresh onboarding selects a current policy later
 
-- **WHEN** an Agent follows onboarding for a new deck
-- **THEN** it establishes foundation and follows the current Controller for
-  content and workflow selection
-- **AND** it does not infer `framed`, `pure`, or provider authorization from
-  environment readiness
+- **WHEN** onboarding completes before a workflow is selected
+- **THEN** it defers that choice to the current source-authoring step
+- **AND** it does not preselect a historical marker

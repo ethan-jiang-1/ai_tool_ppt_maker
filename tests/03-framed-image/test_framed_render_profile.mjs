@@ -10,11 +10,11 @@ import {
   FRAMED_HEADER_OVERLAY_LAYOUT_COMPILER_COHERENCE_HISTORY,
   FRAMED_HEADER_OVERLAY_RENDER_PROFILE_SCHEMA,
 } from '../../ppt_maker_harness/scripts/03-framed-image/internal/framed_render_profile.mjs';
-import { FRAMED_HEADER_OVERLAY_STANDARD_V1 } from '../../ppt_maker_harness/scripts/03-framed-image/internal/header_overlay.mjs';
+import { FRAMED_HEADER_OVERLAY_STANDARD } from '../../ppt_maker_harness/scripts/03-framed-image/internal/header_overlay.mjs';
 import { canonicalJsonSha256 } from '../../ppt_maker_harness/scripts/shared/identity/canonical_json.mjs';
 
 const fontRenderInventory = Object.freeze({
-  schema: 'pptmaker-framed-font-render-inventory-v1',
+  schema: 'pptmaker-framed-font-render-inventory',
   families: [
     { family: 'Source Sans 3', platform_family_name: 'SourceSans3VF' },
     { family: 'Noto Sans SC', platform_family_name: 'Noto Sans SC Thin' },
@@ -27,7 +27,7 @@ const fontRenderInventory = Object.freeze({
 
 function profile(input = {}) {
   return createFramedHeaderOverlayRenderProfile({
-    preset: FRAMED_HEADER_OVERLAY_STANDARD_V1,
+    preset: FRAMED_HEADER_OVERLAY_STANDARD,
     layoutCompiler: FRAMED_HEADER_OVERLAY_LAYOUT_COMPILER,
     fontRenderInventory,
     fontSelectionAlgorithm: FRAMED_FONT_SELECTION_ALGORITHM,
@@ -41,8 +41,8 @@ describe('Framed header-overlay render profile', () => {
   it('builds one canonical identity from declared pixel-producing inputs', () => {
     expect(profile()).toMatchObject({
       schema: FRAMED_HEADER_OVERLAY_RENDER_PROFILE_SCHEMA,
-      preset: { id: 'standard-v1', digest: expect.any(String) },
-      protected_geometry: FRAMED_HEADER_OVERLAY_STANDARD_V1.protected_geometry,
+      preset: { id: 'standard', digest: expect.any(String) },
+      protected_geometry: FRAMED_HEADER_OVERLAY_STANDARD.protected_geometry,
       layout_compiler: FRAMED_HEADER_OVERLAY_LAYOUT_COMPILER,
       font_render_inventory: { schema: fontRenderInventory.schema, digest: expect.any(String) },
       font_selection_algorithm: FRAMED_FONT_SELECTION_ALGORITHM,
@@ -65,12 +65,12 @@ describe('Framed header-overlay render profile', () => {
 
   it.each([
     ['transparent header preset', () => {
-      const preset = structuredClone(FRAMED_HEADER_OVERLAY_STANDARD_V1);
+      const preset = structuredClone(FRAMED_HEADER_OVERLAY_STANDARD);
       preset.theme.contrast.opacity = 0.33;
       return { preset };
     }],
     ['protected geometry', () => {
-      const preset = structuredClone(FRAMED_HEADER_OVERLAY_STANDARD_V1);
+      const preset = structuredClone(FRAMED_HEADER_OVERLAY_STANDARD);
       preset.protected_geometry[0].height -= 1;
       return { preset };
     }],
@@ -81,19 +81,19 @@ describe('Framed header-overlay render profile', () => {
         faces: fontRenderInventory.faces.map((face, index) => index === 0 ? { ...face, sha256: 'c'.repeat(64) } : face),
       },
     })],
-    ['font selection algorithm', () => ({ fontSelectionAlgorithm: 'pptmaker-framed-font-selection-v2' })],
+    ['font selection algorithm', () => ({ fontSelectionAlgorithm: 'pptmaker-framed-font-selection' })],
     ['pinned runtime', () => ({ runtime: { ...HTML_RUNTIME_PROFILE, chromiumBrowserVersion: '149.0.7827.56' } })],
-    ['capture profile', () => ({ capture: { ...HTML_CAPTURE_PROFILE, reencode: 'different-pixel-capture-v2' } })],
+    ['capture profile', () => ({ capture: { ...HTML_CAPTURE_PROFILE, reencode: 'different-pixel-capture' } })],
   ])('changes its digest when %s changes', (_name, changed) => {
     expect(profile(changed()).render_profile_digest).not.toBe(profile().render_profile_digest);
   });
 
   it('rejects opaque-panel and local-callout preset escape hatches', () => {
-    const panelPreset = structuredClone(FRAMED_HEADER_OVERLAY_STANDARD_V1);
+    const panelPreset = structuredClone(FRAMED_HEADER_OVERLAY_STANDARD);
     panelPreset.theme.panel = '#ffffff';
     expect(() => profile({ preset: panelPreset })).toThrow(/preset.theme must contain only/);
 
-    const calloutPreset = structuredClone(FRAMED_HEADER_OVERLAY_STANDARD_V1);
+    const calloutPreset = structuredClone(FRAMED_HEADER_OVERLAY_STANDARD);
     calloutPreset.fields.callout = { ...calloutPreset.fields.title };
     expect(() => profile({ preset: calloutPreset })).toThrow(/preset.fields must contain only/);
   });

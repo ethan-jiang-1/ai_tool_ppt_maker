@@ -55,10 +55,6 @@ import {
   SLIDE_SPECS_NAME,
 } from "../run-bundle/bundle_layout.mjs";
 import {
-  UNSUPPORTED_PROTOCOL_EXPORT_ACTION,
-  evaluateReplacementIdentity,
-} from "../run-bundle/page_image_workflow_identity.mjs";
-import {
   advanceTargetPageImageSourceEpoch,
   initializeTargetPageImageState,
   recordPageImageRawProviderAuthorization,
@@ -71,13 +67,13 @@ import {
   validateTargetAcceptedRawEvidenceLocalComposeRebind,
 } from "../state/state.mjs";
 
-export const TARGET_RAW_REVIEW_SCHEMA = "page-image-complete-page-review-v1";
-export const TARGET_RAW_REVIEW_CONTRIBUTION_SCHEMA = "page-image-target-raw-review-contribution-v1";
-export const TARGET_RAW_REVIEW_PROJECTION_CAPTURE_PROFILE_SCHEMA = "page-image-target-raw-review-projection-capture-profile-v1";
-export const TARGET_RAW_CONTRACT_SCHEMA = "page-image-target-raw-contract-v1";
+export const TARGET_RAW_REVIEW_SCHEMA = "page-image-complete-page-review";
+export const TARGET_RAW_REVIEW_CONTRIBUTION_SCHEMA = "page-image-target-raw-review-contribution";
+export const TARGET_RAW_REVIEW_PROJECTION_CAPTURE_PROFILE_SCHEMA = "page-image-target-raw-review-projection-capture-profile";
+export const TARGET_RAW_CONTRACT_SCHEMA = "page-image-target-raw-contract";
 export const TARGET_RAW_PROVIDER_REQUEST_SCHEMA = PAGE_IMAGE_PROVIDER_REQUEST_SCHEMA;
 export const TARGET_COMPILED_PROVIDER_INPUT_SCHEMA = PAGE_IMAGE_COMPILED_PROVIDER_INPUT_SCHEMA;
-export const TARGET_PROVIDER_REQUEST_INSPECTION_SCHEMA = "page-image-provider-request-inspection-v1";
+export const TARGET_PROVIDER_REQUEST_INSPECTION_SCHEMA = "page-image-provider-request-inspection";
 
 export class PageImageTargetRuntimeError extends Error {
   constructor(code, message, { nextAction = null } = {}) {
@@ -102,9 +98,9 @@ function exactKeys(value, keys) {
 
 /** Return whether resolved provider clause text has the canonical Page Image shape. */
 export function isPageImageProviderClausesShape(value) {
-  const isLegacyShape = exactKeys(value, ["recipe", "composition", "motifs"]);
+  const isBaseShape = exactKeys(value, ["recipe", "composition", "motifs"]);
   const isRelationshipShape = exactKeys(value, ["recipe", "composition", "motifs", "relationship"]);
-  return (isLegacyShape || isRelationshipShape) &&
+  return (isBaseShape || isRelationshipShape) &&
     typeof value.recipe === "string" && value.recipe.trim().length > 0 &&
     typeof value.composition === "string" && value.composition.trim().length > 0 &&
     Array.isArray(value.motifs) && value.motifs.every((motif) => typeof motif === "string" && motif.trim().length > 0) &&
@@ -145,12 +141,6 @@ function atomicWrite(path, bytes) {
 }
 
 function writeJson(path, value) {
-  const identity = evaluateReplacementIdentity({ record: value, recordKind: "artifact", recordPath: path });
-  if (!identity.ok) {
-    throw new PageImageTargetRuntimeError(identity.code, `artifact is unsupported; use ${UNSUPPORTED_PROTOCOL_EXPORT_ACTION}`, {
-      nextAction: identity.owner_action,
-    });
-  }
   const bytes = Buffer.from(`${canonicalJson(value)}\n`, "utf8");
   atomicWrite(path, bytes);
   return sha256(bytes);
@@ -159,12 +149,6 @@ function writeJson(path, value) {
 function readJson(path, code, message) {
   try {
     const bytes = readFileSync(path);
-    const identity = evaluateReplacementIdentity({ record: bytes, recordKind: "artifact", recordPath: path });
-    if (!identity.ok) {
-      throw new PageImageTargetRuntimeError(identity.code, `artifact is unsupported; use ${UNSUPPORTED_PROTOCOL_EXPORT_ACTION}`, {
-        nextAction: identity.owner_action,
-      });
-    }
     return JSON.parse(bytes.toString("utf8"));
   } catch (error) {
     if (error instanceof PageImageTargetRuntimeError) throw error;
@@ -173,14 +157,8 @@ function readJson(path, code, message) {
 }
 
 function requireSourceReceipt(receipt, workflow) {
-  const identity = evaluateReplacementIdentity({ record: receipt, recordKind: "source-receipt" });
-  if (!identity.ok) {
-    throw new PageImageTargetRuntimeError(identity.code, `source receipt is unsupported; use ${UNSUPPORTED_PROTOCOL_EXPORT_ACTION}`, {
-      nextAction: identity.owner_action,
-    });
-  }
-  if (!receipt || receipt.schema !== "page-image-workflow-source-v1" ||
-    receipt.pipeline !== "page-image-workflow-v1" || receipt.workflow !== workflow ||
+  if (!receipt || receipt.schema !== "page-image-workflow-source" ||
+    receipt.pipeline !== "page-image-workflow" || receipt.workflow !== workflow ||
     !SHA256_RE.test(receipt.source_sha256 || "") || !Array.isArray(receipt.slides) || receipt.slides.length === 0 ||
     receipt.slides.some((slide, index) => !slide || slide.position !== index + 1 ||
       Object.hasOwn(slide, "workflow") || Object.hasOwn(slide, "authority") ||
@@ -191,12 +169,6 @@ function requireSourceReceipt(receipt, workflow) {
 }
 
 function requireTargetPlan(plan, receipt, workflow) {
-  const identity = evaluateReplacementIdentity({ record: plan, recordKind: "raw-plan" });
-  if (!identity.ok) {
-    throw new PageImageTargetRuntimeError(identity.code, `raw plan is unsupported; use ${UNSUPPORTED_PROTOCOL_EXPORT_ACTION}`, {
-      nextAction: identity.owner_action,
-    });
-  }
   const checked = validateRawWorkPlanProviderInputBindings(plan);
   if (!checked.ok || plan.workflow !== workflow || plan.source_receipt_sha256 !== receipt.source_sha256) {
     throw new PageImageTargetRuntimeError(checked.code || "target_raw_plan_invalid", "the selected workflow raw plan is invalid or stale");
@@ -432,16 +404,16 @@ const TARGET_RAW_REVIEW_PROJECTION_CAPTURE_PROFILE = freezeDeep({
     background: "#ffffff",
   },
   labels: {
-    format: "position-formal-slide-id-title-v1",
+    format: "position-formal-slide-id-title",
     separator: " | ",
     font: { family: "Arial", weight: 700, size: 16, color: "#17212b", baseline_offset: 22 },
   },
   guides: {
-    coordinate_space: "normalized-canvas-v1",
-    renderer: "generic-rectangle-v1",
+    coordinate_space: "normalized-canvas",
+    renderer: "generic-rectangle",
     rectangle: { stroke: "#d97706", line_width: 2 },
   },
-  capture: { format: "png", encoder: "napi-rs-canvas-v1" },
+  capture: { format: "png", encoder: "napi-rs-canvas" },
 });
 
 /** Return the one canonical shared raw-review projection/capture profile. */
@@ -708,10 +680,10 @@ export function buildTargetRawGenerationProfile({ runDir, deckDir, receipt } = {
   }
   const identitySelected = receipt.slides.some((slide) => slide.visual_language?.identity_reference?.provider_reference?.path);
   const profile = {
-    schema: "page-image-target-raw-generation-profile-v1",
-    provider: { provider: "image2", model: "gpt-image-2", api_revision: "page-image-workflow-v1" },
+    schema: "page-image-target-raw-generation-profile",
+    provider: { provider: "image2", model: "gpt-image-2", api_revision: "page-image-workflow" },
     output: PAGE_IMAGE_NATIVE_RAW_PNG,
-    reference_transport: { style_master: "image-reference-v1", identity_reference: identitySelected ? "image-reference-v1" : "none" },
+    reference_transport: { style_master: "image-reference", identity_reference: identitySelected ? "image-reference" : "none" },
     effective_style_master: {
       selection_sha256: styleMaster.selection_sha256,
       plan_sha256: styleMaster.plan_sha256,
@@ -855,7 +827,7 @@ export function materializeTargetSourceCandidateContext(candidate, { allowSource
   });
 }
 
-/** Resolve and materialize a current source for legacy selected-workflow callers. */
+/** Resolve and materialize a current source for selected-workflow callers. */
 export function resolveTargetSourceContext(runDir, { workflow, parseReceipt, allowSourceRebuild = false } = {}) {
   return materializeTargetSourceCandidateContext(
     resolveTargetCandidateSourceContext(runDir, { workflow, parseReceipt }),
@@ -980,7 +952,7 @@ export function resolveTargetStoredPlanContext(runDir, {
   if (compiledPlanCheck.sha256 !== storedPlanCheck.sha256) {
     throw staleTargetPlanError("target_raw_plan_stale", "the stored target raw plan does not match current selected-workflow contracts");
   }
-  // Stored-plan reads are shared by legacy and progressive adapters. They only
+  // Stored-plan reads are shared by selected-workflow and progressive adapters. They only
   // need the exact source/state tuple; the progressive handoff deliberately
   // fences obsolete adapter authorization/evidence projections from this read path.
   const state = resolveCurrentTargetPageImageSourceState(candidate.deck_dir, {
@@ -1102,7 +1074,7 @@ export function writeTargetRawWorkPlan(context, rawWorkPlan) {
 export function targetRawPlanProjection(context, rawWorkPlan) {
   const checked = requireTargetPlan(rawWorkPlan, context.receipt, context.workflow);
   return Object.freeze({
-    schema: "page-image-target-raw-plan-projection-v1",
+    schema: "page-image-target-raw-plan-projection",
     plan_hash: checked.sha256,
     source_sha256: context.receipt.source_sha256,
     workflow: context.workflow,

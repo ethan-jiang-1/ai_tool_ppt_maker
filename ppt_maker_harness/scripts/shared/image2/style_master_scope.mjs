@@ -8,7 +8,7 @@ import {
   styleAsset,
 } from "../run-bundle/bundle_layout.mjs";
 import { isPageImageVersionDir } from "../run-bundle/page_image_paths.mjs";
-import { PAGE_IMAGE_WORKFLOW_V1_PIPELINE } from "../run-bundle/production_marker.mjs";
+import { PAGE_IMAGE_WORKFLOW_PIPELINE } from "../run-bundle/production_marker.mjs";
 import {
   resolveCurrentTargetPageImageSourceState,
   resolveRunProductionAdapter,
@@ -83,7 +83,7 @@ export function resolveStyleMasterScopeContext(runDir, { sourceCandidate = null 
   }
 
   const route = resolveRunProductionAdapter(deckDir, { runDir: resolvedRunDir, purpose: "observe" });
-  if (!route.ok || route.adapter !== "page-image-workflow-v1" || route.policy?.pipeline !== PAGE_IMAGE_WORKFLOW_V1_PIPELINE ||
+  if (!route.ok || route.adapter !== "page-image-workflow" || route.policy?.pipeline !== PAGE_IMAGE_WORKFLOW_PIPELINE ||
     route.run_version !== runVersion || !route.workflow) {
     fail("style_master_scope_unsupported", "Style Master requires an active fresh draft or exact current Page Image source/state pair");
   }

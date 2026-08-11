@@ -126,20 +126,25 @@ and no-deck-scanning boundaries.
 ### Requirement: Harness guidance names the current Page Image Workflow protocol
 
 Active Charter, BOOTSTRAP, workflow, reference, and Agent guidance SHALL name
-`page-image-workflow-v1` with matching `image2-page-workflow-v1` state as the
-sole current page-production protocol. It SHALL require one version-level
-workflow choice, `framed` or `pure`; `hybrid` describes Framed composition only
-and is never a third workflow or per-slide choice. Active guidance SHALL name
-`page-authority-image2-v2` only as unsupported historical input with no
-converter, compatibility, adoption, or automatic migration route.
+the schema-declared `page-image-workflow` pipeline with matching
+`image2-page-workflow` state as the sole current Page Image protocol. They
+SHALL require one version-level workflow choice, `framed` or `pure`; `hybrid`
+describes Framed composition only and is never a third workflow or per-slide
+choice. Active guidance SHALL not name, explain, or route a historical marker,
+converter, compatibility path, adoption path, or automatic migration.
+
+#### Scenario: An Agent reads current production guidance
+
+- **WHEN** an Agent follows active Harness guidance for Page Image production
+- **THEN** it receives one current source/state contract and one selected
+workflow policy
+- **AND** it cannot select a historical protocol from that guidance
 
 #### Scenario: An Agent reads active page-production guidance
 
-- **WHEN** an Agent opens Charter or workflow documentation for a current
-  version
-- **THEN** it receives the replacement workflow identity and one selected
-  policy
-- **AND** it does not receive Page Authority v2 as a production option
+- **WHEN** an Agent opens active production guidance
+- **THEN** it finds one declared current pipeline/mode pair and workflow choice
+- **AND** it finds no compatibility or migration instruction
 
 ### Requirement: Harness guidance defines the shared Page Image Core and Header Rendering Policy
 

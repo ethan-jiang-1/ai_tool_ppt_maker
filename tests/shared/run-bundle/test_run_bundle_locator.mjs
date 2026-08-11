@@ -69,7 +69,7 @@ describe("run bundle local Harness binding", () => {
   });
 
   it("renders exactly the v2 binding fields and resolves only the exact local Harness", () => {
-    const { root, deck, cardPath } = fixture("locator-v2");
+    const { root, deck, cardPath } = fixture("locator");
     try {
       const card = readFileSync(cardPath, "utf8");
       const manifest = frontmatter(card);
@@ -100,13 +100,13 @@ describe("run bundle local Harness binding", () => {
     }
   });
 
-  it("rejects malformed, v1, and retired-root-named cards without selecting a fallback", () => {
-    const { root, deck, cardPath } = fixture("locator-reject-legacy");
+  it("rejects malformed and undeclared cards without selecting a fallback", () => {
+    const { root, deck, cardPath } = fixture("locator-reject-undeclared");
     try {
       const valid = readFileSync(cardPath, "utf8");
       const rejected = [
         "not a manifest",
-        valid.replace("schema: pptmaker-run-bundle-v2", "schema: pptmaker-run-bundle-v1"),
+        valid.replace("schema: pptmaker-run-bundle", "schema: unrecognized-run-bundle"),
         valid.replace("harness_root:", "framework_root:"),
         valid.replace("harness_relation:", "framework_relation:"),
         valid.replace("---\n\n#", "extra: no\n---\n\n#"),

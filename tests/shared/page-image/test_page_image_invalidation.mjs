@@ -14,8 +14,8 @@ const digest = (letter) => letter.repeat(64);
 
 function receipt({ workflow = "framed", source = "a" } = {}) {
   return {
-    schema: "page-image-workflow-source-v1",
-    pipeline: "page-image-workflow-v1",
+    schema: "page-image-workflow-source",
+    pipeline: "page-image-workflow",
     workflow,
     source_sha256: digest(source),
     slides: [{
@@ -24,7 +24,7 @@ function receipt({ workflow = "framed", source = "a" } = {}) {
       provider_content: { items: [] },
       header_policy: workflow === "framed"
         ? {
-          frame_preset: "standard-v1",
+          frame_preset: "standard",
           local_header: { kicker: null, title: "Current title", subtitle: null },
           context_not_to_render: { kicker: null, title: "Current title", subtitle: null },
         }

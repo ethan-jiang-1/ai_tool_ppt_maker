@@ -1,12 +1,12 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-const ledger = JSON.parse(readFileSync("tests/contracts/workflow-control-ledger-v2.json", "utf8"));
-const goals = JSON.parse(readFileSync("tests/contracts/workflow-control-goal-entry-v2.json", "utf8"));
+const ledger = JSON.parse(readFileSync("tests/contracts/workflow-control-ledger.json", "utf8"));
+const goals = JSON.parse(readFileSync("tests/contracts/workflow-control-goal-entry.json", "utf8"));
 
 describe("workflow control ledger", () => {
   it("has complete, bounded retirement evidence", () => {
-    expect(ledger.schema).toBe("pptmaker-workflow-control-ledger-v2");
+    expect(ledger.schema).toBe("pptmaker-workflow-control-ledger");
     const ids = new Set();
     for (const entry of ledger.entries) {
       expect(ids.has(entry.id)).toBe(false);
@@ -28,7 +28,7 @@ describe("workflow control ledger", () => {
   });
 
   it("declares one direct entry for every supported goal", () => {
-    expect(goals.schema).toBe("pptmaker-workflow-goal-entry-v2");
+    expect(goals.schema).toBe("pptmaker-workflow-goal-entry");
     expect(goals.entries.map((entry) => entry.goal).sort()).toEqual([
       "delivery-build", "exact-run-resume", "greenfield-init", "local-refresh",
       "raw-generation", "recovery", "structural-versioning",

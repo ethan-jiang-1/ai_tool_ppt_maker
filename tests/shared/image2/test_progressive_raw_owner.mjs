@@ -61,12 +61,12 @@ function fixtureGenerationProfile(token = "b") {
 }
 
 function fixtureRawContract(slideId) {
-  return Object.freeze({ schema: "fixture-page-image-raw-contract-v1", slide_id: slideId });
+  return Object.freeze({ schema: "fixture-page-image-raw-contract", slide_id: slideId });
 }
 
 function fixtureCompiledProviderInput(slideId, rawContract, generationProfile) {
   const utf8 = canonicalJson({
-    schema: "fixture-page-image-provider-input-v1",
+    schema: "fixture-page-image-provider-input",
     slide_id: slideId,
     raw_contract_sha256: canonicalJsonSha256(rawContract),
     generation_profile_sha256: canonicalJsonSha256(generationProfile),
@@ -256,7 +256,7 @@ describe("progressive Page Image raw owner", () => {
       .toMatchObject({ ok: false, code: "progressive_raw_cross_bound" });
   });
 
-  it("requires a matching v2 Task Mandate before a new batch grant or provider attempt", async () => {
+  it("requires a matching current Task Mandate before a new batch grant or provider attempt", async () => {
     const { root, runDir } = fixtureRun();
     const plan = fixturePlan(6, { task_mandate_sha256: digest("e") });
     const matchingMandate = fixtureTaskMandate(plan);
@@ -541,8 +541,8 @@ describe("progressive Page Image raw owner", () => {
         batch_hash: pilot.batch.batch_hash,
         expected_plan: fixturePlan(2, { workflow: "framed", source_receipt_sha256: digest("f") }),
         provider_requests_by_slide: {
-          Slide01: { schema: "fixture-request-v1" },
-          Slide02: { schema: "fixture-request-v1" },
+          Slide01: { schema: "fixture-request" },
+          Slide02: { schema: "fixture-request" },
         },
         submit,
       })).rejects.toMatchObject({ code: "progressive_raw_plan_stale" });
@@ -1670,7 +1670,7 @@ describe("progressive Page Image raw owner", () => {
         lookup,
       });
       expect(lookup).not.toHaveBeenCalled();
-      expect(reconciled).toMatchObject({ outcome: "succeeded", historical: false, progress: { materialized: 1 } });
+      expect(reconciled).toMatchObject({ outcome: "succeeded", prior_plan: false, progress: { materialized: 1 } });
       expect(inspectProgressiveRawLifecycle({ runDir, workflow: "pure" }).primary_action.action_id)
         .toBe("prepare_progressive_raw_review");
     } finally {
@@ -2089,7 +2089,7 @@ describe("progressive Page Image raw owner", () => {
     }
   });
 
-  it("reconciles an exact historical submitted attempt without advancing the current head", async () => {
+  it("reconciles an exact prior-plan submitted attempt without advancing the current head", async () => {
     const { root, runDir } = fixtureRun();
     const plan = fixturePlan();
     try {
@@ -2137,7 +2137,7 @@ describe("progressive Page Image raw owner", () => {
         lookup: async () => null,
       });
       expect(reconciled).toMatchObject({
-        historical: true,
+        prior_plan: true,
         outcome: "unknown",
         current_plan_hash: plan2.sha256,
         next_action: { action_id: "plan_progressive_pilot" },

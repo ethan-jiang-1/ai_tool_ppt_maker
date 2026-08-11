@@ -1,7 +1,7 @@
 ---
 playbook: edit-notes
 description: Page Image Workflow notes-only refresh
-supported_pipelines: [page-image-workflow-v1]
+supported_pipelines: [page-image-workflow]
 includes: [classify-change]
 ---
 
@@ -12,7 +12,7 @@ includes: [classify-change]
 node: refresh-target-speaker-notes
 lifecycle_phase: 5
 method_module: 06-iteration
-production_modes: [image2-page-workflow-v1]
+production_modes: [image2-page-workflow]
 production_workflows: [framed, pure]
 requires: [classify-change]
 produces: [target-page-image-notes-receipt]
@@ -26,7 +26,7 @@ exit: [speaker_notes_injected]
 node: verify-target-speaker-notes
 lifecycle_phase: 5
 method_module: 06-iteration
-production_modes: [image2-page-workflow-v1]
+production_modes: [image2-page-workflow]
 production_workflows: [framed, pure]
 requires: [refresh-target-speaker-notes]
 produces: [verified-target-notes]

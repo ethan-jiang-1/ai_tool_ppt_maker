@@ -30,7 +30,7 @@ function source({ frontmatter = '', preamble = '# Deck\n\n', slides, epilogue = 
 describe('parseSlideDocument', () => {
   it('round-trips CRLF, frontmatter, whitespace, and UTF-8 byte ranges exactly', () => {
     const text = source({
-      frontmatter: '---\nidentity:\n  scheme: mnemonic-v1\n---\n',
+      frontmatter: '---\nidentity:\n  scheme: mnemonic\n---\n',
       preamble: '# Deck\n\nIntro with 中文.\n\n',
       epilogue: '## Change Log\n\n  Keep this spacing.  \n',
     }).replace(/\n/g, '\r\n');
@@ -123,12 +123,12 @@ describe('validateSlideDocument', () => {
     );
   });
 
-  it('enforces strict syntax only when mnemonic-v1 is asserted', () => {
+  it('enforces strict syntax only when mnemonic is asserted', () => {
     const legacy = parseSlideDocument(source({ slides: [block(1, 's07_problem', 'Legacy')] }));
     expect(validateSlideDocument(legacy)).toEqual([]);
 
     const native = parseSlideDocument(source({
-      frontmatter: '---\nidentity:\n  scheme: mnemonic-v1\n---\n',
+      frontmatter: '---\nidentity:\n  scheme: mnemonic\n---\n',
       slides: [block(1, 's07_problem', 'Not mnemonic')],
     }));
     expect(validateSlideDocument(native)).toContainEqual(
@@ -138,13 +138,13 @@ describe('validateSlideDocument', () => {
 
   it('rejects malformed identity mappings and unknown nested keys', () => {
     const wrongType = parseSlideDocument(source({
-      frontmatter: '---\nidentity: mnemonic-v1\n---\n',
+      frontmatter: '---\nidentity: mnemonic\n---\n',
       slides: [block(1, 'DeckGo', 'Opening')],
     }));
     expect(validateSlideDocument(wrongType).map((issue) => issue.code)).toContain('invalid_identity_marker');
 
     const unknown = parseSlideDocument(source({
-      frontmatter: '---\nidentity:\n  scheme: mnemonic-v1\n  random: true\n---\n',
+      frontmatter: '---\nidentity:\n  scheme: mnemonic\n  random: true\n---\n',
       slides: [block(1, 'DeckGo', 'Opening')],
     }));
     expect(validateSlideDocument(unknown).map((issue) => issue.code)).toContain('unknown_identity_key');

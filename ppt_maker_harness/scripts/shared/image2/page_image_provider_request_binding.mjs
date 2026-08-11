@@ -9,8 +9,8 @@ import { createHash } from "node:crypto";
 
 import { canonicalJson, canonicalJsonSha256 } from "../identity/canonical_json.mjs";
 
-export const PAGE_IMAGE_PROVIDER_REQUEST_SCHEMA = "page-image-target-raw-provider-request-v1";
-export const PAGE_IMAGE_COMPILED_PROVIDER_INPUT_SCHEMA = "page-image-compiled-provider-input-v1";
+export const PAGE_IMAGE_PROVIDER_REQUEST_SCHEMA = "page-image-target-raw-provider-request";
+export const PAGE_IMAGE_COMPILED_PROVIDER_INPUT_SCHEMA = "page-image-compiled-provider-input";
 
 const SHA256_RE = /^[0-9a-f]{64}$/;
 const REQUEST_KEYS = Object.freeze([

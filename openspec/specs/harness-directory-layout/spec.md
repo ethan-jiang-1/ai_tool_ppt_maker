@@ -42,13 +42,13 @@ The map SHALL not identify another-protocol resolver, conversion runtime, or sec
 ### Requirement: Harness exposes one authoritative production schema definition home
 
 The Harness SHALL expose `ppt_maker_harness/schema/` as the single authoritative
-definition home for the conceptual Page Image production schemas. It SHALL be
-separate from Run Bundles and contain a `README.md` that states the authority
-boundary, `META.yaml` that defines the required definition shape, `flow.yaml`
-that describes transformations, `stages/` with exactly the nineteen conceptual
-stage definitions, `recovery-route.yaml`, and `frozen-identifiers.yaml`.
+definition home for current production semantics and serialization. It SHALL be
+separate from Run Bundles and contain a README, `META.yaml`, `flow.yaml`,
+`stages/` with exactly the nineteen C1 conceptual stage definitions,
+`recovery-route.yaml`, and `serialization-contracts.yaml`. It SHALL NOT contain
+`frozen-identifiers.yaml` or another historical/compatibility exception list.
 
-The nineteen stage definitions SHALL use the established unversioned vocabulary:
+The nineteen stage definitions retain the established unversioned vocabulary:
 `story-outline`, `visual-language`, `design-constraints`, `layout-config`,
 `page-source`, `page-source-receipt`, `page-layout`, `page-render-model`,
 `page-generation-spec`, `image2-request`, `framed-header-html`,
@@ -56,72 +56,56 @@ The nineteen stage definitions SHALL use the established unversioned vocabulary:
 `page-review-decision`, `final-page-list`, `delivery-package`,
 `visual-style-candidates`, and `production-progress-state`.
 
-The definition home SHALL state that its YAML definitions own the conceptual
-vocabulary; code constants are not a competing vocabulary authority. This
-requirement SHALL NOT move, migrate, or rewrite any Run Bundle source, derived,
-state, or record data.
+`serialization-contracts.yaml` SHALL declare the one current unversioned
+serialization grammar, Page Image selectors, stage/role relations, shared
+contracts, and code anchors. The definition home remains descriptive authority,
+not a runtime controller or a Run Bundle migration tool. The parent source map,
+static directory assertion, and schema-contract test SHALL recognize this exact
+home and verify it without putting test implementation in the README.
 
-`recovery-route.yaml` SHALL be the structured authority for the C1-C7 Page
-Image recovery-route labels used by planned-owner citations. Every entry SHALL
-state its change or work, execution kind, responsibility, boundary, and exit
-evidence; the README SHALL make that authority discoverable. The route SHALL
-distinguish its labels from workflow phases, schema names, runtime owners, and
-authorizations. Every stage or flow entry with `producer_status: planned` SHALL
-use a `route_ref` that resolves to one entry in this route.
+#### Scenario: A maintainer inspects current production schemas
 
-The parent Harness source-directory map and the existing static Harness-root
-directory assertion SHALL include `schema/`. The assertion update SHALL only
-recognize this additional directory and SHALL retain its font-authority and
-third-party-font-toolchain coverage.
-
-`tests/contracts/test_page_image_schema_definitions.mjs` SHALL validate the
-definition home's exact stage-name set, each stage's declared schema name,
-Repair Guidance for every field with a `rule`, the complete C1-C7 route, and
-every planned producer's resolvable `route_ref`. It SHALL be registered in the
-contracts test-owner ledger and use the existing `yaml` dependency. The schema
-README SHALL identify this test as the verification owner but SHALL NOT embed
-an executable validation implementation.
+- **WHEN** a maintainer opens the Harness schema definition home
+- **THEN** they can locate all nineteen stages, the transformation flow,
+recovery-route labels, and one current serialization inventory
+- **AND** they do not encounter a frozen historical identifier policy
 
 #### Scenario: A maintainer inspects production schemas
 
-- **WHEN** a maintainer opens the Harness schema definition home
-- **THEN** they can locate the authority boundary, all nineteen stage definitions,
-  the complete transformation flow, frozen identifier inventory, and C1-C7
-  route-label authority without inspecting a Run Bundle, Backlog plan, or following
-  implementation imports
+- **WHEN** a maintainer opens the schema definition home
+- **THEN** the stage flow, recovery route, and current serialization inventory are discoverable
+- **AND** no historical exception defines current behavior
 
 #### Scenario: A planned producer is inspected
 
-- **WHEN** a maintainer encounters a planned producer in a stage definition or
-  `flow.yaml`
-- **THEN** its `route_ref` resolves in `recovery-route.yaml` to the named change
-  or production work, responsibility, boundary, and exit evidence
-- **AND** the reference does not imply that the later work is authorized or
-  materialized
+- **WHEN** a definition declares a planned C3-C5 producer
+- **THEN** its route reference resolves in the recovery route
+- **AND** it does not imply an implementation exists
+
+#### Scenario: The schema home is regression-tested
+
+- **WHEN** the schema-contract test runs
+- **THEN** it rejects a missing/extra stage, unresolved planned producer,
+invalid serialization declaration, or stale historical inventory
+- **AND** the README remains explanatory rather than a test host
 
 #### Scenario: Schema definitions are regression-tested
 
-- **WHEN** the schema-contract test is run as a targeted sweep
-- **THEN** it rejects a missing or extra stage, incomplete Repair Guidance,
-  incomplete C1-C7 route entry, or unresolved planned-producer reference
-- **AND** the schema README remains an explanatory entry document rather than
-  a host for test implementation
+- **WHEN** the schema-contract sweep runs
+- **THEN** it rejects invalid stage, route, or serialization declarations
+- **AND** it does not make the README a test host
 
 #### Scenario: A historical identifier is inspected
 
-- **WHEN** a maintainer considers renaming a persisted Page Image identifier
-- **THEN** `frozen-identifiers.yaml` distinguishes historical record-schema
-  identifiers from still-written protocol, mode, and identity literals
-- **AND** it names the specific unreadable or invalid evidence each frozen
-  identifier protects
+- **WHEN** a maintainer looks for a current durable identifier
+- **THEN** the serialization inventory provides one unversioned declaration and owner anchor
+- **AND** it provides no frozen preservation policy
 
 #### Scenario: The Harness root gains the schema definition home
 
-- **WHEN** the static Harness-root directory assertion runs after `schema/` is
-  added
-- **THEN** it accepts the required `schema/` directory
-- **AND** it continues to verify the sole canonical font authority and absence
-  of a third-party font toolchain
+- **WHEN** the static Harness-root directory assertion runs
+- **THEN** it accepts the exact schema definition directory
+- **AND** it retains existing font and third-party-toolchain checks
 
 ### Requirement: Schema definitions expose provenance and author-term repair context
 

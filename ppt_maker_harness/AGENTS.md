@@ -1,10 +1,10 @@
 # PPT Maker Harness Agent Guide
 
-New authoring uses `page-image-workflow-v1` with
-`image2-page-workflow-v1`. Before provider work, a human records exactly one
+New authoring uses `page-image-workflow` with
+`image2-page-workflow`. Before provider work, a human records exactly one
 version workflow: `framed` or `pure`. Every target slide inherits that workflow;
 there is no slide-level authority choice. Any other source/state pair is an
-unsupported-protocol hard-stop and remains byte-preserving.
+current-protocol-invalid hard-stop and remains byte-preserving.
 
 ## Current workflow
 
@@ -27,7 +27,7 @@ unsupported-protocol hard-stop and remains byte-preserving.
   validation and producer diagnostics.
 - A current final manifest, PPTX receipt, and notes receipt must all derive
   from Page Image evidence.
-- `ppt_flow init` creates a v2 authoring draft, never a Framed, Pure, or mixed
+- `ppt_flow init` creates a current authoring draft, never a Framed, Pure, or mixed
   default. `doctor` is scoped to the requested Page Image operation.
 - PPT Maker Harness maintenance changes follow OpenSpec. Run-bundle work does not edit
   Harness source.

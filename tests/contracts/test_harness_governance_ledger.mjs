@@ -1,12 +1,12 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-const ledger = JSON.parse(readFileSync("tests/contracts/harness-governance-ledger-v2.json", "utf8"));
+const ledger = JSON.parse(readFileSync("tests/contracts/harness-governance-ledger.json", "utf8"));
 const FIELDS = ["classification", "disposition", "failure_story", "id", "invariant", "next_action", "owner", "source"];
 
 function validateLedger(value) {
   const errors = [];
-  if (value?.schema !== "pptmaker-harness-governance-ledger-v2" || !Array.isArray(value.rules)) return ["invalid schema or rules"];
+  if (value?.schema !== "pptmaker-harness-governance-ledger" || !Array.isArray(value.rules)) return ["invalid schema or rules"];
   const ids = new Set();
   for (const row of value.rules) {
     if (!row || Object.keys(row).sort().join("\n") !== FIELDS.join("\n")) { errors.push("row must use the closed governance schema"); continue; }

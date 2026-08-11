@@ -9,7 +9,7 @@ import {
   evaluatePageImageInvalidation,
 } from "../shared/page-image/page_image_invalidation.mjs";
 
-export const TARGET_REFRESH_ROUTING_SCHEMA = "page-image-target-refresh-route-v1";
+export const TARGET_REFRESH_ROUTING_SCHEMA = "page-image-target-refresh-route";
 export const TARGET_REFRESH_CHANGE_KINDS = PAGE_IMAGE_INVALIDATION_CHANGE_KINDS;
 
 export class TargetIterationError extends Error {
@@ -21,7 +21,7 @@ export class TargetIterationError extends Error {
 }
 
 function requireTargetReceipt(receipt, label) {
-  if (!receipt || receipt.schema !== "page-image-workflow-source-v1" ||
+  if (!receipt || receipt.schema !== "page-image-workflow-source" ||
     ![FRAMED_IMAGE_WORKFLOW, PURE_IMAGE_WORKFLOW].includes(receipt.workflow) ||
     !Array.isArray(receipt.slides) || receipt.slides.length === 0) {
     throw new TargetIterationError("target_receipt_required", `${label} must be a current target source receipt`);

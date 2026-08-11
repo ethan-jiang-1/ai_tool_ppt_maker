@@ -7,7 +7,7 @@ summary: Define the current Page Image run-bundle boundary and rebuildable owner
 
 A run bundle is one deck root plus versioned source snapshots. Start with
 `RUN_BUNDLE.md`, then `deck-guide.md`, then the selected `vN` source/state
-pair. New authoring starts with `page-image-workflow-v1`; it becomes a valid
+pair. New authoring starts with `page-image-workflow`; it becomes a valid
 provider-work route only after `production.workflow` is explicitly set to
 `framed` or `pure` for the whole version.
 
@@ -21,5 +21,5 @@ its local header overlay only with exact compiled provider input, protected
 geometry, raw contract, and local-header profile. Structural edits, including a
 workflow switch, are previewed and applied through a clean target version.
 
-Any v2 source/state pair is an `unsupported-protocol/export` hard-stop. It
+Any undeclared source/state pair is an `repair-current-protocol-identity` hard-stop. It
 cannot become current evidence, initialize state, or select a workflow.

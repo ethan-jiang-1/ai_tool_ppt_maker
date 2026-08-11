@@ -59,9 +59,9 @@ function finalDiagnostic(result) {
 function pureSource({ speakerNote = "The fixture keeps generated facts local." } = {}) {
   return `---
 identity:
-  scheme: mnemonic-v1
+  scheme: mnemonic
 production:
-  pipeline: page-image-workflow-v1
+  pipeline: page-image-workflow
   workflow: pure
 ---
 
@@ -84,9 +84,9 @@ negative_constraints:
 function progressivePureSource(slideIds) {
   return `---
 identity:
-  scheme: mnemonic-v1
+  scheme: mnemonic
 production:
-  pipeline: page-image-workflow-v1
+  pipeline: page-image-workflow
   workflow: pure
 ---
 
@@ -109,16 +109,16 @@ negative_constraints:
 function framedSource() {
   return `---
 identity:
-  scheme: mnemonic-v1
+  scheme: mnemonic
 production:
-  pipeline: page-image-workflow-v1
+  pipeline: page-image-workflow
   workflow: framed
 ---
 
 ## Slide 01: \`DeckGo\`
 
 **TITLE**: Framed inspection only
-**FRAME PRESET**: standard-v1
+**FRAME PRESET**: standard
 **SLIDE BODY**:
 \`\`\`yaml
 items:
@@ -141,16 +141,16 @@ negative_constraints:
 function progressiveFramedSource(slideIds) {
   return `---
 identity:
-  scheme: mnemonic-v1
+  scheme: mnemonic
 production:
-  pipeline: page-image-workflow-v1
+  pipeline: page-image-workflow
   workflow: framed
 ---
 
 ${slideIds.map((slideId, index) => `## Slide ${String(index + 1).padStart(2, "0")}: \`${slideId}\`
 
 **TITLE**: Framed Pilot reference ${index + 1}
-**FRAME PRESET**: standard-v1
+**FRAME PRESET**: standard
 **SLIDE BODY**:
 \`\`\`yaml
 items:
@@ -355,9 +355,9 @@ describe("human artifact reference CLI", () => {
     }
   });
 
-  it("lists the explicit operation in public help and hard-stops v2 before writing a view", () => {
-    const root = mkdtempSync(join(tmpdir(), "artifact-view-v2-"));
-    const deck = join(root, "deck_artifact_view_v2");
+  it("lists the explicit operation in public help and hard-stops an undeclared marker before writing a view", () => {
+    const root = mkdtempSync(join(tmpdir(), "artifact-view-"));
+    const deck = join(root, "deck_artifact_view_undeclared_marker");
     const runDir = join(deck, "3_versions", "v1");
     try {
       const help = flow(["image2", "--help"]);
@@ -366,11 +366,11 @@ describe("human artifact reference CLI", () => {
       expect(help.stdout).toContain("no provider work or state/task-projection write");
 
       initBundle(deck, null, "keynote", "dark-executive");
-      writeFileSync(join(runDir, "slide-specifications.md"), "---\nproduction:\n  pipeline: page-authority-image2-v2\n---\n");
+      writeFileSync(join(runDir, "slide-specifications.md"), "---\nproduction:\n  pipeline: unrecognized-image2\n---\n");
       const result = flow(["image2", "artifact-view", runDir]);
       expect(result.status).toBe(1);
       expect(finalDiagnostic(result)).toMatchObject({
-        diagnostic: { operation: "export-unsupported-protocol", next: { action: "export" } },
+        diagnostic: { operation: "export-current-protocol-invalid", next: { action: "export" } },
       });
       expect(pageImageWorkflowPaths(runDir).human_navigation_index).not.toBeUndefined();
       expect(() => readFileSync(pageImageWorkflowPaths(runDir).human_navigation_index)).toThrow();

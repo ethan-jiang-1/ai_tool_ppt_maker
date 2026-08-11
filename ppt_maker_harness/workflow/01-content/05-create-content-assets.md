@@ -8,7 +8,7 @@ feeds_into:
 
 # Create Content Assets
 
-Prefer structured text, metrics, chart data, and local passive assets over prose descriptions of a desired page image. Register optional SVG/PNG/JPEG files in the schema-v2 asset catalog with stable ID, confined path, type, description, usage guidance, and exact SHA-256.
+Prefer structured text, metrics, chart data, and local passive assets over prose descriptions of a desired page image. Register optional SVG/PNG/JPEG files in the schema asset catalog with stable ID, confined path, type, description, usage guidance, and exact SHA-256.
 
 Bind registered IDs only through current Page Image reference fields or typed icon fields. Keep generated/rejected history out of `1_upstream_raw_material/`; source assets belong in the backbone or version overrides, and Page Image raw/final evidence remains rebuildable.
 

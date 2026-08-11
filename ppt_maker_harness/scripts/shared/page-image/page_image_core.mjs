@@ -2,8 +2,8 @@ import { createHash } from "node:crypto";
 
 import { canonicalJson, canonicalJsonSha256 } from "../../contracts/canonical_json.mjs";
 
-export const PAGE_IMAGE_CORE_FACTS_SCHEMA = "page-image-core-facts-v1";
-export const PAGE_IMAGE_CORE_SLIDE_FACTS_SCHEMA = "page-image-core-slide-facts-v1";
+export const PAGE_IMAGE_CORE_FACTS_SCHEMA = "page-image-core-facts";
+export const PAGE_IMAGE_CORE_SLIDE_FACTS_SCHEMA = "page-image-core-slide-facts";
 export const PAGE_IMAGE_CORE_CONTENT_ROLES = Object.freeze([
   "body",
   "label",
@@ -170,8 +170,8 @@ function normalizeVisualSelections(sourceReceipt, visualSelections) {
 }
 
 function requireCurrentReceipt(sourceReceipt, headerRenderingPolicy) {
-  if (!isPlainObject(sourceReceipt) || sourceReceipt.schema !== "page-image-workflow-source-v1" ||
-    sourceReceipt.pipeline !== "page-image-workflow-v1" || !WORKFLOWS.has(sourceReceipt.workflow) ||
+  if (!isPlainObject(sourceReceipt) || sourceReceipt.schema !== "page-image-workflow-source" ||
+    sourceReceipt.pipeline !== "page-image-workflow" || !WORKFLOWS.has(sourceReceipt.workflow) ||
     !SHA256_RE.test(sourceReceipt.source_sha256 || "") || !Array.isArray(sourceReceipt.slides) || sourceReceipt.slides.length === 0) {
     throw new PageImageCoreError("page_image_core_source_receipt_invalid", "Page Image Core requires a current normalized source receipt");
   }

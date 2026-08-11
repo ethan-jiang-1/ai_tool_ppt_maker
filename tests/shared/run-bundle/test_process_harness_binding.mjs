@@ -56,7 +56,7 @@ afterEach(() => {
 });
 
 describe("Harness-bound process commands", () => {
-  it("creates a fresh v2 locator and routes normal and structure-only checks through it", () => {
+  it("creates a fresh current locator and routes normal and structure-only checks through it", () => {
     const { deck, runDir, cardPath } = initFixture("harness-binding-fresh");
     const manifest = frontmatter(readFileSync(cardPath, "utf8"));
     expect(Object.keys(manifest).sort()).toEqual([
@@ -65,7 +65,7 @@ describe("Harness-bound process commands", () => {
       "harness_root",
       "schema",
     ]);
-    expect(manifest.schema).toBe("pptmaker-run-bundle-v2");
+    expect(manifest.schema).toBe("pptmaker-run-bundle");
     expect(manifest.harness_root).toBe(HARNESS_ROOT);
     expect(manifest.harness_relation).toBe(relative(manifest.deck_root, HARNESS_ROOT).split("\\").join("/"));
 
@@ -85,9 +85,9 @@ describe("Harness-bound process commands", () => {
     symlinkSync(root, aliasRoot, "dir");
     writeFileSync(join(runDir, "slide-specifications.md"), `---
 identity:
-  scheme: mnemonic-v1
+  scheme: mnemonic
 production:
-  pipeline: page-image-workflow-v1
+  pipeline: page-image-workflow
   workflow: pure
 ---
 
@@ -109,8 +109,8 @@ negative_constraints:
     expect(validated.status, validated.stderr).toBe(0);
   });
 
-  it("hard-stops legacy and malformed cards before every authority-carrying run path", () => {
-    const { deck, runDir, cardPath } = initFixture("harness-binding-legacy");
+  it("hard-stops undeclared and malformed cards before every authority-carrying run path", () => {
+    const { deck, runDir, cardPath } = initFixture("harness-binding-undeclared");
     const statePath = join(deck, "_state", "state.yaml");
     const generatedReadme = join(runDir, "_generated", "README.md");
     const stateBefore = readFileSync(statePath);
@@ -119,7 +119,7 @@ negative_constraints:
     const deckRoot = frontmatter(currentCard).deck_root;
     const relation = relative(deckRoot, HARNESS_ROOT).split("\\").join("/");
     const rejectedCards = [
-      `---\nschema: pptmaker-run-bundle-v1\ndeck_root: ${JSON.stringify(deckRoot)}\nframework_root: ${JSON.stringify(HARNESS_ROOT)}\nframework_relation: ${JSON.stringify(relation)}\n---\n`,
+      `---\nschema: pptmaker-run-bundle\ndeck_root: ${JSON.stringify(deckRoot)}\nframework_root: ${JSON.stringify(HARNESS_ROOT)}\nframework_relation: ${JSON.stringify(relation)}\n---\n`,
       "not a locator manifest\n",
     ];
 
@@ -159,6 +159,6 @@ negative_constraints:
     expect(readFileSync(generatedReadme)).toEqual(generatedBefore);
     expect(existsSync(join(deck, "_lessons"))).toBe(true);
     expect(existsSync(join(deck, "3_versions", "v2"))).toBe(false);
-    expect(currentCard).toContain("pptmaker-run-bundle-v2");
+    expect(currentCard).toContain("pptmaker-run-bundle");
   });
 });

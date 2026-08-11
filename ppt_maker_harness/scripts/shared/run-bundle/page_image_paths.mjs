@@ -13,14 +13,9 @@ export const GEN_PAGE_IMAGE_FINAL_SUBDIR = "final";
 export const GEN_PAGE_IMAGE_NAV_SUBDIR = "nav";
 export const GEN_PAGE_IMAGE_NAV_ARTIFACTS_SUBDIR = "art";
 
-// This retired leaf is retained only so an explicit artifact-view rebuild can
-// remove the old derived document after publishing the short navigation tree.
-// It is never a current human navigation location.
-const RETIRED_HUMAN_ARTIFACT_REFERENCE_RELATIVE_PATH = `${GENERATED_SUBDIR}/${GEN_PAGE_IMAGE_WORKFLOW_SUBDIR}/reference/human-artifact-reference-v1.md`;
-
 // Style Master candidate history is append-mostly source evidence, not a
 // version-generated artifact. The small per-scope head is its sole mutable
-// current-plan pointer; selection remains in schema-v5 state.
+// current-plan pointer; selection remains in schema state.
 export const STYLE_MASTER_ITERATIONS_RELATIVE_PATH = "1_upstream_raw_material/page-image-style-master-iterations";
 export const STYLE_MASTER_STAGING_SUBDIR = "_staging";
 export const STYLE_MASTER_PLANS_SUBDIR = "plans";
@@ -39,27 +34,26 @@ export const PAGE_IMAGE_WORKFLOW_PATHS = Object.freeze({
   human_navigation_root: `${GENERATED_SUBDIR}/${GEN_PAGE_IMAGE_NAV_SUBDIR}`,
   human_navigation_index: `${GENERATED_SUBDIR}/${GEN_PAGE_IMAGE_NAV_SUBDIR}/index.md`,
   human_navigation_artifacts_root: `${GENERATED_SUBDIR}/${GEN_PAGE_IMAGE_NAV_SUBDIR}/${GEN_PAGE_IMAGE_NAV_ARTIFACTS_SUBDIR}`,
-  retired_human_artifact_reference: RETIRED_HUMAN_ARTIFACT_REFERENCE_RELATIVE_PATH,
   root: `${GENERATED_SUBDIR}/${GEN_PAGE_IMAGE_WORKFLOW_SUBDIR}`,
   receipt: `${GENERATED_SUBDIR}/${GEN_PAGE_IMAGE_WORKFLOW_SUBDIR}/${GEN_PAGE_IMAGE_RECEIPTS_SUBDIR}/source-receipt.json`,
-  target_source_receipt: `${GENERATED_SUBDIR}/${GEN_PAGE_IMAGE_WORKFLOW_SUBDIR}/${GEN_PAGE_IMAGE_RECEIPTS_SUBDIR}/source-receipt-v1.json`,
-  transition_receipt: `${GENERATED_SUBDIR}/${GEN_PAGE_IMAGE_WORKFLOW_SUBDIR}/${GEN_PAGE_IMAGE_RECEIPTS_SUBDIR}/workflow-transition-v1.json`,
+  target_source_receipt: `${GENERATED_SUBDIR}/${GEN_PAGE_IMAGE_WORKFLOW_SUBDIR}/${GEN_PAGE_IMAGE_RECEIPTS_SUBDIR}/source-receipt.json`,
+  transition_receipt: `${GENERATED_SUBDIR}/${GEN_PAGE_IMAGE_WORKFLOW_SUBDIR}/${GEN_PAGE_IMAGE_RECEIPTS_SUBDIR}/workflow-transition.json`,
   raw_root: `${GENERATED_SUBDIR}/${GEN_PAGE_IMAGE_WORKFLOW_SUBDIR}/${GEN_PAGE_IMAGE_RAW_SUBDIR}`,
-  raw_manifest: `${GENERATED_SUBDIR}/${GEN_PAGE_IMAGE_WORKFLOW_SUBDIR}/${GEN_PAGE_IMAGE_RAW_SUBDIR}/plan-manifest-v1.json`,
-  target_raw_plan: `${GENERATED_SUBDIR}/${GEN_PAGE_IMAGE_WORKFLOW_SUBDIR}/${GEN_PAGE_IMAGE_RAW_SUBDIR}/work-plan-v1.json`,
-  target_provider_request_inspection: `${GENERATED_SUBDIR}/${GEN_PAGE_IMAGE_WORKFLOW_SUBDIR}/${GEN_PAGE_IMAGE_RAW_SUBDIR}/provider-input-inspection-v1.json`,
-  target_raw_evidence: `${GENERATED_SUBDIR}/${GEN_PAGE_IMAGE_WORKFLOW_SUBDIR}/${GEN_PAGE_IMAGE_RAW_SUBDIR}/accepted-evidence-v1.json`,
+  raw_manifest: `${GENERATED_SUBDIR}/${GEN_PAGE_IMAGE_WORKFLOW_SUBDIR}/${GEN_PAGE_IMAGE_RAW_SUBDIR}/plan-manifest.json`,
+  target_raw_plan: `${GENERATED_SUBDIR}/${GEN_PAGE_IMAGE_WORKFLOW_SUBDIR}/${GEN_PAGE_IMAGE_RAW_SUBDIR}/work-plan.json`,
+  target_provider_request_inspection: `${GENERATED_SUBDIR}/${GEN_PAGE_IMAGE_WORKFLOW_SUBDIR}/${GEN_PAGE_IMAGE_RAW_SUBDIR}/provider-input-inspection.json`,
+  target_raw_evidence: `${GENERATED_SUBDIR}/${GEN_PAGE_IMAGE_WORKFLOW_SUBDIR}/${GEN_PAGE_IMAGE_RAW_SUBDIR}/accepted-evidence.json`,
   review_root: `${GENERATED_SUBDIR}/${GEN_PAGE_IMAGE_WORKFLOW_SUBDIR}/${GEN_PAGE_IMAGE_REVIEW_SUBDIR}`,
   raw_review_projection: `${GENERATED_SUBDIR}/${GEN_PAGE_IMAGE_WORKFLOW_SUBDIR}/${GEN_PAGE_IMAGE_REVIEW_SUBDIR}/complete-page-review.png`,
-  raw_review_coverage: `${GENERATED_SUBDIR}/${GEN_PAGE_IMAGE_WORKFLOW_SUBDIR}/${GEN_PAGE_IMAGE_REVIEW_SUBDIR}/complete-page-coverage-v1.json`,
-  target_raw_review_projection: `${GENERATED_SUBDIR}/${GEN_PAGE_IMAGE_WORKFLOW_SUBDIR}/${GEN_PAGE_IMAGE_REVIEW_SUBDIR}/complete-page-review-v1.png`,
-  target_raw_review: `${GENERATED_SUBDIR}/${GEN_PAGE_IMAGE_WORKFLOW_SUBDIR}/${GEN_PAGE_IMAGE_REVIEW_SUBDIR}/complete-page-review-v1.json`,
+  raw_review_coverage: `${GENERATED_SUBDIR}/${GEN_PAGE_IMAGE_WORKFLOW_SUBDIR}/${GEN_PAGE_IMAGE_REVIEW_SUBDIR}/complete-page-coverage.json`,
+  target_raw_review_projection: `${GENERATED_SUBDIR}/${GEN_PAGE_IMAGE_WORKFLOW_SUBDIR}/${GEN_PAGE_IMAGE_REVIEW_SUBDIR}/complete-page-review.png`,
+  target_raw_review: `${GENERATED_SUBDIR}/${GEN_PAGE_IMAGE_WORKFLOW_SUBDIR}/${GEN_PAGE_IMAGE_REVIEW_SUBDIR}/complete-page-review.json`,
   final_root: `${GENERATED_SUBDIR}/${GEN_PAGE_IMAGE_WORKFLOW_SUBDIR}/${GEN_PAGE_IMAGE_FINAL_SUBDIR}`,
-  final_manifest: `${GENERATED_SUBDIR}/${GEN_PAGE_IMAGE_WORKFLOW_SUBDIR}/${GEN_PAGE_IMAGE_FINAL_SUBDIR}/manifest-v1.json`,
-  target_final_manifest: `${GENERATED_SUBDIR}/${GEN_PAGE_IMAGE_WORKFLOW_SUBDIR}/${GEN_PAGE_IMAGE_FINAL_SUBDIR}/final-slide-manifest-v1.json`,
+  final_manifest: `${GENERATED_SUBDIR}/${GEN_PAGE_IMAGE_WORKFLOW_SUBDIR}/${GEN_PAGE_IMAGE_FINAL_SUBDIR}/manifest.json`,
+  target_final_manifest: `${GENERATED_SUBDIR}/${GEN_PAGE_IMAGE_WORKFLOW_SUBDIR}/${GEN_PAGE_IMAGE_FINAL_SUBDIR}/final-slide-manifest.json`,
   final_projection: `${GENERATED_SUBDIR}/${GEN_PAGE_IMAGE_WORKFLOW_SUBDIR}/${GEN_PAGE_IMAGE_FINAL_SUBDIR}/projection.png`,
   delivery_media_root: `${GENERATED_SUBDIR}/${GEN_PAGE_IMAGE_WORKFLOW_SUBDIR}/${GEN_PAGE_IMAGE_FINAL_SUBDIR}/delivery-media`,
-  delivery_media_manifest: `${GENERATED_SUBDIR}/${GEN_PAGE_IMAGE_WORKFLOW_SUBDIR}/${GEN_PAGE_IMAGE_FINAL_SUBDIR}/delivery-media-manifest-v1.json`,
+  delivery_media_manifest: `${GENERATED_SUBDIR}/${GEN_PAGE_IMAGE_WORKFLOW_SUBDIR}/${GEN_PAGE_IMAGE_FINAL_SUBDIR}/delivery-media-manifest.json`,
 });
 
 export function isPageImageVersionDir(runDir) {

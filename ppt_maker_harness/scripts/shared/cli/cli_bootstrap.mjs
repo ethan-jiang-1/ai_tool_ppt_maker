@@ -1,6 +1,7 @@
 import { writeSync } from "node:fs";
+import { CLI_DIAGNOSTIC_SCHEMA } from "./cli_error.mjs";
 
-const STATE_SYMBOL = Symbol.for("pptmaker.cli.transaction.v1");
+const STATE_SYMBOL = Symbol.for("pptmaker.cli.transaction");
 const LIMIT = 1024 * 1024;
 
 export function normalizedCliPath(value) {
@@ -24,7 +25,7 @@ export function cliEntryMatches(entry, argv1 = process.argv[1]) {
 function genericDiagnostic(category) {
   const action = category === "usage" ? "fix_arguments" : category === "interrupted" ? "rerun" : "report_internal";
   return {
-    version: 1,
+    schema: CLI_DIAGNOSTIC_SCHEMA,
     category,
     next: {
       action,

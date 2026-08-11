@@ -65,21 +65,4 @@ describe("content-addressed short storage names", () => {
     }
   });
 
-  it("falls back to a verified legacy full-hash entry", () => {
-    const root = mkdtempSync(join(tmpdir(), "content-address-store-"));
-    const expected = digest("01234567");
-    const foreign = digest("01234568");
-    try {
-      mkdirSync(join(root, shortName(expected)));
-      writeFileSync(join(root, shortName(expected), "record.json"), JSON.stringify({ sha256: foreign }));
-      mkdirSync(join(root, expected));
-      writeFileSync(join(root, expected, "record.json"), JSON.stringify({ sha256: expected }));
-
-      expect(resolveContentAddressName(root, expected, {
-        recordHashReader: (candidate) => recordHash(join(candidate, "record.json")),
-      })).toBe(expected);
-    } finally {
-      rmSync(root, { recursive: true, force: true });
-    }
-  });
 });

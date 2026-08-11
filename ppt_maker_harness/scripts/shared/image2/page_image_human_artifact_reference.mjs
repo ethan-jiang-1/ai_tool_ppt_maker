@@ -14,7 +14,6 @@ import {
   realpathSync,
   renameSync,
   rmSync,
-  unlinkSync,
   writeFileSync,
 } from "node:fs";
 import { basename, dirname, extname, isAbsolute, join, relative, resolve, sep } from "node:path";
@@ -39,7 +38,6 @@ const DEFAULT_FILESYSTEM = Object.freeze({
   mkdirSync,
   renameSync,
   rmSync,
-  unlinkSync,
   writeFileSync,
 });
 
@@ -420,23 +418,6 @@ function publishNavigation(filesystem, { stageRoot, generatedRoot, navigationRoo
   }
 }
 
-function removeRetiredReferenceLeaf(filesystem, runDir, retiredPath) {
-  try {
-    if (!isDescendant(runDir, retiredPath)) return;
-    let current = runDir;
-    for (const component of relative(runDir, retiredPath).split(sep)) {
-      current = join(current, component);
-      const stats = filesystem.lstatSync(current);
-      if (stats.isSymbolicLink()) return;
-    }
-    const leaf = filesystem.lstatSync(retiredPath);
-    if (!leaf.isFile() || leaf.isSymbolicLink()) return;
-    filesystem.unlinkSync(retiredPath);
-  } catch {
-    // The new tree is already published; this best-effort derived cleanup is non-authoritative.
-  }
-}
-
 /** Render a short, physical Human Navigation Path index from owner-validated facts. */
 export function renderHumanArtifactNavigation(input) {
   return renderNavigation(createNavigationModel(normalizeView(input)));
@@ -503,7 +484,6 @@ export function writeHumanArtifactNavigation(input, options) {
     }
   }
 
-  removeRetiredReferenceLeaf(filesystem, view.run_dir, paths.retired_human_artifact_reference);
   return Object.freeze({
     path: navigationIndex,
     root: navigationRoot,

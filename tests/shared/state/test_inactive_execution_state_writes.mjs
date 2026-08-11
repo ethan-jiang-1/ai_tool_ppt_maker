@@ -19,7 +19,7 @@ import {
 } from "../../../ppt_maker_harness/scripts/shared/state/state.mjs";
 
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
-const source = (workflow = "pure") => `---\nproduction:\n  pipeline: page-image-workflow-v1\n  workflow: ${workflow}\n---\n`;
+const source = (workflow = "pure") => `---\nproduction:\n  pipeline: page-image-workflow\n  workflow: ${workflow}\n---\n`;
 
 function fixture() {
   const root = mkdtempSync(join(tmpdir(), "inactive-execution-state-"));
@@ -31,13 +31,13 @@ function fixture() {
   mkdirSync(v2, { recursive: true });
   writeFileSync(join(v2, "slide-specifications.md"), source());
   const state = createInitialState("state", "keynote", "dark-executive", {
-    mode: "image2-page-workflow-v1",
+    mode: "image2-page-workflow",
     workflow: "pure",
   });
   state.run_version = "v2";
   state.continuation_target_version = "v2";
   state.production_mode.by_version["3_versions/v2"] = {
-    mode: "image2-page-workflow-v1",
+    mode: "image2-page-workflow",
     workflow: "pure",
     source_epoch: 1,
   };

@@ -29,13 +29,13 @@ function pngBytes(color) {
 
 function targetSource(workflow, slides) {
   const header = workflow === "framed"
-    ? "**KICKER**: Operations\n**SUBTITLE**: Current provider-rendered page composition\n**FRAME PRESET**: standard-v1\n"
+    ? "**KICKER**: Operations\n**SUBTITLE**: Current provider-rendered page composition\n**FRAME PRESET**: standard\n"
     : "**KICKER**: Operations\n**SUBTITLE**: Current provider-rendered page composition\n";
   return `---
 identity:
-  scheme: mnemonic-v1
+  scheme: mnemonic
 production:
-  pipeline: page-image-workflow-v1
+  pipeline: page-image-workflow
   workflow: ${workflow}
 ---
 
@@ -172,7 +172,7 @@ function pilotReviewArtifactRoot(runDir, batchHash) {
   return join(pilotRoot, resolveContentAddressName(pilotRoot, batchHash, {
     recordHashReader: (pathname) => {
       try {
-        return JSON.parse(readFileSync(join(pathname, "pilot-page-review-evidence-v1.json"), "utf8")).batch_sha256 || null;
+        return JSON.parse(readFileSync(join(pathname, "pilot-page-review-evidence.json"), "utf8")).batch_sha256 || null;
       } catch {
         return null;
       }
@@ -242,7 +242,7 @@ async function runTargetRawLifecycle(runDir, env, slides, {
   const styleMaster = includeStyleMaster ? await runStyleMasterLifecycle(runDir, env) : null;
   const plan = jsonSuccess(await flow(["image2", "plan", runDir], env));
   expect(plan).toMatchObject({
-    schema: "page-image-progressive-raw-plan-projection-v1",
+    schema: "page-image-progressive-raw-plan-projection",
     plan_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
   });
   const pilot = jsonSuccess(await flow([

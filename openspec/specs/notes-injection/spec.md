@@ -23,57 +23,25 @@ without using note syntax to infer a retired run protocol.
 - **THEN** notes injection reports the slide as missing speaker-note content
 - **AND** it does not replace the PPTX or publish a receipt
 
-### Requirement: Notes receipt binds replacement Page Image final assembly lineage
-
-Notes Injection SHALL accept current input only when its ordered stable slide
-IDs, `page-image-final-slide-manifest-v1` digest, final-slide fingerprints,
-current `page-image-delivery-media-v1` digest and entries, and current PPTX
-assembly receipt cross-match one replacement Page Image Workflow lineage. It
-SHALL inject notes by stable slide ID and bind its receipt to that delivery
-lineage. It SHALL reject a raw provider page, partial review, foreign record,
-v2 receipt/manifest, mismatched ordered ID set, or mismatched JPEG delivery
-media before modifying the PPTX or publishing a notes receipt.
-
-#### Scenario: Notes follow current JPEG-backed final assembly
-
-- **WHEN** a current Framed or Pure replacement final manifest and matching
-  JPEG delivery media, and matching notes are supplied
-- **THEN** notes are injected by stable slide ID and the receipt records the
-  replacement assembly and JPEG delivery lineage
-- **AND** no renderer-private manifest is used to infer alignment
-
-#### Scenario: Mismatched JPEG delivery media does not mutate notes
-
-- **WHEN** the assembly receipt's JPEG delivery-media digest or an ordered
-  JPEG entry differs from the current replacement lineage
-- **THEN** notes injection rejects the delivery as stale before opening the
-  PPTX for mutation
-- **AND** it does not publish a notes receipt
-
-#### Scenario: v2 notes input remains unsupported
-
-- **WHEN** Notes Injection receives a v2 final manifest or assembly receipt
-- **THEN** it returns the `unsupported-protocol/export` hard-stop before opening the
-  delivery target for mutation
-- **AND** it does not translate the old lineage into a current notes receipt
-
 ### Requirement: Notes-only refresh preserves current JPEG delivery lineage
 
-Notes-only refresh SHALL first validate the current delivery receipt, assembly
-receipt, final-slide manifest, and `page-image-delivery-media-v1` binding as
-one current lineage. It SHALL accept no receipt that predates or omits the
-required JPEG delivery-media binding, even when its final-manifest digest and
-PPTX path still match. It SHALL route such derived-only staleness to normal
-delivery rebuild rather than hand migration, a fallback PNG assembly path, or
-PPTX mutation.
+Notes-only refresh SHALL first validate the declared current delivery-package,
+assembly, and final-page-list bindings as one lineage. It SHALL reject an
+undeclared contract before notes mutation and SHALL not translate a historical
+delivery format into current evidence.
+
+#### Scenario: Notes refresh receives an undeclared delivery marker
+
+- **WHEN** a delivery binding contains a value absent from the current schema
+  inventory
+- **THEN** refresh stops before notes output changes
+- **AND** it does not invoke a compatibility reader or conversion
 
 #### Scenario: Old derived receipt requires normal delivery rebuild
 
-- **WHEN** a notes-only refresh finds an otherwise matching delivery or
-  assembly receipt without the current JPEG delivery-media binding
-- **THEN** it reports the existing delivery rebuild route before opening the
-  PPTX for mutation
-- **AND** it does not write a notes receipt or a replacement delivery record
+- **WHEN** a receipt is absent from the current declared delivery lineage
+- **THEN** notes-only refresh returns the existing current delivery rebuild action
+- **AND** it does not adopt an older derived receipt
 
 ### Requirement: Notes completion consumes only current Page Image delivery
 
@@ -87,3 +55,36 @@ SHALL not be a fallback, migration, or compatibility input.
   evidence
 - **THEN** Notes Injection writes a receipt bound to that delivery lineage
 - **AND** it does not use an unregistered artifact to fill a missing slide
+
+### Requirement: Notes receipt validates current Page Image final assembly lineage
+
+Notes Injection SHALL accept current input only when ordered stable slide IDs,
+the declared `final-page-list` digest, final-slide fingerprints, declared
+delivery-package media binding, and current PPTX assembly receipt cross-match
+one replacement Page Image lineage. It SHALL inject notes by stable slide ID
+and bind its receipt to that delivery lineage without accepting an alternate or
+version-suffixed manifest/media contract.
+
+#### Scenario: Notes bind current final delivery
+
+- **WHEN** current final-page and delivery-package facts cross-match one source
+- **THEN** notes injection publishes its receipt for that declared lineage
+- **AND** it does not infer or accept a historical media contract
+
+#### Scenario: Notes follow current JPEG-backed final assembly
+
+- **WHEN** current final media and assembly validate
+- **THEN** notes inject by stable ID against their declared delivery lineage
+- **AND** no alternate receipt is accepted
+
+#### Scenario: Mismatched JPEG delivery media does not mutate notes
+
+- **WHEN** declared final/media facts do not cross-match
+- **THEN** notes injection stops before any notes mutation
+- **AND** it does not repair the mismatch through another contract
+
+#### Scenario: An undeclared notes input remains unsupported
+
+- **WHEN** notes input carries an undeclared contract marker
+- **THEN** the owner rejects it before notes processing
+- **AND** it does not decode, convert, or reuse the input

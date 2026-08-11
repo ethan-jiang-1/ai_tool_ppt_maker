@@ -25,16 +25,16 @@ import {
 function source() {
   return `---
 identity:
-  scheme: mnemonic-v1
+  scheme: mnemonic
 production:
-  pipeline: page-image-workflow-v1
+  pipeline: page-image-workflow
   workflow: framed
 ---
 
 ## Slide 01: \`DeckGo\`
 
 **TITLE**: Style Master scope
-**FRAME PRESET**: standard-v1
+**FRAME PRESET**: standard
 **VISUAL BRIEF**:
 \`\`\`yaml
 recipe: editorial-systems
@@ -121,8 +121,8 @@ describe("Style Master scope", () => {
       initializeTargetPageImageState(fixture.deck, {
         runDir: fixture.runDir,
         sourceReceipt: {
-          schema: "page-image-workflow-source-v1",
-          pipeline: "page-image-workflow-v1",
+          schema: "page-image-workflow-source",
+          pipeline: "page-image-workflow",
           workflow: "framed",
           source_sha256: candidate.source_sha256,
           slides: [{ slide_id: "DeckGo", position: 1 }],

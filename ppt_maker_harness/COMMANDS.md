@@ -34,7 +34,7 @@ decisions.
 
 ## Agent Routing Reference
 
-The [discovery catalog](playbook/intent-routes-v1.json) is static validation
+The [discovery catalog](playbook/intent-routes.json) is static validation
 for the first safe handoff, not an execution mechanism. Interpret the user's
 language conversationally, then follow these existing owners:
 

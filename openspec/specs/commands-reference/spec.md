@@ -51,69 +51,31 @@ COMMANDS.md SHALL be the concise human-facing interface and SHALL link detailed 
 
 ### Requirement: Intent Route Catalog is a closed discovery contract
 
-`ppt_maker_harness/playbook/intent-routes-v1.json` SHALL define the
-versioned, audit-first discovery catalog independently of the Controller
-manifest. Its top-level object SHALL contain exactly `schema` with the literal
-value `pptmaker-intent-routes-v1` and `routes` as an array. Every route SHALL
-contain exactly `id`, `kind`, `required_context`, `entry`, `first_safe_step`,
-`risk_boundary`, `fallback`, and `visibility`. `id`, `entry`, and
-`first_safe_step` SHALL be non-empty strings; IDs SHALL be unique.
-`required_context` SHALL be an array of unique kebab-case context tokens and
-MAY be empty; it names information the Agent obtains or clarifies before
-leaving discovery, not a prerequisite for recognizing a user goal.
-`visibility` SHALL be a Boolean, where `true` makes the user goal eligible for
-novice rendering without exposing its route ID. The catalog SHALL use only
-`foundation`, `work`, or `orientation` as `kind`, and only `no-remote`,
-`confirm-live-diagnostic`, or `owner-issued-authorization` as
-`risk_boundary`.
+The intent-route catalog SHALL use the unversioned shared-contract name
+declared in the serialization inventory and retain its existing closed route
+shape. It SHALL contain exactly the declared contract marker and `routes`; each
+route SHALL retain the required routing fields and deterministic validation.
+No active route catalog, template, or command reference SHALL carry a
+version-suffixed contract marker.
 
-The first public inventory SHALL contain exactly these route IDs:
+#### Scenario: An Agent loads the current route catalog
 
-```text
-foundation-local-runtime
-foundation-provider-readiness
-foundation-channel-probe
-work-new
-work-resume
-work-change
-work-change-text
-work-change-visual
-work-change-notes
-work-change-structure
-orientation-locate-run
-orientation-diagnostic
-orientation-env-recovery
-orientation-unrouted-intent
-```
-
-Every initial route SHALL set `visibility: true`. `fallback` SHALL name another
-catalog ID or be `null` only for `orientation-unrouted-intent`; no fallback
-chain may cycle. `risk_boundary` SHALL express the strongest boundary a route
-can reach after its owner handoff, never authorization granted by route
-selection.
-
-`work-change` SHALL enter the existing change classifier; its four leaf routes
-SHALL enter the existing text, visual, notes, and structural playbooks. The
-catalog SHALL not parse natural language, contain shell command strings or
-lifecycle sequences, dispatch a command, create a new controller, persist a
-selected route, mint an authorization, or supersede an owner CLI/current
-OpenSpec contract. A new public capability SHALL add a catalog route instead
-of relying on undocumented routing prose.
+- **WHEN** command routing loads the checked-in catalog
+- **THEN** its contract marker resolves in the serialization inventory and its
+  routes validate under the existing closed rules
+- **AND** no alternate or historical catalog format is considered
 
 #### Scenario: Catalog validates the public discovery surface
 
-- **WHEN** the checked-in catalog is validated
-- **THEN** its top-level and route records have the exact required fields and
-  types, supported enum values, and a legal acyclic discovery fallback
-- **AND** every initial public route appears exactly once without a CLI command
-  string, hash, grant, lifecycle-node sequence, or route-granted authorization
+- **WHEN** the checked-in current catalog is validated
+- **THEN** its contract declaration and every required route field validate
+- **AND** no code-only or version-suffixed route schema is accepted
 
 #### Scenario: Work-change leaves reuse existing lifecycle owners
 
-- **WHEN** a route is selected for text, visual, notes, or structural work
-- **THEN** it enters the corresponding existing classifier/playbook boundary
-- **AND** it does not add a parallel Controller or bypass the selected owner's
-  lifecycle and authorization rules
+- **WHEN** a route resolves a production change
+- **THEN** it delegates to the existing current lifecycle owner
+- **AND** it does not create a compatibility controller
 
 ### Requirement: Intent discovery preserves explicit requests and exact-run boundaries
 
@@ -205,33 +167,29 @@ environment checking.
 
 ### Requirement: Commands route current Page Image changes by compiled-input ownership
 
-Active `COMMANDS.md` guidance SHALL describe one version-level
-`page-image-workflow-v1` choice, `framed` or `pure`, and route work through the
-selected owner. It SHALL route Provider Content Schema, visual-direction,
-generation-profile, protected-geometry, raw-contract, and provider-context
-changes to raw rebuild. A Framed local overlay refresh may be offered only when
-the owner proves that compiled provider input, protected geometry, raw contract,
-and local profile are unchanged; header literal changes normally require raw
-rebuild. Notes-only work remains delivery-owned, and insert/delete/reorder or
-workflow changes route through previewed exact-hash Structural Versioning.
+Active `COMMANDS.md` guidance SHALL describe one schema-declared current
+version-level Page Image workflow choice, `framed` or `pure`, and route work to
+the selected owner. It SHALL not teach historical pipeline values, a migration,
+or a compatibility route.
 
-Guidance SHALL explain `hybrid` only as a description of Framed composition,
-not as a user-selectable workflow or slide-level choice. It SHALL remain
-goal-oriented and obtain current status from Workflow Inspection before
-selecting an owner mutation.
+#### Scenario: A current workflow change is routed
+
+- **WHEN** a Deck Author asks for a current Page Image change
+- **THEN** command guidance selects the owner using the current declared
+workflow contract
+- **AND** it does not offer a retired marker as an alternative path
 
 #### Scenario: A user changes a Framed header literal
 
-- **WHEN** a user asks to change the title on a current Framed page
-- **THEN** COMMANDS guidance routes to the owner-issued raw rebuild path
-- **AND** it does not promise a provider-free Text Frame refresh
+- **WHEN** a Deck Author changes a current Framed header literal
+- **THEN** guidance routes to the established owner-selected refresh path
+- **AND** it does not select a historical workflow
 
 #### Scenario: A user requests a workflow switch
 
-- **WHEN** a user asks to change a version from Framed to Pure
-- **THEN** COMMANDS guidance routes to Structural Versioning preview and exact
-  plan confirmation
-- **AND** it does not describe an in-place mode mutation or reuse acceptance
+- **WHEN** a Deck Author requests a current Framed/Pure switch
+- **THEN** guidance routes it through the existing structural-versioning path
+- **AND** it does not create a conversion route
 
 ### Requirement: Commands expose the replacement protocol's unsupported-input boundary
 

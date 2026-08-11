@@ -5,7 +5,7 @@ execution: non-executable
 naming:
   stage_name: "Use the established unversioned kebab-case conceptual name."
   version_suffix: "Do not add a new -vN suffix to a conceptual stage name."
-  frozen_identifier: "Keep historical serialized names only in frozen-identifiers.yaml."
+  serialization_contract: "Declare every active durable selector and wire schema in serialization-contracts.yaml."
 
 stage_definition:
   required_keys:
