@@ -19,7 +19,9 @@ produces: [target-framed-visual-refresh-route]
 entry: [slide_specs_exists]
 exit: [slide_specs_valid]
 ```
-**Step 1 — CLI**: Framed visual, protected-geometry, or header-profile changes use the selected Framed raw rebuild route.
+**Step 1 — CLI**: Framed visual, protected-geometry, selected Page Class, or
+header-profile changes use the selected Framed raw rebuild route. Repair a bad
+presentation package at its named source and rerun this checkpoint.
 
 ### refresh-target-pure-visual
 ```yaml
@@ -33,7 +35,9 @@ produces: [target-pure-visual-refresh-route]
 entry: [slide_specs_exists]
 exit: [slide_specs_valid]
 ```
-**Step 1 — CLI**: Pure visual changes use the selected Pure raw rebuild route and scoped authorization.
+**Step 1 — CLI**: Pure visual, selected Page Class, default, or profile changes
+use the selected Pure raw rebuild route and scoped authorization. Repair a bad
+presentation package at its named source and rerun this checkpoint.
 
 ### review-target-visual-delivery
 ```yaml

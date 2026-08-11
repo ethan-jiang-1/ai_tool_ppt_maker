@@ -41,7 +41,6 @@ production:
 **TITLE**: ${title}
 **KICKER**: Operations
 **SUBTITLE**: Current Page Image diagnostics
-**FRAME PRESET**: standard
 **SLIDE BODY**:
 \`\`\`yaml
 items:

@@ -15,7 +15,7 @@ const BINDING_FIELDS = Object.freeze([
   "style_master_selection_sha256",
   "generation_profile_sha256",
   "header_policy_sha256",
-  "deck_visual_system_sha256",
+  "page_presentation_sha256",
   "local_header_profile_sha256",
   "protected_geometry_sha256",
 ]);
@@ -26,7 +26,7 @@ const BINDING_DRIFT_REASONS = Object.freeze({
   style_master_selection_sha256: "style_master_selection_drift",
   generation_profile_sha256: "generation_profile_drift",
   header_policy_sha256: "header_policy_drift",
-  deck_visual_system_sha256: "deck_visual_system_drift",
+  page_presentation_sha256: "page_presentation_drift",
   local_header_profile_sha256: "local_header_profile_drift",
   protected_geometry_sha256: "protected_geometry_drift",
 });

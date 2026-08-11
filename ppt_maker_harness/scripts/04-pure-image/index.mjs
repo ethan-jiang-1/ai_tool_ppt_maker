@@ -21,8 +21,9 @@ import {
 import { parsePageImageSource } from "../01-content/index.mjs";
 import {
   createPageImageSourceResolver,
-  loadPureDeckVisualSystem,
+  loadPageImagePresentationPackage,
   loadPageImageVisualLanguage,
+  resolvePageImagePresentation,
 } from "../02-visual-system/index.mjs";
 import {
   PageImageCoreError,
@@ -173,12 +174,12 @@ const PURE_RAW_CONTRACT_KEYS = Object.freeze([
   "visual_identity_role_clause",
   "visual_scene",
   "visual_identity",
-  "deck_visual_system",
+  "page_presentation",
   "page_image_core",
   "provider_rendered_content",
 ]);
 const PURE_RAW_CONTRACT_CORE_KEYS = Object.freeze(["schema", "canonical_semantic_sha256"]);
-const PURE_DECK_VISUAL_SYSTEM_KEYS = Object.freeze(["sha256", "projection"]);
+const PURE_PAGE_PRESENTATION_KEYS = Object.freeze(["page_class", "profile_id", "binding_sha256", "provenance", "profile"]);
 const PURE_PROVIDER_RENDERED_CONTENT_KEYS = Object.freeze(["header", "items"]);
 const PURE_HEADER_KEYS = Object.freeze(["kicker", "title", "subtitle"]);
 const SHA256_RE = /^[0-9a-f]{64}$/;
@@ -201,10 +202,10 @@ export function validatePureRawContract(rawContract) {
       (rawContract.visual_identity_role_clause !== null && typeof rawContract.visual_identity_role_clause !== "string") ||
       (rawContract.visual_scene !== null && typeof rawContract.visual_scene !== "string") ||
       (rawContract.visual_identity !== null && (!rawContract.visual_identity || typeof rawContract.visual_identity !== "object" || Array.isArray(rawContract.visual_identity))) ||
-      !hasExactKeys(rawContract.deck_visual_system, PURE_DECK_VISUAL_SYSTEM_KEYS) ||
-      !SHA256_RE.test(rawContract.deck_visual_system.sha256 || "") ||
-      !rawContract.deck_visual_system.projection || typeof rawContract.deck_visual_system.projection !== "object" || Array.isArray(rawContract.deck_visual_system.projection) ||
-      canonicalJsonSha256(rawContract.deck_visual_system.projection) !== rawContract.deck_visual_system.sha256 ||
+      !hasExactKeys(rawContract.page_presentation, PURE_PAGE_PRESENTATION_KEYS) ||
+      !SHA256_RE.test(rawContract.page_presentation.binding_sha256 || "") ||
+      !rawContract.page_presentation.profile || typeof rawContract.page_presentation.profile !== "object" || Array.isArray(rawContract.page_presentation.profile) ||
+      !rawContract.page_presentation.provenance || typeof rawContract.page_presentation.provenance !== "object" || Array.isArray(rawContract.page_presentation.provenance) ||
       !hasExactKeys(rawContract.page_image_core, PURE_RAW_CONTRACT_CORE_KEYS) ||
       rawContract.page_image_core.schema !== "page-image-core-slide-facts" ||
       !SHA256_RE.test(rawContract.page_image_core.canonical_semantic_sha256 || "") ||
@@ -535,11 +536,24 @@ export function classifyPureRefresh({
 }
 
 function parsePureTargetReceipt({ runDir, deckDir, sourcePath, sourceText }) {
-  loadPureDeckVisualSystem(runDir);
   const visualLanguage = loadPageImageVisualLanguage(deckDir);
+  const presentationPackage = loadPageImagePresentationPackage(runDir);
+  const visualResolver = createPageImageSourceResolver({ deckDir, visualLanguage });
   return parsePageImageSource(sourceText, {
     source: sourcePath,
-    registry: createPageImageSourceResolver({ deckDir, visualLanguage }),
+    registry: {
+      resolveSelection(context) {
+        return Object.freeze({
+          ...visualResolver.resolveSelection(context),
+          presentation: resolvePageImagePresentation({
+            package: presentationPackage,
+            workflow: context.workflow,
+            pageClass: context.page_class,
+            headerPolicy: context.header_policy,
+          }),
+        });
+      },
+    },
   });
 }
 
@@ -585,11 +599,8 @@ function coreStyleMasterSelection(workflow, styleMasterReference) {
   });
 }
 
-function createPureCoreFacts(context, generation, deckVisualSystem) {
+function createPureCoreFacts(context, generation) {
   try {
-    if (!deckVisualSystem || !SHA256_RE.test(deckVisualSystem.sha256 || "")) {
-      throw new PureImageWorkflowError("pure_deck_visual_system_required", "Pure adapter requires one validated deck visual system");
-    }
     return createPageImageCoreFacts({
       sourceReceipt: context.receipt,
       visualSelections: context.receipt.slides.map((slide) => ({
@@ -599,7 +610,6 @@ function createPureCoreFacts(context, generation, deckVisualSystem) {
       styleMasterSelection: coreStyleMasterSelection(PURE_IMAGE_WORKFLOW, generation.style_master_reference),
       generationProfile: generation.profile,
       headerRenderingPolicy: { workflow: PURE_IMAGE_WORKFLOW, policy: "provider-visible" },
-      deckVisualSystemSha256: deckVisualSystem.sha256,
     });
   } catch (error) {
     if (error instanceof PageImageCoreError) {
@@ -609,7 +619,7 @@ function createPureCoreFacts(context, generation, deckVisualSystem) {
   }
 }
 
-function pureRawContract(slide, coreSlide, deckVisualSystem) {
+function pureRawContract(slide, coreSlide) {
   const visualLanguage = coreSlide?.visual_selection?.projection;
   if (!visualLanguage || typeof visualLanguage !== "object") {
     throw new PureImageWorkflowError("pure_visual_language_required", `Pure visual language is unresolved for ${slide.slide_id}`);
@@ -618,9 +628,11 @@ function pureRawContract(slide, coreSlide, deckVisualSystem) {
     coreSlide.header_policy?.provider_visible === undefined) {
     throw new PureImageWorkflowError("pure_page_image_core_invalid", `Pure Page Image Core facts are unavailable for ${slide.slide_id}`);
   }
-  if (!deckVisualSystem || !SHA256_RE.test(deckVisualSystem.sha256 || "") ||
-    canonicalJsonSha256(deckVisualSystem.projection) !== deckVisualSystem.sha256) {
-    throw new PureImageWorkflowError("pure_deck_visual_system_required", `Pure deck visual system is unavailable for ${slide.slide_id}`);
+  const presentation = coreSlide.visual_selection?.presentation;
+  if (!presentation || presentation.workflow !== PURE_IMAGE_WORKFLOW ||
+    presentation.page_class !== slide.page_class || !SHA256_RE.test(presentation.binding_sha256 || "") ||
+    !presentation.profile || typeof presentation.profile !== "object" || Array.isArray(presentation.profile)) {
+    throw new PureImageWorkflowError("pure_page_presentation_required", `Pure page presentation is unavailable for ${slide.slide_id}`);
   }
   const providerClauses = coreSlide.visual_selection?.provider_clauses || null;
   const identityRoleClause = coreSlide.visual_selection?.identity_reference?.provider_reference?.role_clause || null;
@@ -633,9 +645,12 @@ function pureRawContract(slide, coreSlide, deckVisualSystem) {
     visual_identity_role_clause: identityRoleClause,
     visual_scene: null,
     visual_identity: coreSlide.visual_selection?.identity_reference?.projection || null,
-    deck_visual_system: {
-      sha256: deckVisualSystem.sha256,
-      projection: deckVisualSystem.projection,
+    page_presentation: {
+      page_class: presentation.page_class,
+      profile_id: presentation.profile_id,
+      binding_sha256: presentation.binding_sha256,
+      provenance: presentation.provenance,
+      profile: presentation.profile,
     },
     page_image_core: {
       schema: coreSlide.schema,
@@ -666,7 +681,7 @@ function compilePureProviderInput({ slideId, rawContract, generationProfile } = 
       relationship: rawContract.provider_clauses.relationship || null,
       identity: rawContract.visual_identity,
     },
-    deck_visual_system: rawContract.deck_visual_system,
+    page_presentation: rawContract.page_presentation,
     generation_profile: generationProfile,
   });
   return Object.freeze({
@@ -678,20 +693,19 @@ function compilePureProviderInput({ slideId, rawContract, generationProfile } = 
 
 /** Compile a selected Pure current raw-plan candidate without materializing state. */
 function compilePureTargetRawPlanCandidate(context) {
-  const deckVisualSystem = loadPureDeckVisualSystem(context.run_dir);
   const generation = buildTargetRawGenerationProfile({
     runDir: context.run_dir,
     deckDir: context.deck_dir,
     receipt: context.receipt,
   });
-  const coreFacts = createPureCoreFacts(context, generation, deckVisualSystem);
+  const coreFacts = createPureCoreFacts(context, generation);
   const coreSlidesById = new Map(coreFacts.slides.map((slide) => [slide.slide_id, slide]));
   const rawContractsBySlide = {};
   const providerInputBindingsBySlide = {};
   const providerRequestsBySlide = {};
   for (const slide of context.receipt.slides) {
     const coreSlide = coreSlidesById.get(slide.slide_id);
-    const rawContract = pureRawContract(slide, coreSlide, deckVisualSystem);
+    const rawContract = pureRawContract(slide, coreSlide);
     const rawContractValidation = validatePureRawContract(rawContract);
     if (!rawContractValidation.ok) throw new PureImageWorkflowError(rawContractValidation.code, rawContractValidation.message);
     rawContractsBySlide[slide.slide_id] = rawContractValidation.raw_contract_sha256;
@@ -731,7 +745,6 @@ function compilePureTargetRawPlanCandidate(context) {
     raw_work_plan: rawWorkPlan,
     provider_requests_by_slide: Object.freeze(providerRequestsBySlide),
     page_image_core: coreFacts,
-    deck_visual_system: deckVisualSystem,
     style_master_reference: generation.style_master_reference,
   });
 }

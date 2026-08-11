@@ -1658,15 +1658,15 @@ function targetPageImageFailure(operation, route, error) {
   if (FRAMED_SOURCE_VALIDATION_CODES.has(reason)) {
     return {
       code: CLI_ERROR_CODES.FAILED,
-      message: "The current Framed header overlay is invalid or cannot fit the canonical header geometry.",
-      hint: "Repair the named source header fields or frame preset, then rerun image2 plan.",
+      message: "The current Framed header overlay is invalid or cannot fit the selected page presentation.",
+      hint: "Repair the named Page Source header fields or selected Framed presentation profile, then rerun image2 plan.",
       diagnostic: {
         ...common,
         category: "source_validation",
         source,
         next: createCliNext("edit_source", {
           inspect: [source],
-          default: "Repair the current Framed header fields or frame preset in source, then rerun image2 plan.",
+          default: "Repair the current Page Source header fields or selected Framed presentation profile, then rerun image2 plan.",
         }),
       },
     };

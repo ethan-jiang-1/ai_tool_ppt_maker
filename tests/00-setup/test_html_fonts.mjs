@@ -13,11 +13,12 @@ import {
   verifyHtmlFontBundle,
 } from '../../ppt_maker_harness/scripts/00-setup/internal/html_fonts.mjs';
 import { currentFramedHeaderOverlayRenderProfile } from '../../ppt_maker_harness/scripts/03-framed-image/internal/framed_render_profile.mjs';
+import { STANDARD_FRAMED_PRESENTATION_PROFILE, framedRenderProfileFacts } from '../helpers/framed_presentation_profile.mjs';
 
 const INVENTORY_PATH = join(HTML_FONT_ROOT, 'inventory.json');
 
 function headerOverlay(fields = {}) {
-  return { preset: 'standard', kicker: null, title: 'Heading', subtitle: null, ...fields };
+  return { profile: STANDARD_FRAMED_PRESENTATION_PROFILE, kicker: null, title: 'Heading', subtitle: null, ...fields };
 }
 
 function injectedRead(replacements = new Map()) {
@@ -160,7 +161,7 @@ describe('HTML font bundle', () => {
         return readFileSync(path, ...args);
       }
       : injectedRead(new Map([[fontPath, Buffer.from('changed')]]));
-    expect(() => currentFramedHeaderOverlayRenderProfile({ fontOptions: { readFile } }))
+    expect(() => currentFramedHeaderOverlayRenderProfile({ preset: framedRenderProfileFacts(), fontOptions: { readFile } }))
       .toThrow(/font render inventory is unavailable or invalid/);
   });
 

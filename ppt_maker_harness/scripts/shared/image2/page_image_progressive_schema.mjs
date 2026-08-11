@@ -28,7 +28,7 @@ const PROVIDER_INPUT_BINDING_KEYS = Object.freeze([
   "style_master_selection_sha256",
   "generation_profile_sha256",
   "header_policy_sha256",
-  "deck_visual_system_sha256",
+  "page_presentation_sha256",
   "local_header_profile_sha256",
   "protected_geometry_sha256",
 ]);
@@ -106,15 +106,9 @@ function assertProviderInputBinding(binding, workflow) {
   if (!exactKeys(binding, PROVIDER_INPUT_BINDING_KEYS)) {
     fail("progressive_raw_invalid_provider_input_binding", "provider input binding has an invalid shape");
   }
-  for (const field of PROVIDER_INPUT_BINDING_KEYS.slice(0, 6)) assertDigest(binding[field], field);
-  for (const field of PROVIDER_INPUT_BINDING_KEYS.slice(6)) {
+  for (const field of PROVIDER_INPUT_BINDING_KEYS.slice(0, 7)) assertDigest(binding[field], field);
+  for (const field of PROVIDER_INPUT_BINDING_KEYS.slice(7)) {
     if (binding[field] !== null) assertDigest(binding[field], field);
-  }
-  if (workflow === "pure" && binding.deck_visual_system_sha256 === null) {
-    fail("progressive_raw_invalid_provider_input_binding", "Pure provider input binding requires deck_visual_system_sha256");
-  }
-  if (workflow === "framed" && binding.deck_visual_system_sha256 !== null) {
-    fail("progressive_raw_invalid_provider_input_binding", "Framed provider input binding requires null deck_visual_system_sha256");
   }
 }
 

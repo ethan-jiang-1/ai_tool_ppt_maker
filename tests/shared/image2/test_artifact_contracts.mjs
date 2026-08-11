@@ -137,17 +137,17 @@ describe("Page Image typed artifacts", () => {
     const unboundPlan = structuredClone(rawPlan);
     delete unboundPlan.items[0].provider_input_binding;
     expect(validateRawWorkPlan(unboundPlan)).toMatchObject({ ok: false, code: "raw_plan_invalid" });
-    const pureWithoutDeckSystem = structuredClone(rawPlan);
-    pureWithoutDeckSystem.items[0].provider_input_binding.deck_visual_system_sha256 = null;
-    expect(validateRawWorkPlan(pureWithoutDeckSystem)).toMatchObject({
+    const pureWithoutPagePresentation = structuredClone(rawPlan);
+    pureWithoutPagePresentation.items[0].provider_input_binding.page_presentation_sha256 = null;
+    expect(validateRawWorkPlan(pureWithoutPagePresentation)).toMatchObject({
       ok: false,
-      code: "raw_plan_provider_input_binding_invalid",
+      code: "invalid_digest",
     });
-    const framedWithDeckSystem = structuredClone(plan("framed"));
-    framedWithDeckSystem.items[0].provider_input_binding.deck_visual_system_sha256 = digest("9");
-    expect(validateRawWorkPlan(framedWithDeckSystem)).toMatchObject({
+    const framedWithoutPagePresentation = structuredClone(plan("framed"));
+    framedWithoutPagePresentation.items[0].provider_input_binding.page_presentation_sha256 = null;
+    expect(validateRawWorkPlan(framedWithoutPagePresentation)).toMatchObject({
       ok: false,
-      code: "raw_plan_provider_input_binding_invalid",
+      code: "invalid_digest",
     });
     expect(validateAcceptedRawEvidence(evidence, { plan: { ...rawPlan, provider_profile_sha256: digest("9") } })).toMatchObject({ ok: false, code: "raw_evidence_stale" });
     expect(() => createFinalSlideManifest({
@@ -173,7 +173,7 @@ describe("Page Image typed artifacts", () => {
     }, { plan: rawPlan })).toMatchObject({ ok: false, code: "raw_evidence_invalid" });
     expect(validateAcceptedRawEvidence({
       schema: "unrecognized-accepted-raw-evidence",
-    }, { plan: rawPlan })).toMatchObject({ ok: false, code: "CURRENT_PROTOCOL_INVALID" });
+    }, { plan: rawPlan })).toMatchObject({ ok: false, code: "raw_evidence_invalid" });
     expect(() => createAcceptedRawEvidence({
       plan: rawPlan,
       provider_authorization_sha256: digest("f"),

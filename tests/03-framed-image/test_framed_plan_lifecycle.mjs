@@ -9,6 +9,7 @@ const renderControls = vi.hoisted(() => ({
   composition_calls: 0,
   composition_error: null,
   latest_profile_digest: null,
+  profile_digests_by_id: {},
   profile_calls: 0,
   profile_digest_override: null,
   profile_error: null,
@@ -16,6 +17,7 @@ const renderControls = vi.hoisted(() => ({
   proof_error: null,
   proof_error_before_launch: false,
   proof_batches: [],
+  proof_stale_slide_id: null,
   safe_zone_drift: false,
 }));
 const framedResolverControls = vi.hoisted(() => ({ null_provider_clauses: false }));
@@ -48,6 +50,7 @@ vi.mock("../../ppt_maker_harness/scripts/03-framed-image/internal/framed_render_
         ? Object.freeze({ ...profile, render_profile_digest: renderControls.profile_digest_override })
         : profile;
       renderControls.latest_profile_digest = current.render_profile_digest;
+      renderControls.profile_digests_by_id[profile.preset.id] = current.render_profile_digest;
       return current;
     },
   };
@@ -82,8 +85,13 @@ vi.mock("../../ppt_maker_harness/scripts/03-framed-image/internal/framed_render_
       }
       renderControls.browser_launches += 1;
       return Object.freeze({
-        render_profile_digest: renderControls.latest_profile_digest,
-        pages: Object.freeze(frames.map((frame) => Object.freeze({ slide_id: frame.slide_id }))),
+        pages: Object.freeze(frames.map((frame) => Object.freeze({
+          slide_id: frame.slide_id,
+          render_profile_digest: frame.slide_id === renderControls.proof_stale_slide_id
+            ? "d".repeat(64)
+            : renderControls.profile_digests_by_id[frame.presentation_profile.id],
+          layout: Object.freeze({ protected_geometry: frame.presentation_profile.protected_geometry }),
+        }))),
       });
     },
     async composeFramedHeaderOverlays(frames) {
@@ -91,7 +99,6 @@ vi.mock("../../ppt_maker_harness/scripts/03-framed-image/internal/framed_render_
       renderControls.browser_launches += 1;
       if (renderControls.composition_error) throw renderControls.composition_error;
       return Object.freeze({
-        render_profile_digest: renderControls.latest_profile_digest,
         final_bytes_by_slide: Object.freeze(Object.fromEntries(
           frames.map((frame) => [frame.slide_id, Buffer.from(frame.verified_raw.bytes)]),
         )),
@@ -104,6 +111,7 @@ import {
   authorizeFramedTargetRawPlan,
   buildFramedTargetDelivery,
   buildFramedTargetRawPlan,
+  createFramedTargetRawReviewContribution,
   decideFramedTargetRawReview,
   generateFramedTargetRawPlan,
   prepareFramedTargetRawReview,
@@ -165,7 +173,6 @@ production:
 ## Slide 01: \`DeckGo\`
 
 **TITLE**: Exact lifecycle proof
-**FRAME PRESET**: standard
 **SLIDE BODY**:
 \`\`\`yaml
 items:
@@ -186,7 +193,6 @@ negative_constraints:
 ## Slide 02: \`BodyMap\`
 
 **TITLE**: The batch stays bounded
-**FRAME PRESET**: standard
 **SLIDE BODY**:
 \`\`\`yaml
 items:
@@ -206,7 +212,7 @@ negative_constraints:
 `;
 }
 
-async function createFixture({ invalid = false } = {}) {
+async function createFixture({ invalid = false, mixedClasses = false } = {}) {
   const root = mkdtempSync(join(tmpdir(), "framed-plan-lifecycle-"));
   const deck = join(root, "deck_framed_plan_lifecycle");
   const runDir = join(deck, "3_versions", "v1");
@@ -216,7 +222,10 @@ async function createFixture({ invalid = false } = {}) {
   context.fillRect(0, 0, 2000, 1125);
   initBundle(deck, null, "keynote", "dark-executive");
   writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
-  writeFileSync(join(runDir, "slide-specifications.md"), source({ invalid }));
+  const sourceText = source({ invalid });
+  writeFileSync(join(runDir, "slide-specifications.md"), mixedClasses
+    ? sourceText.replace("**TITLE**: The batch stays bounded\n", "**TITLE**: The batch stays bounded\n**PAGE CLASS**: opening\n")
+    : sourceText);
   if (!invalid) await acceptLocalStyleMasterFixture(resolveFramedStyleMasterScope(runDir));
   return { root, deck, runDir, image: image.toBuffer("image/png"), paths: pageImageWorkflowPaths(runDir) };
 }
@@ -308,6 +317,7 @@ describe("Framed proof-before-materialization lifecycle", () => {
       composition_calls: 0,
       composition_error: null,
       latest_profile_digest: null,
+      profile_digests_by_id: {},
       profile_calls: 0,
       profile_digest_override: null,
       profile_error: null,
@@ -315,6 +325,7 @@ describe("Framed proof-before-materialization lifecycle", () => {
       proof_error: null,
       proof_error_before_launch: false,
       proof_batches: [],
+      proof_stale_slide_id: null,
       safe_zone_drift: false,
     });
     framedResolverControls.null_provider_clauses = false;
@@ -397,6 +408,42 @@ describe("Framed proof-before-materialization lifecycle", () => {
     }
   });
 
+  it("proves a mixed Page Class batch against each page profile and guide", async () => {
+    const fixture = await createFixture({ mixedClasses: true });
+    try {
+      const plan = await buildFramedTargetRawPlan(fixture.runDir);
+      const first = plan.provider_requests_by_slide.DeckGo.raw_contract.framed;
+      const second = plan.provider_requests_by_slide.BodyMap.raw_contract.framed;
+      const contribution = createFramedTargetRawReviewContribution({ receipt: plan.receipt, rawWorkPlan: plan.raw_work_plan });
+
+      expect(first.profile_id).toBe("standard");
+      expect(second.profile_id).toBe("opening");
+      expect(first.render_profile_digest).not.toBe(second.render_profile_digest);
+      expect(contribution.coverage.items.map((item) => item.coverage_profile_digest))
+        .toEqual([first.render_profile_digest, second.render_profile_digest]);
+      expect(renderControls.proof_calls).toBe(1);
+    } finally {
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
+  });
+
+  it("stops all materialization when one mixed-class proof page has a stale profile", async () => {
+    const fixture = await createFixture({ mixedClasses: true });
+    try {
+      renderControls.proof_stale_slide_id = "BodyMap";
+      const stateBefore = readFileSync(join(fixture.deck, "_state", "state.yaml"));
+
+      await expect(buildFramedTargetRawPlan(fixture.runDir)).rejects.toMatchObject({
+        code: "framed_render_profile_stale",
+      });
+      expectNoMaterialization(fixture, stateBefore);
+      expect(renderControls.proof_calls).toBe(1);
+      await expectNoProviderSubmit(fixture.runDir, fixture.image);
+    } finally {
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
+  });
+
   it("materializes one exact plan, keeps later raw commands browser-free, and binds one review composite before final delivery", async () => {
     const fixture = await createFixture();
     try {
@@ -445,6 +492,7 @@ describe("Framed proof-before-materialization lifecycle", () => {
         const request = plan.provider_requests_by_slide[slideId];
         const binding = plan.raw_work_plan.items.find((item) => item.slide_id === slideId).provider_input_binding;
         expect(rawContract.framed.render_profile_digest).toBe(renderControls.latest_profile_digest);
+        expect(rawContract.framed.presentation_binding_sha256).toBe(coreSlide.page_presentation_sha256);
         expect(validateFramedRawContract(rawContract)).toMatchObject({
           ok: true,
           raw_contract_sha256: plan.raw_work_plan.items.find((item) => item.slide_id === slideId).raw_contract_sha256,
@@ -457,17 +505,11 @@ describe("Framed proof-before-materialization lifecycle", () => {
           style_master_selection_sha256: coreSlide.style_master_selection_sha256,
           generation_profile_sha256: coreSlide.generation_profile_sha256,
           header_policy_sha256: coreSlide.header_policy_sha256,
-          deck_visual_system_sha256: null,
+          page_presentation_sha256: coreSlide.page_presentation_sha256,
           local_header_profile_sha256: rawContract.framed.render_profile_digest,
           protected_geometry_sha256: canonicalJsonSha256(rawContract.framed.protected_geometry),
         });
       }
-      const staleContract = structuredClone(rawContracts.DeckGo);
-      staleContract.framed.render_profile_digest = "d".repeat(64);
-      expect(validateFramedRawContract(staleContract)).toMatchObject({
-        ok: false,
-        code: "framed_raw_contract_profile_stale",
-      });
       const clauses = rawContracts.DeckGo.provider_clauses;
       const malformedClauses = [
         null,
@@ -823,8 +865,7 @@ describe("Framed proof-before-materialization lifecycle", () => {
       writeFileSync(
         join(fixture.runDir, "slide-specifications.md"),
         original
-          .replace("workflow: framed", "workflow: pure")
-          .replaceAll("**FRAME PRESET**: standard\n", ""),
+          .replace("workflow: framed", "workflow: pure"),
       );
       await expect(refreshFramedTargetText(fixture.runDir)).rejects.toMatchObject({
         code: "target_workflow_switch_structural_required",

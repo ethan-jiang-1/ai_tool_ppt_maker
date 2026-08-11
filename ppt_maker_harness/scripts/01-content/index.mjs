@@ -27,7 +27,7 @@ export {
 } from "./internal/slide_ids.mjs";
 
 export {
-  FRAMED_HEADER_PRESET,
+  PAGE_IMAGE_CLASSES,
   PAGE_IMAGE_WORKFLOW_SOURCE_RECEIPT_SCHEMA,
   PageImageSourceError,
   PROVIDER_CONTENT_COPY_POLICIES,

@@ -8,15 +8,20 @@ import {
   normalizePageImageProviderContent,
 } from "../../../ppt_maker_harness/scripts/shared/page-image/page_image_core.mjs";
 
-function visualSelection() {
+function visualSelection(workflow) {
   return {
     projection: { recipe: { id: "editorial-systems" } },
     provider_clauses: { recipe: "architectural editorial scene" },
+    presentation: {
+      workflow,
+      page_class: "standard",
+      binding_sha256: "c".repeat(64),
+    },
   };
 }
 
 function sourceReceipt({ workflow = "framed" } = {}) {
-  const selection = visualSelection();
+  const selection = visualSelection(workflow);
   return {
     schema: "page-image-workflow-source",
     pipeline: "page-image-workflow",
@@ -25,6 +30,7 @@ function sourceReceipt({ workflow = "framed" } = {}) {
     slides: [{
       slide_id: "DeckGo",
       position: 1,
+      page_class: "standard",
       provider_content: {
         items: [
           { role: "metric", literal: "92%", copy_policy: "exact" },
@@ -33,7 +39,6 @@ function sourceReceipt({ workflow = "framed" } = {}) {
       },
       header_policy: workflow === "framed"
         ? {
-          frame_preset: "standard",
           local_header: { kicker: "Operations", title: "A current source", subtitle: null },
           context_not_to_render: { kicker: "Operations", title: "A current source", subtitle: null },
         }
@@ -50,7 +55,6 @@ function coreInputs(receipt) {
     styleMasterSelection: { workflow: receipt.workflow, selection_sha256: "b".repeat(64) },
     generationProfile: { provider: { model: "gpt-image-2" }, output: { format: "png" } },
     headerRenderingPolicy: { workflow: receipt.workflow, policy: receipt.workflow === "framed" ? "local-transparent-overlay" : "provider-visible" },
-    deckVisualSystemSha256: receipt.workflow === "pure" ? "c".repeat(64) : null,
   };
 }
 
@@ -85,8 +89,8 @@ describe("Page Image Core", () => {
     expect(framed.slides[0].provider_content).toEqual(pure.slides[0].provider_content);
     expect(framed.slides[0].header_policy).toHaveProperty("context_not_to_render");
     expect(pure.slides[0].header_policy).toHaveProperty("provider_visible");
-    expect(framed.slides[0].deck_visual_system_sha256).toBeNull();
-    expect(pure.slides[0].deck_visual_system_sha256).toBe("c".repeat(64));
+    expect(framed.slides[0].page_presentation_sha256).toBe("c".repeat(64));
+    expect(pure.slides[0].page_presentation_sha256).toBe("c".repeat(64));
   });
 
   it("owns literal-policy validation and normalizes exact as the default", () => {
@@ -104,10 +108,9 @@ describe("Page Image Core", () => {
     const receipt = sourceReceipt();
     const visualMismatch = coreInputs(receipt);
     visualMismatch.visualSelections[0] = { slide_id: "DeckGo", selection: { projection: { recipe: { id: "other" } } } };
-    expect(() => createPageImageCoreFacts(visualMismatch)).toThrow(/exactly match/);
+    expect(() => createPageImageCoreFacts(visualMismatch)).toThrow(/presentation facts/);
 
     expect(() => normalizePageImageHeaderPolicy({
-      frame_preset: "standard",
       local_header: { kicker: null, title: "A title", subtitle: null },
       context_not_to_render: { kicker: null, title: "A different title", subtitle: null },
     }, "framed")).toThrow(/same exact literals/);
@@ -116,8 +119,8 @@ describe("Page Image Core", () => {
     scopeMismatch.styleMasterSelection.workflow = "pure";
     expect(() => createPageImageCoreFacts(scopeMismatch)).toThrow(/does not bind/);
 
-    const missingPureSystem = coreInputs(sourceReceipt({ workflow: "pure" }));
-    missingPureSystem.deckVisualSystemSha256 = null;
-    expect(() => createPageImageCoreFacts(missingPureSystem)).toThrow(/deck visual-system digest/);
+    const missingPresentation = coreInputs(sourceReceipt({ workflow: "pure" }));
+    delete missingPresentation.visualSelections[0].selection.presentation;
+    expect(() => createPageImageCoreFacts(missingPresentation)).toThrow(/presentation facts/);
   });
 });

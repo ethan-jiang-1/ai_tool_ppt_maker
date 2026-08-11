@@ -10,7 +10,7 @@ import {
   FRAMED_HEADER_OVERLAY_LAYOUT_COMPILER_COHERENCE_HISTORY,
   FRAMED_HEADER_OVERLAY_RENDER_PROFILE_SCHEMA,
 } from '../../ppt_maker_harness/scripts/03-framed-image/internal/framed_render_profile.mjs';
-import { FRAMED_HEADER_OVERLAY_STANDARD } from '../../ppt_maker_harness/scripts/03-framed-image/internal/header_overlay.mjs';
+import { framedRenderProfileFacts } from '../helpers/framed_presentation_profile.mjs';
 import { canonicalJsonSha256 } from '../../ppt_maker_harness/scripts/shared/identity/canonical_json.mjs';
 
 const fontRenderInventory = Object.freeze({
@@ -27,7 +27,7 @@ const fontRenderInventory = Object.freeze({
 
 function profile(input = {}) {
   return createFramedHeaderOverlayRenderProfile({
-    preset: FRAMED_HEADER_OVERLAY_STANDARD,
+    preset: framedRenderProfileFacts(),
     layoutCompiler: FRAMED_HEADER_OVERLAY_LAYOUT_COMPILER,
     fontRenderInventory,
     fontSelectionAlgorithm: FRAMED_FONT_SELECTION_ALGORITHM,
@@ -42,7 +42,7 @@ describe('Framed header-overlay render profile', () => {
     expect(profile()).toMatchObject({
       schema: FRAMED_HEADER_OVERLAY_RENDER_PROFILE_SCHEMA,
       preset: { id: 'standard', digest: expect.any(String) },
-      protected_geometry: FRAMED_HEADER_OVERLAY_STANDARD.protected_geometry,
+      protected_geometry: framedRenderProfileFacts().protected_geometry,
       layout_compiler: FRAMED_HEADER_OVERLAY_LAYOUT_COMPILER,
       font_render_inventory: { schema: fontRenderInventory.schema, digest: expect.any(String) },
       font_selection_algorithm: FRAMED_FONT_SELECTION_ALGORITHM,
@@ -65,23 +65,23 @@ describe('Framed header-overlay render profile', () => {
 
   it.each([
     ['transparent header preset', () => {
-      const preset = structuredClone(FRAMED_HEADER_OVERLAY_STANDARD);
+      const preset = structuredClone(framedRenderProfileFacts());
       preset.theme.contrast.opacity = 0.33;
       return { preset };
     }],
     ['protected geometry', () => {
-      const preset = structuredClone(FRAMED_HEADER_OVERLAY_STANDARD);
+      const preset = structuredClone(framedRenderProfileFacts());
       preset.protected_geometry[0].height -= 1;
       return { preset };
     }],
-    ['layout compiler', () => ({ layoutCompiler: { ...FRAMED_HEADER_OVERLAY_LAYOUT_COMPILER, version: '3' } })],
+    ['layout compiler', () => ({ layoutCompiler: { ...FRAMED_HEADER_OVERLAY_LAYOUT_COMPILER, version: '4' } })],
     ['font render inventory', () => ({
       fontRenderInventory: {
         ...fontRenderInventory,
         faces: fontRenderInventory.faces.map((face, index) => index === 0 ? { ...face, sha256: 'c'.repeat(64) } : face),
       },
     })],
-    ['font selection algorithm', () => ({ fontSelectionAlgorithm: 'pptmaker-framed-font-selection' })],
+    ['font selection algorithm', () => ({ fontSelectionAlgorithm: 'different-framed-font-selection' })],
     ['pinned runtime', () => ({ runtime: { ...HTML_RUNTIME_PROFILE, chromiumBrowserVersion: '149.0.7827.56' } })],
     ['capture profile', () => ({ capture: { ...HTML_CAPTURE_PROFILE, reencode: 'different-pixel-capture' } })],
   ])('changes its digest when %s changes', (_name, changed) => {
@@ -89,17 +89,17 @@ describe('Framed header-overlay render profile', () => {
   });
 
   it('rejects opaque-panel and local-callout preset escape hatches', () => {
-    const panelPreset = structuredClone(FRAMED_HEADER_OVERLAY_STANDARD);
+    const panelPreset = structuredClone(framedRenderProfileFacts());
     panelPreset.theme.panel = '#ffffff';
     expect(() => profile({ preset: panelPreset })).toThrow(/preset.theme must contain only/);
 
-    const calloutPreset = structuredClone(FRAMED_HEADER_OVERLAY_STANDARD);
+    const calloutPreset = structuredClone(framedRenderProfileFacts());
     calloutPreset.fields.callout = { ...calloutPreset.fields.title };
     expect(() => profile({ preset: calloutPreset })).toThrow(/preset.fields must contain only/);
   });
 
   it('requires a new compiler identity when the canonical geometry fixture changes', () => {
-    const actualFixtureDigest = canonicalJsonSha256(compileFramedHeaderOverlayGeometry());
+    const actualFixtureDigest = canonicalJsonSha256(compileFramedHeaderOverlayGeometry({ preset: framedRenderProfileFacts() }));
     const current = FRAMED_HEADER_OVERLAY_LAYOUT_COMPILER_COHERENCE_HISTORY.at(-1);
     expect(current).toEqual({ version: FRAMED_HEADER_OVERLAY_LAYOUT_COMPILER.version, fixture_sha256: actualFixtureDigest });
     expect(new Set(FRAMED_HEADER_OVERLAY_LAYOUT_COMPILER_COHERENCE_HISTORY.map((entry) => entry.version)).size)

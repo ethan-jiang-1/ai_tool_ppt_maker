@@ -12,6 +12,12 @@ const ACTIVE_ROOTS = [HARNESS, join(ROOT, "tests"), join(ROOT, "tests_e2e")];
 const TEXT_FILE = /\.(?:mjs|md|json|yaml)$/;
 const CONTRACT_VALUE = /^(?:page-image|pptmaker|image2-page|mnemonic|standard)(?:-|$)/;
 const VERSIONED_CONTRACT = /\b(?:page-image|pptmaker|image2-page|mnemonic|standard)[a-z0-9-]*-v[1-9][0-9]*\b/g;
+const PAGE_IMAGE_PRESENTATION_CONTRACTS = [
+  "pptmaker-page-image-class-catalog",
+  "pptmaker-page-image-deck-defaults",
+  "pptmaker-pure-deck-visual-system",
+  "pptmaker-framed-header-profiles",
+];
 
 function walk(root, files = []) {
   for (const name of readdirSync(root)) {
@@ -39,8 +45,8 @@ function sourceAnchorExists(anchor) {
 
 function fieldAssignments(path, text) {
   const fields = [];
-  const quoted = /["']?(schema|pipeline|mode|adapter|scheme|frame_preset)["']?\s*[:=]\s*["']([a-z][a-z0-9-]*)["']/g;
-  const yamlBare = /(?:^|\n)\s*(schema|pipeline|mode|adapter|scheme|frame_preset)\s*:\s*([a-z][a-z0-9-]*)\b/gm;
+  const quoted = /["']?(schema|pipeline|mode|adapter|scheme)["']?\s*[:=]\s*["']([a-z][a-z0-9-]*)["']/g;
+  const yamlBare = /(?:^|\n)\s*(schema|pipeline|mode|adapter|scheme)\s*:\s*([a-z][a-z0-9-]*)\b/gm;
   for (const pattern of [quoted, yamlBare]) {
     for (const match of text.matchAll(pattern)) {
       if (CONTRACT_VALUE.test(match[2])) fields.push({ field: match[1], value: match[2], location: relative(ROOT, path) });
@@ -94,5 +100,22 @@ describe("production schema conformance", () => {
       "contract-field-undeclared",
       "version-suffixed-production-literal",
     ]));
+  });
+
+  it("declares C4 presentation contracts only as materialized layout config", () => {
+    const inventory = yaml(join(SCHEMA_HOME, "serialization-contracts.yaml"));
+    const layoutConfig = inventory.wire_schema_groups.find((group) => group.stage_ref === "layout-config");
+    const visualLanguage = inventory.wire_schema_groups.find((group) => group.stage_ref === "visual-language");
+
+    expect(layoutConfig).toMatchObject({ role: "version-presentation-source" });
+    expect(layoutConfig.values).toEqual(PAGE_IMAGE_PRESENTATION_CONTRACTS);
+    expect(visualLanguage.values).not.toContain("pptmaker-pure-deck-visual-system");
+    expect(inventory.selectors).not.toHaveProperty("framed_header_preset");
+
+    for (const stage of ["page-source", "layout-config", "page-layout"]) {
+      const definition = yaml(join(SCHEMA_HOME, "stages", `${stage}.yaml`));
+      expect(definition).toMatchObject({ schema: stage, producer_status: "materialized" });
+      expect(definition).not.toHaveProperty("route_ref");
+    }
   });
 });

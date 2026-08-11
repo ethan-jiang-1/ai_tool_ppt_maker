@@ -18,6 +18,7 @@ export const PAGE_IMAGE_CORE_COPY_POLICIES = Object.freeze(["exact", "presentati
 const SHA256_RE = /^[0-9a-f]{64}$/;
 const WORKFLOWS = new Set(["framed", "pure"]);
 const HEADER_KEYS = Object.freeze(["kicker", "title", "subtitle"]);
+const PAGE_CLASSES = new Set(["standard", "opening", "transition", "closing"]);
 
 export class PageImageCoreError extends Error {
   constructor(code, message, details = {}) {
@@ -128,9 +129,8 @@ export function normalizePageImageHeaderPolicy(value, workflow) {
     throw new PageImageCoreError("page_image_core_workflow_invalid", "Header Rendering Policy requires workflow framed or pure", { actual: workflow });
   }
   if (workflow === "framed") {
-    if (!hasExactKeys(value, ["frame_preset", "local_header", "context_not_to_render"]) ||
-      typeof value.frame_preset !== "string" || !value.frame_preset) {
-      throw new PageImageCoreError("page_image_core_framed_header_policy_invalid", "Framed Header Rendering Policy requires frame_preset, local_header, and context_not_to_render");
+    if (!hasExactKeys(value, ["local_header", "context_not_to_render"])) {
+      throw new PageImageCoreError("page_image_core_framed_header_policy_invalid", "Framed Header Rendering Policy requires local_header and context_not_to_render");
     }
     const localHeader = normalizeHeaderValues(value.local_header, "local_header", { requireTitle: true });
     const contextNotToRender = normalizeHeaderValues(value.context_not_to_render, "context_not_to_render", { requireTitle: true });
@@ -138,7 +138,6 @@ export function normalizePageImageHeaderPolicy(value, workflow) {
       throw new PageImageCoreError("page_image_core_framed_header_context_mismatch", "Framed local header and context_not_to_render must contain the same exact literals");
     }
     return deepFreeze({
-      frame_preset: value.frame_preset,
       local_header: localHeader,
       context_not_to_render: contextNotToRender,
     });
@@ -162,6 +161,11 @@ function normalizeVisualSelections(sourceReceipt, visualSelections) {
     if (entry.selection.projection?.workflow && entry.selection.projection.workflow !== sourceReceipt.workflow) {
       throw new PageImageCoreError("page_image_core_visual_workflow_mismatch", "selected visual facts do not bind the source workflow", { slide_id: sourceSlide.slide_id });
     }
+    const presentation = entry.selection.presentation;
+    if (!isPlainObject(presentation) || presentation.workflow !== sourceReceipt.workflow ||
+      presentation.page_class !== sourceSlide.page_class || !SHA256_RE.test(presentation.binding_sha256 || "")) {
+      throw new PageImageCoreError("page_image_core_presentation_mismatch", "selected presentation facts must bind the source workflow, class, and canonical projection", { slide_id: sourceSlide.slide_id });
+    }
     if (!isPlainObject(sourceSlide.visual_language) || canonicalJson(entry.selection) !== canonicalJson(sourceSlide.visual_language)) {
       throw new PageImageCoreError("page_image_core_visual_selection_mismatch", "selected visual facts must exactly match the current source receipt", { slide_id: sourceSlide.slide_id });
     }
@@ -182,6 +186,7 @@ function requireCurrentReceipt(sourceReceipt, headerRenderingPolicy) {
   const stableIds = new Set();
   const normalizedSlides = sourceReceipt.slides.map((slide, index) => {
     if (!isPlainObject(slide) || typeof slide.slide_id !== "string" || !slide.slide_id || slide.position !== index + 1 ||
+      !PAGE_CLASSES.has(slide.page_class) ||
       Object.hasOwn(slide, "workflow") || Object.hasOwn(slide, "authority")) {
       throw new PageImageCoreError("page_image_core_source_slide_invalid", "source receipt must contain ordered stable slide IDs with no per-slide workflow", { index });
     }
@@ -192,6 +197,7 @@ function requireCurrentReceipt(sourceReceipt, headerRenderingPolicy) {
     return {
       slide_id: slide.slide_id,
       position: slide.position,
+      page_class: slide.page_class,
       provider_content: normalizePageImageProviderContent(slide.provider_content),
       header_policy: normalizePageImageHeaderPolicy(slide.header_policy, sourceReceipt.workflow),
       visual_language: slide.visual_language,
@@ -211,7 +217,6 @@ export function createPageImageCoreFacts({
   styleMasterSelection,
   generationProfile,
   headerRenderingPolicy,
-  deckVisualSystemSha256 = null,
 } = {}) {
   const source = requireCurrentReceipt(sourceReceipt, headerRenderingPolicy);
   if (!isPlainObject(styleMasterSelection)) {
@@ -225,13 +230,6 @@ export function createPageImageCoreFacts({
   }
   assertJsonValue(styleMasterSelection, "styleMasterSelection");
   assertJsonValue(generationProfile, "generationProfile");
-  assertSha256(deckVisualSystemSha256, "deckVisualSystemSha256", { nullable: true });
-  if (source.workflow === "pure" && deckVisualSystemSha256 === null) {
-    throw new PageImageCoreError("page_image_core_pure_visual_system_required", "Pure Page Image Core requires one deck visual-system digest");
-  }
-  if (source.workflow === "framed" && deckVisualSystemSha256 !== null) {
-    throw new PageImageCoreError("page_image_core_framed_visual_system_forbidden", "Framed Page Image Core cannot receive a Pure deck visual-system digest");
-  }
   const visuals = normalizeVisualSelections(sourceReceipt, visualSelections);
   const visualById = new Map(visuals.map((entry) => [entry.slide_id, entry.selection]));
   const styleMasterSelectionSha256 = canonicalJsonSha256(styleMasterSelection);
@@ -243,16 +241,17 @@ export function createPageImageCoreFacts({
       workflow: source.workflow,
       slide_id: slide.slide_id,
       position: slide.position,
+      page_class: slide.page_class,
       provider_content: slide.provider_content,
       provider_content_sha256: canonicalJsonSha256(slide.provider_content),
       header_policy: slide.header_policy,
       header_policy_sha256: canonicalJsonSha256(slide.header_policy),
       visual_selection: visualById.get(slide.slide_id),
       visual_selection_sha256: canonicalJsonSha256(visualById.get(slide.slide_id)),
+      page_presentation_sha256: visualById.get(slide.slide_id).presentation.binding_sha256,
       style_master_selection_sha256: styleMasterSelectionSha256,
       generation_profile_sha256: generationProfileSha256,
       header_rendering_policy_sha256: headerRenderingPolicySha256,
-      deck_visual_system_sha256: deckVisualSystemSha256,
     };
     const canonicalSemanticJson = canonicalJson(semantic);
     return {
@@ -271,7 +270,6 @@ export function createPageImageCoreFacts({
     style_master_selection_sha256: styleMasterSelectionSha256,
     generation_profile_sha256: generationProfileSha256,
     header_rendering_policy_sha256: headerRenderingPolicySha256,
-    deck_visual_system_sha256: deckVisualSystemSha256,
     slides,
   };
   const canonicalFactsJson = canonicalJson(facts);
@@ -306,7 +304,7 @@ export function createPageImageProviderInputBinding({
   ]) {
     assertSha256(coreSlide[field], `coreSlide.${field}`);
   }
-  assertSha256(coreSlide.deck_visual_system_sha256, "coreSlide.deck_visual_system_sha256", { nullable: true });
+  assertSha256(coreSlide.page_presentation_sha256, "coreSlide.page_presentation_sha256");
   assertSha256(compiledProviderInputSha256, "compiledProviderInputSha256");
   assertSha256(localHeaderProfileSha256, "localHeaderProfileSha256", { nullable: true });
   assertSha256(protectedGeometrySha256, "protectedGeometrySha256", { nullable: true });
@@ -316,12 +314,6 @@ export function createPageImageProviderInputBinding({
   if (coreSlide.workflow === "pure" && (localHeaderProfileSha256 !== null || protectedGeometrySha256 !== null)) {
     throw new PageImageCoreError("page_image_core_pure_binding_invalid", "Pure provider input binding cannot contain Framed profile or geometry digests");
   }
-  if (coreSlide.workflow === "pure" && coreSlide.deck_visual_system_sha256 === null) {
-    throw new PageImageCoreError("page_image_core_pure_binding_invalid", "Pure provider input binding requires a deck visual-system digest");
-  }
-  if (coreSlide.workflow === "framed" && coreSlide.deck_visual_system_sha256 !== null) {
-    throw new PageImageCoreError("page_image_core_framed_binding_invalid", "Framed provider input binding cannot contain a Pure deck visual-system digest");
-  }
   return deepFreeze({
     compiled_provider_input_sha256: compiledProviderInputSha256,
     provider_content_sha256: coreSlide.provider_content_sha256,
@@ -329,7 +321,7 @@ export function createPageImageProviderInputBinding({
     style_master_selection_sha256: coreSlide.style_master_selection_sha256,
     generation_profile_sha256: coreSlide.generation_profile_sha256,
     header_policy_sha256: coreSlide.header_policy_sha256,
-    deck_visual_system_sha256: coreSlide.deck_visual_system_sha256,
+    page_presentation_sha256: coreSlide.page_presentation_sha256,
     local_header_profile_sha256: localHeaderProfileSha256,
     protected_geometry_sha256: protectedGeometrySha256,
   });

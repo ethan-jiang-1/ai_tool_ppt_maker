@@ -26,9 +26,15 @@ export {
 } from "./internal/page_image_reference_material.mjs";
 
 export {
-  PURE_DECK_VISUAL_SYSTEM_RELATIVE_PATH,
   PURE_DECK_VISUAL_SYSTEM_SCHEMA,
   PureDeckVisualSystemError,
-  loadPureDeckVisualSystem,
-  parsePureDeckVisualSystem,
+  parsePureDeckVisualProfile,
 } from "./internal/pure_deck_visual_system.mjs";
+
+export {
+  PAGE_IMAGE_PRESENTATION_FILES,
+  PAGE_IMAGE_PRESENTATION_SCHEMA,
+  PageImagePresentationError,
+  loadPageImagePresentationPackage,
+  resolvePageImagePresentation,
+} from "./internal/page_image_presentation.mjs";

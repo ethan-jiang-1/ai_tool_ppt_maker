@@ -31,6 +31,12 @@ slide inherits it. Both policies bind Provider-rendered body content; Framed
 adds only a transparent local header overlay. Do not add a slide-specific workflow field; a
 Framed/Pure switch is a Structural Versioning Path decision.
 
+For a page whose narrative role may benefit from it, the Agent may recommend
+one `PAGE CLASS`: `opening`, `transition`, or `closing`. The author chooses
+whether to write it; omission silently means `standard`. It is neither inferred
+from position/content nor a confirmation, acceptance, or authoring gate. Page
+Class is the only per-page presentation selector, never a per-page workflow.
+
 Do not put visual selections in Design Constraints, or page class, geometry, and
 density policy in either narrative source. Do not author arbitrary markup,
 coordinates, local rendering controls, free-form provider prompts, or hand-edited

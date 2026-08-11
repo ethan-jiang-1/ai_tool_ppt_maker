@@ -143,12 +143,15 @@ describe("Page Image schema definitions", () => {
     ]);
   });
 
-  it("keeps C4-C5 planned stages declarative without a runtime substitute", () => {
+  it("materializes C4 ownership while keeping C5 per-page publication planned", () => {
     const flow = parseYamlFile(join(SCHEMA_ROOT, "flow.yaml"));
-    const planned = [
+    const flowEntries = [
       ...(flow?.sources || []),
       ...(flow?.transformations || []),
-    ].filter((entry) => ["C4", "C5"].includes(entry.route_ref));
+    ];
+    const planned = flowEntries.filter((entry) => entry.route_ref === "C5");
+    const materializedC4 = flowEntries.filter((entry) =>
+      entry.schema === "layout-config" || entry.name === "resolve-page-layout");
     const scriptFiles = walkFiles(join(process.cwd(), "ppt_maker_harness", "scripts"));
     const runtimeText = scriptFiles
       .filter((path) => !path.endsWith("shared/run-bundle/bundle_layout.mjs"))
@@ -159,9 +162,11 @@ describe("Page Image schema definitions", () => {
     const cliText = readFileSync(join(process.cwd(), "ppt_maker_harness", "scripts", "ppt_flow.mjs"), "utf8");
 
     expect(planned.length).toBeGreaterThan(0);
-    expect(planned.every((entry) => entry.producer_status === "planned" && /^C[4-5]$/.test(entry.route_ref))).toBe(true);
-    expect(runtimeText).not.toMatch(/\bpage_class\b|\bpage-(?:layout|render-model|artifact-index)\b/);
-    expect(stateText).not.toMatch(/\bpage_class\b|\b(?:story-outline|design-constraints|layout-config|page-layout|page-render-model|page-artifact-index)\b/);
+    expect(planned.every((entry) => entry.producer_status === "planned" && entry.route_ref === "C5")).toBe(true);
+    expect(materializedC4).toHaveLength(2);
+    expect(materializedC4.every((entry) => entry.producer_status === "materialized" && !Object.hasOwn(entry, "route_ref"))).toBe(true);
+    expect(runtimeText).toMatch(/\bpage_class\b/);
+    expect(stateText).not.toMatch(/\bpage_class\b|\b(?:layout-config|page-layout|page-render-model|page-artifact-index)\b/);
     expect(cliText).not.toMatch(/\bpage_class\b|\b(?:layout-config|page-layout|page-render-model|page-artifact-index)\b/);
   });
 

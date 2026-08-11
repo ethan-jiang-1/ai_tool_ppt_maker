@@ -40,9 +40,7 @@ async function createSelectedTargetFixture(workflow) {
   const runDir = join(deck, "3_versions", "v1");
   initBundle(deck, null, "keynote", "dark-executive");
   writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), pngBytes());
-  const header = workflow === "framed"
-    ? "**KICKER**: Operations\n**SUBTITLE**: Current provider-rendered page composition\n**FRAME PRESET**: standard\n"
-    : "**KICKER**: Operations\n**SUBTITLE**: Current provider-rendered page composition\n";
+  const header = "**KICKER**: Operations\n**SUBTITLE**: Current provider-rendered page composition\n";
   const source = `---
 identity:
   scheme: mnemonic

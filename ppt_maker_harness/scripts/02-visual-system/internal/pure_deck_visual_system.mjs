@@ -1,18 +1,6 @@
-import { lstatSync, readFileSync, realpathSync } from "node:fs";
-import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { isAlias, isMap, isScalar, isSeq, parseDocument } from "yaml";
 
-import { canonicalJsonSha256 } from "../../contracts/canonical_json.mjs";
-import {
-  BACKBONE_DIR,
-  BACKBONE_STYLE_SUBDIR,
-  OVERRIDES_SUBDIR,
-  PURE_DECK_VISUAL_SYSTEM_FILE,
-  pureDeckVisualSystemAsset,
-} from "../../shared/run-bundle/bundle_layout.mjs";
-
 export const PURE_DECK_VISUAL_SYSTEM_SCHEMA = "pptmaker-pure-deck-visual-system";
-export const PURE_DECK_VISUAL_SYSTEM_RELATIVE_PATH = `2_backbone/visual-style/${PURE_DECK_VISUAL_SYSTEM_FILE}`;
 
 const FONT_VOICES = Object.freeze(["editorial-serif", "editorial-sans", "geometric-sans", "humanist-sans"]);
 const TYPE_TIERS = Object.freeze({
@@ -38,7 +26,7 @@ const LAYOUT_FAMILIES = Object.freeze([
   "process",
   "quote-led",
 ]);
-const TOP_LEVEL_KEYS = Object.freeze(["schema", "revision", "typography", "colour_use", "layout"]);
+const PROFILE_KEYS = Object.freeze(["typography", "colour_use", "layout"]);
 const VOICES_KEYS = Object.freeze(["display", "text"]);
 const HIERARCHY_KEYS = Object.freeze([
   "kicker",
@@ -262,8 +250,8 @@ function parseLayout(node, issues) {
   };
 }
 
-/** Parse one closed, content-neutral Pure deck visual-system source document. */
-export function parsePureDeckVisualSystem(raw, { source = PURE_DECK_VISUAL_SYSTEM_RELATIVE_PATH } = {}) {
+/** Parse one selected, content-neutral Pure presentation profile. */
+export function parsePureDeckVisualProfile(raw, { source = "pure profile" } = {}) {
   let document;
   try {
     document = parseDocument(raw, {
@@ -278,80 +266,12 @@ export function parsePureDeckVisualSystem(raw, { source = PURE_DECK_VISUAL_SYSTE
   }
   const issues = [...document.errors, ...document.warnings]
     .map((error) => issue("invalid_pure_visual_system_yaml", error.message.split("\n")[0], { source }));
-  const root = exactMap(document.contents, TOP_LEVEL_KEYS, "pure deck visual system", issues);
-  const schema = parseString(root.get("schema"), "schema", issues);
-  if (schema !== PURE_DECK_VISUAL_SYSTEM_SCHEMA) {
-    issues.push(issue("invalid_pure_visual_system_schema", `schema must equal ${PURE_DECK_VISUAL_SYSTEM_SCHEMA}`, { source, path: "schema", actual: schema, expected: PURE_DECK_VISUAL_SYSTEM_SCHEMA }));
-  }
-  const revisionNode = root.get("revision");
-  const revision = isScalar(revisionNode) && revisionNode.type === "PLAIN" && !revisionNode.anchor && !revisionNode.tag && Number.isInteger(revisionNode.value)
-    ? revisionNode.value : null;
-  if (revision !== 1) issues.push(issue("invalid_pure_visual_system_revision", "revision must equal 1", { source, path: "revision", actual: revisionNode?.value, expected: 1 }));
+  const root = exactMap(document.contents, PROFILE_KEYS, "pure presentation profile", issues);
   const projection = {
-    schema,
-    revision,
     typography: parseTypography(root.get("typography"), issues),
     colour_use: parseColourUse(root.get("colour_use"), issues),
     layout: parseLayout(root.get("layout"), issues),
   };
   if (issues.length > 0) throw new PureDeckVisualSystemError(issues);
   return deepFreeze(projection);
-}
-
-function isWithin(root, candidate) {
-  const relation = relative(root, candidate);
-  return relation === "" || (!relation.startsWith(`..${sep}`) && relation !== ".." && !isAbsolute(relation));
-}
-
-function selectedSourcePath(runDir) {
-  if (typeof runDir !== "string" || !runDir) throw new TypeError("runDir must be a non-empty path");
-  const resolvedRunDir = resolve(runDir);
-  const deckDir = resolve(resolvedRunDir, "..", "..");
-  const overridePath = resolve(resolvedRunDir, OVERRIDES_SUBDIR, BACKBONE_STYLE_SUBDIR, PURE_DECK_VISUAL_SYSTEM_FILE);
-  const backbonePath = resolve(deckDir, BACKBONE_DIR, BACKBONE_STYLE_SUBDIR, PURE_DECK_VISUAL_SYSTEM_FILE);
-  const sourcePath = pureDeckVisualSystemAsset(resolvedRunDir);
-  if (sourcePath !== overridePath && sourcePath !== backbonePath) {
-    throw new PureDeckVisualSystemError(issue("pure_visual_system_source_path_invalid", "Pure deck visual-system source must resolve through the canonical override-or-backbone path", { actual: sourcePath }));
-  }
-  return { runDir: resolvedRunDir, deckDir, sourcePath, styleDir: dirname(sourcePath), ownerDir: sourcePath === overridePath ? resolvedRunDir : deckDir };
-}
-
-function readConfinedSource(runDir) {
-  const selected = selectedSourcePath(runDir);
-  let sourceStat;
-  try {
-    sourceStat = lstatSync(selected.sourcePath);
-  } catch (error) {
-    throw new PureDeckVisualSystemError(issue("pure_visual_system_source_missing", "Pure deck visual-system source is unavailable; repair the owned visual-style source and rerun", { source: selected.sourcePath, actual: error.code }));
-  }
-  if (!sourceStat.isFile()) {
-    throw new PureDeckVisualSystemError(issue("pure_visual_system_source_invalid", "Pure deck visual-system source must be one regular owned file", { source: selected.sourcePath }));
-  }
-  let ownerReal;
-  let styleReal;
-  let sourceReal;
-  try {
-    ownerReal = realpathSync.native(selected.ownerDir);
-    styleReal = realpathSync.native(selected.styleDir);
-    sourceReal = realpathSync.native(selected.sourcePath);
-  } catch (error) {
-    throw new PureDeckVisualSystemError(issue("pure_visual_system_source_unavailable", "Pure deck visual-system source cannot be resolved safely", { source: selected.sourcePath, actual: error.code }));
-  }
-  if (!isWithin(ownerReal, styleReal) || sourceReal !== join(styleReal, PURE_DECK_VISUAL_SYSTEM_FILE)) {
-    throw new PureDeckVisualSystemError(issue("pure_visual_system_source_escape", "Pure deck visual-system source escapes its selected visual-style owner", { source: selected.sourcePath }));
-  }
-  let raw;
-  try {
-    raw = new TextDecoder("utf-8", { fatal: true }).decode(readFileSync(selected.sourcePath));
-  } catch (error) {
-    throw new PureDeckVisualSystemError(issue("pure_visual_system_source_unreadable", "Pure deck visual-system source cannot be read as UTF-8", { source: selected.sourcePath, actual: error.code }));
-  }
-  return { raw, sourcePath: selected.sourcePath };
-}
-
-/** Resolve the current run's selected Pure source into an immutable projection and digest. */
-export function loadPureDeckVisualSystem(runDir) {
-  const { raw, sourcePath } = readConfinedSource(runDir);
-  const projection = parsePureDeckVisualSystem(raw, { source: sourcePath });
-  return deepFreeze({ projection, sha256: canonicalJsonSha256(projection) });
 }

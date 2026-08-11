@@ -1,4 +1,5 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import { join, relative } from "node:path";
 import { describe, expect, it } from "vitest";
 import { EXECUTABLE_INVENTORY } from "../../ppt_maker_harness/scripts/contracts/executable_inventory.mjs";
 import {
@@ -78,6 +79,15 @@ function canonicalSnapshot() {
 
 function issueCodes(result) {
   return result.issues.map((issue) => issue.code);
+}
+
+function walkHarnessScripts(root, files = []) {
+  for (const name of readdirSync(root)) {
+    const path = join(root, name);
+    if (statSync(path).isDirectory()) walkHarnessScripts(path, files);
+    else if (path.endsWith(".mjs")) files.push(path);
+  }
+  return files;
 }
 
 describe("Harness architecture contract", () => {
@@ -287,6 +297,25 @@ describe("Harness architecture contract", () => {
       const imports = collectLiteralImports(readFileSync(path, "utf8"));
       expect(imports.filter((specifier) => !specifier.startsWith(".") && !specifier.startsWith("node:")), path).toEqual([]);
     }
+  });
+
+  it("keeps C4 presentation selection in Visual Config with no retired control path", () => {
+    const harnessRoot = join(process.cwd(), "ppt_maker_harness");
+    const retiredTokens = /FRAME PRESET|frame_preset|framed_header_preset|pure-deck-visual-system-v1|pure_deck_visual_system_v1/i;
+    const occurrences = walkHarnessScripts(join(harnessRoot, "scripts"))
+      .flatMap((path) => retiredTokens.test(readFileSync(path, "utf8")) ? [relative(process.cwd(), path)] : []);
+    expect(occurrences).toEqual([]);
+
+    const resolver = readFileSync(join(harnessRoot, "scripts", "02-visual-system", "internal", "page_image_presentation.mjs"), "utf8");
+    const framedAdapter = readFileSync(join(harnessRoot, "scripts", "03-framed-image", "index.mjs"), "utf8");
+    const pureAdapter = readFileSync(join(harnessRoot, "scripts", "04-pure-image", "index.mjs"), "utf8");
+    const overlay = readFileSync(join(harnessRoot, "scripts", "03-framed-image", "internal", "header_overlay.mjs"), "utf8");
+
+    expect(resolver).toContain("PAGE_IMAGE_PRESENTATION_FILES");
+    expect(resolver).toContain('Object.hasOwn(value, "revision")');
+    expect(framedAdapter).toContain("resolvePageImagePresentation");
+    expect(pureAdapter).toContain("resolvePageImagePresentation");
+    expect(overlay).not.toMatch(/standard/);
   });
 
   it("enforces the final architecture against the real repository tree", () => {
