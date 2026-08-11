@@ -1,6 +1,6 @@
 # Progressive Plan: Schema-First Page Image Recovery
 
-> Type: progressive coordination plan | Updated: 2026-08-11 | Status: active (C1 archived; C2 is being replanned for a clean cutover)
+> Type: progressive coordination plan | Updated: 2026-08-11 | Status: active (C1 and C2 archived; C3 proposal in progress)
 >
 > **This is the only route document for Page Image recovery.** Three earlier
 > plans were closed on 2026-08-11 as CLS-025/026/027; everything from them that
@@ -11,9 +11,9 @@
 > [framed-provider-capability-discovery-research.md](framed-provider-capability-discovery-research.md).
 
 > **Current decision override.** The earlier frozen-identifier and
-> compatibility-preservation conclusions in this plan are superseded. C2 is a
-> one-contract clean cutover: active historical `*-vN` names are removed rather
-> than preserved. Apply the decision procedure in
+> compatibility-preservation conclusions in this plan are superseded. C2
+> completed the one-contract clean cutover: active historical `*-vN` names were
+> removed rather than preserved. Apply the decision procedure in
 > [Schema-First Clean-Cutover Decisions](schema-first-clean-cutover-decisions.md)
 > whenever implementation inspection exposes a hidden contract. Archived
 > OpenSpec artifacts remain history only; they do not define active behavior.
@@ -188,7 +188,13 @@ rule forbids and which the frozen-identifier finding independently rules out;
 and it treated the schema as an input to an implementation rather than as the
 deliverable. Recover it only to read what was considered, never to resume it.
 
-## The Constraint That Shapes Everything: Persisted Names Cannot Be Renamed
+## Historical C2 Discovery (Superseded)
+
+This section records the investigation that originally scoped C2. Its
+preservation and compatibility conclusions were superseded by the clean-cutover
+decision above and must not be used as implementation instructions. In
+particular, do not reproduce its Run Bundle inventory commands: production data
+is outside this route's source scope.
 
 This is the finding that forced the seven-change split, and it was absent from
 every earlier plan. Read it before touching any identifier.
@@ -408,7 +414,7 @@ re-derive it, because a name with no anchor may simply mean I did not find it.
 | `delivery-package` | `page-image-delivery-receipt-v1`, `-delivery-media-v1`, `-pptx-assembly-v1`, `-notes-receipt-v1` | `05-delivery/` |
 | `visual-style-candidates` | the 7 `page-image-style-master-*` records | `shared/image2/style_master_schema.mjs` — **frozen, Group 2** |
 | `production-progress-state` | `page-image-workflow-target-state-v1` | `shared/state/state.mjs:650` |
-| `framed-header-html` | `FRAMED_HEADER_OVERLAY_PRESET` / `standard-v1` | `03-framed-image/internal/header_overlay.mjs:6` |
+| `framed-header-html` | `FRAMED_HEADER_OVERLAY_PRESET` / `standard` | `03-framed-image/internal/header_overlay.mjs:6` |
 
 | Target | Status |
 | --- | --- |
@@ -569,15 +575,15 @@ unreviewable or unsafe to land partially.
 | Change | Scope | Why it cannot merge with its neighbour |
 | --- | --- | --- |
 | **C1** Publish schema definitions | `ppt_maker_harness/schema/` only; zero runtime behaviour | This is the artifact the owner reviews. Mixing it with code changes makes the review impossible. Landing it alone is risk-free. **Archived 2026-08-11.** |
-| **C2** Clean-cutover the contract | One unversioned value per durable selector/wire schema; replace all readers and writers together; zero version-suffixed literal in active source, tests, or accepted specs | Touches nearly every `.mjs` and every accepted spec, but changes no behaviour. A pure-cleanup change is reviewable by diff; bundling semantics into it is not. |
+| **C2** Clean-cutover the contract | One unversioned value per durable selector/wire schema; replace all readers and writers together; zero version-suffixed literal in active source, tests, or accepted specs | Archived 2026-08-11 at `openspec/changes/archive/2026-08-11-conform-code-to-schema-definitions/`; completion commit `c473d14`. |
 | **C3** Upstream gap | `story-outline`, `design-constraints`, pagination | New capability territory. Independent of Page Class. |
 | **C4** Page Class + layout config | Parser, Core, resolver, both adapters, invalidation | The `XL` change. Needs C1/C2 vocabulary settled first or it re-scatters the schema. |
 | **C5** Per-page derived data on disk | `image2 plan` writer, path layout | Depends on C4's resolver existing. Provider-free, so it can land and be inspected before any spend. |
 | **C6** Framed hardening | `subject_restrictions` propagation, normalized geometry, body-safe region | Carries external provider risk. Must not block C1–C5. |
 | **C7** v3 repair | Production data path only | Not Harness maintenance. Runs under the Task Mandate, not OpenSpec. |
 
-C1 and C2 are the new work. C3–C7 absorb the earlier plans' Phases 1–6 with
-their evidence intact.
+C1 and C2 are complete. C3–C7 absorb the earlier plans' Phases 1–6 with their
+evidence intact.
 
 ## The Seven Changes In Detail
 
@@ -636,7 +642,7 @@ at commit `948681a`; checkpoint satisfied in conversation.
 
 ---
 
-### C2 — `clean-cutover-contract-conformance`
+### C2 — `conform-code-to-schema-definitions`
 
 **Goal.** Make the active Harness have exactly one declared unversioned
 serialization contract under `schema/`, then replace every active reader,
@@ -686,6 +692,11 @@ YAML-free; and after spec sync/archive the accepted-spec scan is zero —
 including `openspec/specs/`. No Run Bundle was used as a fixture or
 compatibility target.
 
+**Status: archived 2026-08-11.** Evidence is retained at
+[`openspec/changes/archive/2026-08-11-conform-code-to-schema-definitions/evidence.md`](../../openspec/changes/archive/2026-08-11-conform-code-to-schema-definitions/evidence.md).
+The change was synced to accepted specs before archival; completion commit:
+`c473d14`.
+
 ---
 
 ### C3 — `close-upstream-narrative-gap`
@@ -708,6 +719,19 @@ earlier plans were all page-level. Expect to grill the owner on what a story
 outline actually contains before writing the proposal. The one firm constraint:
 it is Source Data, so it must be editable and must not be recomputable from the
 pages.
+
+**Owner decisions, 2026-08-11.** C3 runs before C4. `story-outline` is a
+Block-first source: its deck root carries the central claim and intended
+audience outcome; each ordered Block carries its audience question, argument
+function, supporting evidence or reasoning beats, and intended page range.
+Pagination derives a provenance-carrying page plan from that structure. The
+Agent presents the plan conversationally; only an approved exact plan may
+materialize `slide-specifications.md`. The current source name is
+`2_backbone/story-outline.md`: C3 removes the active `outline.md` layout,
+template, guidance, and test references without a legacy reader or migration
+path. `design-constraints` owns audience, language/tone, claim boundaries, and
+required terminology; visual and per-page layout controls remain with
+`visual-language` and C4.
 
 **Exit evidence.** A deck can express its argument and constraints in source,
 and pagination derives a page list from them with provenance.
@@ -741,9 +765,9 @@ specification. Read it before proposing. In particular:
   invalidates nothing.
 - `pure-deck-visual-system.yaml` is deliberately Pure-only and cannot be
   extended into a shared registry.
-- There is exactly one Header Overlay Preset today (`standard-v1`, hardcoded,
+- There is exactly one Header Overlay Preset today (`standard`, hardcoded,
   caller-supplied rejected). C4 is what makes presets selectable. Note the
-  source already has a `**FRAME PRESET**` field carrying `standard-v1` on every
+  source already has a `**FRAME PRESET**` field carrying `standard` on every
   Framed slide — decide explicitly whether `**PAGE CLASS**` supersedes it,
   coexists with it, or subsumes it. That interaction is unresolved.
 - **A Deck Author must never have to name a class to make progress.** Omission
@@ -966,7 +990,7 @@ These survive from the earlier plans and must not be re-litigated:
 - **The inspection sidecar stores request JSON under `prompt`** and Human
   Navigation forbids raw prompt prose in its tree. The new per-page data must be
   an independent directory, not a navigation copy. Owned by C5.
-- **`FRAMED_HEADER_OVERLAY_PRESET = "standard-v1"` is hardcoded and singular**
+- **`FRAMED_HEADER_OVERLAY_PRESET = "standard"` is hardcoded and singular**
   (`header_overlay.mjs:6,64`); a caller supplying its own is rejected. The
   earlier plans' "Header Profile Set" does not exist. `CONTEXT.md` now calls the
   real thing **Header Overlay Preset**. Owned by C4.
@@ -1059,32 +1083,39 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done with evidence
 > `openspec/changes/archive/2026-08-11-publish-production-schema-definitions/`.
 > Completion commit: `7be177f`.
 
-### C2 — `clean-cutover-contract-conformance`
+### C2 — `conform-code-to-schema-definitions`
 
-- [ ] Re-derive the complete active contract inventory; do not trust historical counts or inspect a Run Bundle
-- [ ] Classify every active value as a C1 stage, shared schema contract, documented implementation invariant, or deletion
-- [ ] Publish `serialization-contracts.yaml`; delete `frozen-identifiers.yaml` and every active preservation/compatibility reference
-- [ ] Replace readers and writers together with unversioned selectors and C1-stage/`artifact_role` records; keep existing `kind` semantics
-- [ ] Delete legacy scanners, special historical branches, migration/conversion paths, frozen fixtures, and dual-writer assumptions
-- [ ] Extend the pure `harness_architecture.mjs` evaluator; keep YAML parsing in the opt-in test, never in the protected core or runtime control path
-- [ ] Update active templates, guidance, tests, and all C2 capability deltas to the current contract
-- [ ] Prove the active source/test/document scan has no version-suffixed production literal or undeclared durable contract
-- [ ] **Clean `openspec/specs/` through the change** — a delta spec per affected capability: version-suffixed identifiers removed, unversioned ones declared; never a hand edit. Same procedure as the C2 main specs
-- [ ] After sync/archive, prove the same zero-result scan for accepted main specs and for `openspec/specs/`
-- [ ] Archive the change
-- [ ] **Checkpoint 2** — all required tests pass; the static drift proof fails
+- [x] Re-derive the complete active contract inventory; do not trust historical counts or inspect a Run Bundle
+- [x] Classify every active value as a C1 stage, shared schema contract, documented implementation invariant, or deletion
+- [x] Publish `serialization-contracts.yaml`; delete `frozen-identifiers.yaml` and every active preservation/compatibility reference
+- [x] Replace readers and writers together with unversioned selectors and C1-stage/`artifact_role` records; keep existing `kind` semantics
+- [x] Delete legacy scanners, special historical branches, migration/conversion paths, frozen fixtures, and dual-writer assumptions
+- [x] Extend the pure `harness_architecture.mjs` evaluator; keep YAML parsing in the opt-in test, never in the protected core or runtime control path
+- [x] Update active templates, guidance, tests, and all C2 capability deltas to the current contract
+- [x] Prove the active source/test/document scan has no version-suffixed production literal or undeclared durable contract
+- [x] **Clean `openspec/specs/` through the change** — a delta spec per affected capability: version-suffixed identifiers removed, unversioned ones declared; never a hand edit. Same procedure as the C2 main specs
+- [x] After sync/archive, prove the same zero-result scan for accepted main specs and for `openspec/specs/`
+- [x] Archive the change
+- [x] **Checkpoint 2** — all required tests pass; the static drift proof fails
   deliberately; all active consumers use one contract; the accepted-spec scan is
   zero; no production data was read or migrated
 
-> Evidence: _(archived change path; reviewed inventory; zero-result scans for
-> source, tests, documents, and accepted specs; protected-core and opt-in
-> conformance output; focused owner-test output)_
+> Evidence: 2026-08-11 — archived at
+> `openspec/changes/archive/2026-08-11-conform-code-to-schema-definitions/`.
+> The change re-derived the active inventory without using Run Bundle or
+> research data; `serialization-contracts.yaml` is now the sole durable-contract
+> inventory. Active Harness/test/E2E scans and the post-sync accepted-spec scan
+> returned zero version-suffixed production identifiers. The pure evaluator and
+> opt-in conformance test passed, as did focused owner tests, `npm test`,
+> `npm run test:sweep`, process tests, `openspec validate --all --strict`, and
+> `git diff --check`. Completion commit: `c473d14`. Full evidence:
+> [`evidence.md`](../../openspec/changes/archive/2026-08-11-conform-code-to-schema-definitions/evidence.md).
 
 ### C3 — `close-upstream-narrative-gap`
 
-- [ ] **Grill the owner on what a Story Outline actually contains** — this is the least-specified change in the plan and its proposal cannot be written without that round
-- [ ] Decide whether C3 runs before or after C4 — the ordering here is preference, not dependency
-- [ ] Write the proposal
+- [x] **Grill the owner on what a Story Outline actually contains** — owner confirmed the Block-first model and its required content on 2026-08-11
+- [x] Decide whether C3 runs before or after C4 — owner chose C3 first on 2026-08-11
+- [~] Write the proposal
 - [ ] `story-outline` as Source Data — editable, not recomputable from pages
 - [ ] `design-constraints` as Source Data
 - [ ] The pagination step: story → page list, carrying provenance
@@ -1172,11 +1203,11 @@ replaced everywhere they used to live, including the accepted specs.** Use this
 checklist at closeout, and at any later point in the route when a hidden
 contract surfaces:
 
-- [ ] No version-suffixed production literal remains in active source or tests — C2's scan proves it
-- [ ] No version-suffixed production literal remains in `openspec/specs/` — C2's accepted-spec scan proves it, applied through an OpenSpec change
-- [ ] Every durable selector and wire schema has exactly one unversioned entry in `serialization-contracts.yaml`
-- [ ] No compatibility reader, migration path, frozen-name exception, or dual writer exists anywhere in active scope
-- [ ] Historical `deck_*` data untouched and byte-preserved
+- [x] No version-suffixed production literal remains in active source or tests — C2's scan proves it
+- [x] No version-suffixed production literal remains in `openspec/specs/` — C2's accepted-spec scan proves it, applied through an OpenSpec change
+- [x] Every durable selector and wire schema has exactly one unversioned entry in `serialization-contracts.yaml`
+- [x] No compatibility reader, migration path, frozen-name exception, or dual writer exists anywhere in active scope
+- [x] Historical `deck_*` data untouched and byte-preserved — C2 did not read, write, migrate, delete, or use it as a fixture
 - [ ] The decision record itself stays with the route: close
       [schema-first-clean-cutover-decisions.md](schema-first-clean-cutover-decisions.md)
       alongside this plan when the last change archives
