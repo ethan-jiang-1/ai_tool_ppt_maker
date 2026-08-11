@@ -1,11 +1,11 @@
 # Progressive Plan: Schema-First Page Image Recovery
 
-> Type: progressive coordination plan | Updated: 2026-08-11 | Status: active (C1-C4 archived; C5 is apply-ready)
+> Type: progressive coordination plan | Updated: 2026-08-12 | Status: active (C1-C5 archived; C6 is proposal-ready)
 >
 > **This is the only route document for Page Image recovery.** Three earlier
 > plans were closed on 2026-08-11 as CLS-025/026/027; everything from them that
 > still binds is restated below, so no downstream change needs to open a closed
-> document. Two specialist plans remain active and are owned by change C6:
+> document. Two specialist plans remain active and will guide change C6:
 > [framed-provider-protected-composition.md](framed-provider-protected-composition.md)
 > and
 > [framed-provider-capability-discovery-research.md](framed-provider-capability-discovery-research.md).
@@ -578,11 +578,11 @@ unreviewable or unsafe to land partially.
 | **C2** Clean-cutover the contract | One unversioned value per durable selector/wire schema; replace all readers and writers together; zero version-suffixed literal in active source, tests, or accepted specs | Archived 2026-08-11 at `openspec/changes/archive/2026-08-11-conform-code-to-schema-definitions/`; completion commit `c473d14`. |
 | **C3** Upstream gap | `story-outline`, `design-constraints`, pagination | Archived 2026-08-11 at `openspec/changes/archive/2026-08-11-close-upstream-narrative-gap/`; completion commit `ec8ec8b`. |
 | **C4** Page Class + layout config | Parser, Core, resolver, both adapters, invalidation | Archived 2026-08-11 at `openspec/changes/archive/2026-08-11-land-page-class-and-layout-config/`; completion commit `1aa1994`. |
-| **C5** Per-page derived data on disk | `image2 plan` writer, path layout | [`publish-per-page-derived-data`](../../openspec/changes/publish-per-page-derived-data/) is proposal-ready and strict-valid. It depends on C4's resolver and remains provider-free, so it can land and be inspected before any spend. |
-| **C6** Framed hardening | `subject_restrictions` propagation, normalized geometry, body-safe region | Carries external provider risk. Must not block C1–C5. |
+| **C5** Per-page derived data on disk | `image2 plan` writer, path layout | Archived 2026-08-12 at [`publish-per-page-derived-data`](../../openspec/changes/archive/2026-08-12-publish-per-page-derived-data/); six delta specs synced and completion commit `fcd9652`. It remains provider-free and inspectable before any spend. |
+| **C6** Framed hardening | `subject_restrictions` propagation, normalized geometry, body-safe region | [`harden-framed-provider-protected-composition`](../../openspec/changes/harden-framed-provider-protected-composition/) is proposal-ready and strict-valid. It carries external provider risk but makes no paid call, native transport claim, or v3 repair without a separate Work Request. |
 | **C7** v3 repair | Production data path only | Not Harness maintenance. Runs under the Task Mandate, not OpenSpec. |
 
-C1-C3 are complete. C4-C7 absorb the remaining earlier-plan phases with their
+C1-C5 are complete. C6-C7 absorb the remaining earlier-plan phases with their
 evidence intact.
 
 ## The Seven Changes In Detail
@@ -854,7 +854,9 @@ Framed HTML-only header and a deck index. The plan writes only after a valid
 candidate is compiled and before the current progressive raw plan exposes
 authorization; it deliberately creates no provider work, new gate, second
 acceptance state, Human Navigation copy, migration, or historical reader.
-Implementation has not started.
+**Status: archived 2026-08-12** at
+[`openspec/changes/archive/2026-08-12-publish-per-page-derived-data/`](../../openspec/changes/archive/2026-08-12-publish-per-page-derived-data/);
+six delta specs are synced to main specs and completion commit is `fcd9652`.
 
 ---
 
@@ -1197,24 +1199,30 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done with evidence
 
 ### C5 — `publish-per-page-derived-data`
 
-- [x] Write the proposal, six delta specs, design, and implementation tasks in [`publish-per-page-derived-data`](../../openspec/changes/publish-per-page-derived-data/) — provider-free scope, no new gate; strict OpenSpec validation passed on 2026-08-11
-- [ ] Publish at `image2 plan` — after the plan exists, before authorization
-- [ ] Write each per-page file: `page-source-receipt`, `page-layout`, `page-render-model`, `page-generation-spec`, `image2-request`, `page-artifact-index`
-- [ ] Framed additionally publishes `framed-header-html` — HTML only, no sibling JSON
-- [ ] The deck-level index
-- [ ] Every derived file names what produced it and what invalidates it
-- [ ] Use an independent directory, **not** a Human Navigation copy — navigation forbids raw prompt prose in its tree
-- [ ] Confirm no second acceptance state was created: `test_complete_page_review.mjs` still passes
-- [ ] Archive the change
-- [ ] **Checkpoint 5** — for one page, a human reads source → receipt → layout → render model → generation spec → provider bytes on disk, without running anything
+- [x] Write the proposal, six delta specs, design, and implementation tasks in [`publish-per-page-derived-data`](../../openspec/changes/archive/2026-08-12-publish-per-page-derived-data/) — provider-free scope, no new gate; strict OpenSpec validation passed
+- [x] Publish at `image2 plan` — after the plan exists, before authorization
+- [x] Write each per-page file: `page-source-receipt`, `page-layout`, `page-render-model`, `page-generation-spec`, `image2-request`, `page-artifact-index`
+- [x] Framed additionally publishes `framed-header-html` — HTML only, no sibling JSON
+- [x] The deck-level index
+- [x] Every derived file names what produced it and what invalidates it
+- [x] Use an independent directory, **not** a Human Navigation copy — navigation forbids raw prompt prose in its tree
+- [x] Confirm no second acceptance state was created: `test_complete_page_review.mjs` still passes
+- [x] Archive the change
+- [x] **Checkpoint 5** — for one page, a human reads source → receipt → layout → render model → generation spec → provider bytes on disk, without running anything
 
-> Evidence: _(archived change path; the one page's directory listing)_
+> Evidence: 2026-08-12 — archived at
+> [`openspec/changes/archive/2026-08-12-publish-per-page-derived-data/`](../../openspec/changes/archive/2026-08-12-publish-per-page-derived-data/).
+> Six delta specs were synced to accepted main specs; all 19 tasks completed.
+> Focused C5 unit/integration/E2E coverage, `npm test`, strict OpenSpec
+> validation, the Run Bundle layout self-check, the mock public-CLI journey,
+> and `git diff --check` passed. Completion commit: `fcd9652`.
 
 ### C6 — `harden-framed-provider-protected-composition`
 
 Full specification: [framed-provider-protected-composition.md](framed-provider-protected-composition.md).
 Probe fixture and rubric: [framed-provider-capability-discovery-research.md](framed-provider-capability-discovery-research.md).
 
+- [x] Propose [`harden-framed-provider-protected-composition`](../../openspec/changes/harden-framed-provider-protected-composition/) with four delta specs, design, and tracked implementation tasks; strict OpenSpec validation passed on 2026-08-12
 - [ ] Obtain an explicit work request for the paid probe — the Task Mandate alignment landed, the request has not
 - [ ] Run the probe against the **synthetic fixture**, capped at three samples — never against v3
 - [ ] Record the answer: native primitive, or bounded best effort
