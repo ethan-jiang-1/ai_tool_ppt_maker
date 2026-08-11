@@ -3,7 +3,7 @@ import { join, relative } from "node:path";
 import { parseDocument } from "yaml";
 import { describe, expect, it } from "vitest";
 
-import { evaluateProductionSchemaConformance } from "../../ppt_maker_harness/scripts/contracts/harness_architecture.mjs";
+import { evaluatePageDerivedPublicationConformance, evaluateProductionSchemaConformance } from "../../ppt_maker_harness/scripts/contracts/harness_architecture.mjs";
 
 const ROOT = process.cwd();
 const HARNESS = join(ROOT, "ppt_maker_harness");
@@ -117,5 +117,44 @@ describe("production schema conformance", () => {
       expect(definition).toMatchObject({ schema: stage, producer_status: "materialized" });
       expect(definition).not.toHaveProperty("route_ref");
     }
+  });
+
+  it("evaluates Framed and Pure C5 chains without becoming a runtime validator", () => {
+    const stages = [
+      ["page-source-receipt", "parsed-source"],
+      ["page-layout", "resolved-presentation"],
+      ["page-render-model", "reviewable-page"],
+      ["page-generation-spec", "compiled-page-facts"],
+      ["image2-request", "provider-input"],
+      ["page-artifact-index", "page-derived-index"],
+    ];
+    const page = (slide_id, { framed = false } = {}) => ({
+      slide_id,
+      artifacts: [
+        ...stages,
+        ...(framed ? [["framed-header-html", "local-header-overlay"]] : []),
+      ].map(([stage, role]) => ({
+        stage,
+        role,
+        page: { slide_id },
+        producer: "scripts/shared/image2/page_derived_data.mjs",
+        upstream_bindings: { source_sha256: "a".repeat(64) },
+        invalidated_by: { source_sha256: "a".repeat(64) },
+      })),
+    });
+    expect(evaluatePageDerivedPublicationConformance({ workflow: "framed", pages: [page("FrameGo", { framed: true })] }).issues).toEqual([]);
+    expect(evaluatePageDerivedPublicationConformance({ workflow: "pure", pages: [page("PureGo")] }).issues).toEqual([]);
+
+    const invalid = page("PureGo", { framed: true });
+    invalid.artifacts[0].stage = "undeclared-stage";
+    delete invalid.artifacts[1].upstream_bindings;
+    invalid.artifacts[2].page.slide_id = "OtherGo";
+    const codes = evaluatePageDerivedPublicationConformance({ workflow: "pure", pages: [invalid] }).issues.map((issue) => issue.code);
+    expect(codes).toEqual(expect.arrayContaining([
+      "page-derived-stage-undeclared",
+      "page-derived-provenance-missing",
+      "page-derived-identity-mixed",
+      "page-derived-framed-artifact-on-pure",
+    ]));
   });
 });

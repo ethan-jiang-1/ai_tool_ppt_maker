@@ -35,11 +35,11 @@ import {
   resolveFramedStyleMasterScope,
   validateFramedRawContract,
 } from "../../ppt_maker_harness/scripts/03-framed-image/index.mjs";
-import { verifyFramedHeaderOverlays } from "../../ppt_maker_harness/scripts/03-framed-image/internal/framed_render_contract.mjs";
+import { renderFramedHeaderOverlayHtml, verifyFramedHeaderOverlays } from "../../ppt_maker_harness/scripts/03-framed-image/internal/framed_render_contract.mjs";
 import { STANDARD_FRAMED_PRESENTATION_PROFILE } from "../helpers/framed_presentation_profile.mjs";
 import { targetPageImageSubmitFactory } from "../../ppt_maker_harness/scripts/ppt_flow.mjs";
 import { initBundle } from "../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
-import { pageImageWorkflowPaths } from "../../ppt_maker_harness/scripts/shared/run-bundle/page_image_paths.mjs";
+import { pageImageDerivedPagePaths, pageImageWorkflowPaths } from "../../ppt_maker_harness/scripts/shared/run-bundle/page_image_paths.mjs";
 import { readState } from "../../ppt_maker_harness/scripts/shared/state/state.mjs";
 import {
   readProgressiveAcceptedRawWork,
@@ -587,6 +587,8 @@ relationship: causal-flow`,
       const initialInspectionBytes = readFileSync(paths.target_provider_request_inspection);
       const initialInspection = JSON.parse(initialInspectionBytes.toString("utf8"));
       const initialRequest = initial.provider_requests_by_slide.DeckGo;
+      const derivedPaths = pageImageDerivedPagePaths(runDir, "DeckGo");
+      const derivedIndex = JSON.parse(readFileSync(paths.derived_index, "utf8"));
       expect(initial.provider_request_inspection).toMatchObject({
         path: "_generated/page_image_workflow/raw/provider-input-inspection.json",
         sha256: expect.stringMatching(/^[0-9a-f]{64}$/),
@@ -612,6 +614,33 @@ relationship: causal-flow`,
       });
       expect(JSON.parse(initialInspection.items[0].prompt)).toEqual(initialRequest);
       expect(JSON.stringify(initialInspection)).not.toMatch(/data:image|authorization|api[_-]?key/i);
+      expect(initial.derived_data_publication).toMatchObject({
+        root: paths.derived_root,
+        index: paths.derived_index,
+        workflow: "framed",
+        progressive_raw_work_plan_sha256: initialPlanHash,
+      });
+      expect(derivedIndex.payload.pages).toEqual([expect.objectContaining({ slide_id: "DeckGo", position: 1 })]);
+      for (const path of [
+        derivedPaths.source_receipt,
+        derivedPaths.layout,
+        derivedPaths.render_model,
+        derivedPaths.generation_spec,
+        derivedPaths.image2_request,
+        derivedPaths.framed_header_html,
+        derivedPaths.artifact_index,
+      ]) expect(existsSync(path)).toBe(true);
+      expect(readFileSync(derivedPaths.framed_header_html, "utf8")).toBe(renderFramedHeaderOverlayHtml({
+        slide_id: "DeckGo",
+        presentation_profile: initial.receipt.slides[0].visual_language.presentation.profile,
+        local_header: initial.receipt.slides[0].header_policy.local_header,
+      }));
+      expect(JSON.parse(readFileSync(derivedPaths.image2_request, "utf8")).payload).toMatchObject({
+        canonical_utf8: initialRequest.compiled_provider_input.utf8,
+        request_digest: initialRequest.compiled_provider_input.sha256,
+      });
+      expect(JSON.parse(readFileSync(derivedPaths.artifact_index, "utf8")).payload.artifact_references)
+        .toHaveProperty("framed_header_html");
       const pilot = await planFramedTargetPilot(runDir, {
         planHash: initialPlanHash,
         slideIds: ["DeckGo"],

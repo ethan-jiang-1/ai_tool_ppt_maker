@@ -3,8 +3,14 @@ kind: derived
 scope: version-page
 purpose: "Compile normalized page semantics into the workflow-neutral facts from which one adapter prepares a provider request."
 answers: "What generation facts must the selected workflow apply to this page?"
-owner: "ppt_maker_harness/scripts/shared/page-image/page_image_core.mjs"
+owner: "scripts/shared/image2/page_derived_data.mjs materializes Page Image Core facts"
 producer_status: materialized
+publication:
+  role: compiled-page-facts
+  current_producer: scripts/shared/image2/page_derived_data.mjs
+  workflow_presence:
+    framed: required
+    pure: required
 inputs:
   - page-source-receipt
   - page-layout
@@ -14,7 +20,7 @@ outputs:
   - image-generation-plan
 provenance:
   source: "The normalized source receipt, selected visual language, generation profile, style-master selection, and resolved layout."
-  requirement: "Retain canonical semantic digests for the page facts and all selected configuration."
+  requirement: "Retain canonical semantic digests for the page facts, all selected configuration, and the Core binding copied into the C5 publication."
 downstream_consumers:
   - image2-request
   - image-generation-plan

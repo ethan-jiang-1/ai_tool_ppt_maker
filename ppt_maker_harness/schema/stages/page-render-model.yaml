@@ -3,9 +3,14 @@ kind: derived
 scope: version-page
 purpose: "Provide the complete human-reviewable representation of what one final page should look like before generation."
 answers: "What will this page look like as a complete reviewable page?"
-owner: "publish-per-page-derived-data planned change (C5)"
-producer_status: planned
-route_ref: C5
+owner: "scripts/shared/image2/page_derived_data.mjs"
+producer_status: materialized
+publication:
+  role: reviewable-page
+  current_producer: scripts/shared/image2/page_derived_data.mjs
+  workflow_presence:
+    framed: required
+    pure: required
 inputs:
   - page-source-receipt
   - page-layout

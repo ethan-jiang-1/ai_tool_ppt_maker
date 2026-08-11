@@ -81,6 +81,7 @@ import {
   readProgressiveAcceptedRawWork,
   reconcileProgressiveRawAttempt,
 } from "../shared/image2/page_image_progressive_raw_owner.mjs";
+import { PageDerivedDataError, publishPageDerivedData } from "../shared/image2/page_derived_data.mjs";
 import {
   requireExactExecutionForRun,
   recordTargetProgressiveAcceptedRawEvidence,
@@ -104,6 +105,7 @@ import {
 export const PURE_IMAGE_WORKFLOW = "pure";
 
 export const PURE_IMAGE_APPROVED_SHARED_INTERFACES = Object.freeze([
+  "shared/image2/page_derived_data.mjs",
   "shared/image2/page_image_artifacts.mjs",
   "shared/image2/page_image_final_manifest.mjs",
   "shared/image2/page_image_raw_mechanics.mjs",
@@ -837,6 +839,28 @@ function progressivePurePlanFromContext(context, taskMandate = null) {
   });
 }
 
+function publishPurePageDerivedData({ context, candidate, progressiveRawWorkPlan }) {
+  try {
+    return publishPageDerivedData({
+      run_dir: context.run_dir,
+      workflow: PURE_IMAGE_WORKFLOW,
+      receipt: candidate.receipt,
+      raw_work_plan: candidate.raw_work_plan,
+      progressive_raw_work_plan: progressiveRawWorkPlan,
+      page_image_core: candidate.page_image_core,
+      provider_requests_by_slide: candidate.provider_requests_by_slide,
+    });
+  } catch (error) {
+    if (!(error instanceof PageDerivedDataError)) throw error;
+    const failure = new PureImageWorkflowError(
+      "target_page_derived_publication_invalid",
+      "Pure page-derived data could not be published; repair the current source, presentation, or generated derived root and rerun image2 plan.",
+    );
+    failure.next_action = "rebuild_target_raw_plan";
+    throw failure;
+  }
+}
+
 function currentPureTaskMandate(context) {
   return inspectCurrentPageImageTaskMandate(context.deck_dir, {
     runDir: context.run_dir,
@@ -878,6 +902,11 @@ export function buildPureProgressiveTargetRawPlan(runDir, { allowSourceRebuild =
     raw_work_plan: candidate.raw_work_plan,
     style_master_reference: candidate.style_master_reference,
   }, taskMandate);
+  const derivedDataPublication = publishPurePageDerivedData({
+    context,
+    candidate,
+    progressiveRawWorkPlan,
+  });
   const published = publishProgressiveRawWorkPlan({ runDir: context.run_dir, plan: progressiveRawWorkPlan });
   const providerRequestInspection = writeTargetProviderRequestInspection(context, {
     rawWorkPlan: candidate.raw_work_plan,
@@ -894,6 +923,7 @@ export function buildPureProgressiveTargetRawPlan(runDir, { allowSourceRebuild =
     progressive_raw_work_plan: progressiveRawWorkPlan,
     progressive_publication: published,
     progressive_handoff: progressiveHandoff,
+    derived_data_publication: derivedDataPublication,
     provider_request_inspection: providerRequestInspection,
     provider_requests_by_slide: candidate.provider_requests_by_slide,
     style_master_reference: candidate.style_master_reference,

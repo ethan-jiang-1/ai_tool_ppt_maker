@@ -98,6 +98,16 @@ shared_contracts:
     field: schema
     anchors:
       - scripts/03-framed-image/internal/framed_render_profile.mjs
+  - name: page-derived-data-artifact
+    value: page-image-page-derived-artifact
+    field: schema
+    anchors:
+      - scripts/shared/image2/page_derived_data.mjs#PAGE_DERIVED_DATA_ARTIFACT_SCHEMA
+  - name: page-derived-data-index
+    value: page-image-page-derived-index
+    field: schema
+    anchors:
+      - scripts/shared/image2/page_derived_data.mjs#PAGE_DERIVED_DATA_INDEX_SCHEMA
   - name: html-font-inventory
     value: pptmaker-html-font-inventory
     field: schema
@@ -229,4 +239,4 @@ wire_schema_groups:
 implementation_invariants:
   - name: Page Image runtime values are declared by the selector, shared-contract, or wire-schema group above.
   - name: Existing kind fields describe business or action semantics and are not serialization roles.
-  - name: C4 materializes source Page Class, four layout-config contracts, and in-memory per-page presentation bindings; C5 remains the only future publisher of per-page derived files.
+  - name: C4 materializes source Page Class, four layout-config contracts, and in-memory per-page presentation bindings; C5 publishes only the current provider-free per-page inspection projection.

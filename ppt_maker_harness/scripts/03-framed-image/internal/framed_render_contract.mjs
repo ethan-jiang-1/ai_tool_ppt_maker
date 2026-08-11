@@ -233,6 +233,11 @@ export function describeFramedHeaderOverlay({ slide_id, presentation_profile, lo
   });
 }
 
+/** Return the exact deterministic HTML document consumed by the Framed renderer. */
+export function renderFramedHeaderOverlayHtml({ slide_id, presentation_profile, local_header } = {}) {
+  return compileDocument(describeFramedHeaderOverlay({ slide_id, presentation_profile, local_header }));
+}
+
 function capturePageSpec(contract, verifiedRaw = null) {
   return Object.freeze({
     id: contract.slide_id,

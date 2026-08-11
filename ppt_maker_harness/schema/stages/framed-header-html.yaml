@@ -3,8 +3,14 @@ kind: derived
 scope: version-page
 purpose: "Publish the exact deterministic local header overlay for a framed page."
 answers: "What local HTML overlays the accepted framed page body?"
-owner: "ppt_maker_harness/scripts/03-framed-image/internal/header_overlay.mjs"
+owner: "scripts/shared/image2/page_derived_data.mjs materializes header-renderer HTML"
 producer_status: materialized
+publication:
+  role: local-header-overlay
+  current_producer: scripts/shared/image2/page_derived_data.mjs
+  workflow_presence:
+    framed: required
+    pure: forbidden
 inputs:
   - page-layout
   - page-source-receipt
@@ -12,8 +18,8 @@ outputs:
   - page-render-model
   - page-artifact-index
 provenance:
-  source: "The parsed Framed header policy and the one resolved header-overlay preset."
-  requirement: "Retain the selected preset and render-profile digest with the exact HTML."
+  source: "The parsed Framed header policy and the one resolved Page Class header profile."
+  requirement: "Retain the selected profile and render-profile digest with the exact HTML."
 downstream_consumers:
   - page-render-model
   - page-artifact-index
@@ -41,7 +47,7 @@ fields:
   render_profile_digest:
     type: sha256 digest
     description: "The digest of the resolved local overlay profile and geometry."
-    rule: "Must match the preset and layout used to create the HTML."
+    rule: "Must match the selected profile and layout used to create the HTML."
     on_violation:
       means: "The header HTML cannot prove which local treatment it used."
       ask: "Which approved framed header treatment should this page use?"

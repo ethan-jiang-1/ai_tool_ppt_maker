@@ -61,9 +61,8 @@ transformations:
       - visual-language
       - framed-header-html
     output: page-render-model
-    owner: "publish-per-page-derived-data planned change (C5)"
-    producer_status: planned
-    route_ref: C5
+    owner: "scripts/shared/image2/page_derived_data.mjs"
+    producer_status: materialized
     invalidated_by:
       - "A receipt, resolved layout, visual selection, or local framed-header change."
   - name: compile-page-generation-spec
@@ -103,9 +102,8 @@ transformations:
       - image2-request
       - framed-header-html
     output: page-artifact-index
-    owner: "publish-per-page-derived-data planned change (C5)"
-    producer_status: planned
-    route_ref: C5
+    owner: "scripts/shared/image2/page_derived_data.mjs"
+    producer_status: materialized
     invalidated_by:
       - "Any referenced page artifact is replaced or becomes unavailable."
   - name: record-visual-style-candidates
@@ -178,4 +176,4 @@ transformations:
 
 notes:
   - "This flow shows provenance and rebuild impact only. It is not a lifecycle controller, authorization path, or second state machine."
-  - "A planned C4-C5 producer names its planned change rather than an implementation module."
+  - "Every current producer names its implementation owner; no planned C5 route remains."

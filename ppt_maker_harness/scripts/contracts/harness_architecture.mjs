@@ -24,6 +24,7 @@ export const TARGET_ITERATION_INTERFACES = Object.freeze([
 // The sole cross-owner writer for derived short physical artifact navigation.
 // It consumes owner-issued facts and cannot select or mutate lifecycle state.
 export const HUMAN_NAVIGATION_INTERFACE = "shared/image2/page_image_human_artifact_reference.mjs";
+export const PAGE_DERIVED_DATA_INTERFACE = "shared/image2/page_derived_data.mjs";
 
 export const PHASE_ADJACENCY = Object.freeze({
   "00-setup": Object.freeze([]),
@@ -47,6 +48,7 @@ export const PUBLIC_SHARED_INTERFACES = Object.freeze([
   "shared/image2/content_address_store.mjs",
   "shared/image2/page_image_artifacts.mjs",
   "shared/image2/page_image_complete_page_review.mjs",
+  PAGE_DERIVED_DATA_INTERFACE,
   "shared/image2/page_image_final_manifest.mjs",
   HUMAN_NAVIGATION_INTERFACE,
   "shared/image2/page_image_media_contract.mjs",
@@ -199,6 +201,66 @@ export function evaluateProductionSchemaConformance(snapshot = {}) {
   for (const literal of literals) {
     if (VERSION_SUFFIX.test(String(literal?.value || ""))) {
       issues.push({ code: "version-suffixed-production-literal", path: literal?.location || "literal", message: `${literal.value} has a prohibited version suffix` });
+    }
+  }
+  return Object.freeze({ ok: issues.length === 0, issues: Object.freeze(issues) });
+}
+
+const C5_PAGE_STAGES = Object.freeze({
+  "page-source-receipt": "parsed-source",
+  "page-layout": "resolved-presentation",
+  "page-render-model": "reviewable-page",
+  "page-generation-spec": "compiled-page-facts",
+  "image2-request": "provider-input",
+  "page-artifact-index": "page-derived-index",
+  "framed-header-html": "local-header-overlay",
+});
+
+/**
+ * Evaluate a C5 publication shape without loading a Run Bundle. This remains
+ * an opt-in contract sweep, never a runtime planning gate.
+ */
+export function evaluatePageDerivedPublicationConformance(snapshot = {}) {
+  const issues = [];
+  const workflow = snapshot?.workflow;
+  const pages = snapshot?.pages;
+  if (!['framed', 'pure'].includes(workflow) || !Array.isArray(pages) || pages.length === 0) {
+    return Object.freeze({ ok: false, issues: Object.freeze([{ code: "page-derived-snapshot-invalid", path: "snapshot", message: "workflow and nonempty pages are required" }]) });
+  }
+  const expected = Object.entries(C5_PAGE_STAGES)
+    .filter(([stage]) => workflow === "framed" || stage !== "framed-header-html");
+  for (const page of pages) {
+    const pageId = page?.slide_id;
+    if (typeof pageId !== "string" || !pageId) {
+      issues.push({ code: "page-derived-identity-invalid", path: "page", message: "page requires one stable slide_id" });
+      continue;
+    }
+    if (!Array.isArray(page.artifacts)) {
+      issues.push({ code: "page-derived-artifacts-invalid", path: pageId, message: "page requires artifact records" });
+      continue;
+    }
+    const byStage = new Map();
+    for (const artifact of page.artifacts) {
+      const stage = artifact?.stage;
+      if (!Object.hasOwn(C5_PAGE_STAGES, stage)) {
+        issues.push({ code: "page-derived-stage-undeclared", path: pageId, message: `${stage || "missing"} is not a declared C5 stage` });
+        continue;
+      }
+      if (byStage.has(stage)) issues.push({ code: "page-derived-stage-duplicate", path: pageId, message: `${stage} appears more than once` });
+      byStage.set(stage, artifact);
+      if (artifact.role !== C5_PAGE_STAGES[stage]) {
+        issues.push({ code: "page-derived-role-invalid", path: pageId, message: `${stage} has an undeclared role` });
+      }
+      if (artifact?.page?.slide_id !== pageId) {
+        issues.push({ code: "page-derived-identity-mixed", path: pageId, message: `${stage} does not bind its page identity` });
+      }
+      if (artifact?.producer !== "scripts/shared/image2/page_derived_data.mjs" || !artifact.upstream_bindings || !artifact.invalidated_by) {
+        issues.push({ code: "page-derived-provenance-missing", path: pageId, message: `${stage} lacks declared producer or provenance` });
+      }
+    }
+    for (const [stage] of expected) if (!byStage.has(stage)) issues.push({ code: "page-derived-stage-missing", path: pageId, message: `${stage} is required for ${workflow}` });
+    if (workflow === "pure" && byStage.has("framed-header-html")) {
+      issues.push({ code: "page-derived-framed-artifact-on-pure", path: pageId, message: "Pure publication must not contain Framed header HTML" });
     }
   }
   return Object.freeze({ ok: issues.length === 0, issues: Object.freeze(issues) });

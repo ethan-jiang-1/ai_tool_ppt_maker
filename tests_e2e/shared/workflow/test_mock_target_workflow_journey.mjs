@@ -13,7 +13,7 @@ import {
 } from "../../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
 import { pageImageOrdinalImageFilename } from "../../../ppt_maker_harness/scripts/shared/image2/page_image_artifacts.mjs";
 import { resolveContentAddressName } from "../../../ppt_maker_harness/scripts/shared/image2/content_address_store.mjs";
-import { pageImageWorkflowPaths } from "../../../ppt_maker_harness/scripts/shared/run-bundle/page_image_paths.mjs";
+import { pageImageDerivedPagePaths, pageImageWorkflowPaths } from "../../../ppt_maker_harness/scripts/shared/run-bundle/page_image_paths.mjs";
 import { readProgressiveRawPlanDirectRecords } from "../../../ppt_maker_harness/scripts/shared/image2/page_image_progressive_store.mjs";
 import { readState, writeState } from "../../../ppt_maker_harness/scripts/shared/state/state.mjs";
 
@@ -397,6 +397,52 @@ async function runStyleMasterLifecycle(runDir, env) {
 }
 
 describe("mock TARGET workflow journey", () => {
+  it("publishes C5 before public authorization without exposing request text in Human Navigation", async () => {
+    const slides = [{ id: "PureGo", title: "C5 public plan heading", note: "C5 plan fixture." }];
+    const fixture = createTargetFixture("target-c5-public-plan-", "pure", slides);
+    const provider = await startMockProvider(pngBytes("#205070"));
+    try {
+      await runStyleMasterLifecycle(fixture.runDir, provider.env);
+      const callsBeforePlan = provider.calls.length;
+      const plan = jsonSuccess(await flow(["image2", "plan", fixture.runDir], provider.env));
+      const paths = pageImageWorkflowPaths(fixture.runDir);
+      const pagePaths = pageImageDerivedPagePaths(fixture.runDir, "PureGo");
+      expect(plan).toMatchObject({ workflow: "pure", plan_hash: expect.stringMatching(/^[0-9a-f]{64}$/) });
+      for (const path of [
+        paths.derived_index,
+        pagePaths.source_receipt,
+        pagePaths.layout,
+        pagePaths.render_model,
+        pagePaths.generation_spec,
+        pagePaths.image2_request,
+        pagePaths.artifact_index,
+      ]) expect(existsSync(path)).toBe(true);
+      expect(existsSync(pagePaths.framed_header_html)).toBe(false);
+      const request = JSON.parse(readFileSync(pagePaths.image2_request, "utf8"));
+      expect(request.payload).toMatchObject({
+        request_digest: expect.stringMatching(/^[0-9a-f]{64}$/),
+        canonical_utf8: expect.stringContaining("page-image-pure-provider-input"),
+      });
+      expect(provider.calls).toHaveLength(callsBeforePlan);
+
+      expectSuccess(await flow(["image2", "artifact-view", fixture.runDir], provider.env));
+      const navigation = readFileSync(paths.human_navigation_index, "utf8");
+      expect(navigation).not.toContain(request.payload.canonical_utf8);
+      expect(navigation).not.toContain("_generated/page_image_workflow/derived");
+
+      const pilot = jsonSuccess(await flow([
+        "image2", "pilot", fixture.runDir,
+        "--plan-hash", plan.plan_hash,
+        "--slide-id", "PureGo",
+      ], provider.env));
+      await authorizeBatch(fixture.runDir, provider.env, plan.plan_hash, pilot.batch, "pure");
+      expect(provider.calls).toHaveLength(callsBeforePlan);
+    } finally {
+      await provider.close();
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
+  }, 90_000);
+
   it("runs a Framed selected Page Class edit through raw rebuild and notes-only refreshes", async () => {
     const slides = [
       { id: "FramGo", title: "Original framed heading", note: "Original Framed note." },

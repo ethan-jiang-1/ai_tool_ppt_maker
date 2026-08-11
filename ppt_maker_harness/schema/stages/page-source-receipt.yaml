@@ -3,17 +3,24 @@ kind: derived
 scope: version-page
 purpose: "Preserve the normalized result of parsing the authored page source before adapter compilation."
 answers: "What did the parser understand from this page's source?"
-owner: "ppt_maker_harness/scripts/01-content/internal/page_image_source.mjs"
+owner: "scripts/shared/image2/page_derived_data.mjs materializes parser-owned facts"
 producer_status: materialized
+publication:
+  role: parsed-source
+  current_producer: scripts/shared/image2/page_derived_data.mjs
+  workflow_presence:
+    framed: required
+    pure: required
 inputs:
   - page-source
   - visual-language
 outputs:
   - page-layout
   - page-generation-spec
+  - page-artifact-index
 provenance:
   source: "Page source digest and the visual-language selection used during parsing."
-  requirement: "Retain source_sha256, workflow, stable page identity, and normalized page facts."
+  requirement: "Retain source_sha256, workflow, stable page identity, normalized page facts, and the parser binding that produced the C5 publication."
 downstream_consumers:
   - page-layout
   - page-generation-spec
