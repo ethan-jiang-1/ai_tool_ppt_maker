@@ -28,8 +28,8 @@ an exact-plan materialization path before C4 adds Page Class or layout policy.
 - Refocus `design-constraints.md` on audience, language and tone, claim
   boundaries, and required terminology. Visual direction remains owned by
   `visual-language`; per-page layout and density policy remain C4 work.
-- The Agent uses the Story Outline, Design Constraints, and selected Visual
-  Language to make the creative page-grouping decision. C3 validates and
+- The Agent uses the Story Outline, Design Constraints, and current Visual
+  Language registry to make the creative page-grouping decision. C3 validates and
   compiles that candidate into a reviewable page plan. Each proposed page carries
   source digests and Block/beat lineage; the plan is a derived projection, not a
   second editable page-order source, lifecycle ledger, or acceptance state.
@@ -42,7 +42,7 @@ an exact-plan materialization path before C4 adds Page Class or layout policy.
 - Materialize C3's schema-stage producers and update the create-deck Controller
   route so narrative source precedes page authoring. Preserve the existing
   controller as the sole lifecycle authority: C3 adds no state machine,
-  durable confirmation record, retry path, or parallel gate.
+  durable confirmation record, standalone retry path, or parallel gate.
 
 ## Capabilities
 

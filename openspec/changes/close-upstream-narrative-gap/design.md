@@ -32,8 +32,9 @@ development fixture.
   prompt/provider API.
 - Page Class, layout profiles, text-density policy, or a new visual system;
   C4 owns those decisions.
-- New lifecycle state, approval/evidence records, retries, fallback readers, or
-  a migration/compatibility route for `outline.md`.
+- New lifecycle state, approval/evidence records, a separate retry or fallback
+  path beyond exact-plan reapplication, or a migration/compatibility route for
+  `outline.md`.
 - Reading, writing, inspecting, migrating, or deleting any historical
   `deck_*` or `dpt_*` object during implementation or verification.
 
@@ -58,9 +59,10 @@ per-page density rule as an ownership error with Deck Author repair language.
 The new `scripts/01-content/internal/narrative_source.mjs` is the deterministic
 owner of this grammar and normalization. It receives explicit texts/paths from
 its caller, never scans a Deck. `bundle_layout.mjs` remains the only owner of
-where the two sources live. C3 adds their current wire-schema declarations to
-`serialization-contracts.yaml`, and makes the existing stage/flow definitions
-materialized with real anchors rather than inventing a second schema home.
+where the two sources live. C3 adds the current wire-schema declarations for
+both sources and the page-plan exchange to `serialization-contracts.yaml`, and
+makes the existing stage/flow definitions materialized with real anchors rather
+than inventing a second schema home.
 
 Alternative considered: retain `outline.md` as an alias and parse it leniently.
 Rejected: it would preserve an unexplained active source contract and violate
@@ -69,25 +71,40 @@ the route's clean-cutover decision.
 ### 2. Agent-authored candidate, deterministic compiler
 
 The Agent, not JS, decides how Blocks and beats group into pages and supplies a
-candidate under the current version's `_scratch/`. The candidate contains the
-proposed ordered pages, each page's complete Page Source content, selected
-Block/beat references, and any newly needed mnemonic ID. It is an ephemeral
-input to the compiler, not author-facing Source Data, a persistent page order,
-or an alternative route to provider work.
+candidate through `ppt_flow slides narrative-plan <run-dir> --candidate <path>`.
+The path is required, confined to the current version's `_scratch/`, and stored
+in the plan only as a scratch-relative locator. The candidate is UTF-8 JSON
+with `schema: narrative-page-grouping-candidate`, one complete target Page
+Source text, and an ordered page list. Each entry names its target `slide_id`
+and one or more `{ block_ordinal, block_heading, beat_ordinals }` lineage
+references. The compiler parses the target Page Source, requires that its
+ordered IDs exactly equal the candidate list, and validates each lineage
+reference against the normalized Story Outline and intended page range. The
+candidate therefore holds the complete page content and its creative grouping,
+but is an ephemeral compiler input, not author-facing Source Data, a persistent
+page order, or an alternative route to provider work.
 
-`narrative_page_plan.mjs` will parse the three canonical inputs plus that
-candidate, validate that every page maps to declared Block/beat lineage and
-respects its intended range, compile the target Page Source, and invoke the
-existing Page Source parser to ensure the candidate can become current source.
-It returns an immutable JSON-safe plan with SHA-256 bindings for the Story
-Outline, Design Constraints, Visual Language, candidate, current source, target
-workflow, and full target source. A re-run with the same bytes returns the same
+`narrative_page_plan.mjs` will parse the two canonical narrative sources, the
+current Visual Language registry, and that candidate. It validates that every
+page maps to declared Block/beat lineage and respects its intended range,
+compiles the target Page Source, and invokes the existing Page Source parser to
+ensure the candidate can become current source. It returns an immutable JSON-safe
+plan with SHA-256 bindings for the Story
+Outline, Design Constraints, Visual Language, candidate bytes and confined
+relative locator, current source, target workflow, and full target source. The
+exact-plan apply re-resolves that locator beneath the same `_scratch/` and
+rechecks the candidate digest; an absent, moved, or changed candidate makes the
+plan stale. A re-run with the same bytes at the same locator returns the same
 plan hash.
 
-The plan writer stores the preview under the current `_scratch/` with confined,
-deterministic paths. It is disposable and never read as authority after its
-bound inputs change. The plan's lineage is the visible C3 provenance proof; no
-new receipt or state field is necessary.
+The plan writer stores the preview only at
+`_scratch/narrative-plans/<plan_sha256>.json`, with
+`schema: narrative-page-plan`. It is disposable and never read as authority
+after its bound inputs change, except that exact reapplication may recognize its
+own already-written target bytes solely to finish an interrupted State binding.
+C3 declares the two new wire-schema values with the existing current
+serialization inventory. The plan's lineage is the visible C3 provenance proof;
+no new receipt or state field is necessary.
 
 Alternative considered: derive page grouping directly from the Blocks in JS.
 Rejected: grouping and page language are creative decisions and are explicitly
@@ -96,19 +113,31 @@ pretending to make that judgment.
 
 ### 3. Reuse the structural publisher instead of adding a narrative writer
 
-`ppt_flow slides narrative-plan <run-dir>` will validate the Agent candidate,
-write only the confined preview, and report the plan hash plus the pages and
-their bounded lineage. `ppt_flow slides apply-plan` remains the only mutation
-form: it requires `--apply`, the exact returned hash, current matching bindings,
-and current target structural checks. No direct-source-write, force, migration,
-or provider option is added.
+`ppt_flow slides narrative-plan <run-dir> --candidate <path>` will validate the
+Agent candidate, write only the confined preview, and report the plan hash plus
+the pages and their bounded lineage. `ppt_flow slides apply-plan <run-dir>
+--plan <path> --apply --plan-sha256 <hash>` remains the only mutation form: it
+requires the exact returned hash, current matching bindings (including the
+candidate locator and bytes), and current target structural checks. No
+direct-source-write, force, migration, or provider option is added.
 
-For the initialized but never-authored source draft, publication may replace the
-known initial source in place only after the same exact-plan and source-byte
-checks prove that no source receipt, state evidence, or derived/provider
-artifact exists. For any authored/current version, the existing target
-structural publisher creates the clean vNext source and fresh debt. Both cases
-share the compiler and exact-plan verifier; neither creates provider work.
+For the initialized but never-authored `v1` source draft, publication may
+replace the exact deck-type initial seed in place only after the same exact-plan
+and source-byte checks prove that no source receipt, source-bound Page Image
+target-evidence record, or derived/provider artifact exists. Initialization's
+generic Controller state and a selected pre-source workflow are not such
+evidence. For any authored/current version, the existing target structural
+publisher creates the clean vNext source and fresh debt. Both cases share the
+compiler and exact-plan verifier; neither creates provider work.
+
+After either initial-draft or vNext source publication, C3 uses the existing
+Page Image source-state owner to bind the validated source receipt and report
+the existing render debt for every target slide. It creates no new State shape,
+provider authorization, or acceptance evidence. If an initial exact apply wrote
+the target source but State binding failed, reapplying that same plan may only
+recognize its own exact target bytes with no target-evidence record and finish
+that existing binding. Any other current source/state combination hard-stops;
+it cannot use the initial-draft exception or an alternate source to recover.
 
 The initial-draft exception avoids creating a disposable v1 merely to populate
 the first requested deck, while its evidence-absence precondition prevents an
@@ -120,7 +149,7 @@ versioning.
 The create-deck playbook becomes:
 
 ```text
-intake -> Story Outline + Design Constraints -> workflow and Visual Language
+intake -> Story Outline + Design Constraints -> workflow and current Visual Language registry
 -> Agent candidate -> narrative-plan preview -> Deck Author confirm
 -> exact Page Source publication -> existing source validation -> existing flow
 ```
@@ -148,9 +177,10 @@ authorization.
   lineage/range validation; deterministic plan hashes; and each stale binding
   failure. The negative cases prove no output/source mutation.
 - **Integration:** temporary initialized bundles exercise seed/layout checks,
-  `slides narrative-plan`, exact `apply-plan`, initial-draft publication, and
-  an authored-version vNext publication. They assert no provider call, no
-  acceptance inheritance, and source-parser validity.
+  `slides narrative-plan`, exact `apply-plan`, initial-draft publication and
+  replay after State-binding failure, and an authored-version vNext publication.
+  They assert no provider call, no acceptance inheritance, and source-parser
+  validity.
 - **Controller/E2E:** a mock create-deck journey verifies narrative authoring
   precedes page source and that a story revision invalidates the preview without
   writing source or asking for a redundant authorization. No real E2E or paid
@@ -168,9 +198,14 @@ authorization.
   a stale exact-plan apply stops before mutation rather than silently using an
   old story.
 - **Initial draft exception broadens mutation rights.** Its precondition is
-  deliberately narrower than a normal version: known initial bytes and absence
-  of source/state/derived/provider authority. All other source structures use
-  vNext publication.
+  deliberately narrower than a normal version: the exact `v1` deck-type seed,
+  and absence of source receipt, source-bound target evidence, derived, and
+  provider authority. The normal Controller state and a selected workflow do
+  not bypass that check. All other source structures use vNext publication.
+- **Initial source publication is interrupted after source write.** The exact
+  plan may replay only when the current bytes are its target and the matching
+  source-bound State record is still absent; it resumes through the existing
+  State owner. Any different bytes or evidence hard-stops before mutation.
 - **Two editable descriptions diverge.** The source pair has non-overlapping
   fields, one parser/normalizer each, and page-plan provenance names both
   digests; no copied values are stored in State.
