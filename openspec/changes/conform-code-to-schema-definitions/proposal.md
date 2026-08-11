@@ -1,67 +1,91 @@
 ## Why
 
-C1 made the Page Image vocabulary readable and regression-tested as YAML, but
-runtime constants, protected identifiers, and author-facing repair wording can
-still drift from it. C2 establishes one durable conformance boundary before C3
-through C5 introduce new source, layout, and derived-data behavior.
+C1 made the Page Image data-flow vocabulary visible, but active Harness source
+still serializes hundreds of historical `*-vN` literals. They appear in record
+schemas, receipts, source and state markers, modes, identity schemes,
+idempotency keys, run-bundle locators, templates, tests, and operating
+documents. The former C2 proposal treated those values as frozen evidence to
+preserve. That conflicts with the owner's clean-cutover decision: the future
+Harness has one current contract, not a compatibility layer around historical
+contracts.
+
+This change makes schema-first real. Every active durable contract becomes
+unversioned and explicitly defined under `ppt_maker_harness/schema/`; values
+that are not durable contracts move to one named implementation owner or are
+deleted. Old values are not read, migrated, converted, or retained as hidden
+exceptions.
 
 ## What Changes
 
-- Add a `production-schema-conformance` capability that makes
-  `ppt_maker_harness/schema/` the conceptual-vocabulary authority for Page
-  Image code mirrors, without treating YAML as a second runtime controller.
-- Re-derive and classify every current schema-shaped implementation identifier
-  as a conceptual-stage mirror, a frozen identifier, or an explicitly
-  non-schema implementation detail before renaming any non-frozen mirror.
-- Add deterministic code-to-YAML conformance coverage, including anchors for
-  mapped code surfaces and focused negative cases for deliberate drift. The
-  check will reject a missing authority mapping or an attempted frozen-name
-  rename while preserving historical records byte-for-byte.
-- Apply C1's declared defaults and Deck Author Repair Guidance only where a
-  materialized current owner already has the relevant validation and
-  `next_action`/diagnostic-recovery handoff. Planned C3-C5 stages remain
-  declarative until their named producer exists; C2 introduces no second
-  message channel, lifecycle controller, gate outcome, durable state, record,
-  provider action, or CLI envelope schema.
-- Preserve the existing `page-image-workflow-v1`, `image2-page-workflow-v1`,
-  `mnemonic-v1`, and historical record-schema literals exactly where C1 marks
-  them frozen. This is a semantic-preserving conformance change, not a record
-  migration or protocol replacement.
-
-The control path remains direct: JS reads the existing owning source of record
-and applies one deterministic conformance check; an identity, integrity, or
-preservation failure short-circuits dependent work as the existing hard-stop,
-while author-facing content repair remains a producer-owned nearest action.
-This follows `openspec/policies/human-centered-gates.md`,
-`openspec/policies/agent-assistance-and-control.md`, and
-`openspec/policies/simple-reliable-control.md`: reuse the current evaluator and
-handoff, expose one nearest legal action, and add neither a duplicate validator
-nor a persistent success/recovery projection.
+- Extend the schema definition home with one authoritative serialization
+  contract inventory. It declares the current unversioned contract selectors,
+  shared Harness contracts, and record roles while reusing C1's nineteen stage
+  definitions as the Page Image conceptual vocabulary.
+- Replace every active Page Image and directly affected shared `*-vN` schema,
+  protocol, mode, identity, idempotency, and locator literal in source, tests,
+  templates, playbooks, and accepted specifications. A Page Image record's
+  `schema` identifies its C1 conceptual stage; when that stage has multiple
+  concrete record shapes, an unversioned `artifact_role` identifies the shape.
+- Delete `frozen-identifiers.yaml`, its preservation policy, legacy scanners,
+  compatibility-only validation branches, historical fixtures, and retired
+  documentation. New and existing active readers and writers use only the
+  current contract together.
+- Add deterministic schema-to-code conformance coverage. A dependency-safe
+  pure evaluator remains in the protected development-verification core; a
+  separate opt-in test parses the YAML inventory and scans the complete active
+  Harness source, tests, operational documents, and accepted specifications.
+  It rejects version-suffixed production literals, undeclared durable values,
+  stale anchors, or a reader/writer outside the one current contract.
+- Keep C3-C5 fields declarative until their named producer exists. C2 does not
+  implement Page Class, modify provider semantics, or create a second runtime
+  controller.
 
 ## Capabilities
 
 ### New Capabilities
 
-- `production-schema-conformance`: owns the stable contract between the C1
-  conceptual YAML vocabulary, its implementation mirrors, frozen-identifier
-  preservation, and author-term repair projections through existing owners.
+- `production-schema-conformance`: owns the one-current-contract grammar,
+  inventory, static conformance evaluator, and clean-cutover evidence boundary.
 
 ### Modified Capabilities
 
-- None.
+- `bootstrap-env-guidance`
+- `cli-surface`
+- `commands-reference`
+- `content-parsing`
+- `harness-charter`
+- `harness-directory-layout`
+- `image-generation`
+- `image-production`
+- `node-specification`
+- `notes-injection`
+- `pipeline-orchestration`
+- `playbook-execution`
+- `pptx-assembly`
+- `run-bundle-layout`
+- `run-bundle-management`
+- `slide-identity-and-ordering`
+- `style-master-generation`
+- `workflow-inspection`
 
 ## Impact
 
-- Affected Harness source: C2 will inspect and selectively align Page Image
-  constants and validation/handoff call sites under `ppt_maker_harness/`; it
-  will add focused contracts and owner registrations under `tests/`. No Run
-  Bundle is read, migrated, or used as a fixture during this planning change.
-- Control owner: JS/CLI continues to evaluate deterministic schema, identity,
-  and preservation facts through existing owners. The MD Controller/Agent
-  consumes the existing bounded handoff in Deck Author terms; no new authority
-  or confirmation route is introduced.
-- Run-bundle contract impact: `none`. Historical records remain readable and
-  byte-preserved; current source/state/record formats and provider requests are
-  not migrated by C2.
-- Dependencies and public APIs: no new dependency or CLI/state schema. The
-  existing `yaml` dependency and producer-owned diagnostic envelope are reused.
+- **Harness source and documents:** active `ppt_maker_harness/` runtime,
+  templates, workflow guidance, playbooks, and reference material are refactored
+  to one declared contract. Obsolete scanners and old-format test fixtures are
+  removed rather than maintained.
+- **Tests and specs:** `tests/`, `tests_e2e/`, and every affected accepted
+  specification stop asserting the old values. The protected core remains free
+  of a transitive `yaml` import.
+- **Run Bundles:** none are read, written, migrated, inspected as fixtures, or
+  deleted. A bundle carrying an old value is outside this current contract and
+  cannot select an active path; C2 adds no decoder or compatibility action for
+  it.
+- **Provider and CLI behavior:** no new command, provider request field, or
+  parallel state store. Existing commands use the renamed current values and
+  reject any unknown contract through their normal typed validation before
+  mutation or provider work.
+- **Decision authority:** this implements
+  [_backlog/plans/schema-first-clean-cutover-decisions.md](../../../_backlog/plans/schema-first-clean-cutover-decisions.md).
+  Historical implementation is discovery evidence only, never a reason to
+  retain compatibility.

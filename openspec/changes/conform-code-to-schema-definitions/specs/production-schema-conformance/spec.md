@@ -1,104 +1,113 @@
 ## Purpose
 
-Keep Page Image implementation terminology, frozen-identifier preservation,
-and Deck Author repair projections conformant with the authoritative C1 YAML
-definitions without creating a second runtime controller or record format.
+Define the one current, schema-owned production serialization contract for the
+Harness and prove that active implementation consumers conform to it without
+introducing a runtime controller or historical compatibility path.
 
 ## ADDED Requirements
 
-### Requirement: Page Image code mirrors one conceptual YAML vocabulary
+### Requirement: Active durable contracts have one unversioned schema authority
 
-The Harness SHALL maintain one deterministic conformance inventory for every
-schema-shaped Page Image implementation identifier. Each inventory entry SHALL
-classify the identifier as a conceptual-stage mirror, a C1 frozen identifier,
-or an explicit non-schema implementation detail. A conceptual-stage mirror
-SHALL resolve to exactly one C1 stage definition and name its code anchor;
-unmapped schema-shaped identifiers and anchors without a current stage
-definition SHALL fail the conformance check.
+The Harness SHALL maintain `ppt_maker_harness/schema/serialization-contracts.yaml`
+as the authoritative inventory for every active Page Image and directly affected
+shared-Harness durable contract. The inventory SHALL declare an unversioned
+lowercase-hyphenated identifier grammar, current pipeline/mode/identity
+selectors, C1 conceptual stage names, permitted `artifact_role` values, named
+shared contracts, field ownership, and stable code anchors.
 
-The YAML definition home remains the authority for conceptual vocabulary. The
-conformance inventory, code anchors, and test output are executable mirrors and
-diagnostics only; they SHALL NOT introduce a lifecycle controller, state schema,
-or second source of record.
+A Page Image artifact's `schema` SHALL identify exactly one C1 stage definition.
+When more than one physical record or projection realizes that stage, the
+artifact SHALL use the declared unversioned `artifact_role` discriminator.
+Existing `kind` fields SHALL retain their established business/action meaning
+and SHALL NOT become a serialization-role substitute. A shared Harness object
+outside the C1 Page Image vocabulary SHALL use its named contract declaration
+at its explicitly declared field.
 
-#### Scenario: A mapped code mirror is inspected
+`frozen-identifiers.yaml` and any replacement exception list for historical,
+legacy, or version-suffixed current contracts SHALL NOT exist. The inventory is
+descriptive source authority only: it SHALL NOT become a runtime lifecycle
+controller, CLI command, state schema, provider gate, or second source of
+record.
 
-- **WHEN** a maintainer inspects a Page Image implementation identifier that
-  represents a conceptual artifact
-- **THEN** the conformance inventory resolves it to one current C1 stage and
-  its declared code anchor
-- **AND** the stage YAML remains the conceptual-vocabulary authority
+#### Scenario: A current Page Image record is inspected
 
-#### Scenario: A code mirror drifts from its authority
+- **WHEN** a maintainer inspects a current Page Image receipt, plan, record, or
+  delivery artifact
+- **THEN** its `schema` resolves to one C1 stage definition and any
+  `artifact_role` resolves to that stage's declared role
+- **AND** no version suffix or hidden code-only contract is needed to interpret it
 
-- **WHEN** a mapped identifier, stage reference, or required anchor is removed
-  or changed without a matching C1 authority update
-- **THEN** the deterministic conformance test fails with that direct mismatch
-- **AND** it does not infer a replacement, write a record, mutate source/state,
-  or begin provider work
+#### Scenario: A shared durable contract is inspected
 
-### Requirement: C1 frozen identifiers preserve readable evidence
+- **WHEN** a maintainer inspects an active shared-Harness locator or catalog
+- **THEN** its declared contract value and owning field resolve in
+  `serialization-contracts.yaml`
+- **AND** it does not impersonate a Page Image stage or rely on a code-only
+  historical literal
 
-The Harness SHALL preserve every identifier in C1's frozen inventory according
-to its declared read and write policy. Historical record-schema identifiers
-remain readable and valid for their existing evidence, while live protocol,
-mode, and identity literals remain exactly writable where their current owners
-require them. A C1 frozen identifier SHALL NOT be renamed, migrated, or
-reinterpreted as a new conceptual-stage name.
+### Requirement: The active Harness performs a clean serialization cutover
 
-A conformance failure involving a frozen identifier SHALL be an integrity and
-recoverability hard-stop before dependent record mutation or provider work. It
-shall reuse the current owner-issued failure and recovery path, with no force,
-conversion, compatibility writer, or parallel record store.
+All active source, state, receipt, record, protocol, mode, identity,
+idempotency, locator, catalog, template, test, and operational-document
+consumers SHALL use only values declared by the current serialization inventory.
+An active reader and writer SHALL cut over together; the Harness SHALL NOT
+retain a legacy reader, compatibility branch, byte scanner, converter,
+migration path, dual writer, historical fixture, or frozen-name exemption.
 
-#### Scenario: Historical evidence is read after conformance work
+An input whose contract value is not exactly the declared current value SHALL
+fail through the existing owning validator before mutation, derived-artifact
+read, provider initialization, or lifecycle transition. The owner SHALL NOT
+classify, parse, translate, export, adopt, or resume it as a known historical
+format.
 
-- **WHEN** an existing record carries a historical C1 record-schema identifier
-- **THEN** its current owner continues to read and validate the record under
-  that exact identifier
-- **AND** C2 does not rewrite the record bytes or create a replacement record
+The clean cutover SHALL NOT read, write, migrate, inspect as a fixture, or
+delete any Run Bundle or research input. Archived OpenSpec artifacts and Backlog
+decision records are historical documentation only and are not active contract
+consumers.
 
-#### Scenario: A frozen literal would be changed
+#### Scenario: An undeclared contract reaches a current owner
 
-- **WHEN** a change would alter the exact text or write policy of a C1 frozen
-  identifier
-- **THEN** the conformance check rejects the mismatch before a dependent
-  provider, state, source, or record action
-- **AND** it gives the Agent the one existing owner recovery route without a
-  force or migration option
+- **WHEN** source, state, receipt, record, or locator input carries a value that
+  is absent from the current inventory
+- **THEN** the owner rejects it before dependent mutation or provider work
+- **AND** it does not scan its bytes for a historical format or offer conversion
 
-### Requirement: Defaults and Repair Guidance retain their existing owners
+#### Scenario: A maintainer searches the active implementation surface
 
-For a C1 field whose producer is materialized and whose current owner has the
-relevant validation path, an omitted declared default SHALL normalize to that
-value rather than becoming an author error. The existing owner-issued Deck
-Author recovery text for a materialized constrained field SHALL use its
-`means`, `ask`, and `never` guidance without exposing a schema identifier or
-source field name.
+- **WHEN** the conformance sweep scans active Harness source, tests, test E2E
+  files, templates, operational documents, and accepted specifications
+- **THEN** it finds no version-suffixed production identifier, frozen inventory,
+  compatibility reader, migration path, or undeclared contract-bearing value
+- **AND** archived change artifacts, Backlog history, Run Bundles, and research
+  data are outside that scan
 
-A C1 field on a planned C3-C5 stage SHALL remain declarative until its named
-producer exists. C2 SHALL neither add an implementation-only substitute nor
-claim that a planned default or Repair Guidance is already enforced.
+### Requirement: Static conformance remains dependency-safe and non-runtime
 
-This projection is a `guide` through the existing producer and diagnostic
-handoff. It SHALL NOT create a confirmation, approval, gate outcome, state
-mutation, persistent record, CLI envelope field, or second message channel.
-Identity, integrity, and preservation failures retain their existing
-non-bypassable hard-stop classification and nearest legal action.
+The Harness SHALL expose a pure production-schema conformance evaluator from
+`scripts/contracts/harness_architecture.mjs`. It SHALL accept a plain snapshot
+of parsed declarations, literal occurrences, contract-field assignments, and
+anchors; it SHALL neither read files nor import `yaml`.
 
-#### Scenario: A planned Page Class remains declarative
+The protected core architecture test SHALL use synthetic snapshots only. A
+separate opt-in contracts test MAY parse the YAML and build the real snapshot
+before invoking the same evaluator. Both tests SHALL reject a missing
+declaration, invalid stage/role relationship, missing anchor, undeclared field
+value, or prohibited version-suffixed production literal.
 
-- **WHEN** a maintainer inspects C1's `standard` Page Class defaults before C4
-  materializes `page-source` and `layout-config`
-- **THEN** C2 preserves the declared defaults and their planned owner boundary
-- **AND** it does not add a Page Class validator, author error, confirmation,
-  or new state record
+The conformance evaluator and test SHALL NOT be invoked by production startup
+or introduce a runtime gate, state mutation, diagnostic envelope, or recovery
+path. Existing owning validators remain the runtime authority.
 
-#### Scenario: An author needs to repair a constrained value
+#### Scenario: The protected core evaluates synthetic data
 
-- **WHEN** the existing owner reports a constrained Page Image value that needs
-  a Deck Author decision
-- **THEN** its one current recovery action uses the matching C1 Repair Guidance
-  in Deck Author terms
-- **AND** it does not reveal a schema filename, source field name, or a second
-  technical recovery route
+- **WHEN** the architecture-core test evaluates a synthetic contract snapshot
+- **THEN** it uses the pure evaluator without importing or parsing YAML
+- **AND** an invalid declaration or stage/role relation fails deterministically
+
+#### Scenario: The opt-in sweep detects code-to-schema drift
+
+- **WHEN** a current contract literal is changed, removed, or introduced without
+  a matching schema declaration and anchor
+- **THEN** the opt-in conformance test fails with the direct mismatch
+- **AND** it does not invoke a runtime owner, write source/state, or begin
+  provider work

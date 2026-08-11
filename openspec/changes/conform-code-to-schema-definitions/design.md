@@ -1,155 +1,155 @@
 ## Context
 
-See [proposal.md](proposal.md) for motivation and
-[production-schema-conformance](specs/production-schema-conformance/spec.md)
-for the required behavior. C1 made `schema/stages/*.yaml` and
-`frozen-identifiers.yaml` authoritative for conceptual vocabulary and the
-bounded frozen set, but deliberately did not change executable code.
+C1 deliberately defined the Page Image concepts but left runtime code unchanged.
+That exposed a mismatch: C1's unversioned stage names coexist with active
+serialized values such as `page-image-workflow-v1`. The old C2 plan attempted
+to preserve the values through `frozen-identifiers.yaml` and compatibility
+tests. The owner has rejected that premise. There is one future contract, and
+correctness has priority over reuse of old records or readers.
 
-Current static ownership checks already live in
-`scripts/contracts/harness_architecture.mjs`; its source/test owner is recorded
-in `tests/contracts/source-test-ownership-v1.json`. Existing Page Image runtime
-owners already read and validate historical identity values through their own
-record and identity paths. C2 must strengthen the relationship to C1 without
-making a schema parser into a production lifecycle dependency.
+The verified active-use scan covers `ppt_maker_harness/`, `tests/`,
+`tests_e2e/`, and accepted specs. It finds version-suffixed Page Image and
+shared-Harness identifiers in current writers, readers, templates, control
+documents, and tests. The scope is not confined to a subset of constants.
+No `deck_*` or `dpt_*` path is read: those are production data, not source or
+test fixtures.
 
 ## Goals / Non-Goals
 
 **Goals:**
 
-- Make every schema-shaped Page Image implementation identifier inspectable as
-  a stage mirror, a C1 frozen entry, or an intentional non-schema detail.
-- Keep C1 YAML as the vocabulary and preservation authority while making drift
-  fail before a changed source can be relied on.
-- Keep historical evidence readable and preserve existing producer-owned repair
-  paths in Deck Author terms.
+- Establish one explicit, unversioned serialization grammar under
+  `ppt_maker_harness/schema/` for all active values in scope.
+- Replace active readers and writers as a single cutover, remove legacy-only
+  code, and leave no `*-vN` production vocabulary in active source, tests, or
+  maintained operational documents.
+- Preserve C1's conceptual stage definitions and make every durable contract
+  traceable to either a stage or a named shared contract declaration.
+- Prove complete cleanup with both owner tests and a bounded lexical scan.
 
 **Non-Goals:**
 
-- Parsing YAML at every production CLI entry, adding a lifecycle gate, or
-  creating a second controller, record, state field, CLI envelope, or provider
-  request format.
-- Rewriting source, state, records, `_generated/` artifacts, or any Run Bundle.
-- Implementing C3-C5 planned stage producers, including Page Class validation
-  and its `standard` default before C4 owns that behavior.
+- Reading, validating, migrating, exporting, adopting, or rewriting historical
+  Run Bundle bytes.
+- A legacy reader, converter, dual-format record, frozen exception list, or
+  transitional mixed-format deployment.
+- Implementing C3-C5 planned producers, including Page Class validation or its
+  `standard` default.
+- Changing provider request meaning, author approval rules, or CLI envelope
+  structure except where the current contract literal itself is serialized.
 
 ## Decisions
 
-### One checked-in mirror inventory complements, but does not compete with, C1
+### One schema home owns every active durable contract
 
-C2 will add a checked-in implementation-mirror inventory beside the C1 schema
-home. It will classify each discovered schema-shaped identifier as:
+C2 adds `ppt_maker_harness/schema/serialization-contracts.yaml` and removes
+`frozen-identifiers.yaml`. The new file is descriptive authority, not a runtime
+controller. It contains:
 
-1. a stage mirror with one `stage_ref` and one or more code anchors;
-2. a frozen reference pointing to `frozen-identifiers.yaml`; or
-3. a documented non-schema implementation detail.
+- the identifier grammar: lowercase hyphenated names with no version suffix;
+- the current Page Image selectors: pipeline, production mode, and identity
+  scheme;
+- every C1 stage that may occur as a Page Image `schema` value;
+- each allowed unversioned `artifact_role` for stages with multiple concrete
+  records or projections;
+- named shared-Harness contracts such as the run-bundle locator and intent-route
+  catalog, plus their owning field and code anchors; and
+- a complete source-location inventory for every active durable literal.
 
-The C1 stage files and frozen inventory remain authoritative for the meaning,
-default, Repair Guidance, and preservation policy. The new inventory records
-only where code mirrors that authority. It is manually reviewed source data,
-not generated output and not a runtime source of record.
+`schema` describes what a Page Image artifact is conceptually, and is therefore
+one of C1's stage names. It does not encode a physical record shape or a
+release number. `artifact_role` is present only when the stage has more than one
+concrete shape. Existing `kind` fields retain their established business/action
+semantics; C2 does not overload them as a record discriminator. A shared
+Harness object outside the Page Image stage vocabulary uses its explicitly
+declared contract field and named shared-contract entry rather than pretending
+to be a Page Image stage.
 
-Alternative considered: infer all mappings from imports or string literals at
-test time. Rejected because source scans cannot determine semantic intent or
-distinguish a frozen record identity from a non-schema implementation detail.
+The inventory is reviewable source data. It may point to an implementation-only
+value, but that value must have a documented invariant and cannot look like an
+undeclared serialization schema. No code literal creates a second vocabulary.
 
-### Extend the existing architecture contract, not a new runtime validator
+### Cut over readers and writers together
 
-JS owns deterministic source conformance. The C2 test will extend the existing
-`harness_architecture.mjs` contract and its contracts test owner to load the
-C1 definitions and mirror inventory, scan the bounded Page Image source set,
-and fail on an unclassified identifier, missing stage/frozen reference, or
-missing anchor. It will use the existing `yaml` dependency in an opt-in
-contracts sweep rather than the dependency-restricted core inventory.
+Current names are unversioned values declared in the inventory. All active
+writers emit them, and all active readers accept only them. The canonical Page
+Image selectors are `page-image-workflow`, `image2-page-workflow`, and
+`mnemonic`; record and receipt `schema` values use C1 stage names. Idempotency
+keys use the declared current protocol prefix and retain their existing digest
+algorithm and equality checks.
 
-Production owners retain their current exact constants and record/identity
-evaluators. A frozen-name mismatch is prevented by conformance coverage before
-release; existing owner checks continue to hard-stop unsafe identity or record
-use before dependent mutation or provider work. This avoids a new startup
-gate, repeated YAML parsing, duplicate state, and a separate failure envelope.
+There is no migration phase. A source, state, record, receipt, locator, or
+provider-related input whose value is not the declared current one fails the
+ordinary owning validator before a write, provider initialization, derived
+artifact read, or lifecycle transition. It is not recognized as a particular
+old protocol: C2 deletes byte scanners and special historical-format branches
+that would parse old bytes merely to preserve or export them.
 
-Alternative considered: load YAML from every production path and dynamically
-validate it before each action. Rejected because it would create a second
-control path and introduce a new availability failure unrelated to the owning
-record or identity fact.
+Rollback is a source revert before deployment. It does not restore a second
+reader or mutate production data.
 
-### Preserve frozen evidence through owner-specific tests
+### Refactor all active documentation and evidence with the contract
 
-The C2 inventory will refer to C1 frozen entries rather than repeat their read
-or write policies. Tests will cover a representative existing-record fixture
-for byte-preserving validation and deliberate frozen-literal drift. No test may
-rewrite a real Run Bundle. The final C2 checkpoint can validate an owner-chosen
-existing production record only after the owner names that bundle and record;
-until then, checked-in focused fixtures establish the repository boundary.
+Current templates, BOOTSTRAP/charter/workflow/playbook guidance, test fixtures,
+and affected accepted specifications are contract consumers. They change in the
+same C2 cutover. Historical values may remain only in archived OpenSpec change
+artifacts and backlog decision history, which are explicitly excluded from the
+active implementation scan and never selected by runtime code.
 
-Alternative considered: scan a `deck_*` directory to discover a record during
-test execution. Rejected because production data is not a Harness fixture and
-an unscoped scan violates the Run Bundle ownership boundary.
+This distinction avoids both kinds of hidden history: active documentation
+cannot teach obsolete values, while archival material can still explain why the
+clean cutover was made without becoming a supported format.
 
-### Project guidance only where a current producer exists
+### Extend the pure evaluator; do not add a runtime gate
 
-For a materialized C1 stage, its current JS owner consumes declared defaults
-and Repair Guidance through the existing validation and `next_action` handoff.
-The resulting author-facing recovery is a `guide`: it names the one next
-content decision without adding a confirmation record, approval, or state
-mutation. Identity, integrity, and evidence-preservation failures remain their
-existing non-bypassable `hard-stop` with the current owner-issued recovery.
+`scripts/contracts/harness_architecture.mjs` gains an exported pure evaluator.
+It accepts a plain snapshot of parsed schema declarations, anchors, literal
+occurrences, and contract-field assignments. It reads no files and does not
+import `yaml`. `tests/contracts/test_harness_architecture.mjs` proves the
+evaluator with synthetic snapshots only, preserving the protected core closure.
 
-For a planned C3-C5 stage, C2 preserves the definition and explicitly verifies
-that no runtime projection is claimed. C3/C4 will make those defaults and
-guidance executable once their named producer exists. This keeps the shortest
-correct loop: direct owning fact -> existing evaluator -> one nearest action ->
-same-check rerun.
+A separate opt-in contracts test reads the YAML and builds the real snapshot.
+It verifies declaration completeness, C1-stage/role compatibility, anchor
+presence, absence of legacy-suffixed production tokens, and that no active
+contract-bearing field uses an undeclared value. This is repository
+verification, not a production startup check. Runtime owners keep their
+existing deterministic validators and hard-stop behavior.
 
-Alternative considered: implement Page Class solely to exercise C1's
-`standard` default. Rejected because it would prematurely build C4 behavior
-and hide a source/layout change inside a conformance change.
+### Planned C3-C5 definitions remain declarative
 
-### Verification follows ownership and blast radius
+The inventory can cite a C1 stage with `producer_status: planned`, but it may
+not manufacture an implementation projection merely to exercise it. In
+particular, C2 adds no Page Class parser, default normalization, or repair
+guidance implementation. The static test verifies this boundary so a cleanup
+rename cannot smuggle later behavior into C2.
 
-- Unit/contract: add targeted source and YAML conformance tests for complete
-  classification, missing anchors, frozen drift, materialized guidance/default
-  projection, and the planned-stage boundary.
-- Integration: retain and extend the existing owner tests for affected record
-  and identity evaluators; validate a byte-preserving fixture through the real
-  owner path.
-- E2E: not selected. C2 adds no command, public journey, provider interaction,
-  Run Bundle format, or state transition.
+## Verification
+
+- Unit/contract: synthetic pure-evaluator cases for missing declaration,
+  missing anchor, invalid stage/role relation, undeclared contract field, and
+  a legacy-suffix occurrence.
+- Opt-in contracts sweep: parse all schema declarations and scan every active
+  Harness source file, tests, test E2E files, operational document, and
+  template. It asserts no active `*-v<positive integer>` production identifier
+  and no leftover frozen/compatibility inventory. The C2 delta-spec review is
+  the pre-sync specification proof; after the change is synced or archived, the
+  same lexical rule runs over accepted main specs as the post-sync proof.
+- Owner integration: focused source/state/identity, Progressive Raw, Style
+  Master, delivery, locator, and CLI tests prove only the current contract is
+  emitted and accepted before mutation/provider work.
+- Project integrity: `npm test`, `openspec validate conform-code-to-schema-definitions --strict`,
+  `openspec validate --all --strict`, and `git diff --check`.
+- E2E is not selected: C2 has no new public journey or provider interaction.
 
 ## Risks / Trade-offs
 
-- [The identifier scan over-classifies incidental `-vN` strings] -> First
-  produce and review the complete inventory; each exception must be explicit
-  rather than silently filtered.
-- [A mapping becomes a second conceptual vocabulary] -> The inventory can only
-  reference C1 stage names and frozen entries; the contracts test rejects a
-  locally invented stage or policy.
-- [A planned-stage rule is advertised as currently enforced] -> Require a
-  producer-status boundary in the inventory and negative coverage for planned
-  Page Class behavior.
-- [A frozen literal change breaks paid evidence] -> Preserve exact literals,
-  use owner fixtures, and require a named production record only for final
-  checkpoint evidence.
-- [Author text leaks implementation terminology] -> Test the newly projected
-  owner messages for schema filenames and source field names; retain the
-  existing producer-owned envelope and one-next-action limit.
-
-## Migration Plan
-
-1. Re-derive the source identifier inventory without reading or mutating a Run
-   Bundle, classify it, and review the proposed mirror inventory.
-2. Add source anchors and focused contract coverage before changing non-frozen
-   mirrors; prove deliberate stage, anchor, and frozen drift fails.
-3. Align only classified non-frozen code mirrors and materialized owner
-   projections, then run affected owner tests, the contracts sweep, and the
-   core verification inventory.
-4. Obtain a named existing record for the final compatibility checkpoint;
-   validate it through its owner without writing it. Rollback is a source
-   revert: no record migration, provider work, or generated-artifact repair is
-   needed.
-
-## Open Questions
-
-- Which owner-designated existing production record will supply final C2
-  compatibility evidence? This does not affect the source-only implementation
-  path; it must be named before Checkpoint 2, not discovered by a deck scan.
+- **A hidden literal escapes the first inventory.** The complete lexical scan
+  makes absence an acceptance criterion and reports the precise path/token.
+- **Multiple records need the same stage name.** `artifact_role` preserves that
+  distinction without reintroducing versioned record schemas or overloading
+  `kind`.
+- **A legacy scanner is mistaken for harmless rejection.** C2 removes any
+  scanner that recognizes historical bytes; exact current-value validation is
+  sufficient and avoids compatibility behavior.
+- **The scope bleeds into planned C3-C5 work.** The task order requires a
+  producer-status audit and negative tests before implementation begins.

@@ -1,6 +1,6 @@
 # Progressive Plan: Schema-First Page Image Recovery
 
-> Type: progressive coordination plan | Updated: 2026-08-11 | Status: active (C1 archived; C2 proposal ready)
+> Type: progressive coordination plan | Updated: 2026-08-11 | Status: active (C1 archived; C2 is being replanned for a clean cutover)
 >
 > **This is the only route document for Page Image recovery.** Three earlier
 > plans were closed on 2026-08-11 as CLS-025/026/027; everything from them that
@@ -9,6 +9,14 @@
 > [framed-provider-protected-composition.md](framed-provider-protected-composition.md)
 > and
 > [framed-provider-capability-discovery-research.md](framed-provider-capability-discovery-research.md).
+
+> **Current decision override.** The earlier frozen-identifier and
+> compatibility-preservation conclusions in this plan are superseded. C2 is a
+> one-contract clean cutover: active historical `*-vN` names are removed rather
+> than preserved. Apply the decision procedure in
+> [Schema-First Clean-Cutover Decisions](schema-first-clean-cutover-decisions.md)
+> whenever implementation inspection exposes a hidden contract. Archived
+> OpenSpec artifacts remain history only; they do not define active behavior.
 
 ## Read This First: Orientation For The Implementing Agent
 
@@ -599,46 +607,41 @@ a human judgment, not a test result.
 
 ### C2 — `conform-code-to-schema-definitions`
 
-**Goal.** Make the code a mirror of C1's definitions, and make drift between
-them fail a test rather than accumulate silently.
+**Goal.** Make one current unversioned serialization contract visible under
+`schema/`, then replace every active reader, writer, test, and operating
+document to use it together.
 
-**In scope.** Rename schema constants where C1's vocabulary differs and the
-identifier is not frozen; add `// anchor: schema/stages/<name>.yaml` comments;
-add the drift test; enforce `frozen-identifiers.yaml` at runtime.
+**In scope.** The complete active Page Image and directly affected shared
+Harness contract inventory: source/state/receipt/record/protocol/mode/identity/
+idempotency/locator/catalog values. C2 adds `serialization-contracts.yaml`,
+uses C1 stages as conceptual `schema` names, uses `artifact_role` only when a
+stage has multiple concrete forms, and removes the frozen inventory and
+historical scanners.
 
-**Out of scope.** Any semantic change whatsoever. Any frozen identifier. New
-schemas — those are C3/C4/C5.
-
-**Why it is alone.** It touches nearly every `.mjs` while changing no
-behaviour. A pure-rename diff is reviewable by scanning; a diff that mixes in
-one semantic change is not, and the semantic change hides.
+**Out of scope.** Run Bundle or research-data inspection/migration/deletion;
+provider semantic changes; and C3-C5 producer work such as Page Class.
 
 **Design notes.**
-- The drift test enumerates schema constants across `.mjs` and fails on any
-  name with no definition in `stages/` and no entry in `frozen-identifiers.yaml`.
-- **Do not invent the enforcement mechanism.** `scripts/contracts/harness_architecture.mjs`
-  already does cross-file schema-ownership validation — see
-  `PAGE_IMAGE_PROVIDER_INPUT_COMPILER_SCHEMA_BY_ADAPTER` at `:88` and
-  `validatePageImageProviderInputCompilation` at `:337`, which asserts that only
-  the Framed adapter may declare `page-image-framed-provider-input-v1`. Extend
-  that contract; do not build a parallel one.
-- `page_image_workflow_identity.mjs` is the reference for refusing a retired
-  identifier without rewriting records.
-- Expect the count to be roughly 89 identifiers against 19 definitions. Most map
-  as "internal projection of stage X". Resist the urge to rename them all.
-- **Wire the `on_violation` guidance into the actual refusal path.** C1 writes
-  the guidance; if C2 does not route it, the author still sees a rule citation
-  and the whole obligation is decorative. Two tests belong here: no
-  author-facing message contains a schema identifier or a source field name, and
-  every `META.yaml` default is applied rather than validated against.
-- The Harness already has the seam for this — `AGENT_CONTRACT.md` §"Human-facing
-  CLI success handoff" and §"Diagnostic Recovery Handoff" define how results
-  reach a person, and `next_action` already exists across 13 modules. Extend
-  those; do not add a second message channel.
+- The authoritative detailed decision is
+  [Schema-First Clean-Cutover Decisions](schema-first-clean-cutover-decisions.md).
+  It supersedes every earlier C2 preservation and compatibility instruction.
+- A durable semantic value belongs in `schema/`; an implementation-only value
+  has one documented owning invariant; an unused value is deleted. No active
+  value is retained because old code happens to understand it.
+- Extend the existing pure `harness_architecture.mjs` evaluator and its
+  protected-core seam. The opt-in YAML/source sweep owns real-file parsing; it
+  is not a runtime gate or second controller.
+- C2 must not overload established `kind` fields. `artifact_role` is the new
+  serialization discriminator when it is actually needed.
+- The cleanup proof scans active Harness source, tests, and operating documents
+  for version-suffixed production identifiers. The C2 deltas are the
+  pre-archive specification proof; after sync/archive, accepted specs receive
+  the same zero-result scan.
 
-**Exit evidence.** `npm test` green; the drift test present and failing when a
-constant is deliberately renamed in a scratch commit; every frozen identifier
-still readable — prove it by validating an existing v3 attempt record.
+**Exit evidence.** The inventory is reviewed; active-scope cleanup scans are
+zero; focused owner and conformance tests pass; protected core remains
+YAML-free; and after spec sync/archive the accepted-spec scan is zero. No Run
+Bundle was used as a fixture or compatibility target.
 
 ---
 
@@ -1004,22 +1007,22 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done with evidence
 
 ### C2 — `conform-code-to-schema-definitions`
 
-- [ ] Re-derive the identifier inventory with the two commands in "How to reproduce the inventory" — do not trust this plan's counts
-- [ ] Classify all ~89 identifiers: rename / internal-projection-of-stage-X / frozen
-- [ ] Read `page_image_workflow_identity.mjs` and `harness_architecture.mjs:88` before designing enforcement
-- [ ] Extend the existing `harness_architecture.mjs` contract; do not build a parallel mechanism
-- [ ] Rename non-frozen constants to C1 vocabulary
-- [ ] Add `// anchor: schema/stages/<name>.yaml` comments
-- [ ] Add the drift test — fails on any constant with no definition and no frozen entry
-- [ ] Enforce `frozen-identifiers.yaml` at runtime
-- [ ] Route `on_violation` guidance to the author through the existing `next_action` / handoff seam — no second message channel
-- [ ] Test: no author-facing message contains a schema identifier or a source field name
-- [ ] Test: every `META.yaml` default is applied, not validated against
-- [ ] Prove no semantic change: the diff is renames, anchors, and the new tests only
+- [ ] Re-derive the complete active contract inventory; do not trust historical counts or inspect a Run Bundle
+- [ ] Classify every active value as a C1 stage, shared schema contract, documented implementation invariant, or deletion
+- [ ] Publish `serialization-contracts.yaml`; delete `frozen-identifiers.yaml` and every active preservation/compatibility reference
+- [ ] Replace readers and writers together with unversioned selectors and C1-stage/`artifact_role` records; keep existing `kind` semantics
+- [ ] Delete legacy scanners, special historical branches, migration/conversion paths, frozen fixtures, and dual-writer assumptions
+- [ ] Extend the pure `harness_architecture.mjs` evaluator; keep YAML parsing in the opt-in test, never in the protected core or runtime control path
+- [ ] Update active templates, guidance, tests, and all C2 capability deltas to the current contract
+- [ ] Prove the active source/test/document scan has no version-suffixed production literal or undeclared durable contract
+- [ ] After sync/archive, prove the same result for accepted main specs
 - [ ] Archive the change
-- [ ] **Checkpoint 2** — `npm test` green; drift test fails on a deliberately renamed constant; an existing v3 attempt record still validates
+- [ ] **Checkpoint 2** — all required tests pass; the static drift proof fails
+  deliberately; all active consumers use one contract; no production data was
+  read or migrated
 
-> Evidence: _(archived change path; test output; the record that was re-validated)_
+> Evidence: _(archived change path; reviewed inventory; zero-result scans;
+> protected-core and opt-in conformance output; focused owner-test output)_
 
 ### C3 — `close-upstream-narrative-gap`
 
