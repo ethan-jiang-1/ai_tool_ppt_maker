@@ -4,7 +4,7 @@
 
 ## 1. Establish The Definition Home
 
-- [x] 1.1 Update `ppt_maker_harness/schema/README.md` with the YAML-authority boundary, the distinction between conceptual definitions and later code mirrors, the no-Run-Bundle rule, discovery of the C1-C7 recovery-route authority, and a repeatable static YAML integrity command.
+- [x] 1.1 Keep `ppt_maker_harness/schema/README.md` as the explanatory entry document: state the YAML-authority boundary, conceptual-versus-code-mirror distinction, no-Run-Bundle rule, and discovery of the C1-C7 recovery-route authority; point to the contracts test as the verification owner without embedding an executable validation implementation.
 - [x] 1.2 Add `ppt_maker_harness/schema/META.yaml` defining the common stage-definition shape, data kinds, provenance expectations, constrained-field `rule` semantics, required `on_violation.means`/`ask`/`never` guidance, and declared-default semantics.
 - [x] 1.3 Add `ppt_maker_harness/schema/recovery-route.yaml` as the structured C1-C7 authority; record each label's change or work, execution kind, responsibility, boundary, and exit evidence.
 
@@ -23,6 +23,6 @@
 
 ## 4. Verify C1 Scope And Checkpoint
 
-- [x] 4.1 Run the documented static YAML integrity command to reject a missing or extra stage definition, prove every field with a `rule` has a non-empty `means`/`ask`/`never` Repair Guidance block, and prove every planned producer's `route_ref` resolves in a complete C1-C7 route; manually review the reported defaults against `META.yaml` normalizing semantics.
-- [x] 4.2 Run `npm run test:sweep -- tests/00-setup/test_html_fonts.mjs` and `npm test` as the targeted and documented core Harness baselines, then run `git diff --check` and `openspec validate publish-production-schema-definitions --strict`; audit the C1 diff against the scope decision to prove it adds no production-runtime `.mjs`, CLI, state, provider, or Run Bundle change.
-- [ ] 4.3 Present `flow.yaml` and all nineteen stage definitions for Checkpoint 1; after the owner confirms the data flow, record the validation and confirmation evidence in `_backlog/plans/schema-first-page-image-recovery.md` and leave the change ready for archival.
+- [x] 4.1 Add `tests/contracts/test_page_image_schema_definitions.mjs`, register it in `tests/contracts/source-test-ownership-v1.json`, and run it as a targeted sweep. It must reject a missing or extra stage definition, a stage-name/schema mismatch, incomplete Repair Guidance, an incomplete C1-C7 route entry, or an unresolved planned-producer `route_ref`; verify the two normalized `standard` Page Class defaults against `META.yaml` semantics.
+- [x] 4.2 Run `npm run test:sweep -- tests/contracts/test_page_image_schema_definitions.mjs`, `npm run test:sweep -- tests/00-setup/test_html_fonts.mjs`, and `npm test`; then run `git diff --check` and `openspec validate publish-production-schema-definitions --strict`. Audit the C1 diff against the scope decision to prove it adds no production-runtime `.mjs`, CLI, state, provider, or Run Bundle change.
+- [x] 4.3 Present `flow.yaml` and all nineteen stage definitions for Checkpoint 1; after the owner confirms the data flow, record the validation and confirmation evidence in `_backlog/plans/schema-first-page-image-recovery.md` and leave the change ready for archival.

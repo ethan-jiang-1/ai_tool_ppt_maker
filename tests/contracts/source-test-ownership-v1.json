@@ -125,6 +125,7 @@
         "tests/contracts/test_intent_route_catalog.mjs",
         "tests/contracts/test_mock_development_verification_runner.mjs",
         "tests/contracts/test_mock_selected_verification.mjs",
+        "tests/contracts/test_page_image_schema_definitions.mjs",
         "tests/contracts/test_process_command_surface_entry_seams.mjs",
         "tests/contracts/test_process_docs_consistency.mjs",
         "tests/contracts/test_process_style_master_cli.mjs",

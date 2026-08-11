@@ -35,6 +35,14 @@ directory assertion SHALL include `schema/`. The assertion update SHALL only
 recognize this additional directory and SHALL retain its font-authority and
 third-party-font-toolchain coverage.
 
+`tests/contracts/test_page_image_schema_definitions.mjs` SHALL validate the
+definition home's exact stage-name set, each stage's declared schema name,
+Repair Guidance for every field with a `rule`, the complete C1-C7 route, and
+every planned producer's resolvable `route_ref`. It SHALL be registered in the
+contracts test-owner ledger and use the existing `yaml` dependency. The schema
+README SHALL identify this test as the verification owner but SHALL NOT embed
+an executable validation implementation.
+
 #### Scenario: A maintainer inspects production schemas
 
 - **WHEN** a maintainer opens the Harness schema definition home
@@ -51,6 +59,14 @@ third-party-font-toolchain coverage.
   or production work, responsibility, boundary, and exit evidence
 - **AND** the reference does not imply that the later work is authorized or
   materialized
+
+#### Scenario: Schema definitions are regression-tested
+
+- **WHEN** the schema-contract test is run as a targeted sweep
+- **THEN** it rejects a missing or extra stage, incomplete Repair Guidance,
+  incomplete C1-C7 route entry, or unresolved planned-producer reference
+- **AND** the schema README remains an explanatory entry document rather than
+  a host for test implementation
 
 #### Scenario: A historical identifier is inspected
 

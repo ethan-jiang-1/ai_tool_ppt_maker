@@ -138,35 +138,40 @@ implementation identifier before any code change.
 
 ### Verification remains static and scoped to C1
 
-This change adds no executable Harness module. Its validation is a documented,
-repeatable local YAML inspection using the existing Node `yaml` dependency. The
-command reads only `schema/stages/*.yaml`, rejects any missing or extra name
-against the exact nineteen-name set, recursively finds every mapping with a
-`rule`, and rejects a missing, non-mapping, or empty-string `means`/`ask`/`never`
-member in its `on_violation` block. It also reports every field that declares a
-`default` for manual review against the normalizing semantics in `META.yaml`.
-It also checks that C1-C7 have complete route entries and that every planned
-stage or flow producer has a resolvable `route_ref`. The command will live in
-`schema/README.md` and is run as C1 evidence.
+This change adds no executable Harness module. It adds one test-only contracts
+test, `tests/contracts/test_page_image_schema_definitions.mjs`, using the
+existing Node `yaml` dependency. The test rejects a missing or extra stage,
+stage-name/schema mismatch, a missing, non-mapping, or empty-string
+`means`/`ask`/`never` member for every declared `rule`, an incomplete C1-C7
+route entry, or an unresolved planned-producer `route_ref`. It reports the
+declared defaults for manual review against the normalizing semantics in
+`META.yaml`.
+
+The contracts test-owner ledger registers the test. It is intentionally not in
+the `npm test` core inventory: that inventory rejects bare dependencies, while
+the correct YAML parser is the declared `yaml` package. C1 runs this test as a
+targeted sweep. The schema README names the test owner but contains no
+executable validation implementation.
 
 `git diff --check`, `openspec validate`, and the documented `npm test` core
 baseline are required checks. Root `README.md` declares that core baseline for
 every normal Harness change. Because C1 updates the existing static
-Harness-root directory assertion, it also runs:
+Harness-root directory assertion and adds the schema-contract test, it also
+runs:
 
 ```sh
 npm run test:sweep -- tests/00-setup/test_html_fonts.mjs
+npm run test:sweep -- tests/contracts/test_page_image_schema_definitions.mjs
 ```
 
-That targeted sweep preserves the assertion's font-authority coverage while
-verifying that the required `schema/` directory is accepted. Mock E2E and real
-E2E checks are not selected for C1 because it introduces no runtime behavior,
-public journey, or provider interaction.
+Those targeted sweeps preserve the font-authority coverage and enforce the
+schema contract. Mock E2E and real E2E checks are not selected for C1 because
+it introduces no runtime behavior, public journey, or provider interaction.
 
-Apart from the approved static assertion update, unit, integration, and E2E
-suites are not changed: C1 adds no runtime behavior or public interface. C2
-owns the durable regression test that checks code-to-YAML drift and
-author-facing output.
+Apart from the approved static assertion update and schema-contract test, unit,
+integration, and E2E suites are not changed: C1 adds no runtime behavior or
+public interface. C2 owns the durable regression test that checks code-to-YAML
+drift and author-facing output.
 
 ### Control-policy boundary
 
@@ -193,12 +198,13 @@ adding a parallel evaluator or gate now.
 
 ## Migration Plan
 
-1. Add the schema definition home and apply the approved parent README map and
-   static directory-assertion updates, without modifying production-runtime
+1. Add the schema definition home, apply the approved parent README map and
+   static directory-assertion updates, and add the test-only schema-contract
+   check with its ownership registration, without modifying production-runtime
    source or Run Bundle data.
-2. Run the documented static schema integrity check, targeted sweep, OpenSpec
-   validation, and a diff audit confirming that no production-runtime `.mjs`
-   files changed.
+2. Run the schema-contract and font-authority targeted sweeps, the core
+   baseline, OpenSpec validation, and a diff audit confirming that no
+   production-runtime `.mjs` files changed.
 3. Obtain Checkpoint 1 review of `flow.yaml` and all nineteen definitions.
 4. Only after approval, start C2 to map existing implementation identifiers and
    make code a tested mirror.
@@ -210,16 +216,19 @@ spec change; no record, state, provider evidence, or Deck source needs repair.
 ## Approved Scope Decision
 
 The owner approved the narrow compatibility exception required by the selected
-`ppt_maker_harness/schema/` location. C1 may make exactly these two supporting
-source edits:
+`ppt_maker_harness/schema/` location, plus one test-only schema-contract check.
+C1 may make these supporting edits:
 
 1. Add `schema/` to the Source Directories map in
    `ppt_maker_harness/README.md`.
 2. Add `schema` to the exact Harness-root directory list in
    `tests/00-setup/test_html_fonts.mjs`, retaining that test's font-authority
    and third-party-font-toolchain assertions.
+3. Add `tests/contracts/test_page_image_schema_definitions.mjs` and register it
+   in `tests/contracts/source-test-ownership-v1.json`; it may use the existing
+   `yaml` dependency and is run as a targeted sweep, not by the core inventory.
 
 This exception does not permit production-runtime `.mjs`, `scripts/`, CLI,
-state, record, provider, or Run Bundle changes. Deferring the assertion update
-to C2 remains unsafe because C1 would otherwise land with a known failing
-existing test.
+state, record, provider, or Run Bundle changes. Deferring either test update to
+C2 remains unsafe because C1 would otherwise land with a known failing
+assertion or an unenforced definition contract.
