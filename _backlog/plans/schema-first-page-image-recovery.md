@@ -1,6 +1,6 @@
 # Progressive Plan: Schema-First Page Image Recovery
 
-> Type: progressive coordination plan | Updated: 2026-08-11 | Status: active (C1 and C2 archived; C3 proposal is apply-ready)
+> Type: progressive coordination plan | Updated: 2026-08-11 | Status: active (C1-C3 archived; C4 is apply-ready)
 >
 > **This is the only route document for Page Image recovery.** Three earlier
 > plans were closed on 2026-08-11 as CLS-025/026/027; everything from them that
@@ -422,8 +422,8 @@ re-derive it, because a name with no anchor may simply mean I did not find it.
 | `page-layout` | **does not exist** — C4 creates it |
 | `page-artifact-index` | **does not exist** — C5 creates it |
 | `page-render-model` | **does not exist** — C5 creates it |
-| `story-outline` | **does not exist** — C3 creates it |
-| `design-constraints` | **does not exist** — C3 creates it |
+| `story-outline` | materialized by C3 as the current Block-first backbone source |
+| `design-constraints` | materialized by C3 as the current focused content-boundary source |
 | `page-source` | partially exists as the `slide-specifications.md` grammar; C4 adds `**PAGE CLASS**` |
 
 Note the shape this reveals: **downstream of the page is well-implemented and
@@ -576,13 +576,13 @@ unreviewable or unsafe to land partially.
 | --- | --- | --- |
 | **C1** Publish schema definitions | `ppt_maker_harness/schema/` only; zero runtime behaviour | This is the artifact the owner reviews. Mixing it with code changes makes the review impossible. Landing it alone is risk-free. **Archived 2026-08-11.** |
 | **C2** Clean-cutover the contract | One unversioned value per durable selector/wire schema; replace all readers and writers together; zero version-suffixed literal in active source, tests, or accepted specs | Archived 2026-08-11 at `openspec/changes/archive/2026-08-11-conform-code-to-schema-definitions/`; completion commit `c473d14`. |
-| **C3** Upstream gap | `story-outline`, `design-constraints`, pagination | New capability territory. Independent of Page Class. |
+| **C3** Upstream gap | `story-outline`, `design-constraints`, pagination | Archived 2026-08-11 at `openspec/changes/archive/2026-08-11-close-upstream-narrative-gap/`; completion commit `ec8ec8b`. |
 | **C4** Page Class + layout config | Parser, Core, resolver, both adapters, invalidation | The `XL` change. Needs C1/C2 vocabulary settled first or it re-scatters the schema. |
 | **C5** Per-page derived data on disk | `image2 plan` writer, path layout | Depends on C4's resolver existing. Provider-free, so it can land and be inspected before any spend. |
 | **C6** Framed hardening | `subject_restrictions` propagation, normalized geometry, body-safe region | Carries external provider risk. Must not block C1–C5. |
 | **C7** v3 repair | Production data path only | Not Harness maintenance. Runs under the Task Mandate, not OpenSpec. |
 
-C1 and C2 are complete. C3–C7 absorb the earlier plans' Phases 1–6 with their
+C1-C3 are complete. C4-C7 absorb the remaining earlier-plan phases with their
 evidence intact.
 
 ## The Seven Changes In Detail
@@ -736,6 +736,16 @@ required terminology; visual and per-page layout controls remain with
 **Exit evidence.** A deck can express its argument and constraints in source,
 and pagination derives a page list from them with provenance.
 
+**Status: archived 2026-08-11.** C3 introduced the current Block-first Story
+Outline and focused Design Constraints sources, provider-free narrative-plan
+preview, one conversational content/structure confirmation, and exact Page
+Source publication. Its seven delta specs were synced to accepted specs before
+archival. Focused schema/layout/CLI/Controller coverage (76 tests), the selected
+mock E2E, `npm test`, strict OpenSpec validation, the bundle self-check, and
+`git diff --check` passed using only synthetic temporary bundles. Archive:
+`openspec/changes/archive/2026-08-11-close-upstream-narrative-gap/`; completion
+commit: `ec8ec8b`.
+
 ---
 
 ### C4 — `land-page-class-and-layout-config`
@@ -766,10 +776,11 @@ specification. Read it before proposing. In particular:
 - `pure-deck-visual-system.yaml` is deliberately Pure-only and cannot be
   extended into a shared registry.
 - There is exactly one Header Overlay Preset today (`standard`, hardcoded,
-  caller-supplied rejected). C4 is what makes presets selectable. Note the
-  source already has a `**FRAME PRESET**` field carrying `standard` on every
-  Framed slide — decide explicitly whether `**PAGE CLASS**` supersedes it,
-  coexists with it, or subsumes it. That interaction is unresolved.
+  caller-supplied rejected). **Resolved 2026-08-11:** `**PAGE CLASS**` is the
+  only page-level presentation selector and supersedes `**FRAME PRESET**`.
+  C4 removes that source field, receipt contract, and hard-coded selection
+  without a compatibility reader, translation, or coexisting control plane;
+  the existing overlay becomes the selected `standard` Framed profile.
 - **A Deck Author must never have to name a class to make progress.** Omission
   normalizes to `standard` silently. When a page looks like it wants a different
   class, that is a suggestion the Agent raises conversationally — never a
@@ -778,6 +789,14 @@ specification. Read it before proposing. In particular:
 **Exit evidence.** A page resolves to exactly one workflow projection; the
 resolved view shows inherited values; unselected-profile edits provably
 invalidate nothing.
+
+**Status: proposal ready 2026-08-11.** All four OpenSpec planning artifacts
+for [`land-page-class-and-layout-config`](../../openspec/changes/land-page-class-and-layout-config/)
+are complete and strict-valid. The proposed clean cutover uses the four source
+documents under `visual-style/page-image-presentation/`, keeps
+`pure-deck-visual-system.yaml` Pure-only, binds the selected projection to the
+existing raw lifecycle, and publishes no C5 derived page data. Implementation
+has not started.
 
 ---
 
@@ -1115,24 +1134,26 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done with evidence
 
 - [x] **Grill the owner on what a Story Outline actually contains** — owner confirmed the Block-first model and its required content on 2026-08-11
 - [x] Decide whether C3 runs before or after C4 — owner chose C3 first on 2026-08-11
-- [x] Write the proposal — `close-upstream-narrative-gap` is apply-ready; all planning artifacts and strict validation completed on 2026-08-11
-- [ ] `story-outline` as Source Data — editable, not recomputable from pages
-- [ ] `design-constraints` as Source Data
-- [ ] The pagination step: story → page list, carrying provenance
-- [ ] Archive the change
-- [ ] **Checkpoint 3** — a deck expresses its argument and constraints in source, and a page list derives from them
+- [x] Write the proposal, apply, sync seven delta specs, and archive `close-upstream-narrative-gap`
+- [x] `story-outline` as Source Data — editable, not recomputable from pages
+- [x] `design-constraints` as Source Data
+- [x] The pagination step: story → page list, carrying provenance
+- [x] Archive the change
+- [x] **Checkpoint 3** — a deck expresses its argument and constraints in source, and a page list derives from them
 
-> Planning evidence: `openspec/changes/close-upstream-narrative-gap/` contains
-> the proposal, seven capability deltas, design, and a 17-task apply ledger.
-> `openspec validate close-upstream-narrative-gap --strict` and
-> `openspec validate --all --strict` passed on 2026-08-11. Implementation and
-> page-plan provenance evidence remain pending apply/archive.
+> Evidence: 2026-08-11 — archived at
+> `openspec/changes/archive/2026-08-11-close-upstream-narrative-gap/`; all 17
+> apply tasks completed, seven delta specs synced to accepted specs, and strict
+> OpenSpec validation passed. Focused schema/layout/CLI/Controller coverage
+> (76 tests), selected mock E2E, `npm test`, bundle self-check, and
+> `git diff --check` passed. No Run Bundle or research data was used as a
+> fixture. Completion commit: `ec8ec8b`.
 
 ### C4 — `land-page-class-and-layout-config`
 
-- [ ] Read all of "Absorbed Design Decisions" Q2–Q13 — that is this change's specification
-- [ ] **Resolve the unresolved one:** does `**PAGE CLASS**` supersede, coexist with, or subsume the existing `**FRAME PRESET**` source field? Nobody has decided this
-- [ ] Write the proposal — rated `XL`; expect common contracts, both adapters, paths, regression suites
+- [x] Read all of "Absorbed Design Decisions" Q2–Q13 — that is this change's specification
+- [x] **Resolve the previously unresolved selector:** `**PAGE CLASS**` supersedes `**FRAME PRESET**`; remove the latter completely rather than retaining compatibility or a parallel control plane
+- [x] Write the proposal, delta specs, design, and implementation tasks in [`land-page-class-and-layout-config`](../../openspec/changes/land-page-class-and-layout-config/) — rated `XL`; common contracts, both adapters, paths, and regression suites are planned
 - [ ] `**PAGE CLASS**` source field — closed set `standard | opening | transition | closing`, omission normalizes to `standard`
 - [ ] Omission never errors and never blocks; a better-fitting class is an Agent suggestion, not a prompt
 - [ ] The four-document config package
@@ -1145,7 +1166,15 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done with evidence
 - [ ] Archive the change
 - [ ] **Checkpoint 4** — a page resolves exactly one workflow projection; inherited values show their origin
 
-> Evidence: _(archived change path; one resolved page showing inheritance; the unselected-profile invalidation proof)_
+> Planning evidence: 2026-08-11 —
+> [`land-page-class-and-layout-config`](../../openspec/changes/land-page-class-and-layout-config/)
+> is apply-ready. The proposal records the clean-cutover decision that
+> `PAGE CLASS` replaces `FRAME PRESET`; seven delta specs, design, and tasks
+> cover the four-file package, isolated resolver, raw-binding invalidation, and
+> synthetic test evidence. `openspec validate land-page-class-and-layout-config
+> --strict`, `openspec validate --all --strict` (29/29), and `git diff --check`
+> passed. Implementation evidence remains pending: an archived change path, one
+> resolved page showing inheritance, and the unselected-profile invalidation proof.
 
 ### C5 — `publish-per-page-derived-data`
 
