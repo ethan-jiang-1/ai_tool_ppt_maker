@@ -5,21 +5,6 @@
 Define creation, validation, current topology, bounded historical handling, and
 exact local Harness binding for Run Bundles.
 ## Requirements
-### Requirement: Init emits only a v2 Harness-bound locator
-
-Fresh Run Bundle initialization SHALL verify its creating local Harness root
-and write only a `pptmaker-run-bundle-v2` locator with exactly `schema`,
-`deck_root`, `harness_root`, and `harness_relation`. It SHALL not write
-retired root fields, `harness_id`, a version pin, or a
-portable binding record.
-
-#### Scenario: A fresh Bundle is initialized from the Harness
-
-- **WHEN** a user initializes a new Run Bundle through the canonical Harness
-  entrypoint
-- **THEN** the Bundle receives one verified v2 local-Harness locator
-- **AND** no legacy locator or compatibility data is created
-
 ### Requirement: Authority-carrying run operations require a current Harness binding
 
 A missing, malformed, conflicting, v1, or retired-root-named locator is a
@@ -54,50 +39,31 @@ work, or write.
 
 ### Requirement: Init and validation seed only the current Page Image Workflow topology
 
-Fresh Run Bundle initialization SHALL create a Page Image Workflow authoring
-path, not a default production route. Before provider-facing work, a version
-shall explicitly select exactly one `production.workflow`, `framed` or `pure`,
-under `production.pipeline: page-image-workflow-v1`; its matching state SHALL
-declare `image2-page-workflow-v1`. `hybrid`, a per-slide policy, omitted
-workflow, or a mismatched source/state pair SHALL produce the owner-issued
-source-repair or `unsupported-protocol/export` hard-stop before state, receipt, raw,
-or provider work.
+Before provider-facing work, a version SHALL explicitly select exactly one
+`production.workflow`, `framed` or `pure`, under
+`production.pipeline: page-image-workflow`; its matching state SHALL declare
+`image2-page-workflow`. `hybrid`, a per-slide policy, an omitted workflow, or
+an undeclared source/state pair SHALL produce the existing owner-issued failure
+before state, receipt, raw, or provider work. The locator remains a
+Harness-binding schema, not a production protocol.
 
-The local `pptmaker-run-bundle-v2` locator remains a Harness-binding schema,
-not a Page Authority production protocol. Init and validation SHALL continue
-to verify that one exact local Harness binding without creating portability,
-fallback, or cross-Harness adoption behavior.
+#### Scenario: Init seeds one current topology
+
+- **WHEN** initialization creates a production-ready source and state draft
+- **THEN** they declare one current pipeline/mode pair and one selected workflow
+- **AND** they do not include a version-suffixed or historical marker
 
 #### Scenario: Fresh authoring waits for an explicit workflow choice
 
-- **WHEN** a newly initialized version has not selected `framed` or `pure`
-- **THEN** validation reports the workflow-selection prerequisite
-- **AND** it does not infer a state mode, per-slide authority, or provider route
+- **WHEN** a new Bundle has no selected production workflow
+- **THEN** init retains the existing draft state awaiting explicit Framed/Pure choice
+- **AND** it does not infer a marker from history or directory contents
 
 #### Scenario: A selected current source becomes a valid workflow pair
 
-- **WHEN** a version selects `pure` with the replacement pipeline and matching
-  current state mode
-- **THEN** validation recognizes one Pure Page Image Workflow route
-- **AND** it does not create a Framed policy or a `hybrid` route
-
-### Requirement: Retired Page Authority bundles hard-stop without migration
-
-Normal state-aware validation and every run operation that carries production
-authority SHALL reject `page-authority-image2-v2`,
-`image2-page-authority-v2`, or v2 receipt/evidence records before derived
-artifact reads, state mutation, or provider initialization. It SHALL retain
-the supplied source and state bytes unchanged and return the bounded
-`unsupported-protocol/export` action. Structure-only layout checks remain
-non-authoritative and may describe physical files without establishing current
-production authority.
-
-#### Scenario: A v2 bundle cannot be reinitialized into the new workflow
-
-- **WHEN** normal validation reads an old v2 source/state pair
-- **THEN** it stops at the protocol boundary and preserves the pair
-- **AND** it does not write replacement source, state, receipt, or migration
-  records
+- **WHEN** source and state declare the exact current pipeline/mode pair
+- **THEN** validation accepts their one selected workflow under existing rules
+- **AND** it does not accept an alternate contract pair
 
 ### Requirement: New versions begin with fresh replacement workflow evidence
 
@@ -115,3 +81,24 @@ call a provider or infer evidence from its source version.
 - **THEN** the target is a Framed authoring draft with fresh workflow evidence
 - **AND** it does not inherit the source version's raw page, header composite,
   review decision, or final manifest
+
+### Requirement: Init emits only a current Harness-bound locator
+
+Fresh Run Bundle initialization SHALL verify its creating local Harness root
+and write only the unversioned `run-bundle-locator` contract with exactly
+`schema`, `deck_root`, `harness_root`, and `harness_relation`. It SHALL not
+write retired root fields, a version suffix, a compatibility marker, or a
+second locator format.
+
+#### Scenario: Init creates a current locator
+
+- **WHEN** a new Run Bundle is initialized
+- **THEN** it contains one schema-declared unversioned locator and its required
+  binding fields
+- **AND** no historical locator format is emitted
+
+#### Scenario: A fresh Bundle is initialized from the Harness
+
+- **WHEN** initialization uses a current local Harness root
+- **THEN** it writes the one declared locator in the new Bundle
+- **AND** it does not create a second root-format branch

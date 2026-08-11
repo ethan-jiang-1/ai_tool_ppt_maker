@@ -1,5 +1,5 @@
 {
-  "schema": "pptmaker-html-font-inventory-v1",
+  "schema": "pptmaker-html-font-inventory",
   "generatedFromCommittedSnapshot": "2026-07-18",
   "families": [
     {
@@ -82,7 +82,7 @@
         "U+1F359-1F37E"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.4.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 0
     },
@@ -130,7 +130,7 @@
         "U+1F1E6-1F1E8"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.5.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 1
     },
@@ -224,7 +224,7 @@
         "U+FEE0"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.6.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 2
     },
@@ -330,7 +330,7 @@
         "U+AF2C-AF2D"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.21.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 3
     },
@@ -413,7 +413,7 @@
         "U+9F80-9F81"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.22.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 4
     },
@@ -495,7 +495,7 @@
         "U+9E2E-9E2F"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.23.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 5
     },
@@ -601,7 +601,7 @@
         "U+9C7F-9C80"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.24.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 6
     },
@@ -707,7 +707,7 @@
         "U+9A7D"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.25.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 7
     },
@@ -802,7 +802,7 @@
         "U+98DA-98DB"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.26.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 8
     },
@@ -901,7 +901,7 @@
         "U+975A"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.27.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 9
     },
@@ -950,7 +950,7 @@
         "U+95B8-95C3"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.28.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 10
     },
@@ -996,7 +996,7 @@
         "U+94F3"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.29.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 11
     },
@@ -1058,7 +1058,7 @@
         "U+940E-941A"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.30.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 12
     },
@@ -1161,7 +1161,7 @@
         "U+92EA"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.31.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 13
     },
@@ -1260,7 +1260,7 @@
         "U+9161-9162"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.32.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 14
     },
@@ -1363,7 +1363,7 @@
         "U+8FFA"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.33.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 15
     },
@@ -1468,7 +1468,7 @@
         "U+8E40"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.34.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 16
     },
@@ -1553,7 +1553,7 @@
         "U+8CBB-8CBC"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.35.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 17
     },
@@ -1661,7 +1661,7 @@
         "U+8B7D"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.36.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 18
     },
@@ -1768,7 +1768,7 @@
         "U+8A13"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.37.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 19
     },
@@ -1877,7 +1877,7 @@
         "U+887D-887F"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.38.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 20
     },
@@ -1985,7 +1985,7 @@
         "U+86EF-86F3"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.39.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 21
     },
@@ -2096,7 +2096,7 @@
         "U+8545"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.40.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 22
     },
@@ -2181,7 +2181,7 @@
         "U+83C2"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.41.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 23
     },
@@ -2274,7 +2274,7 @@
         "U+82B4-82B6"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.42.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 24
     },
@@ -2357,7 +2357,7 @@
         "U+8160"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.43.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 25
     },
@@ -2443,7 +2443,7 @@
         "U+8014"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.44.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 26
     },
@@ -2530,7 +2530,7 @@
         "U+7EEB"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.45.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 27
     },
@@ -2604,7 +2604,7 @@
         "U+7DD1"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.46.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 28
     },
@@ -2683,7 +2683,7 @@
         "U+7CE7"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.47.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 29
     },
@@ -2744,7 +2744,7 @@
         "U+7BD1"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.48.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 30
     },
@@ -2840,7 +2840,7 @@
         "U+7AE4"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.49.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 31
     },
@@ -2941,7 +2941,7 @@
         "U+7989-798A"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.50.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 32
     },
@@ -3023,7 +3023,7 @@
         "U+784B"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.51.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 33
     },
@@ -3103,7 +3103,7 @@
         "U+7721"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.52.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 34
     },
@@ -3187,7 +3187,7 @@
         "U+7610-7612"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.53.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 35
     },
@@ -3278,7 +3278,7 @@
         "U+7508"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.54.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 36
     },
@@ -3361,7 +3361,7 @@
         "U+73EE-73EF"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.55.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 37
     },
@@ -3453,7 +3453,7 @@
         "U+72E5"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.56.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 38
     },
@@ -3560,7 +3560,7 @@
         "U+71A4-71A5"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.57.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 39
     },
@@ -3643,7 +3643,7 @@
         "U+7009"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.58.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 40
     },
@@ -3726,7 +3726,7 @@
         "U+6ED7-6ED8"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.59.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 41
     },
@@ -3810,7 +3810,7 @@
         "U+6DC2"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.60.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 42
     },
@@ -3892,7 +3892,7 @@
         "U+6CAC-6CAE"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.61.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 43
     },
@@ -3989,7 +3989,7 @@
         "U+6B80-6B82"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.62.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 44
     },
@@ -4071,7 +4071,7 @@
         "U+69FA-69FC"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.63.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 45
     },
@@ -4160,7 +4160,7 @@
         "U+68D0-68D1"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.64.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 46
     },
@@ -4260,7 +4260,7 @@
         "U+678A"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.65.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 47
     },
@@ -4353,7 +4353,7 @@
         "U+6630"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.66.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 48
     },
@@ -4437,7 +4437,7 @@
         "U+64F0"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.67.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 49
     },
@@ -4538,7 +4538,7 @@
         "U+63B1-63B5"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.68.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 50
     },
@@ -4630,7 +4630,7 @@
         "U+6225-6226"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.69.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 51
     },
@@ -4721,7 +4721,7 @@
         "U+60EC"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.70.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 52
     },
@@ -4809,7 +4809,7 @@
         "U+5FBC"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.71.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 53
     },
@@ -4903,7 +4903,7 @@
         "U+5E96"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.72.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 54
     },
@@ -4994,7 +4994,7 @@
         "U+5D24-5D25"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.73.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 55
     },
@@ -5083,7 +5083,7 @@
         "U+5BEB"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.74.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 56
     },
@@ -5169,7 +5169,7 @@
         "U+5A9E"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.75.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 57
     },
@@ -5269,7 +5269,7 @@
         "U+5966-5968"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.76.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 58
     },
@@ -5355,7 +5355,7 @@
         "U+581B-581F"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.77.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 59
     },
@@ -5431,7 +5431,7 @@
         "U+56F7-56F8"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.78.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 60
     },
@@ -5499,7 +5499,7 @@
         "U+55F0-55F3"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.79.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 61
     },
@@ -5581,7 +5581,7 @@
         "U+550C-550E"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.80.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 62
     },
@@ -5675,7 +5675,7 @@
         "U+53E1-53E2"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.81.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 63
     },
@@ -5772,7 +5772,7 @@
         "U+5287"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.82.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 64
     },
@@ -5860,7 +5860,7 @@
         "U+50FE-5102"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.83.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 65
     },
@@ -5940,7 +5940,7 @@
         "U+4FD0"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.84.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 66
     },
@@ -6046,7 +6046,7 @@
         "U+4EA2"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.85.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 67
     },
@@ -6136,7 +6136,7 @@
         "U+3128"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.86.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 68
     },
@@ -6200,7 +6200,7 @@
         "U+279C"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.87.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 69
     },
@@ -6256,7 +6256,7 @@
         "U+2648-2650"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.88.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 70
     },
@@ -6295,7 +6295,7 @@
         "U+254A-254B"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.89.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 71
     },
@@ -6390,7 +6390,7 @@
         "U+23E9"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.90.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 72
     },
@@ -6470,7 +6470,7 @@
         "U+207A-207B"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.91.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 73
     },
@@ -6523,7 +6523,7 @@
         "U+56E-579"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.97.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 74
     },
@@ -6595,7 +6595,7 @@
         "U+2AB"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.98.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 75
     },
@@ -6652,7 +6652,7 @@
         "U+16D-175"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.99.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 76
     },
@@ -6851,7 +6851,7 @@
         "U+FF14-FF16"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.100.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 77
     },
@@ -7047,7 +7047,7 @@
         "U+FF1E"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.101.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 78
     },
@@ -7247,7 +7247,7 @@
         "U+F012B"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.102.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 79
     },
@@ -7446,7 +7446,7 @@
         "U+FFFD"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.103.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 80
     },
@@ -7647,7 +7647,7 @@
         "U+FF0B"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.104.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 81
     },
@@ -7850,7 +7850,7 @@
         "U+FF0F"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.105.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 82
     },
@@ -8049,7 +8049,7 @@
         "U+E603"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.106.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 83
     },
@@ -8249,7 +8249,7 @@
         "U+FF5C"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.107.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 84
     },
@@ -8449,7 +8449,7 @@
         "U+E715"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.108.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 85
     },
@@ -8649,7 +8649,7 @@
         "U+FFE5"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.109.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 86
     },
@@ -8850,7 +8850,7 @@
         "U+FF0D"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.110.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 87
     },
@@ -9049,7 +9049,7 @@
         "U+FF5E"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.111.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 88
     },
@@ -9246,7 +9246,7 @@
         "U+9ED8"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.112.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 89
     },
@@ -9443,7 +9443,7 @@
         "U+9F50"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.113.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 90
     },
@@ -9646,7 +9646,7 @@
         "U+9C9C"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.114.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 91
     },
@@ -9844,7 +9844,7 @@
         "U+FF1B"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.115.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 92
     },
@@ -10040,7 +10040,7 @@
         "U+9F99"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.116.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 93
     },
@@ -10235,7 +10235,7 @@
         "U+FF1F"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.117.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 94
     },
@@ -10423,7 +10423,7 @@
         "U+FF08-FF09"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.118.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 95
     },
@@ -10519,7 +10519,7 @@
         "U+FF1A"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.119.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 96
     },
@@ -10539,7 +10539,7 @@
         "U+2116"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALRKoKIyQ4.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 97
     },
@@ -10567,7 +10567,7 @@
         "U+20AB"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALRIYKIyQ4.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 98
     },
@@ -10599,7 +10599,7 @@
         "U+A720-A7FF"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALRIIKIyQ4.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 99
     },
@@ -10633,7 +10633,7 @@
         "U+FFFD"
       ],
       "sourceUrl": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALRLoKI.woff2",
-      "snapshot": "google-fonts-css-v40-2026-07-18",
+      "snapshot": "google-fonts-css-2026-07-18",
       "licensePath": "licenses/NOTO-SANS-SC-OFL.txt",
       "faceIndex": 100
     }
@@ -10648,7 +10648,7 @@
   },
   "sentinelPath": "sentinels.json",
   "snapshot": {
-    "id": "google-fonts-css-v40-2026-07-18",
+    "id": "google-fonts-css-2026-07-18",
     "requestUrl": "https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@100..900&display=swap",
     "userAgentClass": "modern Chromium on Windows x86-64",
     "servedPath": "s/notosanssc/v40",

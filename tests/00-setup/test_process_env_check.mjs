@@ -265,7 +265,7 @@ describe('env-check optional Git public wiring', () => {
       let stdout = '';
       let status = 0;
       try {
-        stdout = execSync(`node ${join(process.cwd(), ENV_CHECK)} --json --mode image2-page-workflow-v1 --operation raw-generation`, {
+        stdout = execSync(`node ${join(process.cwd(), ENV_CHECK)} --json --mode image2-page-workflow --operation raw-generation`, {
           encoding: 'utf8',
           timeout: 15_000,
           env: {
@@ -341,7 +341,7 @@ describe('00-env-check', () => {
 
   it.each([
     ['base', []],
-    ['raw-generation', ['--mode', 'image2-page-workflow-v1', '--operation', 'raw-generation']],
+    ['raw-generation', ['--mode', 'image2-page-workflow', '--operation', 'raw-generation']],
     ['smoke', ['--smoke']],
     ['probe-vendors', ['--probe-vendors']],
   ])('emits exactly one parseable JSON document in %s mode', (_mode, modeArgs) => {
@@ -402,7 +402,7 @@ describe('00-env-check', () => {
   });
 
   it('reports Page Image raw owners for the raw-generation operation', () => {
-    const { stdout } = runCheck('--json --mode image2-page-workflow-v1 --operation raw-generation');
+    const { stdout } = runCheck('--json --mode image2-page-workflow --operation raw-generation');
     const data = JSON.parse(stdout);
     const generator = data.checks.find(c => c.check === 'page_image_raw_generator');
     expect(generator).toBeDefined();
@@ -503,7 +503,7 @@ describe('env-check Image2 base URL hard fail', () => {
       let stdout = '';
       let exitCode = 0;
       try {
-        stdout = execSync(`node ${join(process.cwd(), ENV_CHECK)} --json --mode image2-page-workflow-v1 --operation raw-generation`, {
+        stdout = execSync(`node ${join(process.cwd(), ENV_CHECK)} --json --mode image2-page-workflow --operation raw-generation`, {
           encoding: 'utf-8',
           timeout: 15000,
           cwd,
@@ -847,7 +847,7 @@ describe('env-check v2 mode boundary', () => {
 describe('env-check Page Image operation profiles', () => {
   function runPageImageCheck(args, env = process.env) {
     try {
-      const stdout = execFileSync('node', [join(process.cwd(), ENV_CHECK), '--json', '--mode', 'image2-page-workflow-v1', ...args], {
+      const stdout = execFileSync('node', [join(process.cwd(), ENV_CHECK), '--json', '--mode', 'image2-page-workflow', ...args], {
         encoding: 'utf8',
         timeout: 30_000,
         env: { ...env, IMAGE2_API_KEY: '', IMAGE2_BASE_URL: '' },

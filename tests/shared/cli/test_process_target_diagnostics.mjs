@@ -8,7 +8,7 @@ import { createCanvas } from "@napi-rs/canvas";
 
 import { resolveFramedStyleMasterScope } from "../../../ppt_maker_harness/scripts/03-framed-image/index.mjs";
 import { resolvePureStyleMasterScope } from "../../../ppt_maker_harness/scripts/04-pure-image/index.mjs";
-import { CLI_BOUNDS, parseCliErrorLine } from "../../../ppt_maker_harness/scripts/shared/cli/cli_error.mjs";
+import { CLI_BOUNDS, CLI_DIAGNOSTIC_SCHEMA, parseCliErrorLine } from "../../../ppt_maker_harness/scripts/shared/cli/cli_error.mjs";
 import { pageImageOrdinalImageFilename } from "../../../ppt_maker_harness/scripts/shared/image2/page_image_artifacts.mjs";
 import { pageImageWorkflowPaths, pageImageProgressiveRawPaths } from "../../../ppt_maker_harness/scripts/shared/run-bundle/page_image_paths.mjs";
 import { initBundle } from "../../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
@@ -30,9 +30,9 @@ function pngBytes(color, width = 2048, height = 1136) {
 function framedSource(title) {
   return `---
 identity:
-  scheme: mnemonic-v1
+  scheme: mnemonic
 production:
-  pipeline: page-image-workflow-v1
+  pipeline: page-image-workflow
   workflow: framed
 ---
 
@@ -41,7 +41,7 @@ production:
 **TITLE**: ${title}
 **KICKER**: Operations
 **SUBTITLE**: Current Page Image diagnostics
-**FRAME PRESET**: standard-v1
+**FRAME PRESET**: standard
 **SLIDE BODY**:
 \`\`\`yaml
 items:
@@ -75,9 +75,9 @@ async function createFixture(title) {
 function pureSource(firstTitle = "First exact Pure page") {
   return `---
 identity:
-  scheme: mnemonic-v1
+  scheme: mnemonic
 production:
-  pipeline: page-image-workflow-v1
+  pipeline: page-image-workflow
   workflow: pure
 ---
 
@@ -335,7 +335,7 @@ function expectOwnerAction(envelope, { category, reason, action }) {
     ok: false,
     code: "FAILED",
     diagnostic: {
-      version: 1,
+      schema: CLI_DIAGNOSTIC_SCHEMA,
       category,
       reason: { kind: reason },
       next: { action, requires_human: false },
@@ -376,7 +376,7 @@ describe("target Page Image CLI diagnostics", () => {
       expect(planned.status, planned.stderr).toBe(0);
       const plan = JSON.parse(planned.stdout);
       expect(plan).toMatchObject({
-        schema: "page-image-progressive-raw-plan-projection-v1",
+        schema: "page-image-progressive-raw-plan-projection",
         plan_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
         next_action: { action_id: "plan_progressive_pilot", kind: "guide", requires_human: false },
       });
@@ -458,7 +458,7 @@ describe("target Page Image CLI diagnostics", () => {
       const repaired = await runFlow(["image2", "plan", fixture.runDir], provider.env);
       expect(repaired.status, repaired.stderr).toBe(0);
       expect(JSON.parse(repaired.stdout)).toMatchObject({
-        schema: "page-image-progressive-raw-plan-projection-v1",
+        schema: "page-image-progressive-raw-plan-projection",
         workflow: "framed",
       });
       expect(provider.calls).toHaveLength(0);
@@ -521,7 +521,7 @@ describe("target Page Image CLI diagnostics", () => {
       expect(planned.status, planned.stderr).toBe(0);
       const plan = JSON.parse(planned.stdout);
       expect(plan).toMatchObject({
-        schema: "page-image-progressive-raw-plan-projection-v1",
+        schema: "page-image-progressive-raw-plan-projection",
         workflow: "pure",
         plan_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
         next_action: { action_id: "plan_progressive_pilot", kind: "guide", requires_human: false },
@@ -583,8 +583,8 @@ describe("target Page Image CLI diagnostics", () => {
       });
       expect(provider.calls).toHaveLength(2);
       expect(provider.calls.map((call) => call.idempotency_key)).toEqual([
-        expect.stringMatching(/^page-image-workflow-v1-[0-9a-f]{64}$/),
-        expect.stringMatching(/^page-image-workflow-v1-[0-9a-f]{64}$/),
+        expect.stringMatching(/^page-image-workflow-[0-9a-f]{64}$/),
+        expect.stringMatching(/^page-image-workflow-[0-9a-f]{64}$/),
       ]);
 
       const syntheticPilotReview = await runFlow([
@@ -1003,7 +1003,7 @@ describe("target Page Image CLI diagnostics", () => {
       expect(planned.status, planned.stderr).toBe(0);
       const plan = JSON.parse(planned.stdout);
       expect(plan.provider_request_inspection).toMatchObject({
-        path: "_generated/page_image_workflow/raw/provider-input-inspection-v1.json",
+        path: "_generated/page_image_workflow/raw/provider-input-inspection.json",
         sha256: expect.stringMatching(/^[0-9a-f]{64}$/),
         plan_hash: plan.plan_hash,
       });
@@ -1257,7 +1257,7 @@ describe("target Page Image CLI diagnostics", () => {
     }
   }, 45_000);
 
-  it("permits only exact historical reconciliation after a submitted Pure attempt drifts", async () => {
+  it("permits only exact prior-plan reconciliation after a submitted Pure attempt drifts", async () => {
     const fixture = await createPureFixture();
     const provider = await startMockProvider({ closeConnection: true });
     try {
@@ -1308,7 +1308,7 @@ describe("target Page Image CLI diagnostics", () => {
         attempt_sha256: submitted.sha256,
         reconciled: true,
         outcome: "unknown",
-        historical: false,
+        prior_plan: false,
       });
       expect(provider.calls).toHaveLength(1);
     } finally {

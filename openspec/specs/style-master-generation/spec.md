@@ -5,60 +5,40 @@ readiness. They do not create a separate production route.
 ## Requirements
 ### Requirement: Style Master planning is scoped to the current Page Image Workflow
 
-The Style Master owner SHALL resolve exactly one `page-image-workflow-v1`
-authoring draft, exact source/state pair with the matching
-`image2-page-workflow-v1` state, or recovery candidate for one version-level
-workflow, `framed` or `pure`. Its candidate plan, authorization, attempt, review, effective
-selection, and acceptance facts SHALL bind that workflow together with the
-current visual-language selection and source context. A fresh authoring draft
-MAY reach Style Master work before its first Page Image Workflow receipt is
-materialized, but it SHALL never create a raw page plan, Page Image receipt,
-or provider-page authority as a side effect.
+The Style Master owner SHALL resolve exactly one current
+`page-image-workflow` authoring draft and matching `image2-page-workflow` state
+for one version-level workflow, `framed` or `pure`. Its candidate plan,
+authorization, attempt, review, effective selection, and acceptance facts
+retain their existing exact workflow, visual-language, source-context,
+immutability, and cost-control rules under declared stage/role values. It SHALL
+not create raw-page authority or accept an undeclared historical lineage.
 
-When visual or other selected-workflow source drift makes a previously
-selected Style Master binding stale, the owner SHALL allow a current,
-validated selected-workflow candidate from canonical source to establish one
-provider-free replacement Style Master candidate-plan scope. This recovery
-applies only when the existing source/state evaluator reports its explicit
-source identity or source-receipt drift; it SHALL not convert state
-initialization, state integrity, workflow identity, unsupported lineage, or
-uncertain scope failures into a recovery candidate. The owner SHALL validate
-the current run/workflow identity and candidate bytes and SHALL reject invalid
-source or a candidate from another workflow. The prior plan, selection, review,
-and acceptance records remain immutable audit history and cannot satisfy the
-replacement scope or be rewritten as current evidence.
+#### Scenario: A fresh Framed draft reaches Style Master
 
-Candidate composition SHALL use the common Page Image visual semantics. It
-SHALL NOT turn provider-visible page literals, the Framed local header overlay,
-or a text-free-page rule into Style Master content authority. Candidate history
-and promotion retain one immutable, CAS-protected lifecycle per exact
-version/workflow scope; only an accepted current selection can satisfy the
-page-production Style Master prerequisite.
+- **WHEN** a valid fresh authoring draft selects `framed` under
+  `page-image-workflow`
+- **THEN** Style Master may create and inspect its selected-workflow candidate
+  lifecycle before first raw-page planning
+- **AND** it does not materialize a receipt, provider request, raw plan, or
+  final-page evidence
 
 #### Scenario: A fresh Framed draft reaches Style Master without raw lineage
 
-- **WHEN** a valid fresh authoring draft selects `framed` under
-  `page-image-workflow-v1`
-- **THEN** Style Master may create and inspect its selected-workflow candidate
-  lifecycle before first raw-page planning
-- **AND** it does not materialize a page receipt, provider request, raw plan,
-  or final-page evidence
+- **WHEN** a valid fresh current Framed draft enters Style Master
+- **THEN** the owner may inspect candidate lifecycle before raw planning
+- **AND** it does not create raw lineage or use an alternate contract
 
 #### Scenario: A Style Master selection binds one replacement workflow
 
-- **WHEN** a candidate selection is promoted for a current Pure scope
-- **THEN** its acceptance record binds that exact Pure source/visual scope
-- **AND** it cannot satisfy Framed planning or a different version
+- **WHEN** a current candidate selection is promoted for one workflow
+- **THEN** acceptance remains scoped to that workflow and source/visual context
+- **AND** it cannot satisfy another workflow
 
 #### Scenario: Visual-language drift starts one replacement Style Master scope
 
-- **WHEN** a selected workflow has an immutable prior Style Master selection
-  whose visual/source binding is stale and the canonical current candidate
-  validates for that same workflow and version
-- **THEN** the Style Master owner exposes the provider-free replacement
-  candidate-plan action for that current candidate
-- **AND** it does not materialize a source epoch, raw plan, raw authorization,
-  provider request, Page Image evidence, or rewrite of the prior history
+- **WHEN** current visual/source binding drift invalidates a selected candidate
+- **THEN** the existing owner exposes a provider-free replacement scope
+- **AND** it does not reuse prior current authority
 
 ### Requirement: Current Style Master lifecycle retains immutable plans and exact cost control
 
@@ -132,61 +112,35 @@ cost authority.
 
 ### Requirement: Pending successor projection does not require predecessor input-hash divergence
 
-For an exact current `page-image-workflow-v1` scope with a current Style
-Master successor plan, the Style Master owner SHALL expose its provider-free
-pending-successor candidate projection when all of the following direct facts
-validate: the current plan head, non-stale current plan inputs, an exact
-non-null `previous_selection_sha256`, the current effective predecessor
-selection, and its existing exact replay. The effective predecessor selection
-and replay SHALL both match that immutable predecessor identity.
+For an exact current `page-image-workflow` scope with a current Style Master
+successor plan, the owner SHALL retain the existing provider-free
+pending-successor projection when its direct immutable lifecycle facts validate.
+The projection SHALL use declared current stage/role contracts and SHALL not
+depend on or interpret a historical source/state marker.
 
-The owner SHALL determine that this is pending successor work from those
-current immutable lifecycle facts. It SHALL NOT require the successor plan's
-style-intent, style-context, or candidate-generation-profile hash to differ
-from the predecessor selection. A stale Page Image source receipt does not by
-itself change those Style Master bindings, and a valid unpromoted successor can
-therefore remain a current successor projection while they remain equal.
+#### Scenario: A current successor remains provider-free
 
-The projection SHALL retain its existing verified-media, provenance,
-grant/attempt, stable-ID, locator, and no-mutation rules. Invalid scope, plan,
-predecessor, replay, input, media, or provenance facts SHALL retain the
-existing bounded Style Master hard-stop rather than exposing a partial view.
-
-When the effective selection has advanced through the exact current successor
-plan's validated `proceed` promotion, the owner SHALL return no
-pending-successor projection so the ordinary accepted-selection path can apply
-its existing prerequisites. If the effective selection matches neither the
-plan's immutable predecessor identity nor that exact promoted successor, the
-owner SHALL retain the existing selection-conflict hard-stop.
+- **WHEN** a current successor's direct immutable facts validate
+- **THEN** the owner exposes the existing pending-successor action
+- **AND** it does not create Page Image raw authority or read a historical lineage
 
 #### Scenario: A stale source receipt does not hide a matching-binding successor
 
-- **WHEN** a Page Image source receipt is stale after a non-visual source
-  literal changes, a current successor binds the exact effective predecessor,
-  its current plan inputs validate, and the predecessor's style-intent,
-  style-context, and generation-profile hashes equal the successor's
-- **THEN** the owner returns the current successor's verified candidate
-  projection and existing `next_action`
-- **AND** it does not create a raw plan, authorization, provider request,
-  review decision, selection, receipt, or state mutation
+- **WHEN** a current successor retains valid direct binding facts after non-visual drift
+- **THEN** the owner returns its existing pending successor projection
+- **AND** it does not create raw authority
 
 #### Scenario: Matching Style Master bindings do not weaken successor validation
 
-- **WHEN** a current successor with matching predecessor Style Master bindings
-  has stale inputs or an invalid predecessor replay
-- **THEN** the owner returns its existing bounded hard-stop before exposing
-  candidate locators
-- **AND** it does not substitute the predecessor selection or a filename as
-  current successor evidence
+- **WHEN** a current successor has matching prior bindings but invalid direct facts
+- **THEN** the existing bounded hard-stop remains
+- **AND** it does not substitute a predecessor selection
 
 #### Scenario: An exactly promoted successor is no longer pending
 
-- **WHEN** the current effective selection is the exact `proceed` promotion of
-  the current successor plan
-- **THEN** the pending-successor projection returns no pending candidate list
-  and the ordinary accepted-selection path remains available
-- **AND** it does not report the plan's immutable predecessor as a competing
-  selection conflict
+- **WHEN** the effective selection is the exact current successor promotion
+- **THEN** ordinary accepted-selection handling resumes
+- **AND** no predecessor conflict or alternate contract is reported
 
 ### Requirement: Current Style Master review and selection have one authority
 
@@ -225,24 +179,6 @@ selection or make page raw work current.
   exact version/workflow scope
 - **AND** it does not mint a second decision, selection, timestamp, provider
   request, or cross-version compatibility selection
-
-### Requirement: Style Master rejects retired Page Authority lineage
-
-Before candidate planning, authorization, generation, review, promotion, or
-readiness projection, the Style Master owner SHALL reject a
-`page-authority-image2-v2` source, `image2-page-authority-v2` state, or any
-v2 candidate/effective-selection evidence as unsupported input. It SHALL
-preserve supplied bytes and SHALL NOT adopt, translate, reissue, or reuse a
-v2 candidate, plan, grant, attempt, review, or selected style as current
-Page Image Workflow evidence.
-
-#### Scenario: A v2 selected style cannot satisfy current readiness
-
-- **WHEN** current Page Image Workflow planning encounters a v2 Style Master
-  acceptance record or candidate history
-- **THEN** it returns the `unsupported-protocol/export` hard-stop before
-  candidate or raw-page work
-- **AND** it does not copy the selected bytes into a replacement record
 
 ### Requirement: Style Master compatibility projection supports valid decoded PNG layouts
 

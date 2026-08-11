@@ -48,21 +48,24 @@ changes remain preview-first exact-hash versioning work.
 
 ### Requirement: Current Page Image lifecycle has one policy per version
 
-Orchestration SHALL resolve one current `page-image-workflow-v1` policy,
-`framed` or `pure`, for the entire version. Both policies SHALL use the common
-Page Image Core, provider-content contract, compiled-input lineage, and shared
-delivery owner. They may differ only in Header Rendering Policy, Framed
-protected geometry/local overlay, and the corresponding review representation.
-No path SHALL create `hybrid` as a third workflow, select local/provider
-authority per slide, or let a sibling adapter become a fallback.
+Orchestration SHALL resolve one current schema-declared `page-image-workflow`
+policy, `framed` or `pure`, for the entire version. Both policies retain the
+common Page Image Core, provider-content contract, compiled-input lineage, and
+shared delivery ownership. An undeclared policy or marker SHALL fail before
+orchestration selects an adapter, creates a state transition, or reaches
+provider work; it SHALL not be treated as an alternate current workflow.
+
+#### Scenario: A version resolves one current policy
+
+- **WHEN** orchestration evaluates a valid current version source
+- **THEN** it resolves exactly `framed` or `pure` under the declared pipeline
+- **AND** no historical or per-slide policy is selectable
 
 #### Scenario: A version cannot mix header policies
 
-- **WHEN** a current version contains a per-slide policy override or `hybrid`
-  workflow value
-- **THEN** orchestration returns the source/structural repair action before
-  raw planning
-- **AND** it does not dispatch either adapter or provider request
+- **WHEN** a current version attempts mixed Framed/Pure header policy
+- **THEN** orchestration retains the existing single-policy rejection
+- **AND** it does not choose an alternate contract
 
 ### Requirement: Page Image scoped selectors preserve stable-ID evidence
 

@@ -6,6 +6,7 @@ import { dirname, join, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import {
   CLI_BOUNDS,
+  CLI_DIAGNOSTIC_SCHEMA,
   CLI_DIAGNOSTIC_CATEGORIES,
   CLI_ERROR_CODES,
   CLI_JSON_REPORT_SCHEMAS,
@@ -58,7 +59,7 @@ describe("cli_error", () => {
     expect(CLI_NEXT_ACTIONS).toContain("report_internal");
   });
 
-  it("builds a mandatory bounded v1 envelope and discards stack", () => {
+  it("builds a mandatory bounded current envelope and discards stack", () => {
     const env = formatCliError({
       code: CLI_ERROR_CODES.USAGE,
       message: "bad flag",
@@ -71,7 +72,7 @@ describe("cli_error", () => {
       code: "USAGE",
       message: "bad flag",
       diagnostic: {
-        version: 1,
+        schema: CLI_DIAGNOSTIC_SCHEMA,
         category: "usage",
         next: { action: "fix_arguments", requires_human: false },
       },
@@ -85,21 +86,26 @@ describe("cli_error", () => {
     expect(() => formatCliError({ code: CLI_ERROR_CODES.FAILED, message: "", hint: "y", where: "z" })).toThrow(/message/);
   });
 
-  it("accepts legacy envelopes but discards legacy stack and malformed v1", () => {
-    const legacy = parseCliErrorLine(JSON.stringify({
+  it("rejects incomplete or malformed envelopes", () => {
+    const incomplete = parseCliErrorLine(JSON.stringify({
       ok: false, code: "FAILED", message: "x", hint: "y", where: "z", stack: "SECRET_STACK",
     }));
-    expect(legacy).toEqual({ ok: false, code: "FAILED", message: "x", hint: "y", where: "z" });
+    expect(incomplete).toBeNull();
     const malformed = parseCliErrorLine(JSON.stringify({
-      ...legacy,
-      diagnostic: { version: 1, category: "provider", next: { action: "rerun", requires_human: "no", default: "retry" } },
+      ok: false, code: "FAILED", message: "x", hint: "y", where: "z",
+      diagnostic: { schema: CLI_DIAGNOSTIC_SCHEMA, category: "provider", next: { action: "rerun", requires_human: "no", default: "retry" } },
     }));
-    expect(malformed).toEqual(legacy);
+    expect(malformed).toBeNull();
+    const versioned = parseCliErrorLine(JSON.stringify({
+      ok: false, code: "FAILED", message: "x", hint: "y", where: "z",
+      diagnostic: { version: 1, category: "provider", next: { action: "rerun", requires_human: false, default: "retry" } },
+    }));
+    expect(versioned).toBeNull();
   });
 
   it("preserves structured consumer facts when producer prose changes", () => {
     const diagnostic = {
-      version: 1,
+      schema: CLI_DIAGNOSTIC_SCHEMA,
       category: "source_validation",
       next: createCliNext("edit_source", {
         default: "Repair the current source and rerun the plan checkpoint.",
@@ -131,15 +137,15 @@ describe("cli_error", () => {
     });
   });
 
-  it("falls back the whole diagnostic when required v1 fields are malformed", () => {
+  it("falls back the whole diagnostic when required current fields are malformed", () => {
     const diagnostic = sanitizeCliDiagnostic({
-      version: 1,
+      schema: CLI_DIAGNOSTIC_SCHEMA,
       category: "gate",
       next: { action: "approve", requires_human: false, default: "approve it" },
       source: { path: "/tmp/source.md" },
     });
     expect(diagnostic).toEqual({
-      version: 1,
+      schema: CLI_DIAGNOSTIC_SCHEMA,
       category: "internal",
       next: {
         action: "report_internal",
@@ -159,7 +165,7 @@ describe("cli_error", () => {
       nested: { ignored: true },
     }));
     const diagnostic = sanitizeCliDiagnostic({
-      version: 1,
+      schema: CLI_DIAGNOSTIC_SCHEMA,
       category: "source_validation",
       stage: "stage1",
       operation: "validate-specs",
@@ -181,7 +187,7 @@ describe("cli_error", () => {
 
   it("omits credential-bearing invocation and safe-domain sentinel values", () => {
     const diagnostic = sanitizeCliDiagnostic({
-      version: 1,
+      schema: CLI_DIAGNOSTIC_SCHEMA,
       category: "provider",
       reason: { kind: "request_failed", actual: "RAW_PROVIDER_BODY_SENTINEL" },
       next: {
@@ -199,7 +205,7 @@ describe("cli_error", () => {
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
     emitCliError({ code: CLI_ERROR_CODES.FAILED, message: "boom", hint: "retry", where: "unit" });
     expect(spy).toHaveBeenCalledTimes(1);
-    expect(parseCliErrorLine(spy.mock.calls[0][0])?.diagnostic?.version).toBe(1);
+    expect(parseCliErrorLine(spy.mock.calls[0][0])?.diagnostic?.schema).toBe(CLI_DIAGNOSTIC_SCHEMA);
   });
 
   it("recursively detects exactly the registered direct CLI candidates", () => {
@@ -245,25 +251,25 @@ describe("cli_error", () => {
         "shared/run-bundle/bundle_layout.mjs": "tests/shared/run-bundle/test_page_image_layout.mjs",
         "00-setup/env-check.mjs": "tests/00-setup/test_process_env_check.mjs",
         "shared/run-bundle/lessons.mjs": "tests/shared/run-bundle/test_process_lessons.mjs",
-        "ppt_flow.mjs": "tests/contracts/test_retired_cli_surface.mjs",
+        "ppt_flow.mjs": "tests/contracts/test_cli_surface.mjs",
       }[entry], "structured contextual failure"),
       delegated: entry === "ppt_flow.mjs" ? focused("tests/shared/cli/test_process_cli_error.mjs", "suppresses child failure prose") : na("Executable does not own a subprocess boundary."),
       interruption: focused("tests/shared/cli/test_process_cli_error.mjs", "handles catchable interruption once"),
       prose_success: focused("tests/shared/cli/test_process_cli_error.mjs", "every registered executable has side-effect-free help"),
-      json_success: ["00-setup/env-check.mjs", "ppt_flow.mjs", "shared/run-bundle/lessons.mjs"].includes(entry) ? focused(entry === "00-setup/env-check.mjs" ? "tests/00-setup/test_process_env_check.mjs" : entry === "ppt_flow.mjs" ? "tests/contracts/test_retired_cli_surface.mjs" : "tests/shared/run-bundle/test_process_lessons.mjs", "documented JSON output") : na("No documented JSON success mode."),
+      json_success: ["00-setup/env-check.mjs", "ppt_flow.mjs", "shared/run-bundle/lessons.mjs"].includes(entry) ? focused(entry === "00-setup/env-check.mjs" ? "tests/00-setup/test_process_env_check.mjs" : entry === "ppt_flow.mjs" ? "tests/contracts/test_cli_surface.mjs" : "tests/shared/run-bundle/test_process_lessons.mjs", "documented JSON output") : na("No documented JSON success mode."),
     }]));
     const delegatedCommands = new Set(["doctor", "validate", "build", "refresh", "test"]);
     const commandAudit = Object.fromEntries(PPT_FLOW_COMMAND_INVENTORY.map((entry) => {
-      const commandProbeFile = "tests/contracts/test_retired_cli_surface.mjs";
+      const commandProbeFile = "tests/contracts/test_cli_surface.mjs";
       const commandProbeName = `ppt_flow ${entry} contextual behavior`;
       return [entry, {
-        help: focused("tests/contracts/test_retired_cli_surface.mjs", "has no retired command and hard-stops non-v2 observation and execution without writes"),
-        usage: entry === "test" ? na("The no-argument test command has no command-specific usage failure.") : focused("tests/contracts/test_retired_cli_surface.mjs", "has no retired command and hard-stops non-v2 observation and execution without writes"),
+        help: focused("tests/contracts/test_cli_surface.mjs", "has no retired command and hard-stops non observation and execution without writes"),
+        usage: entry === "test" ? na("The no-argument test command has no command-specific usage failure.") : focused("tests/contracts/test_cli_surface.mjs", "has no retired command and hard-stops non observation and execution without writes"),
         contextual: focused(commandProbeFile, commandProbeName),
         delegated: delegatedCommands.has(entry) ? focused("tests/shared/cli/test_process_cli_error.mjs", "suppresses child failure prose") : na("Command does not delegate to a child process."),
         interruption: focused("tests/shared/cli/test_process_cli_error.mjs", "handles catchable interruption once"),
         prose_success: focused(commandProbeFile, `ppt_flow ${entry} success`),
-        json_success: ["status", "state", "image2"].includes(entry) ? focused("tests/contracts/test_retired_cli_surface.mjs", "has no retired command and hard-stops non-v2 observation and execution without writes") : na("No documented JSON success mode."),
+        json_success: ["status", "state", "image2"].includes(entry) ? focused("tests/contracts/test_cli_surface.mjs", "has no retired command and hard-stops non observation and execution without writes") : na("No documented JSON success mode."),
       }];
     }));
     expect(Object.keys(executableAudit).sort()).toEqual([...EXECUTABLE_INVENTORY].sort());
@@ -294,7 +300,7 @@ describe("cli_error", () => {
     expect(violations).toEqual([]);
   });
 
-  it("suppresses child failure prose and preserves only registered supported v1 evidence", () => {
+  it("suppresses child failure prose and preserves only registered current evidence", () => {
     const collector = createChildOutputCollector({ registered: true });
     collector.pushStdout("CHILD_STDOUT_SENTINEL\n");
     collector.pushStderr("CHILD_STDERR_SENTINEL\n");
@@ -304,7 +310,7 @@ describe("cli_error", () => {
       hint: "safe child hint",
       where: "stage2",
       diagnostic: {
-        version: 1,
+        schema: CLI_DIAGNOSTIC_SCHEMA,
         category: "artifact",
         subject: { kind: "slide", id: "s03" },
         source: { path: "/tmp/slide-specifications.md", line: 12 },
@@ -325,7 +331,7 @@ describe("cli_error", () => {
       hint: "repair the selected environment prerequisite",
       where: "env-check.raw-generation",
       diagnostic: {
-        version: 1,
+        schema: CLI_DIAGNOSTIC_SCHEMA,
         category: "environment",
         stage: "foundation",
         operation: "raw-generation-readiness",
@@ -336,13 +342,13 @@ describe("cli_error", () => {
         lineage: [{ kind: "script", path: "ppt_maker_harness/scripts/00-setup/env-check.mjs", stage: "foundation" }],
         next: createCliNext("repair_environment", {
           default: "Configure the selected raw-generation environment, then rerun this exact readiness check.",
-          invocation: { program: "node", args: ["env-check.mjs", "--mode", "image2-page-workflow-v1", "--operation", "raw-generation"] },
+          invocation: { program: "node", args: ["env-check.mjs", "--mode", "image2-page-workflow", "--operation", "raw-generation"] },
         }),
       },
     })));
     const expected = child?.diagnostic;
     const preserved = buildDelegatedDiagnostic({
-      invocation: { program: "node", args: ["env-check.mjs", "--mode", "image2-page-workflow-v1", "--operation", "raw-generation"] },
+      invocation: { program: "node", args: ["env-check.mjs", "--mode", "image2-page-workflow", "--operation", "raw-generation"] },
       childError: child,
       operation: "doctor",
       next: createCliNext("inspect", { default: "Generic parent advice must not replace the producer action." }),
@@ -417,7 +423,7 @@ describe("cli_error", () => {
       smoke: false,
       probeVendors: false,
     }, CLI_JSON_REPORT_SCHEMAS.ENV_CHECK)).toMatchObject({ allPass: false });
-    expect(() => validateCliJsonReport({ allPass: false, checks: [] }, CLI_JSON_REPORT_SCHEMAS.ENV_CHECK)).toThrow(/env-check-v1/);
+    expect(() => validateCliJsonReport({ allPass: false, checks: [] }, CLI_JSON_REPORT_SCHEMAS.ENV_CHECK)).toThrow(/env-check/);
     expect(validateCliJsonReport({ corrupted: true, error_count: 2 }, CLI_JSON_REPORT_SCHEMAS.STATE_FAILURE)).toEqual({ corrupted: true, error_count: 2 });
     expect(() => validateCliJsonReport({ corrupted: "yes", error_count: 2 }, CLI_JSON_REPORT_SCHEMAS.STATE_FAILURE)).toThrow(/state-failure/);
   });
@@ -429,7 +435,7 @@ describe("cli_error", () => {
       hint: "Fix source",
       where: "stage1.validate",
       diagnostic: {
-        version: 1,
+        schema: CLI_DIAGNOSTIC_SCHEMA,
         category: "source_validation",
         issues: [{ message: "invalid mode", subject: { kind: "slide", id: "s03" }, source: { path: "/tmp/spec.md", line: 9 } }],
         next: createCliNext("edit_source", {
@@ -461,7 +467,7 @@ describe("cli_error", () => {
       expect(failure.status).not.toBe(0);
       expect(`${failure.stdout}${failure.stderr}`).not.toMatch(/SENTINEL/);
       const parsed = parseCliErrorLine(failure.stderr.trim().split(/\r?\n/).at(-1));
-      expect(parsed?.diagnostic).toMatchObject({ version: 1, category: "internal" });
+      expect(parsed?.diagnostic).toMatchObject({ schema: CLI_DIAGNOSTIC_SCHEMA, category: "internal" });
       expect(envelopeLines(failure.stderr)).toHaveLength(1);
     } finally {
       rmSync(dir, { recursive: true, force: true });
@@ -488,7 +494,7 @@ describe("cli_error", () => {
     try {
       const path = join(dir, "json.mjs");
       const helperUrl = pathToFileURL(join(SCRIPTS, "shared", "cli", "cli_error.mjs")).href;
-      writeFileSync(path, `import "${pathToFileURL(BOOTSTRAP).href}?entry=json.mjs";\nimport { setCliOutputMode, registerCliJsonReport, emitCliError, CLI_ERROR_CODES } from "${helperUrl}";\nsetCliOutputMode("json");\nregisterCliJsonReport({ ready: false, checks: [{ id: "local", status: "fail" }] });\nconsole.log(JSON.stringify({ incidental: "INCIDENTAL_JSON_SENTINEL" }));\nemitCliError({ code: CLI_ERROR_CODES.FAILED, message: "Readiness check failed.", hint: "Repair local prerequisites.", where: "probe.json", diagnostic: { version: 1, category: "environment", next: { action: "repair_environment", requires_human: false, default: "Repair local prerequisites, then rerun." } } });\nprocess.exit(1);\n`);
+      writeFileSync(path, `import "${pathToFileURL(BOOTSTRAP).href}?entry=json.mjs";\nimport { setCliOutputMode, registerCliJsonReport, emitCliError, CLI_ERROR_CODES, CLI_DIAGNOSTIC_SCHEMA } from "${helperUrl}";\nsetCliOutputMode("json");\nregisterCliJsonReport({ ready: false, checks: [{ id: "local", status: "fail" }] });\nconsole.log(JSON.stringify({ incidental: "INCIDENTAL_JSON_SENTINEL" }));\nemitCliError({ code: CLI_ERROR_CODES.FAILED, message: "Readiness check failed.", hint: "Repair local prerequisites.", where: "probe.json", diagnostic: { schema: CLI_DIAGNOSTIC_SCHEMA, category: "environment", next: { action: "repair_environment", requires_human: false, default: "Repair local prerequisites, then rerun." } } });\nprocess.exit(1);\n`);
       const result = spawnSync("node", [path], { encoding: "utf8" });
       expect(result.status).toBe(1);
       expect(JSON.parse(result.stdout)).toEqual({ ready: false, checks: [{ id: "local", status: "fail" }] });
@@ -543,7 +549,7 @@ describe("cli_error", () => {
       const path = join(dir, "provider.mjs");
       const rawMechanicsUrl = pathToFileURL(join(SCRIPTS, "shared", "image2", "page_image_raw_mechanics.mjs")).href;
       const helperUrl = pathToFileURL(join(SCRIPTS, "shared", "cli", "cli_error.mjs")).href;
-      writeFileSync(path, `import "${pathToFileURL(BOOTSTRAP).href}?entry=provider.mjs";\nimport { PageImageRawMechanicsError } from "${rawMechanicsUrl}";\nimport { emitCliError, CLI_ERROR_CODES } from "${helperUrl}";\nprocess.env.IMAGE2_API_KEY = "CREDENTIAL_SENTINEL";\nprocess.env.IMAGE2_BASE_URL = "https://provider.example/v1";\ntry { throw new PageImageRawMechanicsError("raw_submit_failed", "PROMPT_SENTINEL PROVIDER_BODY_SENTINEL"); } catch (error) { emitCliError({ code: CLI_ERROR_CODES.FAILED, message: "Image provider failed.", hint: "Repair provider availability.", where: "provider.probe", diagnostic: { version: 1, category: "provider", reason: { kind: error.code || "provider_failure", actual: "PROVIDER_BODY_SENTINEL" }, next: { action: "repair_environment", requires_human: false, default: "Repair provider availability without exposing credentials, then rerun." } } }); process.exit(1); }\n`);
+      writeFileSync(path, `import "${pathToFileURL(BOOTSTRAP).href}?entry=provider.mjs";\nimport { PageImageRawMechanicsError } from "${rawMechanicsUrl}";\nimport { emitCliError, CLI_ERROR_CODES, CLI_DIAGNOSTIC_SCHEMA } from "${helperUrl}";\nprocess.env.IMAGE2_API_KEY = "CREDENTIAL_SENTINEL";\nprocess.env.IMAGE2_BASE_URL = "https://provider.example/v1";\ntry { throw new PageImageRawMechanicsError("raw_submit_failed", "PROMPT_SENTINEL PROVIDER_BODY_SENTINEL"); } catch (error) { emitCliError({ code: CLI_ERROR_CODES.FAILED, message: "Image provider failed.", hint: "Repair provider availability.", where: "provider.probe", diagnostic: { schema: CLI_DIAGNOSTIC_SCHEMA, category: "provider", reason: { kind: error.code || "provider_failure", actual: "PROVIDER_BODY_SENTINEL" }, next: { action: "repair_environment", requires_human: false, default: "Repair provider availability without exposing credentials, then rerun." } } }); process.exit(1); }\n`);
       const result = spawnSync("node", [path], { encoding: "utf8", timeout: 10000 });
       expect(result.status).toBe(1);
       expect(`${result.stdout}${result.stderr}`).not.toMatch(/CREDENTIAL_SENTINEL|PROMPT_SENTINEL|PROVIDER_BODY_SENTINEL|PageImageRawMechanicsError/);
@@ -553,7 +559,7 @@ describe("cli_error", () => {
     }
   }, 15000);
 
-  it("every registered executable has side-effect-free help and one final v1 failure envelope", () => {
+  it("every registered executable has side-effect-free help and one final current failure envelope", () => {
     const failureArgs = {
       "shared/run-bundle/bundle_layout.mjs": ["--structure-only"],
       "00-setup/env-check.mjs": ["--smoke", "--probe-vendors"],
@@ -570,7 +576,7 @@ describe("cli_error", () => {
       expect(failed.status, `${script} deterministic failure`).not.toBe(0);
       const envelopes = envelopeLines(failed.stderr);
       expect(envelopes, `${script} stderr:\n${failed.stderr}`).toHaveLength(1);
-      expect(envelopes[0].diagnostic?.version, `${script} diagnostic`).toBe(1);
+      expect(envelopes[0].diagnostic?.schema, `${script} diagnostic`).toBe(CLI_DIAGNOSTIC_SCHEMA);
       expect(parseCliErrorLine(failed.stderr.split(/\r?\n/).filter(Boolean).at(-1)), `${script} final stderr line`).toBeTruthy();
     }
   }, 30000);
@@ -589,7 +595,7 @@ describe("cli_error", () => {
       const result = await new Promise((resolveExit) => child.on("exit", (code, signal) => resolveExit({ code, signal })));
       expect(result.code === 143 || result.signal === "SIGTERM").toBe(true);
       const envelopes = envelopeLines(stderr);
-      expect(envelopes).toHaveLength(1);
+      expect(envelopes, stderr).toHaveLength(1);
       expect(envelopes[0].diagnostic.category).toBe("interrupted");
     } finally {
       rmSync(dir, { recursive: true, force: true });

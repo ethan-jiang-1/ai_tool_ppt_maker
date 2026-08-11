@@ -4,13 +4,10 @@ import {
   extractNodeCommands,
   scanHarnessCoherence,
   scanMarkdownLinks,
-  scanRetiredWholePageTerms,
   scanSemanticDrift,
   validateDiagnosticAuthorityPointers,
   validateExceptionMap,
-  validateLegacyTokenExceptions,
   validatePseudocodeMarkers,
-  validateRetiredWholePageTokenExceptions,
 } from "../../ppt_maker_harness/scripts/contracts/harness_coherence.mjs";
 import { validateDocumentedCommands } from "../../ppt_maker_harness/scripts/contracts/harness_document_command_audit.mjs";
 
@@ -30,15 +27,10 @@ describe("Harness documentation coherence", () => {
     for (const file of CRITICAL_FILES) expect(existsSync(file), file).toBe(true);
   });
 
-  it("rejects broken links, stale commands, broad exceptions, and retired protocol terms", () => {
+  it("rejects broken links, stale commands, and broad exceptions", () => {
     expect(scanMarkdownLinks("/tmp/a/doc.md", "[bad](missing.md)")).toHaveLength(1);
     expect(scanSemanticDrift("doc.md", "Stage 2 uses image2-ppt skill")).toHaveLength(1);
     expect(validateExceptionMap({ "ppt_maker_harness/workflow/": "broad" })).toHaveLength(1);
-    expect(validateLegacyTokenExceptions([{}])).not.toEqual([]);
-    expect(validateRetiredWholePageTokenExceptions([{}])).not.toEqual([]);
-    const retired = ["whole", "page", "image2", "v1"].join("-");
-    expect(scanRetiredWholePageTerms({ "ppt_maker_harness/playbook/example.md": retired }))
-      .toEqual(expect.arrayContaining([expect.objectContaining({ rule: "retired-protocol-term" })]));
     const commands = extractNodeCommands("doc.md", "```bash\nnode ppt_maker_harness/scripts/ppt_flow.mjs validate x --unexpected\n```");
     expect(validateDocumentedCommands(commands, "ppt_maker_harness/scripts").some((item) => item.rule === "unsupported-flag")).toBe(true);
   });

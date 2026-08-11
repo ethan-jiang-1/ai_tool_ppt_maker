@@ -1,14 +1,14 @@
 ---
 identity:
-  scheme: mnemonic-v1
+  scheme: mnemonic
 production:
-  pipeline: page-image-workflow-v1
+  pipeline: page-image-workflow
   workflow: <framed|pure>
 ---
 
 # Page Image Slide Source
 
-Use a 5-8 character mnemonic-v1 `slide_id` with exactly two BlockCase chunks.
+Use a 5-8 character mnemonic `slide_id` with exactly two BlockCase chunks.
 `position` is snapshot order only; `slide_id` remains the cross-version identity.
 
 ## Slide 01: `DeckGo`

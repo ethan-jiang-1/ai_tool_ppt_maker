@@ -11,7 +11,7 @@ import {
   pureDeckVisualSystemAsset,
 } from "../../shared/run-bundle/bundle_layout.mjs";
 
-export const PURE_DECK_VISUAL_SYSTEM_SCHEMA = "pptmaker-pure-deck-visual-system-v1";
+export const PURE_DECK_VISUAL_SYSTEM_SCHEMA = "pptmaker-pure-deck-visual-system";
 export const PURE_DECK_VISUAL_SYSTEM_RELATIVE_PATH = `2_backbone/visual-style/${PURE_DECK_VISUAL_SYSTEM_FILE}`;
 
 const FONT_VOICES = Object.freeze(["editorial-serif", "editorial-sans", "geometric-sans", "humanist-sans"]);

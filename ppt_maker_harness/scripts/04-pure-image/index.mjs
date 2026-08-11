@@ -99,7 +99,7 @@ import {
   deliverTargetFinalSlideManifest,
 } from "../05-delivery/index.mjs";
 
-/** TARGET Pure workflow owner. Behavior moves here from the bounded v1 adapter. */
+/** Current Pure workflow owner. */
 export const PURE_IMAGE_WORKFLOW = "pure";
 
 export const PURE_IMAGE_APPROVED_SHARED_INTERFACES = Object.freeze([
@@ -206,7 +206,7 @@ export function validatePureRawContract(rawContract) {
       !rawContract.deck_visual_system.projection || typeof rawContract.deck_visual_system.projection !== "object" || Array.isArray(rawContract.deck_visual_system.projection) ||
       canonicalJsonSha256(rawContract.deck_visual_system.projection) !== rawContract.deck_visual_system.sha256 ||
       !hasExactKeys(rawContract.page_image_core, PURE_RAW_CONTRACT_CORE_KEYS) ||
-      rawContract.page_image_core.schema !== "page-image-core-slide-facts-v1" ||
+      rawContract.page_image_core.schema !== "page-image-core-slide-facts" ||
       !SHA256_RE.test(rawContract.page_image_core.canonical_semantic_sha256 || "") ||
       !hasExactKeys(rawContract.provider_rendered_content, PURE_PROVIDER_RENDERED_CONTENT_KEYS) ||
       !hasExactKeys(rawContract.provider_rendered_content.header, PURE_HEADER_KEYS) ||
@@ -237,7 +237,7 @@ export function validatePureRawContract(rawContract) {
 }
 
 function requireReceipt(receipt) {
-  if (!receipt || receipt.schema !== "page-image-workflow-source-v1" || receipt.workflow !== PURE_IMAGE_WORKFLOW || !Array.isArray(receipt.slides) || !receipt.slides.length) {
+  if (!receipt || receipt.schema !== "page-image-workflow-source" || receipt.workflow !== PURE_IMAGE_WORKFLOW || !Array.isArray(receipt.slides) || !receipt.slides.length) {
     throw new PureImageWorkflowError("wrong_workflow_owner", "Pure workflow requires a current Page Image Workflow pure receipt");
   }
   return receipt;
@@ -357,7 +357,7 @@ function pureCompletePageReviewInputs({ context, reviewPlan, rawBytesBySlide, so
     const providerSha256 = sha256Bytes(bytes);
     raw[slideId] = bytes;
     bindings[slideId] = canonicalJsonSha256({
-      schema: "page-image-pure-complete-page-binding-v1",
+      schema: "page-image-pure-complete-page-binding",
       raw_work_plan_sha256: reviewPlanSha256,
       slide_id: slideId,
       provider_page_sha256: providerSha256,
@@ -393,7 +393,7 @@ function purePilotReviewContribution({ inputs, batchSha256, coverage } = {}) {
     });
   });
   return canonicalJsonSha256({
-    schema: "page-image-pure-pilot-review-contribution-v1",
+    schema: "page-image-pure-pilot-review-contribution",
     raw_work_plan_sha256: inputs.raw_work_plan_sha256,
     batch_sha256: batchSha256,
     complete_page_review_contribution_sha256: inputs.contribution.typed_review_contribution_sha256,
@@ -598,7 +598,7 @@ function createPureCoreFacts(context, generation, deckVisualSystem) {
       })),
       styleMasterSelection: coreStyleMasterSelection(PURE_IMAGE_WORKFLOW, generation.style_master_reference),
       generationProfile: generation.profile,
-      headerRenderingPolicy: { workflow: PURE_IMAGE_WORKFLOW, policy: "provider-visible-v1" },
+      headerRenderingPolicy: { workflow: PURE_IMAGE_WORKFLOW, policy: "provider-visible" },
       deckVisualSystemSha256: deckVisualSystem.sha256,
     });
   } catch (error) {
@@ -655,7 +655,7 @@ function compilePureProviderInput({ slideId, rawContract, generationProfile } = 
     throw new PureImageWorkflowError("pure_provider_input_invalid", "Pure provider input requires one valid selected raw contract and generation profile");
   }
   const utf8 = canonicalJson({
-    schema: "page-image-pure-provider-input-v1",
+    schema: "page-image-pure-provider-input",
     slide_id: slideId,
     instruction: "Render one complete premium keynote page. Render every header literal and provider-rendered content item as readable integrated page typography; preserve exact literals unless an item explicitly allows presentation adaptation.",
     provider_rendered_content: rawContract.provider_rendered_content,
@@ -903,7 +903,7 @@ export function pureProgressiveRawPlanProjection(plan) {
     task_mandate: plan.progressive_raw_task_mandate,
   });
   return Object.freeze({
-    schema: "page-image-progressive-raw-plan-projection-v1",
+    schema: "page-image-progressive-raw-plan-projection",
     plan_hash: plan.progressive_raw_work_plan.sha256,
     workflow: PURE_IMAGE_WORKFLOW,
     source_epoch: plan.source_epoch,

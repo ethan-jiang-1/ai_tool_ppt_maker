@@ -120,8 +120,8 @@ function taskMandateRecoveryAction(snapshot) {
 
 /**
  * Adapter-owned runtime calls always pass the State inspection result. The
- * undefined form is retained only for low-level immutable-record readers and
- * their historical protocol fixtures; it is never used by the public CLI.
+ * undefined form is used only by low-level immutable-record readers and their
+ * focused fixtures; it is never used by the public CLI.
  */
 function taskMandateAction(snapshot, taskMandate) {
   if (taskMandate === undefined) return null;
@@ -137,7 +137,7 @@ function taskMandateAction(snapshot, taskMandate) {
 function requireCurrentTaskMandate(snapshot, taskMandate) {
   const recovery = taskMandateAction(snapshot, taskMandate);
   if (recovery) {
-    fail("progressive_raw_task_mandate_required", "current provider work requires a matching Page Image Task Mandate and v2 full plan", { nextAction: recovery });
+    fail("progressive_raw_task_mandate_required", "current provider work requires a matching Page Image Task Mandate and current full plan", { nextAction: recovery });
   }
 }
 
@@ -457,7 +457,7 @@ function validateMaterializations(plan, records, attemptState, { resolveExternal
       advanced = true;
     }
     if (!advanced) {
-      fail("progressive_raw_materialization_invalid", "reuse materialization must bind an authoritative compatible immutable provenance source");
+      fail("progressive_raw_materialization_invalid", "reuse materialization must bind an authoritative matching immutable provenance source");
     }
   }
   return Object.freeze({
@@ -671,7 +671,7 @@ function requireCurrentPlan(snapshot, planHash, expectedPlan = null) {
 
 /**
  * Current lifecycle mutations must diagnose the supplied plan against the
- * scope head before using it as a filesystem lock target. Historical
+ * scope head before using it as a filesystem lock target. Prior-plan
  * reconciliation is intentionally separate because it locks an exact retained
  * plan after its own scope-binding validation.
  */
@@ -1000,8 +1000,8 @@ function retainCurrentCompleteReviewForProviderFreeReuse(runDir, plan, sourceSna
 
 /** Build the only provider-free replacement raw plan from one selected adapter plan. */
 export function createProgressiveRawWorkPlanFromTarget({ runDir, source_epoch, raw_work_plan, effective_style_master_sha256, task_mandate_sha256 } = {}) {
-  const legacy = checked(raw_work_plan, "selected adapter raw work plan", (plan) => {
-    if (!plan || plan.schema !== "page-image-adapter-raw-work-plan-v1") return { ok: false, code: "progressive_raw_target_plan_invalid", message: "selected adapter must supply a current typed raw plan projection" };
+  const selectedTargetPlan = checked(raw_work_plan, "selected adapter raw work plan", (plan) => {
+    if (!plan || plan.schema !== "page-image-adapter-raw-work-plan") return { ok: false, code: "progressive_raw_target_plan_invalid", message: "selected adapter must supply a current typed raw plan projection" };
     const ids = plan.ordered_slide_ids;
     return Array.isArray(ids) && ids.length > 0 && Array.isArray(plan.items) && ids.length === plan.items.length
       && plan.items.every((item) => item && typeof item === "object" && Object.hasOwn(item, "provider_input_binding"))
@@ -1018,14 +1018,14 @@ export function createProgressiveRawWorkPlanFromTarget({ runDir, source_epoch, r
     provider_profile_sha256: raw_work_plan.provider_profile_sha256,
     effective_style_master_sha256,
     source_execution_sha256: canonicalJsonSha256({
-      schema: "page-image-progressive-raw-source-execution-v1",
+      schema: "page-image-progressive-raw-source-execution",
       run_version: basename(runDir || ""),
       source_receipt_sha256: raw_work_plan.source_receipt_sha256,
       source_epoch,
       workflow: raw_work_plan.workflow,
       provider_profile_sha256: raw_work_plan.provider_profile_sha256,
       effective_style_master_sha256,
-      adapter_raw_work_plan_sha256: legacy.sha256,
+      adapter_raw_work_plan_sha256: selectedTargetPlan.sha256,
     }),
     ...(task_mandate_sha256 === undefined ? {} : { task_mandate_sha256 }),
     ordered_slide_ids: raw_work_plan.ordered_slide_ids,
@@ -1496,18 +1496,18 @@ export async function reconcileProgressiveRawAttempt({ runDir, workflow, plan_ha
     plan_sha256: plan_hash,
     action: async () => {
       const currentHead = loadPlanByHead(runDir, workflow);
-      if (!currentHead) fail("progressive_raw_plan_missing", "historical reconciliation requires a current selected scope head");
+      if (!currentHead) fail("progressive_raw_plan_missing", "prior-plan reconciliation requires a current selected scope head");
       const current = expected_plan
         ? requireCurrentPlan(currentHead, currentHead.plan.sha256, expected_plan)
         : currentHead;
       const snapshot = current.plan.sha256 === plan_hash ? current : loadPlanByHash(runDir, plan_hash);
       if (snapshot.plan.workflow !== workflow || snapshot.plan.run_version !== current.plan.run_version) {
-        fail("progressive_raw_cross_bound", "historical reconciliation requires a plan from the exact current run/workflow scope", { nextAction: nextAction(current) });
+        fail("progressive_raw_cross_bound", "prior-plan reconciliation requires a plan from the exact current run/workflow scope", { nextAction: nextAction(current) });
       }
-      const historical = snapshot.plan.sha256 !== current.plan.sha256;
+      const priorPlan = snapshot.plan.sha256 !== current.plan.sha256;
       const attempt = snapshot.attempt_state.by_sha.get(attempt_sha256);
       if (!attempt || attempt.record.status !== "submitted") {
-        fail("progressive_raw_reconcile_invalid", "reconcile accepts only an exact persisted submitted attempt", { nextAction: historical ? nextAction(current) : nextAction(snapshot) });
+        fail("progressive_raw_reconcile_invalid", "reconcile accepts only an exact persisted submitted attempt", { nextAction: priorPlan ? nextAction(current) : nextAction(snapshot) });
       }
       const effectiveTerminal = snapshot.attempt_state.current_by_key.get(attempt.record.attempt_key_sha256) || null;
       if (effectiveTerminal?.record.status === "succeeded" && effectiveTerminal.record.previous_attempt_sha256 === attempt.sha256) {
@@ -1517,10 +1517,10 @@ export async function reconcileProgressiveRawAttempt({ runDir, workflow, plan_ha
           reconciled: true,
           replay: true,
           outcome: "succeeded",
-          historical,
+          prior_plan: priorPlan,
           progress: snapshot.progress,
-          ...(historical ? { current_plan_hash: current.plan.sha256 } : {}),
-          next_action: historical ? nextAction(current) : nextAction(snapshot),
+          ...(priorPlan ? { current_plan_hash: current.plan.sha256 } : {}),
+          next_action: priorPlan ? nextAction(current) : nextAction(snapshot),
         });
       }
       const batch = snapshot.attempt_state.batch_by_sha.get(attempt.record.batch_sha256);
@@ -1576,10 +1576,10 @@ export async function reconcileProgressiveRawAttempt({ runDir, workflow, plan_ha
         attempt_sha256,
         reconciled: true,
         outcome: terminalOutcome,
-        historical,
+        prior_plan: priorPlan,
         progress: reconciled.progress,
-        ...(historical ? { current_plan_hash: after.plan.sha256 } : {}),
-        next_action: historical ? nextAction(after) : nextAction(reconciled),
+        ...(priorPlan ? { current_plan_hash: after.plan.sha256 } : {}),
+        next_action: priorPlan ? nextAction(after) : nextAction(reconciled),
       });
     },
   });
@@ -1794,7 +1794,7 @@ export function readProgressiveAcceptedRawWork({ runDir, workflow, plan_hash, ex
 /**
  * Read the one current Complete Page Review that still awaits its human
  * decision. A prepared record remains immutable after a later decision, so
- * `decided_by_prepared` is the authority for excluding that historical input.
+ * `decided_by_prepared` is the authority for excluding that prior input.
  */
 export function readCurrentProgressiveRawCompleteReview({ runDir, workflow, expected_plan = null } = {}) {
   const current = loadPlanByHead(runDir, workflow);

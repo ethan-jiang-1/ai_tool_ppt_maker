@@ -3,7 +3,7 @@ import {
   validateRawWorkPlanForFinalization,
 } from "../image2/page_image_artifacts.mjs";
 
-export const PAGE_IMAGE_INVALIDATION_SCHEMA = "page-image-invalidation-v1";
+export const PAGE_IMAGE_INVALIDATION_SCHEMA = "page-image-invalidation";
 export const PAGE_IMAGE_INVALIDATION_CHANGE_KINDS = Object.freeze(["source", "notes-only"]);
 
 const WORKFLOWS = new Set(["framed", "pure"]);
@@ -41,8 +41,8 @@ export class PageImageInvalidationError extends Error {
 
 function requireReceipt(receipt, label) {
   if (!receipt || typeof receipt !== "object" || Array.isArray(receipt) ||
-    receipt.schema !== "page-image-workflow-source-v1" ||
-    receipt.pipeline !== "page-image-workflow-v1" ||
+    receipt.schema !== "page-image-workflow-source" ||
+    receipt.pipeline !== "page-image-workflow" ||
     !WORKFLOWS.has(receipt.workflow) || !SHA256_RE.test(receipt.source_sha256 || "") ||
     !Array.isArray(receipt.slides) || receipt.slides.length === 0) {
     throw new PageImageInvalidationError("page_image_invalidation_receipt_invalid", `${label} must be a current Page Image Workflow receipt`);

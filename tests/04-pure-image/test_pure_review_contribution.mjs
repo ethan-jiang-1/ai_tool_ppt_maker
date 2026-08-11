@@ -24,8 +24,8 @@ function pureProviderInputBinding(compiled = "a") {
 
 function pureReceipt() {
   return {
-    schema: "page-image-workflow-source-v1",
-    pipeline: "page-image-workflow-v1",
+    schema: "page-image-workflow-source",
+    pipeline: "page-image-workflow",
     workflow: "pure",
     source_sha256: digest("a"),
     slides: [

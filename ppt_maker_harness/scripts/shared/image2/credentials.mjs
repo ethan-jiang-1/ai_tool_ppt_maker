@@ -1,6 +1,6 @@
 /**
- * Import-safe Image2 credential resolution shared by legacy generation and
- * the optional Phase-4 transport. Loading this module never reads files or
+ * Import-safe Image2 credential resolution shared by Image2 production
+ * owners. Loading this module never reads files or
  * mutates process state; callers choose when the remote boundary is reached.
  */
 
@@ -37,7 +37,7 @@ function firstOverride(extraBaseUrls) {
 
 /**
  * Resolve the one supported Image2 endpoint without exposing credentials in
- * diagnostics. This deliberately preserves legacy precedence:
+ * diagnostics. Its current precedence is:
  * `--base-url` first, then `IMAGE2_BASE_URL`.
  */
 export function resolveImage2Credentials({ extraBaseUrls = [], env = process.env } = {}) {
@@ -50,11 +50,6 @@ export function resolveImage2Credentials({ extraBaseUrls = [], env = process.env
     throw new Error("No image API base URL. Set IMAGE2_BASE_URL or use --base-url.");
   }
   return Object.freeze({ base_url: normalizeBaseUrl(baseUrl), api_key: apiKey });
-}
-
-/** Legacy-compatible plural shape retained for existing callers. */
-export function resolveImage2Vendors(extraBaseUrls = [], options = {}) {
-  return Object.freeze([resolveImage2Credentials({ extraBaseUrls, ...options })]);
 }
 
 export { normalizeBaseUrl as normalizeImage2BaseUrl };

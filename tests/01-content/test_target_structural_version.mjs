@@ -31,7 +31,7 @@ function visualBrief() {
 }
 
 function source() {
-  return `---\nidentity:\n  scheme: mnemonic-v1\nproduction:\n  pipeline: page-image-workflow-v1\n  workflow: pure\n---\n\n## Slide 01: \`DeckGo\`\n\n**TITLE**: First target fact\n${visualBrief()}\n\n## Slide 02: \`BodyMap\`\n\n**TITLE**: Second target fact\n${visualBrief()}\n`;
+  return `---\nidentity:\n  scheme: mnemonic\nproduction:\n  pipeline: page-image-workflow\n  workflow: pure\n---\n\n## Slide 01: \`DeckGo\`\n\n**TITLE**: First target fact\n${visualBrief()}\n\n## Slide 02: \`BodyMap\`\n\n**TITLE**: Second target fact\n${visualBrief()}\n`;
 }
 
 function targetPureSourceInOrder(slideIds) {
@@ -39,7 +39,7 @@ function targetPureSourceInOrder(slideIds) {
     DeckGo: "Historical framed fact rewritten for Pure",
     BodyMap: "Historical pure fact",
   };
-  return `---\nidentity:\n  scheme: mnemonic-v1\nproduction:\n  pipeline: page-image-workflow-v1\n  workflow: pure\n---\n\n${slideIds.map((slideId, index) => `## Slide ${String(index + 1).padStart(2, "0")}: \`${slideId}\`\n\n**TITLE**: ${titles[slideId]}\n${visualBrief()}`).join("\n\n")}\n`;
+  return `---\nidentity:\n  scheme: mnemonic\nproduction:\n  pipeline: page-image-workflow\n  workflow: pure\n---\n\n${slideIds.map((slideId, index) => `## Slide ${String(index + 1).padStart(2, "0")}: \`${slideId}\`\n\n**TITLE**: ${titles[slideId]}\n${visualBrief()}`).join("\n\n")}\n`;
 }
 
 function fixture() {
@@ -50,7 +50,7 @@ function fixture() {
   const sourceText = source();
   writeFileSync(join(runDir, "slide-specifications.md"), sourceText);
   const state = createInitialState("target", "keynote", "dark-executive", {
-    mode: "image2-page-workflow-v1",
+    mode: "image2-page-workflow",
     workflow: "pure",
   });
   state.continuation_target_version = "v1";
@@ -60,7 +60,7 @@ function fixture() {
 
 function targetSelection(runVersion = "v2") {
   return {
-    schema: "page-image-style-master-selection-v1",
+    schema: "page-image-style-master-selection",
     run_version: runVersion,
     workflow: "pure",
     plan_sha256: "a".repeat(64),
@@ -128,7 +128,7 @@ describe("TARGET structural vNext", () => {
       });
       const state = readState(value.deck, { purpose: "observe", runVersion: "v1" });
       expect(state.production_mode.by_version["3_versions/v2"]).toEqual({
-        mode: "image2-page-workflow-v1",
+        mode: "image2-page-workflow",
         workflow: "pure",
         source_epoch: 1,
       });

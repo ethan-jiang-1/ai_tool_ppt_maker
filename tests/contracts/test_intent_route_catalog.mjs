@@ -10,7 +10,7 @@ import {
 } from "../../ppt_maker_harness/scripts/shared/workflow/intent_route_catalog.mjs";
 
 const HARNESS = "ppt_maker_harness";
-const CATALOG_PATH = join(HARNESS, "playbook", "intent-routes-v1.json");
+const CATALOG_PATH = join(HARNESS, "playbook", "intent-routes.json");
 const TERMINAL_ROUTE = "orientation-unrouted-intent";
 const ROUTE_IDS = [
   "foundation-local-runtime",
@@ -85,7 +85,7 @@ describe("intent route catalog", () => {
     expect(readIntentRouteCatalog()).toEqual(catalog);
     expect(INTENT_ROUTE_CATALOG_SCHEMA).toBe(catalog.schema);
     expect(Object.keys(catalog).sort()).toEqual(["routes", "schema"]);
-    expect(catalog.schema).toBe("pptmaker-intent-routes-v1");
+    expect(catalog.schema).toBe("pptmaker-intent-routes");
     expect(Array.isArray(catalog.routes)).toBe(true);
     expect(catalog.routes.map(({ id }) => id).sort()).toEqual(ROUTE_IDS);
 

@@ -62,6 +62,7 @@
 import "../cli/cli_bootstrap.mjs?entry=shared/run-bundle/bundle_layout.mjs";
 import {
     CLI_ERROR_CODES,
+    CLI_DIAGNOSTIC_SCHEMA,
     createCliNext,
     emitCliError,
     installStandaloneFailureEnvelope,
@@ -73,9 +74,8 @@ import { randomUUID } from 'node:crypto';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { readState, writeState, setNodeStatus, createTargetAuthoringState, STATE_DIR, STATE_FILE, STATE_DIR_README, statePath } from '../state/state.mjs';
-import { PAGE_IMAGE_WORKFLOW_V1_PIPELINE, PAGE_IMAGE_WORKFLOW_SELECTION_REQUIRED_MESSAGE, isPageImageWorkflowSelectionPending, probeProductionMarker } from './production_marker.mjs';
+import { PAGE_IMAGE_WORKFLOW_PIPELINE, PAGE_IMAGE_WORKFLOW_SELECTION_REQUIRED_MESSAGE, isPageImageWorkflowSelectionPending, probeProductionMarker } from './production_marker.mjs';
 import { PRODUCTION_MODES, PAGE_IMAGE_WORKFLOW_PRODUCTION_MODE, canonicalVersionKey, isProductionMode, normalizeRunVersion, pipelineFromSourceMarker, productionPolicyForMode } from './production_mode.mjs';
-import { evaluateReplacementIdentity } from './page_image_workflow_identity.mjs';
 import {
     canonicalHarnessRoot,
     currentHarnessRoot,
@@ -235,7 +235,7 @@ const STYLE_MASTER_WORKFLOWS = new Set(['framed', 'pure']);
 const PAGE_PRODUCTION_PLAN_DIRECTORY_RE = /^(?:[0-9a-f]{8}|[0-9a-f]{64})$/;
 const PAGE_PRODUCTION_STAGING_DIRECTORY_RE = /^(?:plan|record|materialization)-[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/;
 const PNG_SIGNATURE = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
-const PAGE_IMAGE_VISUAL_LANGUAGE_SEED = `schema: pptmaker-page-image-visual-language-v1
+const PAGE_IMAGE_VISUAL_LANGUAGE_SEED = `schema: pptmaker-page-image-visual-language
 revision: 1
 recipes:
   editorial-systems:
@@ -270,7 +270,7 @@ relationships:
     composition_ids: [centered-constellation]
     reading_order: left-to-right
 `;
-const PURE_DECK_VISUAL_SYSTEM_SEED = `schema: pptmaker-pure-deck-visual-system-v1
+const PURE_DECK_VISUAL_SYSTEM_SEED = `schema: pptmaker-pure-deck-visual-system
 revision: 1
 typography:
   voices:
@@ -301,7 +301,7 @@ layout:
   whitespace: generous
   families: [editorial-hero, diagram-led, data-led]
 `;
-const PAGE_IMAGE_REFERENCE_REGISTRY_SEED = `schema: pptmaker-image2-reference-registry-v1
+const PAGE_IMAGE_REFERENCE_REGISTRY_SEED = `schema: pptmaker-image2-reference-registry
 profiles: {}
 `;
 
@@ -630,30 +630,30 @@ function _styleMasterImageMediaType(bytes) {
 }
 
 /**
- * Inspect only the layout-resolved compatibility path. Presence is never an
+ * Inspect only the layout-resolved presentation JPEG projection path. Presence is never an
  * acceptance signal: an unselected PNG/JPEG remains a possible local input,
- * while a promoted compatibility projection must be a real JPEG.
+ * while a promoted presentation JPEG projection must be a real JPEG.
  */
-export function checkStyleMasterCompatibilityPayload(runDir, { requireJpeg = false } = {}) {
+export function checkStyleMasterPresentationJpeg(runDir, { requireJpeg = false } = {}) {
     const problems = [];
     const payloadPath = styleAsset(runDir, STYLE_MASTER_IMAGE);
     if (!fs.existsSync(payloadPath)) return problems;
     if (!_realFile(payloadPath)) {
-        problems.push(`Style Master compatibility payload must be a regular file at ${payloadPath}`);
+        problems.push(`Style Master presentation JPEG projection must be a regular file at ${payloadPath}`);
         return problems;
     }
     let bytes;
     try {
         bytes = fs.readFileSync(payloadPath);
     } catch {
-        problems.push(`Style Master compatibility payload is unreadable at ${payloadPath}`);
+        problems.push(`Style Master presentation JPEG projection is unreadable at ${payloadPath}`);
         return problems;
     }
     const mediaType = _styleMasterImageMediaType(bytes);
     if (mediaType === null) {
-        problems.push(`Style Master compatibility payload must be a valid PNG/JPEG candidate at ${payloadPath}`);
+        problems.push(`Style Master presentation JPEG projection must be a valid PNG/JPEG candidate at ${payloadPath}`);
     } else if (requireJpeg && mediaType !== 'image/jpeg') {
-        problems.push(`accepted Style Master compatibility payload must be a valid JPEG at ${payloadPath}`);
+        problems.push(`accepted Style Master presentation JPEG projection must be a valid JPEG at ${payloadPath}`);
     }
     return problems;
 }
@@ -879,10 +879,6 @@ export function checkBundle(runDir, requirePipelineReady = true) {
     let branchValid = true;
     if (sourceCandidate) {
         const sourceBytes = fs.readFileSync(sourceCandidate);
-        const identity = evaluateReplacementIdentity({ sourceBytes, sourcePath: sourceCandidate });
-        if (!identity.ok && mode !== 'structure') {
-            return [`${identity.code}: preserve the unsupported source bytes and use ${identity.owner_action}`];
-        }
         const marker = probeProductionMarker(sourceBytes, { source: path.basename(sourceCandidate) });
         if (isPageImageWorkflowSelectionPending(marker)) {
             currentPageImage = false;
@@ -890,7 +886,7 @@ export function checkBundle(runDir, requirePipelineReady = true) {
         } else if (marker.branch === 'invalid') {
             branchValid = false;
             for (const entry of marker.issues) problems.push(`invalid production marker: ${entry.message}`);
-        } else if (marker.branch === PAGE_IMAGE_WORKFLOW_V1_PIPELINE) {
+        } else if (marker.branch === PAGE_IMAGE_WORKFLOW_PIPELINE) {
             currentPageImage = true;
         } else {
             branchValid = false;
@@ -902,7 +898,7 @@ export function checkBundle(runDir, requirePipelineReady = true) {
     problems.push(...checkDeckRootControls(root));
     const bbPath = path.join(root, BACKBONE_DIR);
     const vsPath = path.join(root, BACKBONE_DIR, BACKBONE_STYLE_SUBDIR);
-    problems.push(...checkStyleMasterCompatibilityPayload(runDir));
+    problems.push(...checkStyleMasterPresentationJpeg(runDir));
     problems.push(...checkStyleMasterHistoryLayout(runDir));
     problems.push(...checkProgressivePageProductionHistoryLayout(runDir));
     if (needGates) {
@@ -1118,7 +1114,7 @@ export function createVersion(sourceRunDir, versionName = null) {
 
     _seedCleanVersion(sourceRunDir, target, versionName);
     // A clean copy is not a structural transaction. It remains unregistered
-    // until the v2 preview/apply owner publishes an exact workflow-bound plan.
+    // until the current preview/apply owner publishes an exact workflow-bound plan.
     return target;
 }
 
@@ -1271,17 +1267,17 @@ const _PAGE_IMAGE_SEEDS = Object.freeze({
     training: Object.freeze({ id: 'TryNow', title: 'State the capability learners will gain', visualType: 'Training opener' }),
 });
 
-/** Canonical v2 authoring draft. It becomes runnable only after workflow selection. */
+/** Canonical current authoring draft. It becomes runnable only after workflow selection. */
 function _pageImageSeedSource(deckType = null) {
     const seed = _PAGE_IMAGE_SEEDS[deckType || 'generic'];
     return `---
 identity:
-  scheme: mnemonic-v1
+  scheme: mnemonic
 production:
-  pipeline: page-image-workflow-v1
+  pipeline: page-image-workflow
 ---
 
-# Page Image Image2 v2 source
+# Page Image current source
 
 Before source validation or provider work, record exactly one version workflow under
 \`production\`: \`workflow: framed\` when the local Text Frame owns title-like text, or
@@ -1295,7 +1291,7 @@ closed \`VISUAL BRIEF\` selection from the visual-language registry.
 
 /** Source text + label for a production mode's canonical seed. */
 function _seedSourceForMode(deckType) {
-    return { source: _pageImageSeedSource(deckType), label: 'Page Image Image2 v2 authoring draft' };
+    return { source: _pageImageSeedSource(deckType), label: 'Page Image Image2 authoring draft' };
 }
 
 const _DIR_READMES = {
@@ -1328,7 +1324,7 @@ const _DIR_READMES = {
         '**这里放什么:**\n' +
         '- `page-image-visual-language.yaml` — current recipe, composition, motif, and frame inputs\n' +
         '- `pure-deck-visual-system.yaml` — Pure-only deck typography, colour-use, zones, whitespace, and layout-family source; version overrides use the normal `overrides/visual-style/` path\n' +
-        '- `style-master-prompt.md` — Style Master intent input; `style_master.jpg` — derived compatibility JPEG after acceptance\n' +
+        '- `style-master-prompt.md` — Style Master intent input; `style_master.jpg` — derived presentation JPEG after acceptance\n' +
         '- `assets/asset-manifest.yaml` — verified local references\n\n' +
         '**权威:** 当前 version/workflow 的 accepted selection 在 `_state/state.yaml`; `style_master.jpg` 只按 override-first/backbone-default 路径投影，不能单独通过 raw gate。\n\n' +
         '**你做什么:** 改 intent/registry/资产或 selected bytes 后，先回到 Style Master，再走受影响范围的 Generated Image Rebuild。\n'
@@ -1650,7 +1646,7 @@ deck_\${NAME}/
 │   ├── ${BACKBONE_MANUSCRIPT_SUBDIR}/
 │   └── ${BACKBONE_STYLE_SUBDIR}/
 │       ├── ${STYLE_MASTER_PROMPT}
-│       ├── ${STYLE_MASTER_IMAGE}            ← override-first/backbone-default JPEG compatibility projection only
+│       ├── ${STYLE_MASTER_IMAGE}            ← override-first/backbone-default JPEG presentation JPEG projection only
 │       ├── ${PAGE_IMAGE_VISUAL_LANGUAGE_FILE}
 │       ├── ${PURE_DECK_VISUAL_SYSTEM_FILE}  ← Pure-only version-resolved source contract
 │       └── ${BACKBONE_ASSETS_SUBDIR}/                   ← optional Page Image reference registry
@@ -1670,10 +1666,10 @@ deck_\${NAME}/
     │   │   │   ├── index.md                  ← canonical human inspection entry point
     │   │   │   └── ${GEN_PAGE_IMAGE_NAV_ARTIFACTS_SUBDIR}/{p-1234abcd.png, s-1234abcd.jpg} ← short physical artifact paths
     │   │   └── ${GEN_PAGE_IMAGE_WORKFLOW_SUBDIR}/
-    │   │       ├── ${GEN_PAGE_IMAGE_RECEIPTS_SUBDIR}/source-receipt-v1.json
-    │   │       ├── ${GEN_PAGE_IMAGE_RAW_SUBDIR}/{work-plan-v1.json, <slide_id>.png}
-    │   │       ├── ${GEN_PAGE_IMAGE_REVIEW_SUBDIR}/{complete-page-review-v1.png, complete-page-coverage-v1.json}
-    │   │       └── ${GEN_PAGE_IMAGE_FINAL_SUBDIR}/{final-slide-manifest-v1.json, NN_slideID.png, projection.png, delivery-media/{NN_slideID.jpg}, delivery-media-manifest-v1.json, deck.pptx, notes-receipt.json}
+    │   │       ├── ${GEN_PAGE_IMAGE_RECEIPTS_SUBDIR}/source-receipt.json
+    │   │       ├── ${GEN_PAGE_IMAGE_RAW_SUBDIR}/{work-plan.json, <slide_id>.png}
+    │   │       ├── ${GEN_PAGE_IMAGE_REVIEW_SUBDIR}/{complete-page-review.png, complete-page-coverage.json}
+    │   │       └── ${GEN_PAGE_IMAGE_FINAL_SUBDIR}/{final-slide-manifest.json, NN_slideID.png, projection.png, delivery-media/{NN_slideID.jpg}, delivery-media-manifest.json, deck.pptx, notes-receipt.json}
     │   └── ${SCRATCH_SUBDIR}/                         ← version-local temporary output only
     └── v2/  (--new-version v1 → copies source delta only; clean ${GENERATED_SUBDIR}/ + ${SCRATCH_SUBDIR}/; backbone referenced)
 `;
@@ -1826,7 +1822,7 @@ function verifyCurrentBindingForCli(runDir, where) {
         hint: "Preserve the existing Bundle unchanged; reconstruct a new current Bundle before resuming this content.",
         where,
         diagnostic: {
-            version: 1,
+            schema: CLI_DIAGNOSTIC_SCHEMA,
             category: "gate",
             operation: "verify-harness-binding",
             source: { path: runDir },
@@ -1851,24 +1847,24 @@ function _main() {
             message: "--deck-type, --style, and --mode require --init.",
             hint: "Use the template options only while initializing a deck.",
             where: "bundle_layout.arguments",
-            diagnostic: { version: 1, category: "usage", operation: "parse-arguments", next: createCliNext("fix_arguments", { default: "Add --init or remove the template-only options." }) },
+            diagnostic: { schema: CLI_DIAGNOSTIC_SCHEMA, category: "usage", operation: "parse-arguments", next: createCliNext("fix_arguments", { default: "Add --init or remove the template-only options." }) },
         });
         process.exit(1);
     }
     if (args.versionName && !args.newVersion) {
         console.error('✗ --version-name only applies together with --new-version.');
-        emitCliError({ code: CLI_ERROR_CODES.USAGE, message: "--version-name requires --new-version.", hint: "Use --version-name only while creating a version.", where: "bundle_layout.arguments", diagnostic: { version: 1, category: "usage", operation: "parse-arguments", next: createCliNext("fix_arguments", { default: "Add --new-version or remove --version-name." }) } });
+        emitCliError({ code: CLI_ERROR_CODES.USAGE, message: "--version-name requires --new-version.", hint: "Use --version-name only while creating a version.", where: "bundle_layout.arguments", diagnostic: { schema: CLI_DIAGNOSTIC_SCHEMA, category: "usage", operation: "parse-arguments", next: createCliNext("fix_arguments", { default: "Add --new-version or remove --version-name." }) } });
         process.exit(1);
     }
     const primaryModes = [args.init, args.check, args.newVersion, args.selfCheck].filter(Boolean).length;
     if (primaryModes > 1) {
         console.error('✗ choose only one of --init, --check, --new-version, or --self-check.');
-        emitCliError({ code: CLI_ERROR_CODES.USAGE, message: "Bundle layout modes are mutually exclusive.", hint: "Choose one primary mode.", where: "bundle_layout.arguments", diagnostic: { version: 1, category: "usage", operation: "parse-arguments", next: createCliNext("fix_arguments", { default: "Choose exactly one of --init, --check, --new-version, or --self-check." }) } });
+        emitCliError({ code: CLI_ERROR_CODES.USAGE, message: "Bundle layout modes are mutually exclusive.", hint: "Choose one primary mode.", where: "bundle_layout.arguments", diagnostic: { schema: CLI_DIAGNOSTIC_SCHEMA, category: "usage", operation: "parse-arguments", next: createCliNext("fix_arguments", { default: "Choose exactly one of --init, --check, --new-version, or --self-check." }) } });
         process.exit(1);
     }
     if (args.structureOnly && !args.check) {
         console.error('✗ --structure-only only applies together with --check.');
-        emitCliError({ code: CLI_ERROR_CODES.USAGE, message: "--structure-only requires --check.", hint: "Pair the option with a run directory check.", where: "bundle_layout.arguments", diagnostic: { version: 1, category: "usage", operation: "parse-arguments", next: createCliNext("fix_arguments", { default: "Add --check <run-dir> or remove --structure-only." }) } });
+        emitCliError({ code: CLI_ERROR_CODES.USAGE, message: "--structure-only requires --check.", hint: "Pair the option with a run directory check.", where: "bundle_layout.arguments", diagnostic: { schema: CLI_DIAGNOSTIC_SCHEMA, category: "usage", operation: "parse-arguments", next: createCliNext("fix_arguments", { default: "Add --check <run-dir> or remove --structure-only." }) } });
         process.exit(1);
     }
 
@@ -1879,7 +1875,7 @@ function _main() {
             for (const d of drift) {
                 console.error(`  - ${d}`);
             }
-            emitCliError({ code: CLI_ERROR_CODES.FAILED, message: `Bundle layout SSOT has ${drift.length} coherence issue(s).`, hint: "Repair the layout constants and generated tree together.", where: "bundle_layout.self-check", diagnostic: { version: 1, category: "internal", operation: "self-check", issues: drift.map((message) => ({ message })), next: createCliNext("report_internal", { default: "Inspect bundle_layout.mjs and repair the reported SSOT drift." }) } });
+            emitCliError({ code: CLI_ERROR_CODES.FAILED, message: `Bundle layout SSOT has ${drift.length} coherence issue(s).`, hint: "Repair the layout constants and generated tree together.", where: "bundle_layout.self-check", diagnostic: { schema: CLI_DIAGNOSTIC_SCHEMA, category: "internal", operation: "self-check", issues: drift.map((message) => ({ message })), next: createCliNext("report_internal", { default: "Inspect bundle_layout.mjs and repair the reported SSOT drift." }) } });
             process.exit(1);
         }
         console.log('✓ SSOT self-consistent: renderTree / whitelist / init all agree.');
@@ -1888,7 +1884,7 @@ function _main() {
 
     if (args.init) {
         if (args.mode && args.mode !== DEFAULT_INIT_MODE) {
-            emitCliError({ code: CLI_ERROR_CODES.USAGE, message: `New deck initialization does not support ${args.mode}.`, hint: `Omit --mode or pass --mode ${DEFAULT_INIT_MODE}.`, where: "bundle_layout.init.mode", diagnostic: { version: 1, category: "usage", operation: "init", next: createCliNext("fix_arguments", { default: `Omit --mode or pass --mode ${DEFAULT_INIT_MODE}.` }) } });
+            emitCliError({ code: CLI_ERROR_CODES.USAGE, message: `New deck initialization does not support ${args.mode}.`, hint: `Omit --mode or pass --mode ${DEFAULT_INIT_MODE}.`, where: "bundle_layout.init.mode", diagnostic: { schema: CLI_DIAGNOSTIC_SCHEMA, category: "usage", operation: "init", next: createCliNext("fix_arguments", { default: `Omit --mode or pass --mode ${DEFAULT_INIT_MODE}.` }) } });
             process.exit(1);
         }
         const deckDir = path.resolve(args.init);
@@ -1896,7 +1892,7 @@ function _main() {
             console.error(
                 `✗ deck dir name must start with 'deck_' (Page Image delivery derives the .pptx name from it); ` +
                 `got: ${path.basename(deckDir)}`);
-            emitCliError({ code: CLI_ERROR_CODES.USAGE, message: "Deck directory name must start with deck_.", hint: "Rename the target directory and rerun init.", where: "bundle_layout.init.name", diagnostic: { version: 1, category: "usage", operation: "init", subject: { kind: "deck", id: path.basename(deckDir) }, source: { path: deckDir }, next: createCliNext("fix_arguments", { inspect: [{ path: path.dirname(deckDir) }], default: "Choose a target directory whose basename starts with deck_." }) } });
+            emitCliError({ code: CLI_ERROR_CODES.USAGE, message: "Deck directory name must start with deck_.", hint: "Rename the target directory and rerun init.", where: "bundle_layout.init.name", diagnostic: { schema: CLI_DIAGNOSTIC_SCHEMA, category: "usage", operation: "init", subject: { kind: "deck", id: path.basename(deckDir) }, source: { path: deckDir }, next: createCliNext("fix_arguments", { inspect: [{ path: path.dirname(deckDir) }], default: "Choose a target directory whose basename starts with deck_." }) } });
             process.exit(1);
         }
         const harnessDir = path.resolve(__dirname, '..', '..', '..');
@@ -1905,14 +1901,14 @@ function _main() {
                 `✗ refusing to scaffold inside the Harness (${path.basename(harnessDir)}/). ` +
                 `A run bundle is a separate project — give an absolute path or a path outside ` +
                 `the Harness, e.g.  --init ~/decks/${path.basename(deckDir)}`);
-            emitCliError({ code: CLI_ERROR_CODES.USAGE, message: "refusing to scaffold a run bundle inside ppt_maker_harness.", hint: "Choose a target outside the Harness source tree.", where: "bundle_layout.init.location", diagnostic: { version: 1, category: "structure", operation: "init", source: { path: deckDir }, reason: { kind: "harness_source_boundary" }, next: createCliNext("fix_arguments", { inspect: [{ path: harnessDir }], default: "Choose a deck_ target outside ppt_maker_harness and rerun init." }) } });
+            emitCliError({ code: CLI_ERROR_CODES.USAGE, message: "refusing to scaffold a run bundle inside ppt_maker_harness.", hint: "Choose a target outside the Harness source tree.", where: "bundle_layout.init.location", diagnostic: { schema: CLI_DIAGNOSTIC_SCHEMA, category: "structure", operation: "init", source: { path: deckDir }, reason: { kind: "harness_source_boundary" }, next: createCliNext("fix_arguments", { inspect: [{ path: harnessDir }], default: "Choose a deck_ target outside ppt_maker_harness and rerun init." }) } });
             process.exit(1);
         }
         let created;
         try {
             created = initBundle(deckDir, null, args.deckType, args.style, { mode: args.mode ?? DEFAULT_INIT_MODE });
         } catch {
-            emitCliError({ code: CLI_ERROR_CODES.USAGE, message: "unknown or invalid bundle initialization option.", hint: "Choose a documented deck type and style preset.", where: "bundle_layout.init.options", diagnostic: { version: 1, category: "usage", operation: "init", source: { path: deckDir }, next: createCliNext("fix_arguments", { default: "Inspect --help, choose supported initialization options, and rerun." }) } });
+            emitCliError({ code: CLI_ERROR_CODES.USAGE, message: "unknown or invalid bundle initialization option.", hint: "Choose a documented deck type and style preset.", where: "bundle_layout.init.options", diagnostic: { schema: CLI_DIAGNOSTIC_SCHEMA, category: "usage", operation: "init", source: { path: deckDir }, next: createCliNext("fix_arguments", { default: "Inspect --help, choose supported initialization options, and rerun." }) } });
             process.exit(1);
         }
         const seeded = [];
@@ -1938,7 +1934,7 @@ function _main() {
             target = createVersion(sourceRunDir, args.versionName);
         } catch (exc) {
             console.error(`✗ ${exc.message}`);
-            emitCliError({ code: CLI_ERROR_CODES.FAILED, message: "Unable to create the requested clean version.", hint: "Inspect the source version structure and version name.", where: "bundle_layout.new-version", diagnostic: { version: 1, category: "structure", operation: "new-version", source: { path: path.resolve(args.newVersion) }, next: createCliNext("inspect", { inspect: [{ path: path.resolve(args.newVersion) }], default: "Inspect the source version and correct its structure or requested version name." }) } });
+            emitCliError({ code: CLI_ERROR_CODES.FAILED, message: "Unable to create the requested clean version.", hint: "Inspect the source version structure and version name.", where: "bundle_layout.new-version", diagnostic: { schema: CLI_DIAGNOSTIC_SCHEMA, category: "structure", operation: "new-version", source: { path: path.resolve(args.newVersion) }, next: createCliNext("inspect", { inspect: [{ path: path.resolve(args.newVersion) }], default: "Inspect the source version and correct its structure or requested version name." }) } });
             process.exit(1);
         }
         console.log(`✓ Created clean version: ${target}`);
@@ -1962,7 +1958,7 @@ function _main() {
             }
             console.error('\nThe structure is the constitution. Fix these, or see the canonical tree:');
             console.error('  node bundle_layout.mjs');
-            emitCliError({ code: CLI_ERROR_CODES.FAILED, message: `Bundle ${scope} check found ${violations.length} violation(s).`, hint: "Fix the named source layout, then rerun the check.", where: "bundle_layout.check", diagnostic: { version: 1, category: "structure", operation: "check", source: { path: runDir }, issues: violations.map((message) => ({ message, source: { path: runDir }, reason: { kind: "layout_violation" } })), next: createCliNext("edit_source", { inspect: [{ path: runDir }], invocation: { program: "node", args: [__filename, "--check", runDir, ...(args.structureOnly ? ["--structure-only"] : [])] }, default: "Repair the reported run-bundle paths; do not edit _generated artifacts as source." }) } });
+            emitCliError({ code: CLI_ERROR_CODES.FAILED, message: `Bundle ${scope} check found ${violations.length} violation(s).`, hint: "Fix the named source layout, then rerun the check.", where: "bundle_layout.check", diagnostic: { schema: CLI_DIAGNOSTIC_SCHEMA, category: "structure", operation: "check", source: { path: runDir }, issues: violations.map((message) => ({ message, source: { path: runDir }, reason: { kind: "layout_violation" } })), next: createCliNext("edit_source", { inspect: [{ path: runDir }], invocation: { program: "node", args: [__filename, "--check", runDir, ...(args.structureOnly ? ["--structure-only"] : [])] }, default: "Repair the reported run-bundle paths; do not edit _generated artifacts as source." }) } });
             process.exit(1);
         }
         const note = ready ? '' : '  (pipeline assets and Phase approvals are not required at this gate.)';

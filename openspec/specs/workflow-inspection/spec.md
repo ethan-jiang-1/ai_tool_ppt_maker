@@ -37,13 +37,12 @@ authorization, or recovery route.
 ### Requirement: Inspection observes current Page Image Workflow marker-first
 
 Workflow Inspection SHALL remain read-only and resolve a current Page Image
-Workflow from its exact `page-image-workflow-v1` source,
-`image2-page-workflow-v1` state, selected version-level policy, and direct
-replacement lineage records. It SHALL report the selected `framed` or `pure`
-workflow and one owner-issued nearest action without inferring a policy from
-Markdown prose, deck files, artifact names, or conversation context. It SHALL
-not initialize a receipt, mutate state, submit a provider request, or create a
-compatibility projection merely to observe status.
+Workflow from its exact schema-declared `page-image-workflow` source,
+`image2-page-workflow` state, selected version-level policy, and direct current
+lineage records. It SHALL report the selected `framed` or `pure` workflow and
+one owner-issued nearest action without inferring policy from prose, artifact
+names, or conversation context. It SHALL not initialize a receipt, mutate
+state, submit a provider request, or construct a compatibility projection.
 
 #### Scenario: Current Framed status is projected from direct markers
 
@@ -51,21 +50,6 @@ compatibility projection merely to observe status.
 - **THEN** it reports Framed and the direct prerequisite from its owning
   lifecycle
 - **AND** it does not select Pure or construct a per-slide authority view
-
-### Requirement: Inspection rejects v2 before lifecycle interpretation
-
-Inspection SHALL return the bounded `unsupported-protocol/export` hard-stop for v2
-Page Authority source, state, receipt, plan, provider media, review, or
-delivery evidence before parsing those records into a lifecycle projection. It
-SHALL preserve supplied bytes and SHALL not decode, convert, reuse, heal, or
-report them as current workflow progress.
-
-#### Scenario: A v2 status request remains non-mutating
-
-- **WHEN** `status` or state observation encounters a v2 receipt
-- **THEN** it reports the `unsupported-protocol/export` action before raw or review
-  inspection
-- **AND** it does not write a receipt, state repair, or task projection
 
 ### Requirement: Inspection projects the direct compiled-input lifecycle
 

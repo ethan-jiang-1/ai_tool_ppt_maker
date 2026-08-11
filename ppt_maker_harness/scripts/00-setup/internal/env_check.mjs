@@ -15,6 +15,7 @@
 
 import {
   CLI_ERROR_CODES,
+  CLI_DIAGNOSTIC_SCHEMA,
   CLI_JSON_REPORT_SCHEMAS,
   createCliNext,
   emitCliError,
@@ -49,7 +50,7 @@ export const BASE_CHECK_NAMES = Object.freeze([
 ]);
 export const IMAGE2_CHECK_NAMES = Object.freeze(['api_key', 'image_base_url', 'page_image_raw_generator']);
 export const LIVE_CHECK_NAMES = Object.freeze(['image_smoke', 'image_probe_vendors']);
-export const DOCTOR_MODES = Object.freeze(['image2-page-workflow-v1']);
+export const DOCTOR_MODES = Object.freeze(['image2-page-workflow']);
 export const PAGE_IMAGE_DOCTOR_PROFILES = Object.freeze(['framed-runtime', 'image2-raw']);
 export const PAGE_IMAGE_DOCTOR_OPERATIONS = Object.freeze([
   'framed-local-refresh',
@@ -450,7 +451,7 @@ function checkPageImageRawGenerator() {
     detail: ok
       ? 'receipt-bound Page Image raw compiler and evidence owners are present'
       : `missing Page Image raw owner(s): ${missing.join(', ')}`,
-    fix: ok ? null : 'Restore the v2 Framed/Pure raw owners and their shared target runtime under scripts/.',
+    fix: ok ? null : 'Restore the current Framed/Pure raw owners and their shared target runtime under scripts/.',
   };
 }
 
@@ -985,7 +986,7 @@ function emitEnvCheckUsage(message, hint) {
     hint,
     where: 'env-check.arguments',
     diagnostic: {
-      version: 1,
+      schema: CLI_DIAGNOSTIC_SCHEMA,
       category: 'usage',
       operation: 'parse-arguments',
       next: createCliNext('fix_arguments', { default: hint }),
@@ -1050,7 +1051,7 @@ export async function runEnvCheckCli(argv = process.argv, { providerApi = null }
   if (wantJson) setCliOutputMode('json');
 
   if (retiredImage2Flag) {
-    emitEnvCheckUsage('--image2 is no longer a public doctor flag', 'Use --mode image2-page-workflow-v1 --operation raw-generation.');
+    emitEnvCheckUsage('--image2 is no longer a public doctor flag', 'Use --mode image2-page-workflow --operation raw-generation.');
     process.exit(1);
   }
   if (mode != null && !DOCTOR_MODES.includes(mode)) {
@@ -1061,12 +1062,12 @@ export async function runEnvCheckCli(argv = process.argv, { providerApi = null }
     emitEnvCheckUsage(`unknown --operation ${JSON.stringify(operation)}`, `Allowed: ${PAGE_IMAGE_DOCTOR_OPERATIONS.join(', ')}.`);
     process.exit(1);
   }
-  if (operation != null && mode != null && mode !== 'image2-page-workflow-v1') {
-    emitEnvCheckUsage('--operation requires --mode image2-page-workflow-v1', 'Select v2 Page Image mode before an operation-scoped doctor check.');
+  if (operation != null && mode != null && mode !== 'image2-page-workflow') {
+    emitEnvCheckUsage('--operation requires --mode image2-page-workflow', 'Select the current Page Image mode before an operation-scoped doctor check.');
     process.exit(1);
   }
 
-  const resolvedMode = mode ?? 'image2-page-workflow-v1';
+  const resolvedMode = mode ?? 'image2-page-workflow';
   const resolvedOperation = operation ?? 'framed-local-refresh';
   const plan = pageImageDoctorPlan(resolvedOperation);
   let profile = plan.profile;
@@ -1090,7 +1091,7 @@ export async function runEnvCheckCli(argv = process.argv, { providerApi = null }
       hint: 'Choose the single live provider check that matches the task.',
       where: 'env-check.arguments',
       diagnostic: {
-        version: 1,
+        schema: CLI_DIAGNOSTIC_SCHEMA,
         category: 'usage',
         operation: 'parse-arguments',
         next: createCliNext('fix_arguments', { default: 'Use --smoke for the first-vendor gate or --probe-vendors for the full channel report, not both.' }),
@@ -1156,7 +1157,7 @@ export async function runEnvCheckCli(argv = process.argv, { providerApi = null }
       hint: 'Repair the named local prerequisites, then rerun doctor.',
       where: 'env-check.results',
       diagnostic: {
-        version: 1,
+        schema: CLI_DIAGNOSTIC_SCHEMA,
         category: 'environment',
         operation: wantProbe ? 'probe-vendors' : wantSmoke ? 'smoke' : 'check',
         issues: failed.map((result) => ({

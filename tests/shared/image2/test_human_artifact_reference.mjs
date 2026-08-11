@@ -55,14 +55,11 @@ describe("Human Navigation Path renderer", () => {
     const { root, runDir, paths } = fixture("human-navigation");
     const first = `${"671d4555"}${"0".repeat(56)}`;
     const second = `${"671d4555"}${"f".repeat(56)}`;
-    const plan = source(paths, "work-plan-v1.json", "{\"plan\":true}\n");
-    const input = source(paths, "provider-input-inspection-v1.json", "{\"input\":true}\n");
+    const plan = source(paths, "work-plan.json", "{\"plan\":true}\n");
+    const input = source(paths, "provider-input-inspection.json", "{\"input\":true}\n");
     const firstPage = source(paths, "01_DeckGo.png", "deck page\n");
     const secondPage = source(paths, "02_FlowGo.png", "flow page\n");
-    const legacy = paths.retired_human_artifact_reference;
     try {
-      mkdirSync(dirname(legacy), { recursive: true });
-      writeFileSync(legacy, "retired long reference\n");
       const facts = {
         run_dir: runDir,
         workflow: "pure",
@@ -86,7 +83,7 @@ describe("Human Navigation Path renderer", () => {
       expect(rendered).not.toContain(second);
       expect(rendered).not.toContain(plan);
       expect(rendered).not.toContain(input);
-      expect(rendered).not.toContain("work-plan-v1.json");
+      expect(rendered).not.toContain("work-plan.json");
 
       const output = writeHumanArtifactNavigation(facts);
       expect(output).toEqual({
@@ -95,8 +92,6 @@ describe("Human Navigation Path renderer", () => {
         run_dir: runDir,
         workflow: "pure",
       });
-      expect(existsSync(legacy)).toBe(false);
-
       const index = readFileSync(paths.human_navigation_index, "utf8");
       const locators = navigationLocators(index);
       expect(locators).toHaveLength(4);

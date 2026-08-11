@@ -83,7 +83,7 @@ const NATIVE_PROVIDER_PNG = (() => {
 
 function receipt(source = "a") {
   return {
-    schema: "page-image-workflow-source-v1", pipeline: "page-image-workflow-v1", workflow: "pure", source_sha256: digest(source),
+    schema: "page-image-workflow-source", pipeline: "page-image-workflow", workflow: "pure", source_sha256: digest(source),
     slides: [{ slide_id: "DeckGo", position: 1, display: { title: "Visible pure text" } }],
   };
 }
@@ -162,9 +162,9 @@ describe("Pure target workflow", () => {
     image.getContext("2d").fillRect(0, 0, 2000, 1125);
     const source = `---
 identity:
-  scheme: mnemonic-v1
+  scheme: mnemonic
 production:
-  pipeline: page-image-workflow-v1
+  pipeline: page-image-workflow
   workflow: pure
 ---
 
@@ -216,9 +216,9 @@ negative_constraints:
     image.getContext("2d").fillRect(0, 0, 2000, 1125);
     const source = `---
 identity:
-  scheme: mnemonic-v1
+  scheme: mnemonic
 production:
-  pipeline: page-image-workflow-v1
+  pipeline: page-image-workflow
   workflow: pure
 ---
 
@@ -269,9 +269,9 @@ negative_constraints:
     image.getContext("2d").fillRect(0, 0, 2000, 1125);
     const source = (note) => `---
 identity:
-  scheme: mnemonic-v1
+  scheme: mnemonic
 production:
-  pipeline: page-image-workflow-v1
+  pipeline: page-image-workflow
   workflow: pure
 ---
 
@@ -311,7 +311,7 @@ negative_constraints:
         accepted_raw_evidence: { workflow: "pure" },
       });
       const paths = pageImageWorkflowPaths(runDir);
-      const reviewEvidencePath = join(paths.review_root, "complete-page", resolveContentAddressName(join(paths.review_root, "complete-page"), projection), "complete-page-review-evidence-v1.json");
+      const reviewEvidencePath = join(paths.review_root, "complete-page", resolveContentAddressName(join(paths.review_root, "complete-page"), projection), "complete-page-review-evidence.json");
       const reviewEvidence = readFileSync(reviewEvidencePath);
       writeFileSync(reviewEvidencePath, "{}\n");
       await expect(buildPureTargetDelivery(runDir)).rejects.toMatchObject({ code: "target_complete_page_review_stale" });
@@ -344,9 +344,9 @@ negative_constraints:
     image.getContext("2d").fillRect(0, 0, 2000, 1125);
     const source = `---
 identity:
-  scheme: mnemonic-v1
+  scheme: mnemonic
 production:
-  pipeline: page-image-workflow-v1
+  pipeline: page-image-workflow
   workflow: pure
 ---
 
@@ -423,9 +423,9 @@ negative_constraints:
     image.getContext("2d").fillRect(0, 0, 2000, 1125);
     const source = (title) => `---
 identity:
-  scheme: mnemonic-v1
+  scheme: mnemonic
 production:
-  pipeline: page-image-workflow-v1
+  pipeline: page-image-workflow
   workflow: pure
 ---
 
@@ -457,12 +457,12 @@ negative_constraints:
       const initialRequest = initial.provider_requests_by_slide.DeckGo;
 
       expect(initial.provider_request_inspection).toMatchObject({
-        path: "_generated/page_image_workflow/raw/provider-input-inspection-v1.json",
+        path: "_generated/page_image_workflow/raw/provider-input-inspection.json",
         sha256: expect.stringMatching(/^[0-9a-f]{64}$/),
         plan_hash: initialPlanHash,
       });
       expect(initialInspection).toMatchObject({
-        schema: "page-image-provider-request-inspection-v1",
+        schema: "page-image-provider-request-inspection",
         progressive_raw_work_plan_sha256: initialPlanHash,
         target_raw_work_plan_sha256: initial.raw_work_plan.sha256,
         source_receipt_sha256: initial.receipt.source_sha256,
@@ -520,9 +520,9 @@ negative_constraints:
     image.getContext("2d").fillRect(0, 0, 2000, 1125);
     const source = `---
 identity:
-  scheme: mnemonic-v1
+  scheme: mnemonic
 production:
-  pipeline: page-image-workflow-v1
+  pipeline: page-image-workflow
   workflow: pure
 ---
 
@@ -579,7 +579,7 @@ relationship: causal-flow
           .toMatchObject({ ok: false, code: "pure_raw_contract_invalid" });
       }
       expect(contract.page_image_core).toMatchObject({
-        schema: "page-image-core-slide-facts-v1",
+        schema: "page-image-core-slide-facts",
         canonical_semantic_sha256: expect.stringMatching(/^[0-9a-f]{64}$/),
       });
       expect(contract.provider_rendered_content).toEqual({
@@ -604,7 +604,7 @@ relationship: causal-flow
     }
   });
 
-  it("rejects legacy VISUAL SCENE input before Pure style or raw planning", async () => {
+  it("rejects an unsupported VISUAL SCENE input before Pure style or raw planning", async () => {
     const root = mkdtempSync(join(tmpdir(), "pure-scene-guard-"));
     const deck = join(root, "deck_pure_scene_guard");
     const runDir = join(deck, "3_versions", "v1");
@@ -612,9 +612,9 @@ relationship: causal-flow
     image.getContext("2d").fillRect(0, 0, 2000, 1125);
     const source = `---
 identity:
-  scheme: mnemonic-v1
+  scheme: mnemonic
 production:
-  pipeline: page-image-workflow-v1
+  pipeline: page-image-workflow
   workflow: pure
 ---
 
@@ -652,9 +652,9 @@ negative_constraints:
     const slides = ["DeckGo", "FlowGo", "DataGo", "ToneGo", "FormGo", "GridGo", "LineGo", "RoleGo", "PathGo", "DataMap"];
     const source = `---
 identity:
-  scheme: mnemonic-v1
+  scheme: mnemonic
 production:
-  pipeline: page-image-workflow-v1
+  pipeline: page-image-workflow
   workflow: pure
 ---
 
@@ -698,12 +698,12 @@ negative_constraints:
         planHash,
         batchHash: pilot.batch.batch_hash,
       });
-      const presentation = JSON.parse(readFileSync(join(pilotRoot, "pilot-page-review-evidence-v1.json"), "utf8"));
+      const presentation = JSON.parse(readFileSync(join(pilotRoot, "pilot-page-review-evidence.json"), "utf8"));
       expect(evidence).toMatchObject({ pilot_evidence_sha256: expect.stringMatching(/^[0-9a-f]{64}$/) });
       expect(readFileSync(join(pilotRoot, "provider-page", "10_DataMap.png"))).toEqual(rawBytes);
       expect(existsSync(join(pilotRoot, "provider-page", "DataMap.png"))).toBe(false);
       expect(presentation).toMatchObject({
-        schema: "page-image-pilot-page-review-presentation-v1",
+        schema: "page-image-pilot-page-review-presentation",
         workflow: "pure",
         raw_work_plan_sha256: planHash,
         batch_sha256: pilot.batch.batch_hash,
@@ -759,9 +759,9 @@ negative_constraints:
     const slides = ["DeckGo", "FlowGo", "DataGo", "ToneGo", "FormGo", "GridGo"];
     const source = `---
 identity:
-  scheme: mnemonic-v1
+  scheme: mnemonic
 production:
-  pipeline: page-image-workflow-v1
+  pipeline: page-image-workflow
   workflow: pure
 ---
 
@@ -860,7 +860,7 @@ negative_constraints:
       expect(rebuilt.finalization.final_manifest_sha256).toBe(delivery.finalization.final_manifest_sha256);
       expect(existsSync(paths.target_raw_plan)).toBe(true);
       expect(existsSync(paths.target_raw_review)).toBe(false);
-      expect(existsSync(join(paths.review_root, "complete-page", resolveContentAddressName(join(paths.review_root, "complete-page"), planHash), "complete-page-review-evidence-v1.json"))).toBe(true);
+      expect(existsSync(join(paths.review_root, "complete-page", resolveContentAddressName(join(paths.review_root, "complete-page"), planHash), "complete-page-review-evidence.json"))).toBe(true);
       expect(existsSync(paths.target_final_manifest)).toBe(true);
 
       const directAfter = readProgressiveRawPlanDirectRecords(runDir, { plan_sha256: planHash });
@@ -886,9 +886,9 @@ negative_constraints:
     image.getContext("2d").fillRect(0, 0, 2000, 1125);
     const source = (title) => `---
 identity:
-  scheme: mnemonic-v1
+  scheme: mnemonic
 production:
-  pipeline: page-image-workflow-v1
+  pipeline: page-image-workflow
   workflow: pure
 ---
 

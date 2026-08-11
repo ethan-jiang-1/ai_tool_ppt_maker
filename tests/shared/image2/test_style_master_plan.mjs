@@ -102,9 +102,9 @@ const digest = (value) => createHash("sha256").update(value).digest("hex");
 function source(title = "Style Master planning") {
   return `---
 identity:
-  scheme: mnemonic-v1
+  scheme: mnemonic
 production:
-  pipeline: page-image-workflow-v1
+  pipeline: page-image-workflow
   workflow: framed
 ---
 
@@ -217,7 +217,7 @@ function assertNoPageRawMaterialization(value, stateBefore) {
 
 function projection(recipe, { relationship = null } = {}) {
   return {
-    schema: "pptmaker-page-image-visual-language-v1",
+    schema: "pptmaker-page-image-visual-language",
     recipe: { id: recipe, provider_clause_sha256: "a".repeat(64) },
     ...(relationship ? { relationship } : {}),
   };
@@ -253,7 +253,7 @@ function planningScope(value, { slides = null } = {}) {
 
 function detachedPlan() {
   return createStyleMasterPlanRecord({
-    schema: "page-image-style-master-plan-identity-v1",
+    schema: "page-image-style-master-plan-identity",
     run_version: "v1",
     workflow: "framed",
     plan_generation: 91,
@@ -559,7 +559,7 @@ function persistPendingSuccessorAttempt(value, plan, candidateId, status) {
 }
 
 describe("Style Master candidate planning", () => {
-  it("projects only the current lifecycle head without mutating or reopening historical plans", async () => {
+  it("projects only the current lifecycle head without mutating or reopening prior plans", async () => {
     const value = fixture();
     try {
       const stateBefore = readFileSync(statePath(value.deck));
@@ -913,7 +913,7 @@ describe("Style Master candidate planning", () => {
       const divergentPlan = await planStyleMasterCandidates({ scope: planningScope(divergent), candidateCount: 1 });
       const divergentPaths = styleMasterStorePaths(divergent.runDir, { plan_sha256: divergentPlan.plan_sha256 });
       const malformedGrant = {
-        schema: "page-image-style-master-candidate-grant-v1",
+        schema: "page-image-style-master-candidate-grant",
         run_version: "v1",
         workflow: "framed",
         plan_sha256: divergentPlan.plan_sha256,
@@ -1190,7 +1190,7 @@ describe("Style Master candidate planning", () => {
     }
   });
 
-  it("closes one current unknown plan with a normalized immutable abandonment and exact historical replay", async () => {
+  it("closes one current unknown plan with a normalized immutable abandonment and exact prior-plan replay", async () => {
     const value = fixture();
     const invalidReason = fixture();
     try {
@@ -1707,7 +1707,7 @@ describe("Style Master candidate planning", () => {
         replay: false,
         plan_sha256: plan.plan_sha256,
         candidate_id: "candidate-001",
-        compatibility_projection: { status: "rebuilt" },
+        presentation_jpeg_projection: { status: "rebuilt" },
       });
       expect(Object.keys(decision).sort()).toEqual([
         "schema", "run_version", "workflow", "plan_sha256", "decision", "candidate_id", "candidate_sha256", "previous_selection_sha256",
@@ -1755,7 +1755,7 @@ describe("Style Master candidate planning", () => {
         submit: async () => candidateBytes,
       });
       await prepareStyleMasterCandidateReview({ scope: planningScope(value), planSha256: plan.plan_sha256 });
-      // The prior compatibility projection used this loader for candidate PNG bytes.
+      // The prior presentation JPEG projection used this loader for candidate PNG bytes.
       canvasLoaderControls.rejectPrivatePng = true;
 
       const accepted = await acceptStyleMasterCandidateReview({
@@ -1772,7 +1772,7 @@ describe("Style Master candidate planning", () => {
 
       expect(readFileSync(candidatePath)).toEqual(candidateBytes);
       expect(accepted).toMatchObject({
-        compatibility_projection: { status: "rebuilt" },
+        presentation_jpeg_projection: { status: "rebuilt" },
         selection: { candidate_sha256: digest(candidateBytes) },
       });
       expect(readFileSync(styleAsset(value.runDir, STYLE_MASTER_IMAGE)).subarray(0, 3).toString("hex")).toBe("ffd8ff");
@@ -1814,7 +1814,7 @@ describe("Style Master candidate planning", () => {
       }).candidate_image;
 
       expect(accepted).toMatchObject({
-        compatibility_projection: { status: "rebuilt" },
+        presentation_jpeg_projection: { status: "rebuilt" },
         selection: { candidate_sha256: digest(candidateBytes), candidate_width: 17, candidate_height: 11 },
       });
       expect(readFileSync(candidatePath)).toEqual(candidateBytes);
@@ -1989,7 +1989,7 @@ describe("Style Master candidate planning", () => {
         replay: true,
         selection_sha256: accepted.selection_sha256,
         accepted_at: accepted.accepted_at,
-        compatibility_projection: { status: "rebuilt" },
+        presentation_jpeg_projection: { status: "rebuilt" },
       });
       expect(readFileSync(compatibilityPath).subarray(0, 3).toString("hex")).toBe("ffd8ff");
       expect(resolveEffectiveStyleMasterSelection(value.deck, { runDir: value.runDir })).toMatchObject({
@@ -2006,7 +2006,7 @@ describe("Style Master candidate planning", () => {
     try {
       const backbonePath = join(value.deck, "2_backbone", "visual-style", STYLE_MASTER_IMAGE);
       const overridePath = join(value.runDir, "overrides", "visual-style", STYLE_MASTER_IMAGE);
-      const backboneBytes = Buffer.from("backbone compatibility payload remains untouched");
+      const backboneBytes = Buffer.from("backbone presentation JPEG projection remains untouched");
       writeFileSync(backbonePath, backboneBytes);
       mkdirSync(join(value.runDir, "overrides", "visual-style"), { recursive: true });
       writeFileSync(overridePath, localImageBytes());
@@ -2019,7 +2019,7 @@ describe("Style Master candidate planning", () => {
         candidateId: "candidate-001",
       });
 
-      expect(accepted.compatibility_projection.path).toBe(overridePath);
+      expect(accepted.presentation_jpeg_projection.path).toBe(overridePath);
       expect(readFileSync(overridePath).subarray(0, 3).toString("hex")).toBe("ffd8ff");
       expect(readFileSync(backbonePath)).toEqual(backboneBytes);
     } finally {
@@ -2070,7 +2070,7 @@ describe("Style Master candidate planning", () => {
     }
   });
 
-  it("preserves a committed selection when compatibility JPEG projection fails and repairs it on exact replay", async () => {
+  it("preserves a committed selection when presentation JPEG projection fails and repairs it on exact replay", async () => {
     const value = fixture();
     try {
       const plan = await generatedReviewablePlan(value);
@@ -2094,9 +2094,9 @@ describe("Style Master candidate planning", () => {
       }
       const committed = resolveEffectiveStyleMasterSelection(value.deck, { runDir: value.runDir });
       expect(failure).toMatchObject({
-        code: "style_master_compatibility_projection_failed",
+        code: "style_master_presentation_jpeg_projection_failed",
         subject: { kind: "style_master_selection", id: committed.selection_sha256 },
-        reason: { kind: "compatibility_projection_failed" },
+        reason: { kind: "presentation_jpeg_projection_failed" },
         replay: { plan_sha256: plan.plan_sha256, decision: "proceed", candidate_id: "candidate-001" },
       });
       expect(committed).toMatchObject({ ok: true, record: { plan_sha256: plan.plan_sha256 } });
@@ -2111,7 +2111,7 @@ describe("Style Master candidate planning", () => {
         replay: true,
         selection_sha256: committed.selection_sha256,
         accepted_at: committed.record.accepted_at,
-        compatibility_projection: { status: "rebuilt" },
+        presentation_jpeg_projection: { status: "rebuilt" },
       });
       expect(readFileSync(compatibilityPath).subarray(0, 3).toString("hex")).toBe("ffd8ff");
     } finally {

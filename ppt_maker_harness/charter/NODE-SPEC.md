@@ -7,12 +7,12 @@ second workflow.
 ## Controller declaration
 
 Controllers declare the Page Image pipelines they can consume. New
-authoring uses `page-image-workflow-v1` /
-`image2-page-workflow-v1`, and target nodes declare one or both
+authoring uses `page-image-workflow` /
+`image2-page-workflow`, and target nodes declare one or both
 `production_workflows: [framed|pure]`. The selected workflow route is
 `03-framed-image XOR 04-pure-image -> 05-delivery -> 06-iteration`; `05` nodes
-apply to both workflows without semantic branching. A v2 source/state pair
-is a byte-preserving `unsupported-protocol/export` hard-stop.
+apply to both workflows without semantic branching. An undeclared source/state pair
+is a byte-preserving `repair-current-protocol-identity` hard-stop.
 
 Node IDs are global kebab-case. Entry and exit conditions must be explicit,
 ordered, and satisfiable from current source/state evidence. A node cannot use
@@ -23,11 +23,11 @@ its own completion as an entry condition.
 For each selected target `vN`, `_state/state.yaml` records:
 
 ```yaml
-pipeline: page-image-workflow-v1
+pipeline: page-image-workflow
 production_mode:
   by_version:
     3_versions/v1:
-      mode: image2-page-workflow-v1
+      mode: image2-page-workflow
       workflow: framed # or pure
       source_epoch: 1
 ```
@@ -41,9 +41,9 @@ and delivery references. Unknown or retired node/evidence records fail closed.
 ## Inspection
 
 Inspection returns one Page Image Workflow action for an exact target pair or one
-workflow-selection confirm for a fresh draft. A v2, partial, hybrid, or
-mismatched pair returns the owner-issued `unsupported-protocol/export` action.
-Inspection never produces a historical cursor, approval, provider request, or
+workflow-selection confirm for a fresh draft. An undeclared, partial, hybrid, or
+mismatched pair returns the owner-issued `repair-current-protocol-identity` action.
+Inspection never produces an alternate cursor, approval, provider request, or
 adapter.
 
 ## Diagnostic recovery consumer

@@ -21,9 +21,9 @@ import { acceptLocalStyleMasterFixture } from "../helpers/accepted_style_master.
 
 const SOURCE = `---
 identity:
-  scheme: mnemonic-v1
+  scheme: mnemonic
 production:
-  pipeline: page-image-workflow-v1
+  pipeline: page-image-workflow
   workflow: pure
 ---
 
@@ -55,9 +55,9 @@ negative_constraints:
 
 const MULTI_SLIDE_SOURCE = `---
 identity:
-  scheme: mnemonic-v1
+  scheme: mnemonic
 production:
-  pipeline: page-image-workflow-v1
+  pipeline: page-image-workflow
   workflow: pure
 ---
 
@@ -153,7 +153,7 @@ describe("Pure Page Image Core adapter", () => {
       const binding = plan.raw_work_plan.items[0].provider_input_binding;
 
       expect(plan.page_image_core).toMatchObject({
-        schema: "page-image-core-facts-v1",
+        schema: "page-image-core-facts",
         workflow: "pure",
         slides: [{
           slide_id: "DeckGo",
@@ -169,7 +169,7 @@ describe("Pure Page Image Core adapter", () => {
       expect(contract).toMatchObject({
         workflow: "pure",
         page_image_core: {
-          schema: "page-image-core-slide-facts-v1",
+          schema: "page-image-core-slide-facts",
           canonical_semantic_sha256: coreSlide.canonical_semantic_sha256,
         },
         provider_rendered_content: {

@@ -20,9 +20,9 @@ against the selected visual-language registry before planning raw work.
 ````markdown
 ---
 identity:
-  scheme: mnemonic-v1
+  scheme: mnemonic
 production:
-  pipeline: page-image-workflow-v1
+  pipeline: page-image-workflow
   workflow: framed
 ---
 
@@ -81,7 +81,7 @@ negative_constraints:
 > **SPEAKER NOTE**: The feedback loop keeps human judgment visible at the decision boundary.
 ````
 
-This is a homogeneous Framed v2 example. Check that all IDs are mnemonic
+This is a homogeneous current Framed example. Check that all IDs are mnemonic
 BlockCase, every visual brief is registered, and notes remain bound to their
 stable IDs. A Pure version changes the workflow for the whole source through
 Structural Versioning Path; it does not add a slide-level override.

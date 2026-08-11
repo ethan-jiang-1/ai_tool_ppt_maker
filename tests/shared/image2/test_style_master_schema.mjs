@@ -49,7 +49,7 @@ const digest = (letter) => letter.repeat(64);
 
 function planIdentity(overrides = {}) {
   return {
-    schema: "page-image-style-master-plan-identity-v1",
+    schema: "page-image-style-master-plan-identity",
     run_version: "v1",
     workflow: "framed",
     plan_generation: 1,
@@ -73,16 +73,16 @@ function temporaryRun() {
 }
 
 describe("Style Master schema and immutable storage", () => {
-  it("rejects retired Page Authority candidate bytes before canonical parsing", () => {
-    const retiredBytes = Buffer.from('{"schema":"page-authority-style-master-plan-identity-v1","unterminated":', "utf8");
+  it("rejects undeclared candidate bytes before canonical parsing", () => {
+    const undeclaredBytes = Buffer.from('{"schema":"unrecognized-style-master-plan-identity","unterminated":', "utf8");
     let failure = null;
     try {
-      parseStyleMasterCanonicalBytes(retiredBytes, "retired-candidate-plan.json");
+      parseStyleMasterCanonicalBytes(undeclaredBytes, "undeclared-candidate-plan.json");
     } catch (error) {
       failure = error;
     }
 
-    expect(failure).toMatchObject({ code: "UNSUPPORTED_PROTOCOL" });
+    expect(failure).toMatchObject({ code: "style_master_record_invalid" });
   });
 
   it("uses a non-self-referential plan identity with ordered candidate slots", () => {

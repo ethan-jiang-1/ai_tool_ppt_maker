@@ -110,16 +110,6 @@ export function isMnemonicSlideId(value) {
   return parseMnemonicSlideId(value).valid;
 }
 
-export function classifySlideId(value) {
-  const id = String(value ?? "").trim();
-  if (!id) return "empty";
-  return isMnemonicSlideId(id) ? "mnemonic" : "legacy";
-}
-
-export function isLegacySlideId(value) {
-  return classifySlideId(value) === "legacy";
-}
-
 function levenshteinDistance(left, right) {
   const a = String(left);
   const b = String(right);
@@ -187,7 +177,7 @@ export function buildSlideIdReservation(ids = []) {
 
 /**
  * Validate an ID supplied by a creation/insertion path. Current Page Image
- * IDs are created here; historical bytes do not pass through ordinary deck reads.
+ * IDs are created here; unsupported bytes do not pass through ordinary deck reads.
  */
 export function validateNewSlideId(
   value,
@@ -370,57 +360,9 @@ export function resolveSlideBindings(requested, inputSlides, { maxCandidates = 2
       selectorFailure(token, `Title selector ${JSON.stringify(token)} is ambiguous`, hits, slides, maxCandidates);
     }
 
-    const legacyPrefix = token.match(/^s0*(\d+)$/i);
-    if (legacyPrefix) {
-      const number = legacyPrefix[1];
-      const prefixPattern = new RegExp(`^s0*${number}(?:_|$)`, "i");
-      hits = slides.filter(
-        (slide) => isLegacySlideId(slide.slide_id) && prefixPattern.test(slide.slide_id)
-      );
-      if (hits.length === 1) {
-        bindings.push({ token, slide_id: hits[0].slide_id, position: hits[0].position, matched_by: "legacy_prefix" });
-        continue;
-      }
-      if (hits.length > 1) {
-        selectorFailure(token, `Legacy slide selector ${JSON.stringify(token)} is ambiguous`, hits, slides, maxCandidates);
-      }
-    }
-
     selectorFailure(token, `Slide selector ${JSON.stringify(token)} matched no slide`, [], slides, maxCandidates);
   }
   return bindings;
-}
-
-/**
- * Backward-compatible --only resolver. New code should keep binding evidence by
- * calling resolveSlideBindings(); this adapter retains historic ID-substring
- * convenience and deduplicates IDs for stage execution.
- */
-export function resolveSlideIds(requested, slides) {
-  if (!Array.isArray(requested) || requested.length === 0) return [];
-  const snapshot = (slides || []).map(normalizeSlide);
-  const resolved = [];
-  for (const raw of requested) {
-    const token = String(raw ?? "").trim();
-    try {
-      const [binding] = resolveSlideBindings([token], snapshot);
-      if (!resolved.includes(binding.slide_id)) resolved.push(binding.slide_id);
-      continue;
-    } catch (error) {
-      if (!(error instanceof SlideSelectorError) || !token || /^p?\d+$/i.test(token)) throw error;
-      const lower = token.toLowerCase();
-      const hits = snapshot.filter((slide) => slide.slide_id.toLowerCase().includes(lower));
-      if (hits.length === 1) {
-        if (!resolved.includes(hits[0].slide_id)) resolved.push(hits[0].slide_id);
-        continue;
-      }
-      if (hits.length > 1) {
-        selectorFailure(token, `Slide selector ${JSON.stringify(token)} is ambiguous`, hits, snapshot, 20);
-      }
-      throw error;
-    }
-  }
-  return resolved;
 }
 
 export function formatAvailableSlideIds(slides, max = 40) {

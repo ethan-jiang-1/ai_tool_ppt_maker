@@ -18,8 +18,8 @@ function visualSelection() {
 function sourceReceipt({ workflow = "framed" } = {}) {
   const selection = visualSelection();
   return {
-    schema: "page-image-workflow-source-v1",
-    pipeline: "page-image-workflow-v1",
+    schema: "page-image-workflow-source",
+    pipeline: "page-image-workflow",
     workflow,
     source_sha256: "a".repeat(64),
     slides: [{
@@ -33,7 +33,7 @@ function sourceReceipt({ workflow = "framed" } = {}) {
       },
       header_policy: workflow === "framed"
         ? {
-          frame_preset: "standard-v1",
+          frame_preset: "standard",
           local_header: { kicker: "Operations", title: "A current source", subtitle: null },
           context_not_to_render: { kicker: "Operations", title: "A current source", subtitle: null },
         }
@@ -107,7 +107,7 @@ describe("Page Image Core", () => {
     expect(() => createPageImageCoreFacts(visualMismatch)).toThrow(/exactly match/);
 
     expect(() => normalizePageImageHeaderPolicy({
-      frame_preset: "standard-v1",
+      frame_preset: "standard",
       local_header: { kicker: null, title: "A title", subtitle: null },
       context_not_to_render: { kicker: null, title: "A different title", subtitle: null },
     }, "framed")).toThrow(/same exact literals/);

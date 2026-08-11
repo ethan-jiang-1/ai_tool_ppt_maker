@@ -62,10 +62,10 @@ Use the layout owner and the glossary before adding files or directories. Run-bu
 root controls are intentionally strict; `_scratch/` and `_generated/` have distinct
 purposes and neither is a replacement source owner.
 
-## 9. Resume a v2 run as current production
+## 9. Resume an unsupported run as current production
 
-An explicitly targeted v2, partial, hybrid, or corrupt pair is an
-`unsupported-protocol/export` hard-stop. Preserve its bytes and use the
+An explicitly targeted undeclared, partial, hybrid, or corrupt pair is an
+`repair-current-protocol-identity` hard-stop. Preserve its bytes and use the
 owner-issued action; never infer current source, receipt, approval, or artifact
 authority from it.
 

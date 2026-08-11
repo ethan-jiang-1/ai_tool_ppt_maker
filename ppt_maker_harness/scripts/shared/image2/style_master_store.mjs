@@ -17,7 +17,6 @@ import {
   validateStyleMasterPlanRecord,
 } from "./style_master_schema.mjs";
 import {
-  assertNoActiveMigration,
   resolveContentAddressName,
   shortName,
 } from "./content_address_store.mjs";
@@ -290,7 +289,7 @@ export function readCanonicalStyleMasterRecord(path, validator, options = undefi
 }
 
 /** Create one immutable record or exact-replay its canonical bytes. */
-export function createOrExactMatchStyleMasterRecord(path, record, validator, options = undefined, deckRoot = null) {
+export function createOrExactMatchStyleMasterRecord(path, record, validator, options = undefined) {
   if (typeof validator !== "function") fail("style_master_store_invalid", "record writer requires a validator");
   const desiredBytes = styleMasterCanonicalBytes(record);
   const checkedDesired = validator(record, options);
@@ -298,7 +297,6 @@ export function createOrExactMatchStyleMasterRecord(path, record, validator, opt
   const target = resolve(path);
   const lock = join(dirname(target), `.${basename(target)}.lock`);
   return withExclusiveDirectoryLock(lock, () => {
-    if (deckRoot != null) assertNoActiveMigration(deckRoot);
     const existing = readBytesOrNull(target);
     if (existing !== null) {
       const parsed = readCanonicalStyleMasterRecord(target, validator, options);
@@ -336,7 +334,6 @@ export function writeStyleMasterCandidateAttemptCas(runDir, {
   const desired = styleMasterCanonicalBytes(attempt);
   const lock = join(dirname(paths.candidate_attempt), ".attempt.lock");
   return withExclusiveDirectoryLock(lock, () => {
-    assertNoActiveMigration(paths.deck_root);
     const actual = readBytesOrNull(paths.candidate_attempt);
     if ((expected === null && actual !== null) || (expected !== null && !equalBytes(expected, actual))) {
       fail("style_master_attempt_conflict", "Style Master candidate attempt changed before compare-and-swap");
@@ -392,7 +389,6 @@ export function placeStyleMasterCandidateImage(runDir, {
   if (!paths.candidate_image) fail("style_master_store_invalid", "candidate image path requires exact media type");
   const lock = join(dirname(paths.candidate_image), ".image.lock");
   return withExclusiveDirectoryLock(lock, () => {
-    assertNoActiveMigration(paths.deck_root);
     const existing = readBytesOrNull(paths.candidate_image);
     if (existing !== null) {
       if (!equalBytes(existing, payload)) {
@@ -415,7 +411,6 @@ export function writeStyleMasterScopeHeadCas(runDir, { workflow, head, plan, exp
   const desired = styleMasterCanonicalBytes(head);
   ensureRealDirectoryBelowDeck(paths.deck_root, paths.scope_root, "Style Master scope root");
   return withExclusiveDirectoryLock(paths.scope_lock, () => {
-    assertNoActiveMigration(paths.deck_root);
     const actual = readBytesOrNull(paths.scope_head);
     if ((expected === null && actual !== null) || (expected !== null && !equalBytes(expected, actual))) {
       fail("style_master_head_conflict", "Style Master scope head changed before compare-and-swap");
@@ -441,7 +436,6 @@ export function publishStyleMasterStagedPlan(runDir, { staging_path, plan_sha256
   validate_bundle(staging);
   ensureRealDirectoryBelowDeck(paths.deck_root, paths.plans_root, "Style Master plans root");
   return withExclusiveDirectoryLock(join(paths.plans_root, `.${shortName(plan_sha256)}.lock`), () => {
-    assertNoActiveMigration(paths.deck_root);
     if (readBytesOrNull(paths.candidate_plan) !== null) {
       validate_bundle(paths.plan_root);
       cleanupStyleMasterStagingDirectory(runDir, staging);

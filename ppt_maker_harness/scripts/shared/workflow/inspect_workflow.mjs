@@ -3,8 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { basename, join, resolve } from "node:path";
 import { canonicalJson } from "../../contracts/canonical_json.mjs";
 import { checkBundle, deckRoot } from "../run-bundle/bundle_layout.mjs";
-import { PAGE_IMAGE_WORKFLOW_V1_PIPELINE, PAGE_IMAGE_WORKFLOW_SELECTION_REQUIRED_MESSAGE, isPageImageWorkflowSelectionPending, probeProductionMarker } from "../run-bundle/production_marker.mjs";
-import { evaluateReplacementIdentity } from "../run-bundle/page_image_workflow_identity.mjs";
+import { PAGE_IMAGE_WORKFLOW_PIPELINE, PAGE_IMAGE_WORKFLOW_SELECTION_REQUIRED_MESSAGE, isPageImageWorkflowSelectionPending, probeProductionMarker } from "../run-bundle/production_marker.mjs";
 import {
   inspectCurrentPageImageTaskMandate,
   readTargetProgressiveControllerDecision,
@@ -22,7 +21,7 @@ import {
   readPureProgressiveTargetPlanCandidate,
 } from "../../04-pure-image/index.mjs";
 
-export const WORKFLOW_INSPECTION_SCHEMA = "pptmaker-workflow-inspection-v1";
+export const WORKFLOW_INSPECTION_SCHEMA = "pptmaker-workflow-inspection";
 
 const sha256 = (value) => createHash("sha256").update(canonicalJson(value)).digest("hex");
 const sourceReadyByInspection = new WeakMap();
@@ -72,12 +71,12 @@ export function isWorkflowInspectionSourceReady(inspection) {
   return sourceReadyByInspection.get(inspection) === true;
 }
 
-function unsupportedProtocolResult(runDir, marker = null) {
+function invalidCurrentProtocolResult(runDir, marker = null) {
   return report({
     runDir,
     posture: "hard-stop",
-    rootCause: { owner: "production-protocol", kind: "unsupported-protocol" },
-    primaryAction: ownerAction("production-protocol", "unsupported-protocol/export", "export", false, "Export this unsupported source/state pair without modifying it."),
+    rootCause: { owner: "production-protocol", kind: "current-protocol-invalid" },
+    primaryAction: ownerAction("production-protocol", "repair-current-protocol-identity", "repair", false, "Repair the current source or state protocol marker."),
     evidenceSummary: { pipeline: marker?.branch ?? null, mode: null, workflow: null },
   });
 }
@@ -135,7 +134,7 @@ function progressiveTargetWorkflowResult(runDir, route) {
   }
 
   const adapter = progressiveAdapter(workflow);
-  if (!adapter) return unsupportedProtocolResult(runDir);
+  if (!adapter) return invalidCurrentProtocolResult(runDir);
   let candidate = null;
   let expectedPlan = null;
   try {
@@ -309,8 +308,6 @@ function currentPageImageMarker(runDir) {
   try {
     const sourcePath = join(runDir, "slide-specifications.md");
     const sourceBytes = readFileSync(sourcePath);
-    const identity = evaluateReplacementIdentity({ sourceBytes, sourcePath });
-    if (!identity.ok) return { branch: identity.actual || "unsupported", identity };
     const marker = probeProductionMarker(sourceBytes, {
       source: "slide-specifications.md",
     });
@@ -320,17 +317,11 @@ function currentPageImageMarker(runDir) {
   }
 }
 
-/** Read-only v2 Page Image lifecycle projection. */
+/** Read-only current Page Image lifecycle projection. */
 export function inspectWorkflow({ runDir } = {}) {
   const resolved = resolve(runDir || "");
   const marker = currentPageImageMarker(resolved);
-  if (marker?.identity?.ok === false) return unsupportedProtocolResult(resolved, { branch: marker.identity.actual || null });
   const deckDir = deckRoot(resolved);
-  const statePath = join(deckDir, "_state", "state.yaml");
-  if (existsSync(statePath)) {
-    const identity = evaluateReplacementIdentity({ stateBytes: readFileSync(statePath), statePath });
-    if (!identity.ok) return unsupportedProtocolResult(resolved, { branch: identity.actual || null });
-  }
   if (isPageImageWorkflowSelectionPending(marker)) {
     const layoutIssues = checkBundle(resolved, false)
       .filter((issue) => issue !== PAGE_IMAGE_WORKFLOW_SELECTION_REQUIRED_MESSAGE);
@@ -340,7 +331,7 @@ export function inspectWorkflow({ runDir } = {}) {
         posture: "hard-stop",
         rootCause: { owner: "run-bundle-layout", kind: "layout-invalid", detail: layoutIssues[0] },
         primaryAction: ownerAction("run-bundle-layout", "repair-layout", "repair", false, "Repair the reported bundle-layout issue."),
-        evidenceSummary: { pipeline: PAGE_IMAGE_WORKFLOW_V1_PIPELINE, mode: null, workflow: null },
+        evidenceSummary: { pipeline: PAGE_IMAGE_WORKFLOW_PIPELINE, mode: null, workflow: null },
       });
     }
     return report({
@@ -348,10 +339,10 @@ export function inspectWorkflow({ runDir } = {}) {
       posture: "confirm",
       rootCause: { owner: "01-content", kind: "TARGET_WORKFLOW_SELECTION_REQUIRED" },
       primaryAction: ownerAction("01-content", "select-target-page-image-workflow", "select", true, "Select framed or pure for this target version before source validation or provider work."),
-      evidenceSummary: { pipeline: PAGE_IMAGE_WORKFLOW_V1_PIPELINE, mode: null, workflow: null },
+      evidenceSummary: { pipeline: PAGE_IMAGE_WORKFLOW_PIPELINE, mode: null, workflow: null },
     });
   }
-  if (!marker || marker.branch !== PAGE_IMAGE_WORKFLOW_V1_PIPELINE) return unsupportedProtocolResult(resolved, marker);
+  if (!marker || marker.branch !== PAGE_IMAGE_WORKFLOW_PIPELINE) return invalidCurrentProtocolResult(resolved, marker);
   const layoutIssues = checkBundle(resolved, false);
   if (layoutIssues.length) {
     return report({

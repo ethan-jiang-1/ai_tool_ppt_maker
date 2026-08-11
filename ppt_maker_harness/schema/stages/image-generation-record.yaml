@@ -13,7 +13,7 @@ outputs:
   - final-page-list
 provenance:
   source: "A provider request digest, exact plan and batch identities, attempt identity, and materialization provenance."
-  requirement: "Records are append-only evidence and retain their historical serialized identifiers."
+  requirement: "Records are append-only evidence and use the current serialized identifiers declared in serialization-contracts.yaml."
 downstream_consumers:
   - complete-page-review
   - final-page-list

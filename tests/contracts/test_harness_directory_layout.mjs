@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 describe("Harness directory layout", () => {
-  it("exposes only the v2 workflow owners and shared delivery", () => {
+  it("exposes only the current workflow owners and shared delivery", () => {
     for (const path of [
       "ppt_maker_harness/scripts/03-framed-image",
       "ppt_maker_harness/scripts/04-pure-image",

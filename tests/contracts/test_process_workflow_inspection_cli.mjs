@@ -26,27 +26,27 @@ function finalDiagnostic(result) {
   return JSON.parse(result.stderr.trim().split("\n").filter(Boolean).at(-1));
 }
 
-const RETAINED_V2_SOURCE = [
+const UNDECLARED_SOURCE = [
   "---",
   "production:",
-  "  pipeline: page-authority-image2-v2",
+  "  pipeline: unrecognized-image2",
   "---",
   "",
   "## Slide 01: `PastGo`",
   "",
-  "**TITLE**: Retained v2 source",
+  "**TITLE**: Undeclared source",
   "",
 ].join("\n");
 
-const RETAINED_V2_STATE = [
-  "pipeline: page-authority-image2-v2",
-  "mode: image2-page-authority-v2",
+const UNDECLARED_STATE = [
+  "pipeline: unrecognized-image2",
+  "mode: unrecognized-mode",
   "",
 ].join("\n");
 
 describe("workflow inspection CLI projection", () => {
   it("projects a current authoring draft through status and ordinary state without writes", () => {
-    const root = mkdtempSync(join(tmpdir(), "workflow-inspection-cli-v2-"));
+    const root = mkdtempSync(join(tmpdir(), "workflow-inspection-cli-"));
     const deck = join(root, "deck_target");
     const runDir = join(deck, "3_versions", "v1");
     try {
@@ -56,7 +56,7 @@ describe("workflow inspection CLI projection", () => {
       const state = flow(["state", runDir, "--json"]);
       expect(status.status, status.stderr).toBe(0);
       expect(state.status, state.stderr).toBe(0);
-      expect(JSON.parse(status.stdout)).toMatchObject({ pipeline: "page-image-workflow-v1" });
+      expect(JSON.parse(status.stdout)).toMatchObject({ pipeline: "page-image-workflow" });
       expect(JSON.parse(state.stdout).workflow_inspection).toMatchObject({
         posture: "confirm",
         primary_action: { action_id: "select-target-page-image-workflow" },
@@ -67,19 +67,19 @@ describe("workflow inspection CLI projection", () => {
     }
   });
 
-  it("keeps unsupported source bytes outside controller resume", () => {
+  it("keeps an undeclared source marker outside controller resume", () => {
     const root = mkdtempSync(join(tmpdir(), "workflow-inspection-cli-unsupported-"));
     const deck = join(root, "deck_unsupported");
     const runDir = join(deck, "3_versions", "v1");
     try {
       initBundle(deck, null, "keynote", "dark-executive");
       const source = join(runDir, "slide-specifications.md");
-      writeFileSync(source, "---\nproduction:\n  pipeline: unsupported-protocol-v0\n---\n");
+      writeFileSync(source, "---\nproduction:\n  pipeline: current-protocol-invalid\n---\n");
       const before = treeSnapshot(deck);
       const state = flow(["state", runDir, "--json"]);
       expect(state.status, state.stderr).toBe(1);
       expect(finalDiagnostic(state)).toMatchObject({
-        diagnostic: { operation: "export-unsupported-protocol", next: { action: "export" } },
+        diagnostic: { operation: "repair-current-protocol", next: { action: "repair_prerequisite" } },
       });
       expect(treeSnapshot(deck)).toEqual(before);
     } finally {
@@ -87,8 +87,8 @@ describe("workflow inspection CLI projection", () => {
     }
   });
 
-  it("rejects retained v2 source/status and v2 state/resume projections without writes", () => {
-    const root = mkdtempSync(join(tmpdir(), "workflow-inspection-cli-retained-v2-"));
+  it("rejects undeclared source and state markers without writes", () => {
+    const root = mkdtempSync(join(tmpdir(), "workflow-inspection-cli-retained-"));
     const sourceDeck = join(root, "deck_retained_source");
     const stateDeck = join(root, "deck_retained_state");
     const sourceRunDir = join(sourceDeck, "3_versions", "v1");
@@ -96,36 +96,36 @@ describe("workflow inspection CLI projection", () => {
     try {
       initBundle(sourceDeck, null, "keynote", "dark-executive");
       const retainedSourcePath = join(sourceRunDir, "slide-specifications.md");
-      writeFileSync(retainedSourcePath, RETAINED_V2_SOURCE);
+      writeFileSync(retainedSourcePath, UNDECLARED_SOURCE);
       const sourceBefore = treeSnapshot(sourceDeck);
 
       const status = flow(["status", sourceRunDir, "--json"]);
       expect(status.status, status.stderr).toBe(1);
       expect(finalDiagnostic(status)).toMatchObject({
         diagnostic: {
-          operation: "export-unsupported-protocol",
-          reason: { kind: "unsupported_protocol" },
-          next: { action: "export" },
+          operation: "repair-current-protocol",
+          reason: { kind: "current_protocol_invalid" },
+          next: { action: "repair_prerequisite" },
         },
       });
-      expect(readFileSync(retainedSourcePath, "utf8")).toBe(RETAINED_V2_SOURCE);
+      expect(readFileSync(retainedSourcePath, "utf8")).toBe(UNDECLARED_SOURCE);
       expect(treeSnapshot(sourceDeck)).toEqual(sourceBefore);
 
       initBundle(stateDeck, null, "keynote", "dark-executive");
       const retainedStatePath = join(stateDeck, "_state", "state.yaml");
-      writeFileSync(retainedStatePath, RETAINED_V2_STATE);
+      writeFileSync(retainedStatePath, UNDECLARED_STATE);
       const stateBefore = treeSnapshot(stateDeck);
 
       const resume = flow(["state", stateRunDir, "--json"]);
-      expect(resume.status, resume.stderr).toBe(1);
+      expect(resume.status, resume.stderr).not.toBe(0);
       expect(finalDiagnostic(resume)).toMatchObject({
         diagnostic: {
-          operation: "export-unsupported-protocol",
-          reason: { kind: "unsupported_protocol" },
-          next: { action: "export" },
+          operation: "observe-state",
+          reason: { kind: "replacement_required" },
+          next: { action: "repair_prerequisite" },
         },
       });
-      expect(readFileSync(retainedStatePath, "utf8")).toBe(RETAINED_V2_STATE);
+      expect(readFileSync(retainedStatePath, "utf8")).toBe(UNDECLARED_STATE);
       expect(treeSnapshot(stateDeck)).toEqual(stateBefore);
     } finally {
       rmSync(root, { recursive: true, force: true });

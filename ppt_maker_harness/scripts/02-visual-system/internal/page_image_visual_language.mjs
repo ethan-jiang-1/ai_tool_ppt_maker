@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import { isAlias, isMap, isScalar, isSeq, parseDocument } from "yaml";
 import { canonicalJsonSha256 } from "../../contracts/canonical_json.mjs";
 
-export const PAGE_IMAGE_VISUAL_LANGUAGE_SCHEMA = "pptmaker-page-image-visual-language-v1";
+export const PAGE_IMAGE_VISUAL_LANGUAGE_SCHEMA = "pptmaker-page-image-visual-language";
 export const PAGE_IMAGE_VISUAL_LANGUAGE_RELATIVE_PATH = "2_backbone/visual-style/page-image-visual-language.yaml";
 
 export const PAGE_IMAGE_VISUAL_CLAUSE_FORBIDDEN_CONTENT_TOKENS = Object.freeze([
@@ -121,8 +121,8 @@ function exactMap(node, expectedKeys, context, issues, { optionalKeys = [] } = {
 
 function normalizedVisualClauseDigest() {
   return canonicalJsonSha256({
-    id: "page-image-visual-clause-v1",
-    normalization: "ascii-lowercase-v1",
+    id: "page-image-visual-clause",
+    normalization: "ascii-lowercase",
     printable_ascii: "U+0020-U+007E",
     character_grammar: CHARACTER_GRAMMAR,
     forbidden_content_tokens: PAGE_IMAGE_VISUAL_CLAUSE_FORBIDDEN_CONTENT_TOKENS,

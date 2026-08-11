@@ -37,9 +37,9 @@ const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 function source() {
   return `---
 identity:
-  scheme: mnemonic-v1
+  scheme: mnemonic
 production:
-  pipeline: page-image-workflow-v1
+  pipeline: page-image-workflow
   workflow: pure
 ---
 
@@ -165,13 +165,13 @@ describe("target raw-review coverage", () => {
       const prepared = await preparePureTargetRawReview(runDir);
       const review = JSON.parse(readFileSync(paths.target_raw_review, "utf8"));
       const reviewRoot = join(paths.review_root, "complete-page", resolveContentAddressName(join(paths.review_root, "complete-page"), plan.raw_work_plan.sha256));
-      const reviewEvidencePath = join(reviewRoot, "complete-page-review-evidence-v1.json");
+      const reviewEvidencePath = join(reviewRoot, "complete-page-review-evidence.json");
       const reviewProjectionPath = join(reviewRoot, "complete-page-review.png");
       const projectionBytes = readFileSync(reviewProjectionPath);
       const presentation = JSON.parse(readFileSync(reviewEvidencePath, "utf8"));
 
       expect(review).toEqual({
-        schema: "page-image-complete-page-review-v1",
+        schema: "page-image-complete-page-review",
         source_epoch: plan.source_epoch,
         workflow: "pure",
         raw_bytes_sha256: canonicalJsonSha256([{ slide_id: "DeckGo", raw_sha256: sha256(imageBytes) }]),
@@ -182,7 +182,7 @@ describe("target raw-review coverage", () => {
         decision: null,
       });
       expect(presentation).toMatchObject({
-        schema: "page-image-complete-page-review-presentation-v1",
+        schema: "page-image-complete-page-review-presentation",
         raw_work_plan_sha256: plan.raw_work_plan.sha256,
         source_epoch: plan.source_epoch,
         workflow: "pure",

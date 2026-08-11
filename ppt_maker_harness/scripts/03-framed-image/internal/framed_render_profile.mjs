@@ -7,12 +7,12 @@ import { HTML_RUNTIME_PROFILE } from '../../00-setup/internal/html_runtime_profi
 import { HTML_CAPTURE_PROFILE } from './capture_runtime.mjs';
 import {
   FRAMED_HEADER_OVERLAY_PRESET,
-  FRAMED_HEADER_OVERLAY_STANDARD_V1,
+  FRAMED_HEADER_OVERLAY_STANDARD,
 } from './header_overlay.mjs';
 
-export const FRAMED_HEADER_OVERLAY_RENDER_PROFILE_SCHEMA = 'pptmaker-framed-header-overlay-render-profile-v1';
+export const FRAMED_HEADER_OVERLAY_RENDER_PROFILE_SCHEMA = 'pptmaker-framed-header-overlay-render-profile';
 export const FRAMED_HEADER_OVERLAY_LAYOUT_COMPILER = Object.freeze({
-  schema: 'pptmaker-framed-header-overlay-layout-compiler-v1',
+  schema: 'pptmaker-framed-header-overlay-layout-compiler',
   version: '2',
 });
 export const FRAMED_HEADER_OVERLAY_LAYOUT_COMPILER_COHERENCE_HISTORY = Object.freeze([
@@ -139,7 +139,7 @@ function normalizedTheme(value) {
 }
 
 /** Select the pixel-producing facts of the closed transparent header preset. */
-export function normalizedFramedHeaderOverlayPresetFacts(preset = FRAMED_HEADER_OVERLAY_STANDARD_V1) {
+export function normalizedFramedHeaderOverlayPresetFacts(preset = FRAMED_HEADER_OVERLAY_STANDARD) {
   const source = exactKeys(preset, ['id', 'canvas', 'font_families', 'theme', 'protected_geometry', 'fields'], 'preset');
   if (source.id !== FRAMED_HEADER_OVERLAY_PRESET) {
     throw new FramedHeaderOverlayProfileError('header_overlay_profile_input_invalid', `preset.id must equal ${FRAMED_HEADER_OVERLAY_PRESET}`);
@@ -171,10 +171,10 @@ export function normalizedFramedHeaderOverlayPresetFacts(preset = FRAMED_HEADER_
 }
 
 /** Compile the deterministic local geometry without creating any rendered panel. */
-export function compileFramedHeaderOverlayGeometry({ preset = FRAMED_HEADER_OVERLAY_STANDARD_V1 } = {}) {
+export function compileFramedHeaderOverlayGeometry({ preset = FRAMED_HEADER_OVERLAY_STANDARD } = {}) {
   const normalizedPreset = normalizedFramedHeaderOverlayPresetFacts(preset);
   return Object.freeze({
-    schema: 'pptmaker-framed-header-overlay-layout-description-v1',
+    schema: 'pptmaker-framed-header-overlay-layout-description',
     compiler: FRAMED_HEADER_OVERLAY_LAYOUT_COMPILER,
     canvas: normalizedPreset.canvas,
     font_families: normalizedPreset.font_families,
@@ -249,7 +249,7 @@ function normalizedCapture(value) {
 
 /** Build the host-independent profile of the Framed header-overlay renderer. */
 export function createFramedHeaderOverlayRenderProfile({
-  preset = FRAMED_HEADER_OVERLAY_STANDARD_V1,
+  preset = FRAMED_HEADER_OVERLAY_STANDARD,
   layoutCompiler = FRAMED_HEADER_OVERLAY_LAYOUT_COMPILER,
   fontRenderInventory,
   fontSelectionAlgorithm = FRAMED_FONT_SELECTION_ALGORITHM,

@@ -156,14 +156,14 @@ describe("Page Image typed artifacts", () => {
       final_bytes_by_slide: { DeckGo: Buffer.from("final-a"), BodyMap: Buffer.from("final-b") },
     })).toThrow(/selected workflow/);
     expect(validateFinalSlideManifest({
-      schema: "page-image-final-slide-manifest-v1",
+      schema: "page-image-final-slide-manifest",
       source_receipt_sha256: digest("a"),
       accepted_raw_evidence_sha256: digest("b"),
       workflow: "pure",
       items: [{ slide_id: "DeckGo", position: 1, final_sha256: digest("c"), path: "01_DeckGo.png" }],
     }, { evidence, expectedWorkflow: "pure" })).toMatchObject({ ok: false, code: "final_manifest_stale" });
     expect(validateAcceptedRawEvidence({
-      schema: "pptmaker-page-image-raw-manifest-v1",
+      schema: "pptmaker-page-image-raw-manifest",
       raw_work_plan_sha256: rawPlan.sha256,
       source_receipt_sha256: rawPlan.source_receipt_sha256,
       workflow: "pure",
@@ -172,8 +172,8 @@ describe("Page Image typed artifacts", () => {
       items: [],
     }, { plan: rawPlan })).toMatchObject({ ok: false, code: "raw_evidence_invalid" });
     expect(validateAcceptedRawEvidence({
-      schema: "page-authority-accepted-raw-evidence-v2",
-    }, { plan: rawPlan })).toMatchObject({ ok: false, code: "UNSUPPORTED_PROTOCOL" });
+      schema: "unrecognized-accepted-raw-evidence",
+    }, { plan: rawPlan })).toMatchObject({ ok: false, code: "CURRENT_PROTOCOL_INVALID" });
     expect(() => createAcceptedRawEvidence({
       plan: rawPlan,
       provider_authorization_sha256: digest("f"),
@@ -209,8 +209,8 @@ describe("Page Image typed artifacts", () => {
         parseReceipt: (input) => {
           parserInput = input;
           return {
-            schema: "page-image-workflow-source-v1",
-            pipeline: "page-image-workflow-v1",
+            schema: "page-image-workflow-source",
+            pipeline: "page-image-workflow",
             workflow: "framed",
             source_sha256: sha256(input.sourceText),
             slides: [{ slide_id: "DeckGo", position: 1 }],

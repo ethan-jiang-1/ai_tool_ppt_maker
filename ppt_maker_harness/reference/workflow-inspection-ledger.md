@@ -2,7 +2,7 @@
 
 This review document describes the direct owners read by `workflow_inspection`.
 The machine-checkable source of truth is
-`tests/contracts/workflow-control-ledger-v2.json`; this document is not a runtime
+`tests/contracts/workflow-control-ledger.json`; this document is not a runtime
 registry or mutation authority.
 
 | Fact | Direct owner | Inspection role |

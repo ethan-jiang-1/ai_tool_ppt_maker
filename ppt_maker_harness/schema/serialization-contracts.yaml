@@ -1,0 +1,214 @@
+schema_home: page-image-production-definitions
+authority: active-serialization-contracts
+execution: non-executable
+
+identifier_grammar:
+  pattern: "lowercase kebab-case without a version suffix"
+  rule: "Every active durable selector and wire schema uses one declared unversioned value."
+
+selectors:
+  production_pipeline: page-image-workflow
+  production_mode: image2-page-workflow
+  production_adapter: page-image-workflow
+  identity_scheme: mnemonic
+  framed_header_preset: standard
+
+shared_contracts:
+  - name: cli-diagnostic
+    value: pptmaker-cli-diagnostic
+    field: schema
+    anchors:
+      - scripts/shared/cli/cli_error.mjs#CLI_DIAGNOSTIC_SCHEMA
+  - name: run-bundle-locator
+    value: pptmaker-run-bundle
+    field: schema
+    anchors:
+      - scripts/shared/run-bundle/run_bundle_locator.mjs#RUN_BUNDLE_SCHEMA
+  - name: intent-route-catalog
+    value: pptmaker-intent-routes
+    field: schema
+    anchors:
+      - scripts/shared/workflow/intent_route_catalog.mjs#INTENT_ROUTE_CATALOG_SCHEMA
+  - name: cli-return-audit
+    value: pptmaker-cli-return-audit
+    field: schema
+    anchors:
+      - scripts/contracts/cli_return_audit.mjs#CLI_RETURN_AUDIT_SCHEMA
+  - name: source-test-ownership
+    value: pptmaker-source-test-ownership
+    field: schema
+    anchors:
+      - tests/contracts/source-test-ownership.json
+  - name: development-verification-core
+    value: pptmaker-development-verification-core
+    field: schema
+    anchors:
+      - tests/contracts/run_development_verification.mjs
+  - name: workflow-control-ledger
+    value: pptmaker-workflow-control-ledger
+    field: schema
+    anchors:
+      - ppt_maker_harness/workflow
+  - name: harness-governance-ledger
+    value: pptmaker-harness-governance-ledger
+    field: schema
+    anchors:
+      - ppt_maker_harness/charter
+  - name: controller-manifest
+    value: pptmaker-controller-manifest
+    field: schema
+    anchors:
+      - scripts/shared/state/md_controller_reader.mjs
+  - name: workflow-goal-entry
+    value: pptmaker-workflow-goal-entry
+    field: schema
+    anchors:
+      - scripts/shared/workflow
+  - name: workflow-inspection
+    value: pptmaker-workflow-inspection
+    field: schema
+    anchors:
+      - scripts/shared/workflow/inspect_workflow.mjs
+  - name: framed-font-render-inventory
+    value: pptmaker-framed-font-render-inventory
+    field: schema
+    anchors:
+      - scripts/00-setup/internal/html_fonts.mjs
+  - name: framed-font-selection
+    value: pptmaker-framed-font-selection
+    field: schema
+    anchors:
+      - scripts/00-setup/internal/html_fonts.mjs
+  - name: framed-header-overlay-contract
+    value: pptmaker-framed-header-overlay-contract
+    field: schema
+    anchors:
+      - scripts/03-framed-image/internal/header_overlay.mjs
+  - name: framed-header-overlay-layout-compiler
+    value: pptmaker-framed-header-overlay-layout-compiler
+    field: schema
+    anchors:
+      - scripts/03-framed-image/internal
+  - name: framed-header-overlay-layout-description
+    value: pptmaker-framed-header-overlay-layout-description
+    field: schema
+    anchors:
+      - scripts/03-framed-image/internal
+  - name: framed-header-overlay-render-profile
+    value: pptmaker-framed-header-overlay-render-profile
+    field: schema
+    anchors:
+      - scripts/03-framed-image/internal/framed_render_profile.mjs
+  - name: html-font-inventory
+    value: pptmaker-html-font-inventory
+    field: schema
+    anchors:
+      - scripts/00-setup/internal
+
+wire_schema_groups:
+  - stage_ref: visual-language
+    role: visual-system-source
+    values:
+      - pptmaker-page-image-visual-language
+      - pptmaker-image2-reference-registry
+      - pptmaker-pure-deck-visual-system
+      - page-image-visual-clause
+  - stage_ref: page-source-receipt
+    role: parsed-source
+    values:
+      - page-image-workflow-source
+      - page-image-invalidation
+      - page-image-target-structural-plan
+      - page-image-target-refresh-route
+  - stage_ref: page-generation-spec
+    role: compiled-page-facts
+    values:
+      - page-image-core-facts
+      - page-image-core-slide-facts
+  - stage_ref: image2-request
+    role: provider-input
+    values:
+      - page-image-compiled-provider-input
+      - page-image-provider-input
+      - page-image-framed-provider-input
+      - page-image-pure-provider-input
+      - page-image-target-raw-provider-request
+      - page-image-provider-request-inspection
+      - page-image-style-master-provider-brief
+      - page-image-style-master-provider-request
+  - stage_ref: image-generation-plan
+    role: generation-planning
+    values:
+      - page-image-adapter-raw-work-plan
+      - page-image-raw-contract
+      - page-image-target-raw-contract
+      - page-image-target-raw-generation-profile
+      - page-image-target-raw-plan-projection
+      - page-image-progressive-raw-plan-projection
+      - page-image-progressive-raw-attempt-key
+      - page-image-progressive-raw-work-plan
+      - page-image-progressive-raw-scope-head
+      - page-image-progressive-raw-batch-projection
+      - page-image-progressive-raw-batch-grant
+      - page-image-progressive-raw-source-execution
+      - page-image-workflow-provider-authorization
+      - page-image-task-mandate
+  - stage_ref: image-generation-record
+    role: raw-generation-evidence
+    values:
+      - page-image-adapter-accepted-raw-evidence
+      - page-image-progressive-raw-item-attempt
+      - page-image-progressive-raw-materialization-provenance
+      - page-image-progressive-accepted-raw-evidence
+      - page-image-progressive-raw-pilot-evidence
+  - stage_ref: page-review-decision
+    role: review-evidence
+    values:
+      - page-image-complete-page-review
+      - page-image-complete-page-review-capture-profile
+      - page-image-complete-page-review-presentation
+      - page-image-pilot-page-review-presentation
+      - page-image-framed-complete-page-binding
+      - page-image-framed-pilot-review-contribution
+      - page-image-pure-complete-page-binding
+      - page-image-pure-pilot-review-contribution
+      - page-image-progressive-raw-complete-review
+      - page-image-progressive-raw-pilot-decision
+      - page-image-target-raw-review-contribution
+      - page-image-target-raw-review-projection-capture-profile
+  - stage_ref: final-page-list
+    role: final-page-selection
+    values:
+      - page-image-final-slide-manifest
+      - page-image-pptx-assembly
+  - stage_ref: delivery-package
+    role: delivery-evidence
+    values:
+      - page-image-delivery-media
+      - page-image-delivery-receipt
+      - page-image-notes-receipt
+  - stage_ref: visual-style-candidates
+    role: style-master-lineage
+    values:
+      - page-image-style-master-plan-identity
+      - page-image-style-master-head
+      - page-image-style-master-candidate-grant
+      - page-image-style-master-candidate-attempt
+      - page-image-style-master-candidate-abandonment
+      - page-image-style-master-local-provenance
+      - page-image-style-master-generated-provenance
+      - page-image-style-master-review-decision
+      - page-image-style-master-selection
+      - page-image-style-master-generation-profile
+  - stage_ref: production-progress-state
+    role: lifecycle-state
+    values:
+      - page-image-workflow-target-state
+      - page-image-workflow-handoff
+      - page-image-raw-manifest
+      - pptmaker-page-image-raw-manifest
+
+implementation_invariants:
+  - name: Page Image runtime values are declared by the selector, shared-contract, or wire-schema group above.
+  - name: Existing kind fields describe business or action semantics and are not serialization roles.
+  - name: C3-C5 planned stages remain declarative; this inventory does not materialize their producers.

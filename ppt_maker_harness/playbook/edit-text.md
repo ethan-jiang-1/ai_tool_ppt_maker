@@ -1,7 +1,7 @@
 ---
 playbook: edit-text
 description: Page Image Workflow text refresh
-supported_pipelines: [page-image-workflow-v1]
+supported_pipelines: [page-image-workflow]
 includes: [classify-change]
 ---
 
@@ -12,7 +12,7 @@ includes: [classify-change]
 node: refresh-target-framed-text
 lifecycle_phase: 5
 method_module: 06-iteration
-production_modes: [image2-page-workflow-v1]
+production_modes: [image2-page-workflow]
 production_workflows: [framed]
 requires: [classify-change]
 produces: [target-framed-refresh-route]
@@ -26,7 +26,7 @@ exit: [slide_specs_valid]
 node: refresh-target-pure-text
 lifecycle_phase: 5
 method_module: 06-iteration
-production_modes: [image2-page-workflow-v1]
+production_modes: [image2-page-workflow]
 production_workflows: [pure]
 requires: [classify-change]
 produces: [target-pure-refresh-route]
@@ -40,7 +40,7 @@ exit: [slide_specs_valid]
 node: review-target-text-delivery
 lifecycle_phase: 5
 method_module: 06-iteration
-production_modes: [image2-page-workflow-v1]
+production_modes: [image2-page-workflow]
 production_workflows: [framed, pure]
 requires: [refresh-target-framed-text, refresh-target-pure-text]
 produces: [verified-target-text-change]

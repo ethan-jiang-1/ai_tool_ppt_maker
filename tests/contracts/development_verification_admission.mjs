@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { dirname, relative, resolve, sep } from "node:path";
 
-export const INVENTORY_SCHEMA = "pptmaker-development-verification-core-v1";
+export const INVENTORY_SCHEMA = "pptmaker-development-verification-core";
 export const CORE_LIMITS = Object.freeze({ maxEntries: 16, maxFileBytes: 1024 * 1024, maxFiles: 256, maxTotalBytes: 8 * 1024 * 1024 });
 const SAFE_ROOTS = ["tests/contracts/", "ppt_maker_harness/scripts/contracts/", "ppt_maker_harness/scripts/shared/cli/"];
 const PROHIBITED_NODE = /^(?:node:)?(?:child_process|cluster|dgram|dns|http2?|https|net|tls|module)$/;
@@ -210,7 +210,7 @@ export function auditInventoryObject(data, { root = process.cwd(), limits = CORE
   return { ok: true, entries: data.entries, files: [...visited].map((path) => normalized(relative(rootPath, path))).sort(), total_bytes: totalBytes };
 }
 
-export function readAndAuditCoreInventory({ root = process.cwd(), inventoryPath = "tests/contracts/development-verification-core-v1.json", limits = CORE_LIMITS } = {}) {
+export function readAndAuditCoreInventory({ root = process.cwd(), inventoryPath = "tests/contracts/development-verification-core.json", limits = CORE_LIMITS } = {}) {
   const path = resolve(root, inventoryPath);
   let data;
   try { data = JSON.parse(readFileSync(path, "utf8")); } catch (error) { return fail("inventory-shape", `cannot read core inventory: ${error.message}`, "restore valid checked-in core inventory JSON"); }

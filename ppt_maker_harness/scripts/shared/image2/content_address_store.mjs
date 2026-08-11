@@ -9,9 +9,8 @@
  * Resolution relies on a writer invariant: an owner never publishes under a
  * short name already held by a different record — it fails loudly instead.
  * So a short-named entry uniquely corresponds to the full hash that wrote it.
- * `resolveContentAddressName` therefore needs no record read: it prefers the
- * 8-char short name, falls back to the legacy full 64-hex name (pre-migration
- * layout), and otherwise returns the short name as the target for a new write.
+ * `resolveContentAddressName` therefore needs no record read: it resolves the
+ * 8-char short name or returns it as the target for a new write.
  * The store's read functions still validate every record and compare hashes,
  * so a collision can never surface the wrong bytes as correct evidence.
  *
@@ -25,32 +24,12 @@ export const CONTENT_ADDRESS_SHORT_LENGTH = 8;
 export const CONTENT_ADDRESS_SHA256_RE = /^[0-9a-f]{64}$/;
 // Canonical short on-disk names: exactly the first 8 hex chars.
 export const CONTENT_ADDRESS_SHORT_NAME_RE = /^[0-9a-f]{8}$/;
-// Legacy pre-migration on-disk names: the full 64-hex SHA-256.
-export const CONTENT_ADDRESS_LEGACY_NAME_RE = /^[0-9a-f]{64}$/;
-// Deck-root quiescence lock: while present, content-addressed writers must fail.
-export const CONTENT_ADDRESS_MIGRATION_LOCK = ".content-address-migration.lock";
 
 export class ContentAddressStoreError extends Error {
   constructor(code, message) {
     super(message);
     this.name = "ContentAddressStoreError";
     this.code = code;
-  }
-}
-
-/**
- * Fail when a content-address migration is in progress for a deck. Writers
- * call this AFTER acquiring their own resource lock so the migration's lock
- * preflight can always observe an active writer and the writer never mutates
- * bytes while the migration is renaming paths.
- */
-export function assertNoActiveMigration(deckRoot) {
-  if (typeof deckRoot !== "string" || !deckRoot) return;
-  const lock = join(deckRoot, CONTENT_ADDRESS_MIGRATION_LOCK);
-  if (existsSync(lock)) {
-    throw new Error(
-      `content-address migration is in progress for this deck; retry after it completes (${lock})`
-    );
   }
 }
 
@@ -67,16 +46,13 @@ export function shortName(fullHash, prefixLength = CONTENT_ADDRESS_SHORT_LENGTH)
 
 /**
  * Resolve the on-disk entry name for a full content-address within one parent
- * directory. Prefers the 8-char short name; falls back to the legacy full
- * 64-hex name (pre-migration layout); otherwise returns the short name as the
- * target for an artifact that is not yet present.
+ * directory. It resolves the 8-char short name or returns it as the target for
+ * an artifact that is not yet present.
  *
  * `recordHashReader` receives the physical candidate path and must return the
  * complete content address embedded by that candidate's canonical record (or
  * null when the record is absent or invalid). Supplying it makes resolution
- * record-verified: a foreign short prefix never shadows a matching legacy
- * path. `suffix` supports addressed files such as `<hash>.json` without
- * teaching callers a second resolver.
+ * record-verified. `suffix` supports addressed files such as `<hash>.json`.
  */
 export function resolveContentAddressName(parentDir, fullHash, {
   recordHashReader = null,
@@ -103,12 +79,9 @@ export function resolveContentAddressName(parentDir, fullHash, {
     }
   };
   const shortPath = join(parentDir, `${short}${suffix}`);
-  const legacyPath = join(parentDir, `${fullHash}${suffix}`);
   const shortExists = existsSync(shortPath);
-  const legacyExists = existsSync(legacyPath);
 
   if (shortExists && (recordHashReader === null || readHash(short) === fullHash)) return `${short}${suffix}`;
-  if (legacyExists && (recordHashReader === null || readHash(fullHash) === fullHash)) return `${fullHash}${suffix}`;
   if (shortExists) {
     const actual = readHash(short);
     const detail = actual === null ? "an invalid or unreadable record" : `the different address ${actual}`;
@@ -117,10 +90,10 @@ export function resolveContentAddressName(parentDir, fullHash, {
       `content-address short name ${short} is occupied by ${detail}; requested ${fullHash}`,
     );
   }
-  if (legacyExists) {
+  if (existsSync(join(parentDir, `${fullHash}${suffix}`))) {
     throw new ContentAddressStoreError(
       "content_address_record_mismatch",
-      `legacy content-address entry ${fullHash} does not embed its requested full address`,
+      `noncanonical content-address entry ${fullHash} is outside the current layout`,
     );
   }
   return `${short}${suffix}`;
@@ -128,21 +101,19 @@ export function resolveContentAddressName(parentDir, fullHash, {
 
 /**
  * True when a candidate on-disk entry name is a canonical short name for
- * fullHash, or the legacy full name (pre-migration). Used by readers that
- * enumerate siblings and then verify the record.
+ * fullHash. Used by readers that enumerate siblings and then verify the record.
  */
 export function nameMatchesAddress(name, fullHash) {
-  return typeof name === "string" && (name === shortName(fullHash) || name === fullHash);
+  return typeof name === "string" && name === shortName(fullHash);
 }
 
-/** List sibling on-disk entry names under a parent that carry a content-address name (short or legacy). */
+/** List sibling on-disk entry names under a parent that carry a short content address. */
 export function listContentAddressEntries(parentDir) {
   try {
     return readdirSync(parentDir, { withFileTypes: true })
       .filter(
         (entry) =>
-          !entry.isSymbolicLink() &&
-          (CONTENT_ADDRESS_SHORT_NAME_RE.test(entry.name) || CONTENT_ADDRESS_LEGACY_NAME_RE.test(entry.name))
+          !entry.isSymbolicLink() && CONTENT_ADDRESS_SHORT_NAME_RE.test(entry.name)
       )
       .map((entry) => entry.name);
   } catch {

@@ -44,7 +44,7 @@ function sixteenBitRgbPng() {
 
 function binding(workflow, rawBytes, completeBytes = null) {
   return canonicalJsonSha256({
-    schema: `test-${workflow}-complete-page-binding-v1`,
+    schema: `test-${workflow}-complete-page-binding`,
     raw_provider_page_sha256: sha256(rawBytes),
     ...(completeBytes === null ? {} : { complete_page_sha256: sha256(completeBytes) }),
   });
@@ -92,7 +92,7 @@ describe("Complete Page Review presentation", () => {
       });
       const rootPath = reviewRoot(runDir);
       const filename = pageImageOrdinalImageFilename(1, "DeckGo");
-      const presentation = JSON.parse(readFileSync(join(rootPath, "complete-page-review-evidence-v1.json"), "utf8"));
+      const presentation = JSON.parse(readFileSync(join(rootPath, "complete-page-review-evidence.json"), "utf8"));
 
       expect(presentation).toMatchObject({
         raw_work_plan_sha256: PLAN_DIGEST,
@@ -178,7 +178,7 @@ describe("Complete Page Review presentation", () => {
       });
       const rootPath = reviewRoot(runDir);
       const filename = pageImageOrdinalImageFilename(1, "DeckGo");
-      const presentation = JSON.parse(readFileSync(join(rootPath, "complete-page-review-evidence-v1.json"), "utf8"));
+      const presentation = JSON.parse(readFileSync(join(rootPath, "complete-page-review-evidence.json"), "utf8"));
 
       expect(presentation).toMatchObject({
         workflow: "framed",
@@ -236,10 +236,10 @@ describe("Complete Page Review presentation", () => {
       });
       const rootPath = pilotReviewRoot(runDir);
       const filename = pageImageOrdinalImageFilename(2, "PathGo");
-      const presentation = JSON.parse(readFileSync(join(rootPath, "pilot-page-review-evidence-v1.json"), "utf8"));
+      const presentation = JSON.parse(readFileSync(join(rootPath, "pilot-page-review-evidence.json"), "utf8"));
 
       expect(presentation).toMatchObject({
-        schema: "page-image-pilot-page-review-presentation-v1",
+        schema: "page-image-pilot-page-review-presentation",
         raw_work_plan_sha256: PLAN_DIGEST,
         batch_sha256: BATCH_DIGEST,
         workflow: "framed",

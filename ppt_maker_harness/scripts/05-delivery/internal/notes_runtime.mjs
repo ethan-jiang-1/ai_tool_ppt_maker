@@ -1,4 +1,4 @@
-import { attachCliDiagnostic, createCliNext } from "../../shared/cli/cli_error.mjs";
+import { attachCliDiagnostic, CLI_DIAGNOSTIC_SCHEMA, createCliNext } from "../../shared/cli/cli_error.mjs";
 import { readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { randomUUID } from "node:crypto";
@@ -228,7 +228,7 @@ export async function injectNotes({ pptx, notes }) {
   if (notes.some((note) => typeof note !== "string" || note.trim() === "")) {
     const missing = notes.map((note, index) => (!note || !note.trim() ? index + 1 : null)).filter(Boolean);
     throw attachCliDiagnostic(new Error(`Notes injection aborted: missing SPEAKER NOTE content for slide(s) ${missing.join(", ")}`), {
-      version: 1,
+      schema: CLI_DIAGNOSTIC_SCHEMA,
       category: "source_validation",
       operation: "validate-notes",
       issues: missing.map((slideNumber) => ({
@@ -245,7 +245,7 @@ export async function injectNotes({ pptx, notes }) {
     zip = await JSZip.loadAsync(pptxBuf);
   } catch {
     throw attachCliDiagnostic(new Error("Page Image PPTX prerequisite is missing or invalid."), {
-      version: 1,
+      schema: CLI_DIAGNOSTIC_SCHEMA,
       category: "artifact",
       operation: "load-pptx",
       source: { path: pptx },
@@ -264,7 +264,7 @@ export async function injectNotes({ pptx, notes }) {
         `notes. Rebuild current Page Image final evidence so counts agree, ` +
         `then rerun notes injection.`
     ), {
-      version: 1,
+      schema: CLI_DIAGNOSTIC_SCHEMA,
       category: "artifact",
       operation: "match-note-count",
       source: { path: pptx },

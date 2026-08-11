@@ -1,17 +1,15 @@
 import { canonicalJson, canonicalJsonSha256 } from "../identity/canonical_json.mjs";
 import { sha256Bytes } from "../identity/byte_hash.mjs";
-import { evaluateReplacementIdentity } from "../run-bundle/page_image_workflow_identity.mjs";
 import {
   PROGRESSIVE_ACCEPTED_RAW_EVIDENCE_SCHEMA,
-  PROGRESSIVE_RAW_WORK_PLAN_V1_SCHEMA,
   PROGRESSIVE_RAW_WORK_PLAN_SCHEMA,
   validateProgressiveAcceptedRawEvidence,
   validateProgressiveRawWorkPlan,
 } from "./page_image_progressive_schema.mjs";
 
-export const RAW_WORK_PLAN_SCHEMA = "page-image-adapter-raw-work-plan-v1";
-export const ACCEPTED_RAW_EVIDENCE_SCHEMA = "page-image-adapter-accepted-raw-evidence-v1";
-export const FINAL_SLIDE_MANIFEST_SCHEMA = "page-image-final-slide-manifest-v1";
+export const RAW_WORK_PLAN_SCHEMA = "page-image-adapter-raw-work-plan";
+export const ACCEPTED_RAW_EVIDENCE_SCHEMA = "page-image-adapter-accepted-raw-evidence";
+export const FINAL_SLIDE_MANIFEST_SCHEMA = "page-image-final-slide-manifest";
 
 const SHA256_RE = /^[0-9a-f]{64}$/;
 const SLIDE_ID_RE = /^[A-Za-z][A-Za-z0-9_-]{0,127}$/;
@@ -62,13 +60,6 @@ function assertWorkflow(workflow) {
 function assertOrderedIds(ids) {
   if (!Array.isArray(ids) || ids.length === 0 || ids.some((id) => !SLIDE_ID_RE.test(id || "")) || new Set(ids).size !== ids.length) {
     throw new PageImageArtifactError("invalid_slide_order", "ordered_slide_ids must contain unique stable slide IDs");
-  }
-}
-
-function assertReplacementRecord(record, kind) {
-  const identity = evaluateReplacementIdentity({ record, recordKind: kind });
-  if (!identity.ok) {
-    throw new PageImageArtifactError(identity.code, `${kind} is unsupported by the current Page Image Workflow`);
   }
 }
 
@@ -125,7 +116,6 @@ function assertProviderInputBinding(binding, workflow) {
 /** Validate opaque raw-work inputs without interpreting workflow semantics. */
 export function validateRawWorkPlan(plan) {
   try {
-    assertReplacementRecord(plan, "raw-plan");
     if (!rawPlanShape(plan)) throw new PageImageArtifactError("raw_plan_invalid", "raw work plan has an invalid shape");
     assertDigest(plan.source_receipt_sha256, "source_receipt_sha256");
     assertWorkflow(plan.workflow);
@@ -176,7 +166,6 @@ function rawEvidenceShape(evidence) {
 
 export function validateAcceptedRawEvidence(evidence, { plan = null } = {}) {
   try {
-    assertReplacementRecord(evidence, "accepted-raw-evidence");
     if (!rawEvidenceShape(evidence)) throw new PageImageArtifactError("raw_evidence_invalid", "accepted raw evidence has an invalid shape");
     for (const field of ["raw_work_plan_sha256", "source_receipt_sha256", "provider_authorization_sha256", "raw_review_sha256"]) assertDigest(evidence[field], field);
     assertWorkflow(evidence.workflow);
@@ -225,7 +214,6 @@ export function createAcceptedRawEvidence({ plan, provider_authorization_sha256,
 /** Validate a replacement adapter or progressive accepted-evidence input. */
 export function validateAcceptedRawEvidenceForFinalization(evidence, { plan = null } = {}) {
   try {
-    assertReplacementRecord(evidence, "accepted-raw-evidence");
   } catch (error) {
     return freeze({ ok: false, code: error.code || "raw_evidence_invalid", message: error.message });
   }
@@ -238,11 +226,10 @@ export function validateAcceptedRawEvidenceForFinalization(evidence, { plan = nu
 /** Validate a replacement adapter or progressive raw-plan binding for final publication. */
 export function validateRawWorkPlanForFinalization(plan) {
   try {
-    assertReplacementRecord(plan, "raw-plan");
   } catch (error) {
     return freeze({ ok: false, code: error.code || "raw_plan_invalid", message: error.message });
   }
-  if ([PROGRESSIVE_RAW_WORK_PLAN_V1_SCHEMA, PROGRESSIVE_RAW_WORK_PLAN_SCHEMA].includes(plan?.schema)) {
+  if ([PROGRESSIVE_RAW_WORK_PLAN_SCHEMA, PROGRESSIVE_RAW_WORK_PLAN_SCHEMA].includes(plan?.schema)) {
     return validateProgressiveRawWorkPlan(plan);
   }
   return validateRawWorkPlanProviderInputBindings(plan);
@@ -261,7 +248,6 @@ function finalManifestItemShape(item) {
 
 export function validateFinalSlideManifest(manifest, { evidence = null, expectedWorkflow = null } = {}) {
   try {
-    assertReplacementRecord(manifest, "final-manifest");
     if (!finalManifestShape(manifest)) throw new PageImageArtifactError("final_manifest_invalid", "final slide manifest has an invalid shape");
     for (const field of ["source_receipt_sha256", "accepted_raw_evidence_sha256"]) assertDigest(manifest[field], field);
     assertWorkflow(manifest.workflow);

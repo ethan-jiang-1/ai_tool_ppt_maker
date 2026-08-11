@@ -47,13 +47,13 @@ function treeSnapshot(root, current = root, entries = []) {
 
 function fixture(workflow = "pure") {
   const root = mkdtempSync(join(tmpdir(), "workflow-inspect-target-"));
-  const deck = join(root, "deck_target_page_authority");
+  const deck = join(root, "deck_target_page_image");
   const runDir = join(deck, "3_versions", "v1");
   initBundle(deck, null, "keynote", "dark-executive");
-  const source = `---\nproduction:\n  pipeline: page-image-workflow-v1\n  workflow: ${workflow}\n---\n\n## Slide 01: \`DeckGo\`\n\n**TITLE**: Target prerequisite\n`;
+  const source = `---\nproduction:\n  pipeline: page-image-workflow\n  workflow: ${workflow}\n---\n\n## Slide 01: \`DeckGo\`\n\n**TITLE**: Target prerequisite\n`;
   writeFileSync(join(runDir, "slide-specifications.md"), source);
   const state = createInitialState("target", "keynote", "dark-executive", {
-    mode: "image2-page-workflow-v1",
+    mode: "image2-page-workflow",
     workflow,
   });
   state.continuation_target_version = "v1";
@@ -61,8 +61,8 @@ function fixture(workflow = "pure") {
   initializeTargetPageImageState(deck, {
     runVersion: "v1",
     sourceReceipt: {
-      schema: "page-image-workflow-source-v1",
-      pipeline: "page-image-workflow-v1",
+      schema: "page-image-workflow-source",
+      pipeline: "page-image-workflow",
       workflow,
       source_sha256: createHash("sha256").update(source).digest("hex"),
       slides: [{ slide_id: "DeckGo", position: 1 }],
@@ -74,9 +74,9 @@ function fixture(workflow = "pure") {
 function progressivePureSource(slideCount) {
   return `---
 identity:
-  scheme: mnemonic-v1
+  scheme: mnemonic
 production:
-  pipeline: page-image-workflow-v1
+  pipeline: page-image-workflow
   workflow: pure
 ---
 ${PROGRESSIVE_SLIDE_IDS.slice(0, slideCount).map((slideId, index) => `
@@ -133,13 +133,13 @@ function appendUnknownTerminalSibling(runDir, { plan_hash, batch_hash }) {
 describe("TARGET workflow inspection", () => {
   it("hard-stops an unsupported source without reading or creating workflow artifacts", () => {
     const root = mkdtempSync(join(tmpdir(), "workflow-inspect-unsupported-"));
-    const deck = join(root, "deck_unsupported_page_authority");
+    const deck = join(root, "deck_unsupported_page_image");
     const runDir = join(deck, "3_versions", "v1");
     try {
       initBundle(deck, null, "keynote", "dark-executive");
       writeFileSync(join(runDir, "slide-specifications.md"), `---
 production:
-  pipeline: unsupported-protocol-v0
+  pipeline: current-protocol-invalid
 ---
 
 ## Slide 01: \`PastGo\`
@@ -150,8 +150,8 @@ production:
       const inspection = inspectWorkflow({ runDir });
       expect(inspection).toMatchObject({
         posture: "hard-stop",
-        root_cause: { owner: "production-protocol", kind: "unsupported-protocol" },
-        primary_action: { action_id: "unsupported-protocol/export", kind: "export", requires_human: false },
+        root_cause: { owner: "production-protocol", kind: "current-protocol-invalid" },
+        primary_action: { action_id: "repair-current-protocol-identity", kind: "repair", requires_human: false },
       });
       expect(isWorkflowInspectionSourceReady(inspection)).toBe(false);
       expect(treeSnapshot(deck)).toEqual(before);
@@ -160,9 +160,9 @@ production:
     }
   });
 
-  it("projects a fresh v2 bundle as a workflow-choice confirm without writes", () => {
+  it("projects a fresh authoring draft as a workflow-choice confirm without writes", () => {
     const root = mkdtempSync(join(tmpdir(), "workflow-inspect-target-draft-"));
-    const deck = join(root, "deck_target_page_authority");
+    const deck = join(root, "deck_target_page_image");
     const runDir = join(deck, "3_versions", "v1");
     try {
       initBundle(deck, null, "keynote", "dark-executive");
@@ -172,7 +172,7 @@ production:
         posture: "confirm",
         root_cause: { owner: "01-content", kind: "TARGET_WORKFLOW_SELECTION_REQUIRED" },
         primary_action: { action_id: "select-target-page-image-workflow", requires_human: true },
-        evidence_summary: { pipeline: "page-image-workflow-v1", mode: null, workflow: null },
+        evidence_summary: { pipeline: "page-image-workflow", mode: null, workflow: null },
       });
       expect(isWorkflowInspectionSourceReady(inspection)).toBe(false);
       expect(treeSnapshot(deck)).toEqual(before);
@@ -190,7 +190,7 @@ production:
         posture: "hard-stop",
         root_cause: { owner: "selected-workflow-adapter", kind: "source-or-style-preflight-invalid" },
         primary_action: { owner: "04-pure-image", action_id: "repair-progressive-source-binding", requires_human: false },
-        evidence_summary: { mode: "image2-page-workflow-v1", workflow: "pure" },
+        evidence_summary: { mode: "image2-page-workflow", workflow: "pure" },
       });
       expect(isWorkflowInspectionSourceReady(inspection)).toBe(true);
       expect(treeSnapshot(value.deck)).toEqual(before);
@@ -204,7 +204,7 @@ production:
     try {
       const path = join(value.deck, "_state", "state.yaml");
       const state = createInitialState("target", "keynote", "dark-executive", {
-        mode: "image2-page-workflow-v1",
+        mode: "image2-page-workflow",
         workflow: "framed",
       });
       state.continuation_target_version = "v1";

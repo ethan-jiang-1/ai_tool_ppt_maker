@@ -8,20 +8,29 @@ work begins.
 ### Requirement: Stage 1 emits stable identity and derived position
 
 The source parser SHALL retain each formal `slide_id` and derive its 1-based
-`position` from source order. Position is a snapshot projection; the formal ID is
-the cross-version identity. New template/init sources SHALL declare
-`identity.scheme: mnemonic-v1` without creating a second order source.
+`position` from source order. New template and initialized sources SHALL
+declare the current schema-declared `identity.scheme` value `mnemonic` without
+creating a second order source. Position remains a snapshot projection and the
+formal ID remains cross-version identity.
+
+#### Scenario: A new source declares mnemonic identity
+
+- **WHEN** initialization creates a current slide source
+- **THEN** it writes `identity.scheme: mnemonic` and derives position from
+source order
+- **AND** it does not emit a version-suffixed identity marker
 
 #### Scenario: Plan exposes both concepts
 
-- **WHEN** source block `UXGap` is physically the seventh slide
-- **THEN** its receipt contains formal ID `UXGap` and `position: 7`
-- **AND** a logical raw-image identity does not contain `07`
+- **WHEN** a source block is parsed in a current source
+- **THEN** its receipt exposes the formal ID and derived position separately
+- **AND** the position is not part of formal identity
 
 #### Scenario: Reorder changes projection only
 
-- **WHEN** unchanged slide `UXGap` moves from physical position 7 to position 3
-- **THEN** parsing emits `position: 3` with the same formal ID
+- **WHEN** an unchanged slide moves in source order
+- **THEN** parsing derives the new position while retaining the formal ID
+- **AND** it does not alter the current identity scheme
 
 ### Requirement: Stage 1 preserves stable-ID inputs across ordering-only changes
 
@@ -35,39 +44,6 @@ slide.
 - **WHEN** only source order and normalized heading numbers change
 - **THEN** each retained ID has the same semantic raw input as before
 - **AND** only order-dependent projections are rebuilt
-
-### Requirement: Current Page Image Workflow source is a closed homogeneous protocol
-
-Current production source parsing SHALL accept only
-`production.pipeline: page-image-workflow-v1` with exactly one
-`production.workflow` value, `framed` or `pure`. It SHALL bind that
-version-level policy, the ordered stable slide IDs, and the canonical source
-digest into a `page-image-workflow-source-v1` receipt before any raw or
-provider work. Every resolved slide SHALL inherit that one policy; the parser
-SHALL NOT infer it from a slide, artifact, directory, or omitted field.
-
-`hybrid`, `PAGE AUTHORITY`, `production.page_authority_default`, a per-slide
-workflow override, or an incomplete source/state protocol pair SHALL fail at
-the identity boundary with the owner-issued `unsupported-protocol/export` or
-source-repair action. In particular, a
-`page-authority-image2-v2` source is unsupported input and SHALL NOT produce a
-receipt, plan, adapter route, state repair, or source rewrite.
-
-#### Scenario: Current Framed source emits one homogeneous receipt
-
-- **WHEN** a source selects `page-image-workflow-v1` and `framed` with valid
-  stable slide IDs
-- **THEN** parsing emits one `page-image-workflow-source-v1` receipt bound to
-  that source digest and workflow
-- **AND** every receipt slide inherits `framed` without a per-slide authority
-  member
-
-#### Scenario: v2 source is rejected before receipt creation
-
-- **WHEN** a source selects `page-authority-image2-v2`
-- **THEN** parsing returns the bounded `unsupported-protocol/export` hard-stop before
-  receipt or raw-plan creation
-- **AND** it does not convert, rewrite, or infer a replacement workflow
 
 ### Requirement: Provider Content Schema is the only provider-visible source content
 
@@ -163,3 +139,45 @@ SHALL fail before a receipt or provider input is created.
   literal, or a text-free-page instruction
 - **THEN** parsing returns the field-level visual repair action
 - **AND** it does not create a receipt, adapter route, or provider input
+
+### Requirement: Current Page Image Workflow source validates one homogeneous current contract
+
+Current production source parsing SHALL accept only the schema-declared
+`production.pipeline: page-image-workflow` and exactly one
+`production.workflow` value, `framed` or `pure`. It SHALL bind that
+version-level policy, ordered stable slide IDs, and canonical source digest into
+a `page-source-receipt` with its declared `artifact_role` before raw or provider
+work. Every resolved slide inherits that one policy; the parser SHALL NOT infer
+it from a slide, artifact, directory, omitted field, or historical marker.
+
+An undeclared pipeline, state pair, receipt selector, hybrid value, or
+per-slide override SHALL fail through the current source/identity owner before
+receipt creation. It SHALL not identify the value as a known legacy protocol,
+rewrite it, or create a conversion path.
+
+#### Scenario: A current Framed source emits one homogeneous receipt
+
+- **WHEN** a source selects `page-image-workflow` and `framed` with valid
+  stable slide IDs
+- **THEN** parsing emits the declared `page-source-receipt` role bound to that
+  source digest and workflow
+- **AND** every receipt slide inherits `framed` without a per-slide authority
+
+#### Scenario: An undeclared pipeline is rejected before receipt creation
+
+- **WHEN** a source selects a pipeline absent from the serialization inventory
+- **THEN** parsing returns the owner-issued source/identity failure before
+  receipt or raw-plan creation
+- **AND** it does not convert, rewrite, or classify the supplied value
+
+#### Scenario: Current Framed source emits one homogeneous receipt
+
+- **WHEN** a source selects `page-image-workflow` and `framed` with valid IDs
+- **THEN** parsing emits the declared current page-source receipt
+- **AND** every receipt slide inherits Framed policy
+
+#### Scenario: An undeclared source is rejected before receipt creation
+
+- **WHEN** a source carries an undeclared pipeline marker
+- **THEN** parsing fails before receipt or raw-plan creation
+- **AND** it does not convert or preserve a special historical path

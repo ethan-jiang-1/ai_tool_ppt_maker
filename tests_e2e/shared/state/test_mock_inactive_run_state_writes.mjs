@@ -16,9 +16,9 @@ import {
 const FLOW = resolve(process.cwd(), "ppt_maker_harness/scripts/ppt_flow.mjs");
 const source = `---
 identity:
-  scheme: mnemonic-v1
+  scheme: mnemonic
 production:
-  pipeline: page-image-workflow-v1
+  pipeline: page-image-workflow
   workflow: pure
 ---
 
@@ -64,13 +64,13 @@ function fixture() {
   writeFileSync(join(v1, "slide-specifications.md"), source);
   writeFileSync(join(v2, "slide-specifications.md"), source);
   const state = createInitialState("inactive", "keynote", "dark-executive", {
-    mode: "image2-page-workflow-v1",
+    mode: "image2-page-workflow",
     workflow: "pure",
   });
   state.run_version = "v2";
   state.continuation_target_version = "v2";
   state.production_mode.by_version["3_versions/v2"] = {
-    mode: "image2-page-workflow-v1",
+    mode: "image2-page-workflow",
     workflow: "pure",
     source_epoch: 1,
   };

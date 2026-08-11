@@ -1,13 +1,9 @@
 import { createHash } from "node:crypto";
 import { isAlias, isMap, isScalar, isSeq, parseDocument } from "yaml";
 import {
-  PAGE_IMAGE_WORKFLOW_V1_PIPELINE,
+  PAGE_IMAGE_WORKFLOW_PIPELINE,
   probeProductionMarker,
 } from "../../shared/run-bundle/production_marker.mjs";
-import {
-  UNSUPPORTED_PROTOCOL_EXPORT_ACTION,
-  evaluateReplacementIdentity,
-} from "../../shared/run-bundle/page_image_workflow_identity.mjs";
 import {
   PAGE_IMAGE_CORE_CONTENT_ROLES,
   PAGE_IMAGE_CORE_COPY_POLICIES,
@@ -15,13 +11,14 @@ import {
   normalizePageImageProviderContent,
 } from "../../shared/page-image/page_image_core.mjs";
 import {
+  IDENTITY_SCHEME_MNEMONIC,
   SlideDocumentError,
   parseSlideDocument,
   validateSlideDocument,
 } from "./slide_document.mjs";
 
-export const PAGE_IMAGE_WORKFLOW_SOURCE_RECEIPT_SCHEMA = "page-image-workflow-source-v1";
-export const FRAMED_HEADER_PRESET = "standard-v1";
+export const PAGE_IMAGE_WORKFLOW_SOURCE_RECEIPT_SCHEMA = "page-image-workflow-source";
+export const FRAMED_HEADER_PRESET = "standard";
 export const PROVIDER_CONTENT_ROLES = PAGE_IMAGE_CORE_CONTENT_ROLES;
 export const PROVIDER_CONTENT_COPY_POLICIES = PAGE_IMAGE_CORE_COPY_POLICIES;
 
@@ -35,7 +32,6 @@ const INLINE_PAGE_IMAGE_FIELDS = Object.freeze([
 ]);
 const FENCED_PAGE_IMAGE_FIELDS = Object.freeze(["SLIDE BODY", "VISUAL BRIEF"]);
 const PROHIBITED_PAGE_IMAGE_FIELDS = new Set([
-  "PAGE AUTHORITY",
   "WORKFLOW",
   "RENDER MODE",
   "IMAGE PROMPT",
@@ -720,29 +716,13 @@ function resolveVisualBrief(registry, context, document, block, visualBrief, iss
  * resolver is supplied by visual-config; this module never reads visual-style.
  */
 export function parsePageImageSource(sourceText, { source = "slide-specifications.md", registry = null } = {}) {
-  const identity = evaluateReplacementIdentity({ sourceBytes: sourceText, sourcePath: source });
-  if (!identity.ok) {
-    throw new PageImageSourceError([{
-      severity: "ERROR",
-      code: identity.code,
-      message: identity.code === "UNSUPPORTED_PROTOCOL"
-        ? "retired Page Image source is unsupported by the current Page Image Workflow"
-        : "source does not select the current Page Image Workflow protocol",
-      source: { path: source, line: 1, column: 1, range: span(String(sourceText ?? ""), 0, 0) },
-      repair_hint: identity.code === "UNSUPPORTED_PROTOCOL"
-        ? `preserve these bytes and use ${UNSUPPORTED_PROTOCOL_EXPORT_ACTION}`
-        : "repair the current Page Image Workflow production marker before requesting provider work",
-      owner_action: identity.owner_action,
-      byte_preserving: identity.byte_preserving === true,
-    }]);
-  }
   const marker = probeProductionMarker(sourceText, { source });
-  if (marker.branch !== PAGE_IMAGE_WORKFLOW_V1_PIPELINE) {
+  if (marker.branch !== PAGE_IMAGE_WORKFLOW_PIPELINE) {
     const markerIssues = marker.issues?.length ? marker.issues : [frontmatterIssue({
       source,
       frontmatter: { range: span(String(sourceText ?? ""), 0, 0) },
     }, "page_image_marker_required", "production.pipeline must select the current Page Image Workflow protocol", {
-      expected: PAGE_IMAGE_WORKFLOW_V1_PIPELINE,
+      expected: PAGE_IMAGE_WORKFLOW_PIPELINE,
       actual: marker.branch,
     })];
     throw new PageImageSourceError(markerIssues);
@@ -757,6 +737,17 @@ export function parsePageImageSource(sourceText, { source = "slide-specification
     throw error;
   }
   const issues = [...validateSlideDocument(document)];
+  if (document.frontmatter.metadata?.identity?.scheme !== IDENTITY_SCHEME_MNEMONIC) {
+    issues.push(frontmatterIssue(
+      document,
+      "current_identity_required",
+      "identity.scheme must select the current mnemonic identity before Page Image receipt creation",
+      {
+        expected: IDENTITY_SCHEME_MNEMONIC,
+        actual: document.frontmatter.metadata?.identity?.scheme,
+      },
+    ));
+  }
   if (Object.hasOwn(document.frontmatter.metadata, "render")) {
     issues.push(frontmatterIssue(document, "prohibited_page_image_ingress", "frontmatter render is not part of the current Page Image source grammar", {
       actual: "render",
@@ -858,7 +849,7 @@ export function parsePageImageSource(sourceText, { source = "slide-specification
   if (issues.length > 0) throw new PageImageSourceError(issues);
   return deepFreeze({
     schema: PAGE_IMAGE_WORKFLOW_SOURCE_RECEIPT_SCHEMA,
-    pipeline: PAGE_IMAGE_WORKFLOW_V1_PIPELINE,
+    pipeline: PAGE_IMAGE_WORKFLOW_PIPELINE,
     workflow,
     source_sha256: sha256(document.source_text),
     slides: receipts,

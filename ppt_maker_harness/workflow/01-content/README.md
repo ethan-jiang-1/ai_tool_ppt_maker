@@ -16,10 +16,10 @@ Before source validation/provider work, bind the whole version to one `framed`
 or `pure` workflow; slides do not select authority individually.
 
 The canonical source is `3_versions/vN/slide-specifications.md`. It declares
-`production.pipeline: page-image-workflow-v1`, `production.workflow: framed|pure`,
-and `identity.scheme: mnemonic-v1`. `position` is snapshot order; `slide_id` is
-cross-version identity. A v2 source is a byte-preserving
-`unsupported-protocol/export` hard-stop and cannot enter current authoring.
+`production.pipeline: page-image-workflow`, `production.workflow: framed|pure`,
+and `identity.scheme: mnemonic`. `position` is snapshot order; `slide_id` is
+cross-version identity. An undeclared source is an owner-issued
+`repair-current-protocol-identity` hard-stop and cannot enter current authoring.
 
 Read in order:
 

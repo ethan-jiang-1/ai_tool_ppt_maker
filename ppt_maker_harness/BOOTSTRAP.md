@@ -4,7 +4,7 @@
 
 ## Step 0 - Read the contract
 
-读 `charter/AGENT_CONTRACT.md`、`charter/NODE-SPEC.md`、`reference/glossary.md`，确认 run bundle 与 `--run-dir` 的区别。若用户交给你 `RUN_BUNDLE.md` bytes，按 `AGENT_CONTRACT.md` 的 `RUN_BUNDLE locator entry` 验证该 deck 对本地 PPT Maker Harness 的 v2 绑定，再读 `deck-guide.md`；无法验证时停止并按唯一重建动作处理，不请求替代 root。generic remote-chat attachment integration 不受支持。
+读 `charter/AGENT_CONTRACT.md`、`charter/NODE-SPEC.md`、`reference/glossary.md`，确认 run bundle 与 `--run-dir` 的区别。若用户交给你 `RUN_BUNDLE.md` bytes，按 `AGENT_CONTRACT.md` 的 `RUN_BUNDLE locator entry` 验证该 deck 对本地 PPT Maker Harness 的当前绑定，再读 `deck-guide.md`；无法验证时停止并按唯一重建动作处理，不请求替代 root。generic remote-chat attachment integration 不受支持。
 
 ## Step 1 - New-deck foundation
 
@@ -27,9 +27,9 @@ node ppt_maker_harness/scripts/ppt_flow.mjs doctor --run-dir <run-dir> --operati
 
 ## Step 2 - Choose one version workflow while authoring
 
-新 source 的唯一 pipeline 是 `page-image-workflow-v1`。`init` 创建当前 authoring draft；人必须先在 `production.workflow` 明确记录一次 `framed` 或 `pure`，source 才能进入 provider-work route。state 在 receipt 绑定后记录 `image2-page-workflow-v1` 和同一 workflow；`project-metadata.yaml` 只是非权威镜像。不得从 deck type、任一 slide 或已有 artifact 推断 workflow。
+新 source 的唯一 pipeline 是 `page-image-workflow`。`init` 创建当前 authoring draft；人必须先在 `production.workflow` 明确记录一次 `framed` 或 `pure`，source 才能进入 provider-work route。state 在 receipt 绑定后记录 `image2-page-workflow` 和同一 workflow；`project-metadata.yaml` 只是非权威镜像。不得从 deck type、任一 slide 或已有 artifact 推断 workflow。
 
-- `framed`: Provider 生成连续全画布以及 source-owned body、labels、metrics、callouts 和 supporting copy；固定 `standard-v1` Header Rendering Policy 只在本地透明叠加 kicker、title、subtitle，并将它们作为 `context_not_to_render` 绑定进 provider input。
+- `framed`: Provider 生成连续全画布以及 source-owned body、labels、metrics、callouts 和 supporting copy；固定 `standard` Header Rendering Policy 只在本地透明叠加 kicker、title、subtitle，并将它们作为 `context_not_to_render` 绑定进 provider input。
 - `pure`: `04-pure-image` 让 Provider 生成包括 header 在内的所有最终像素。
 
 一次选择覆盖整个 `vN`，绝不在 slide 上选择 authority。只写 closed `VISUAL BRIEF`、registered identity 与 Page Image source fields。不得写 retired source-only fields、slide-owned markup/CSS 或 provider 指令。init 只创建 source/control/state scaffolding；不会创建 style master、raw/final evidence、PPTX、notes 或 provider attempt。
@@ -42,7 +42,7 @@ node ppt_maker_harness/scripts/ppt_flow.mjs doctor --run-dir <run-dir> --operati
 
 init、doctor、probe、旧批次或聊天都不是 production authorization。只有 owner 返回一个非零 submit scope 后，人才需要看到 exact run、stable IDs、generation profile 与 maximum submissions，并在其既有 boundary 作出决定。zero-submit work 不虚构授权。
 
-raw projection 或 delivery evidence 已完整但还没有 `proceed|repair|redirect` 时，这是一个 `confirm` gate：展示当前 artifact 后记录对应决定。source/state 不一致、无效 frame/registry/reference、缺失/部分/陈旧 raw evidence、无效 scope 或未授权 submit 是 hard-stop：使用 state/CLI 指出的直接 owner recovery，不手改 state，也不借用 retired review 或 historical artifact。
+raw projection 或 delivery evidence 已完整但还没有 `proceed|repair|redirect` 时，这是一个 `confirm` gate：展示当前 artifact 后记录对应决定。source/state 不一致、无效 frame/registry/reference、缺失/部分/陈旧 raw evidence、无效 scope 或未授权 submit 是 hard-stop：使用 state/CLI 指出的直接 owner recovery，不手改 state，也不借用不受支持的 review 或 artifact。
 
 对于 nonzero 的 owner CLI，只读取 stderr 最后一个非空 JSON 回执，并使用 producer 发出的 `diagnostic.category` 与 `diagnostic.next`；不要匹配说明文字，也不要在 Agent/MD 侧复写分类或恢复表。只有该 owner action 明确允许时才做机械修复，然后重跑它指定的 checkpoint；这不替代既有 raw visual `confirm`。
 
@@ -54,8 +54,8 @@ raw projection 或 delivery evidence 已完整但还没有 `proceed|repair|redir
 
 ## Unsupported-run guidance
 
-任何 v2、partial、missing、unknown 或 corrupt source/state pair 都是同一个
-`unsupported-protocol/export` hard-stop。普通 observation、build、refresh、review 和
+任何 partial、missing、unknown 或 corrupt source/state pair 都是同一个
+`repair-current-protocol-identity` hard-stop。普通 observation、build、refresh、review 和
 provider 命令不得推断 workflow、初始化 receipt/state、读取 generated artifacts 或修改原始 bytes。
 
 ## Optional Git note

@@ -4,60 +4,6 @@ Define Page Image Workflow PPTX assembly from the ordered current final-slide ma
 Assembly creates one receipt-bound delivery container and never accepts a raw,
 historical, partial, or unregistered final artifact as current input.
 ## Requirements
-### Requirement: PPTX assembly consumes the replacement final-slide manifest
-
-PPTX Assembly SHALL accept only an ordered
-`page-image-final-slide-manifest-v1`, its current receipt-bound final PNG
-media, and a `page-image-delivery-media-v1` representation published by shared
-delivery. Shared delivery SHALL derive or rebuild one JPEG for every ordered
-final PNG before assembly. Each JPEG SHALL preserve its source dimensions and
-bind its digest, filename, fixed high-quality profile, and source final-PNG
-digest to the exact current final-slide manifest.
-
-Assembly SHALL embed only the validated JPEG delivery media and record its
-manifest digest and ordered entries in its receipt. The source PNG remains the
-reviewed finalization evidence: assembly SHALL NOT alter, replace, or make it
-secondary authority. It SHALL reject a raw provider page, partial review,
-foreign artifact, v2 manifest, mismatched workflow/source lineage, or invalid
-delivery media before creating or replacing a delivery container. It SHALL not
-crop, resize, transcode, or substitute a validated JPEG after delivery-media
-validation, and it SHALL not reinterpret Framed's already-reviewed header
-composite or Pure's accepted provider page.
-
-#### Scenario: Current Page Image final slides are assembled as JPEG media
-
-- **WHEN** a valid replacement final-slide manifest has ordered receipt-bound
-  final PNG media
-- **THEN** shared delivery creates matching JPEG delivery media and assembly
-  validates it before writing the PPTX
-- **AND** its receipt binds the ordered final evidence and the exact JPEG
-  delivery entries embedded in the PPTX
-
-#### Scenario: Stale JPEG delivery media is rebuilt before assembly
-
-- **WHEN** an existing JPEG file or delivery-media manifest does not bind the
-  current final PNG digest, manifest digest, ordering, dimensions, or fixed
-  profile declaration
-- **THEN** assembly does not embed that stale JPEG
-- **AND** shared delivery rebuilds and assembly validates current delivery
-  media before writing a new PPTX receipt
-
-#### Scenario: JPEG derivation failure protects the existing delivery
-
-- **WHEN** a current final PNG cannot be converted or the derived JPEG fails
-  dimension, profile, or digest validation
-- **THEN** assembly hard-stops before replacing the PPTX or publishing an
-  assembly receipt
-- **AND** the prior PPTX and assembly, notes, and delivery receipts remain
-  unmodified
-
-#### Scenario: v2 media cannot become assembly input
-
-- **WHEN** assembly receives a v2 final manifest or v2 evidence reference
-- **THEN** it returns the `unsupported-protocol/export` hard-stop before reading image
-  bytes or creating a delivery container
-- **AND** it does not convert or adopt the media
-
 ### Requirement: JPEG delivery media uses one conservative fixed profile
 
 For every accepted final PNG, shared delivery SHALL create JPEG media at the
@@ -98,3 +44,42 @@ not introduce a new configuration or review gate.
 - **WHEN** a current final manifest orders slides at positions 1, 10, and 100
 - **THEN** the assembled PPTX displays `01`, `10`, and `100` on those slides
 - **AND** it does not persist ordinals as stable slide identities
+
+### Requirement: PPTX assembly consumes the current final-slide manifest
+
+PPTX Assembly SHALL accept only the declared current `final-page-list`, its
+receipt-bound final PNG media, and the declared `delivery-package` media
+representation published by shared delivery. Shared delivery SHALL retain the
+existing JPEG derivation, dimensions, and ordering rules. Assembly SHALL reject
+an undeclared contract before PPTX creation and SHALL not read or adapt a
+historical manifest or media representation.
+
+#### Scenario: Assembly receives current final media
+
+- **WHEN** ordered current final-page and delivery-package facts validate
+- **THEN** assembly produces the PPTX from their bound media
+- **AND** it uses no alternate or version-suffixed artifact contract
+
+#### Scenario: Current Page Image final slides are assembled as JPEG media
+
+- **WHEN** current ordered final-page media validates
+- **THEN** assembly retains the established JPEG media assembly behavior
+- **AND** it binds only declared current delivery facts
+
+#### Scenario: Stale JPEG delivery media is rebuilt before assembly
+
+- **WHEN** current final-page facts are valid but derived JPEG media is stale
+- **THEN** the existing delivery owner rebuilds it before assembly
+- **AND** it does not use an older media contract
+
+#### Scenario: JPEG derivation failure protects the existing delivery
+
+- **WHEN** JPEG derivation cannot establish current bound media
+- **THEN** assembly stops without replacing current delivery authority
+- **AND** it does not create a fallback representation
+
+#### Scenario: Undeclared media cannot become assembly input
+
+- **WHEN** assembly receives media with an undeclared contract marker
+- **THEN** it rejects the input before PPTX creation
+- **AND** it does not transcode or adopt it

@@ -21,7 +21,7 @@ import {
 } from "./progressive_controller_task_projection_eligibility.mjs";
 import { createPageProductionDisplayReferenceIndex } from "./page_production_display_references.mjs";
 
-export const PAGE_PRODUCTION_TASK_PROJECTION_SCHEMA = "page-production-task-projection-v1";
+export const PAGE_PRODUCTION_TASK_PROJECTION_SCHEMA = "page-production-task-projection";
 export const PAGE_PRODUCTION_TASK_PROJECTION_FILE = "page-production-task-projection.md";
 
 const HARNESS_PLAYBOOK_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "playbook");

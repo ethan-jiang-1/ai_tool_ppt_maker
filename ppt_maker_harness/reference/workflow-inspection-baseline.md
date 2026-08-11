@@ -1,7 +1,7 @@
 # Workflow Inspection Baseline
 
 Inspection is read-only. It projects one current Page Image action, or one
-bounded owner-issued hard-stop for a v2, partial, hybrid, missing, or corrupt
+bounded owner-issued hard-stop for an undeclared, partial, hybrid, missing, or corrupt
 pair. It never writes state, submits a provider request, or accepts generated
 artifacts as authority.
 
@@ -12,7 +12,7 @@ artifacts as authority.
 | Pure or raw-contract refresh | source and raw evidence | raw planning/authorization owner | 0 / 0 |
 | Notes refresh | final manifest and assembly receipt | notes owner | 0 / 0 |
 | Structural versioning | stable IDs, order, preview receipt | preview or exact-hash apply owner | 0 / 0 |
-| V2, partial, hybrid, or mismatched pair | direct source/state prerequisites | unsupported-protocol/export owner | 0 / 0 |
+| Undeclared, partial, hybrid, or mismatched pair | direct source/state prerequisites | repair-current-protocol-identity owner | 0 / 0 |
 | Missing or corrupt pair | direct source/state prerequisites | repair or export owner | 0 / 0 |
 | Interrupted transaction | journal and owner binding | recovery owner | 0 / 0 |
 

@@ -17,9 +17,9 @@ const COPYRIGHT = 'COPYRIGHT.txt';
 const PROVENANCE = 'PROVENANCE.md';
 const SENTINELS = 'sentinels.json';
 
-export const FRAMED_FONT_RENDER_INVENTORY_SCHEMA = 'pptmaker-framed-font-render-inventory-v1';
-export const FRAMED_FONT_SELECTION_SCHEMA = 'pptmaker-framed-font-selection-v1';
-export const FRAMED_FONT_SELECTION_ALGORITHM = 'pptmaker-framed-font-selection-v1';
+export const FRAMED_FONT_RENDER_INVENTORY_SCHEMA = 'pptmaker-framed-font-render-inventory';
+export const FRAMED_FONT_SELECTION_SCHEMA = 'pptmaker-framed-font-selection';
+export const FRAMED_FONT_SELECTION_ALGORITHM = 'pptmaker-framed-font-selection';
 
 export class HtmlFontSelectionError extends Error {
   constructor(code, message, details = null) {
@@ -138,7 +138,7 @@ export function buildFontInventory({ root = HTML_FONT_ROOT, readFile = readFileS
       weight: face.weight,
       unicodeRanges: parseUnicodeRanges(face.unicodeRange).map((range) => range.value),
       sourceUrl: face.url,
-      snapshot: 'google-fonts-css-v40-2026-07-18',
+      snapshot: 'google-fonts-css-2026-07-18',
       licensePath: NOTO_LICENSE,
       faceIndex: index,
     }, readFile));
@@ -149,7 +149,7 @@ export function buildFontInventory({ root = HTML_FONT_ROOT, readFile = readFileS
   const totalFontBytes = files.reduce((total, file) => total + file.bytes, 0);
 
   return {
-    schema: 'pptmaker-html-font-inventory-v1',
+    schema: 'pptmaker-html-font-inventory',
     generatedFromCommittedSnapshot: '2026-07-18',
     families: [
       { family: 'Source Sans 3', platformFamilyName: 'SourceSans3VF', style: 'normal', weight: '200 900', profile: 'Latin' },
@@ -164,7 +164,7 @@ export function buildFontInventory({ root = HTML_FONT_ROOT, readFile = readFileS
     },
     sentinelPath: SENTINELS,
     snapshot: {
-      id: 'google-fonts-css-v40-2026-07-18',
+      id: 'google-fonts-css-2026-07-18',
       requestUrl: 'https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@100..900&display=swap',
       userAgentClass: 'modern Chromium on Windows x86-64',
       servedPath: 's/notosanssc/v40',
@@ -216,7 +216,7 @@ export function verifyHtmlFontBundle({
     const inventoryPath = join(root, 'inventory.json');
     if (!exists(inventoryPath)) throw new Error('Font inventory is missing');
     const inventory = JSON.parse(String(readFile(inventoryPath)));
-    if (inventory.schema !== 'pptmaker-html-font-inventory-v1') {
+    if (inventory.schema !== 'pptmaker-html-font-inventory') {
       throw new Error('Font inventory schema is unsupported');
     }
     const rebuilt = buildFontInventory({ root, readFile });

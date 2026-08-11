@@ -135,9 +135,9 @@ function source({ invalid = false } = {}) {
   if (invalid) {
     return `---
 identity:
-  scheme: mnemonic-v1
+  scheme: mnemonic
 production:
-  pipeline: page-image-workflow-v1
+  pipeline: page-image-workflow
   workflow: framed
 ---
 
@@ -156,16 +156,16 @@ negative_constraints:
   }
   return `---
 identity:
-  scheme: mnemonic-v1
+  scheme: mnemonic
 production:
-  pipeline: page-image-workflow-v1
+  pipeline: page-image-workflow
   workflow: framed
 ---
 
 ## Slide 01: \`DeckGo\`
 
 **TITLE**: Exact lifecycle proof
-**FRAME PRESET**: standard-v1
+**FRAME PRESET**: standard
 **SLIDE BODY**:
 \`\`\`yaml
 items:
@@ -186,7 +186,7 @@ negative_constraints:
 ## Slide 02: \`BodyMap\`
 
 **TITLE**: The batch stays bounded
-**FRAME PRESET**: standard-v1
+**FRAME PRESET**: standard
 **SLIDE BODY**:
 \`\`\`yaml
 items:
@@ -408,7 +408,7 @@ describe("Framed proof-before-materialization lifecycle", () => {
       expect(renderControls.proof_calls).toBe(1);
       expect(renderControls.browser_launches).toBe(1);
       expect(renderControls.proof_batches).toEqual([["DeckGo", "BodyMap"]]);
-      expect(plan.page_image_core).toMatchObject({ schema: "page-image-core-facts-v1", workflow: "framed" });
+      expect(plan.page_image_core).toMatchObject({ schema: "page-image-core-facts", workflow: "framed" });
       expect(plan.page_image_core.slides[0]).toMatchObject({
         slide_id: "DeckGo",
         provider_content: {
@@ -425,7 +425,7 @@ describe("Framed proof-before-materialization lifecycle", () => {
       });
       expect(rawContracts.DeckGo).toMatchObject({
         page_image_core: {
-          schema: "page-image-core-slide-facts-v1",
+          schema: "page-image-core-slide-facts",
           canonical_semantic_sha256: plan.page_image_core.slides[0].canonical_semantic_sha256,
         },
         provider_rendered_content: {
@@ -504,7 +504,7 @@ describe("Framed proof-before-materialization lifecycle", () => {
       const review = JSON.parse(readFileSync(fixture.paths.target_raw_review, "utf8"));
       const acceptedRawEvidence = JSON.parse(readFileSync(fixture.paths.target_raw_evidence, "utf8"));
       const completeReviewRoot = join(fixture.paths.review_root, "complete-page", resolveContentAddressName(join(fixture.paths.review_root, "complete-page"), planHash));
-      const completePresentation = JSON.parse(readFileSync(join(completeReviewRoot, "complete-page-review-evidence-v1.json"), "utf8"));
+      const completePresentation = JSON.parse(readFileSync(join(completeReviewRoot, "complete-page-review-evidence.json"), "utf8"));
       expect(authorization.raw_work_plan_sha256).toBe(planHash);
       expect(review).toMatchObject({
         source_epoch: 1,
@@ -660,7 +660,7 @@ describe("Framed proof-before-materialization lifecycle", () => {
       await buildFramedTargetDelivery(fixture.runDir);
       const reviewBytes = readFileSync(fixture.paths.target_raw_review);
       const completeReviewRoot = join(fixture.paths.review_root, "complete-page", resolveContentAddressName(join(fixture.paths.review_root, "complete-page"), acceptedPlan.raw_work_plan.sha256));
-      const completePresentationPath = join(completeReviewRoot, "complete-page-review-evidence-v1.json");
+      const completePresentationPath = join(completeReviewRoot, "complete-page-review-evidence.json");
       const completePresentationBytes = readFileSync(completePresentationPath);
       const projectionPath = join(completeReviewRoot, "complete-page-review.png");
       const projectionBytes = readFileSync(projectionPath);
@@ -824,7 +824,7 @@ describe("Framed proof-before-materialization lifecycle", () => {
         join(fixture.runDir, "slide-specifications.md"),
         original
           .replace("workflow: framed", "workflow: pure")
-          .replaceAll("**FRAME PRESET**: standard-v1\n", ""),
+          .replaceAll("**FRAME PRESET**: standard\n", ""),
       );
       await expect(refreshFramedTargetText(fixture.runDir)).rejects.toMatchObject({
         code: "target_workflow_switch_structural_required",

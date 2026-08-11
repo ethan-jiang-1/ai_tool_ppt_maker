@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { readAndAuditCoreInventory } from "./development_verification_admission.mjs";
 
 const require = createRequire(import.meta.url);
-const SCHEMA = "development-verification-v1";
+const SCHEMA = "development-verification";
 const TOTAL_MS = 60_000;
 const PREFLIGHT_MS = 5_000;
 const EXECUTION_MS = 50_000;

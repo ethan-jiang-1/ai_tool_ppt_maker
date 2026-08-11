@@ -47,9 +47,9 @@ function treeSnapshot(root, current = root, entries = []) {
 function source(workflow = "pure") {
   return `---
 identity:
-  scheme: mnemonic-v1
+  scheme: mnemonic
 production:
-  pipeline: page-image-workflow-v1
+  pipeline: page-image-workflow
   workflow: ${workflow}
 ---
 
@@ -182,7 +182,7 @@ describe("Style Master process CLI", () => {
     }
   });
 
-  it("rejects a legacy or bypass-shaped input before plan publication", () => {
+  it("rejects an undeclared or bypass-shaped input before plan publication", () => {
     const value = fixture("style-master-cli-bypass");
     try {
       const before = treeSnapshot(value.deck);
@@ -365,7 +365,7 @@ describe("Style Master process CLI", () => {
 
   it("reports committed selection partial success with exact non-human replay", () => {
     const value = fixture("style-master-cli-projection");
-    const compatibilityDirectory = join(value.deck, "2_backbone", "visual-style");
+    const presentationDirectory = join(value.deck, "2_backbone", "visual-style");
     try {
       const planned = run(["style-master", "plan", value.runDir, "--candidate-count", "0"]);
       expect(planned.status, planned.stderr).toBe(0);
@@ -373,7 +373,7 @@ describe("Style Master process CLI", () => {
       const reviewed = run(["style-master", "review", value.runDir, "--plan-hash", plan.plan_sha256]);
       expect(reviewed.status, reviewed.stderr).toBe(0);
 
-      chmodSync(compatibilityDirectory, 0o500);
+      chmodSync(presentationDirectory, 0o500);
       let failed;
       try {
         failed = run([
@@ -383,7 +383,7 @@ describe("Style Master process CLI", () => {
           "--candidate-id", "local-existing",
         ]);
       } finally {
-        chmodSync(compatibilityDirectory, 0o700);
+        chmodSync(presentationDirectory, 0o700);
       }
       expect(failed.status, failed.stderr).toBe(1);
       expect(failed.stdout).toBe("");
@@ -396,7 +396,7 @@ describe("Style Master process CLI", () => {
         diagnostic: {
           category: "artifact",
           subject: { kind: "style_master_selection", id: selection.selection_sha256 },
-          reason: { kind: "compatibility_projection_failed" },
+          reason: { kind: "presentation_jpeg_projection_failed" },
           next: { action: "rerun", requires_human: false },
         },
       });
@@ -426,10 +426,10 @@ describe("Style Master process CLI", () => {
       expect(JSON.parse(replay.stdout)).toMatchObject({
         replay: true,
         selection_sha256: selection.selection_sha256,
-        compatibility_projection: { status: "rebuilt" },
+        presentation_jpeg_projection: { status: "rebuilt" },
       });
     } finally {
-      chmodSync(compatibilityDirectory, 0o700);
+      chmodSync(presentationDirectory, 0o700);
       rmSync(value.root, { recursive: true, force: true });
     }
   });

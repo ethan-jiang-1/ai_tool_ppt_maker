@@ -2,19 +2,17 @@ import { describe, expect, it } from "vitest";
 import {
   normalizeImage2BaseUrl,
   resolveImage2Credentials,
-  resolveImage2Vendors,
 } from "../../../ppt_maker_harness/scripts/shared/image2/credentials.mjs";
 
 describe("shared Image2 credentials", () => {
-  it("resolves the legacy environment shape with the same override precedence", () => {
+  it("uses the current endpoint override precedence", () => {
     const env = { IMAGE2_API_KEY: "test-key", IMAGE2_BASE_URL: "https://env.example.test/v1/" };
     expect(resolveImage2Credentials({ env })).toEqual({ base_url: "https://env.example.test/v1", api_key: "test-key" });
-    expect(resolveImage2Vendors(["https://cli.example.test/v1/"], { env })).toEqual([
-      { base_url: "https://cli.example.test/v1", api_key: "test-key" },
-    ]);
+    expect(resolveImage2Credentials({ extraBaseUrls: ["https://cli.example.test/v1/"], env }))
+      .toEqual({ base_url: "https://cli.example.test/v1", api_key: "test-key" });
   });
 
-  it("stays import-safe and reports legacy-compatible configuration failures", () => {
+  it("stays import-safe and reports configuration failures", () => {
     expect(() => resolveImage2Credentials({ env: { IMAGE2_BASE_URL: "https://env.example.test/v1" } })).toThrow(/IMAGE2_API_KEY is not set/);
     expect(() => resolveImage2Credentials({ env: { IMAGE2_API_KEY: "test-key" } })).toThrow(/No image API base URL/);
     expect(() => normalizeImage2BaseUrl("https://key:secret@example.test/v1")).toThrow(/must not contain credentials/);

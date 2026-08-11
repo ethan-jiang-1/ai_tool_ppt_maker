@@ -1,11 +1,9 @@
 import { isMap, isScalar, parseDocument } from "yaml";
 
 /** The exact Page Image Workflow marker is the only current protocol. */
-export const PAGE_IMAGE_WORKFLOW_V1_PIPELINE = "page-image-workflow-v1";
-/** Retained only so the replacement identity boundary can recognize inert v2 bytes. */
-export const RETIRED_PAGE_AUTHORITY_IMAGE2_V2_PIPELINE = "page-authority-image2-v2";
+export const PAGE_IMAGE_WORKFLOW_PIPELINE = "page-image-workflow";
 export const SUPPORTED_PRODUCTION_PIPELINES = Object.freeze([
-  PAGE_IMAGE_WORKFLOW_V1_PIPELINE,
+  PAGE_IMAGE_WORKFLOW_PIPELINE,
 ]);
 export const PAGE_IMAGE_WORKFLOWS = Object.freeze(["framed", "pure"]);
 export const PAGE_IMAGE_WORKFLOW_SELECTION_REQUIRED_MESSAGE =
@@ -97,7 +95,7 @@ export function probeProductionMarker(sourceBytes, { source = "slide-specificati
     });
   }
   return {
-    branch: PAGE_IMAGE_WORKFLOW_V1_PIPELINE,
+    branch: PAGE_IMAGE_WORKFLOW_PIPELINE,
     issues: [],
     frontmatter: { metadata: { production: { pipeline: pipeline.value, workflow: workflow.value } } },
   };

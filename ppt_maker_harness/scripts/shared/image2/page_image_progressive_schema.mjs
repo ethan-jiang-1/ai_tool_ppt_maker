@@ -1,17 +1,15 @@
 import { canonicalJson, canonicalJsonSha256 } from "../identity/canonical_json.mjs";
-import { evaluateReplacementIdentity } from "../run-bundle/page_image_workflow_identity.mjs";
 
-export const PROGRESSIVE_RAW_WORK_PLAN_V1_SCHEMA = "page-image-progressive-raw-work-plan-v1";
-export const PROGRESSIVE_RAW_WORK_PLAN_SCHEMA = "page-image-progressive-raw-work-plan-v2";
-export const PROGRESSIVE_RAW_SCOPE_HEAD_SCHEMA = "page-image-progressive-raw-scope-head-v1";
-export const PROGRESSIVE_RAW_BATCH_SCHEMA = "page-image-progressive-raw-batch-projection-v1";
-export const PROGRESSIVE_RAW_BATCH_GRANT_SCHEMA = "page-image-progressive-raw-batch-grant-v1";
-export const PROGRESSIVE_RAW_ITEM_ATTEMPT_SCHEMA = "page-image-progressive-raw-item-attempt-v1";
-export const PROGRESSIVE_RAW_MATERIALIZATION_PROVENANCE_SCHEMA = "page-image-progressive-raw-materialization-provenance-v1";
-export const PROGRESSIVE_RAW_PILOT_EVIDENCE_SCHEMA = "page-image-progressive-raw-pilot-evidence-v1";
-export const PROGRESSIVE_RAW_PILOT_DECISION_SCHEMA = "page-image-progressive-raw-pilot-decision-v1";
-export const PROGRESSIVE_RAW_COMPLETE_REVIEW_SCHEMA = "page-image-progressive-raw-complete-review-v1";
-export const PROGRESSIVE_ACCEPTED_RAW_EVIDENCE_SCHEMA = "page-image-progressive-accepted-raw-evidence-v1";
+export const PROGRESSIVE_RAW_WORK_PLAN_SCHEMA = "page-image-progressive-raw-work-plan";
+export const PROGRESSIVE_RAW_SCOPE_HEAD_SCHEMA = "page-image-progressive-raw-scope-head";
+export const PROGRESSIVE_RAW_BATCH_SCHEMA = "page-image-progressive-raw-batch-projection";
+export const PROGRESSIVE_RAW_BATCH_GRANT_SCHEMA = "page-image-progressive-raw-batch-grant";
+export const PROGRESSIVE_RAW_ITEM_ATTEMPT_SCHEMA = "page-image-progressive-raw-item-attempt";
+export const PROGRESSIVE_RAW_MATERIALIZATION_PROVENANCE_SCHEMA = "page-image-progressive-raw-materialization-provenance";
+export const PROGRESSIVE_RAW_PILOT_EVIDENCE_SCHEMA = "page-image-progressive-raw-pilot-evidence";
+export const PROGRESSIVE_RAW_PILOT_DECISION_SCHEMA = "page-image-progressive-raw-pilot-decision";
+export const PROGRESSIVE_RAW_COMPLETE_REVIEW_SCHEMA = "page-image-progressive-raw-complete-review";
+export const PROGRESSIVE_ACCEPTED_RAW_EVIDENCE_SCHEMA = "page-image-progressive-accepted-raw-evidence";
 
 export const PROGRESSIVE_RAW_WORKFLOWS = Object.freeze(["framed", "pure"]);
 export const PROGRESSIVE_RAW_BATCH_KINDS = Object.freeze(["pilot", "expansion"]);
@@ -22,7 +20,7 @@ export const PROGRESSIVE_RAW_COMPLETE_REVIEW_DECISIONS = Object.freeze(["proceed
 const SHA256_RE = /^[0-9a-f]{64}$/;
 const RUN_VERSION_RE = /^v[1-9][0-9]*$/;
 const SLIDE_ID_RE = /^[A-Za-z][A-Za-z0-9_-]{0,127}$/;
-const IDEMPOTENCY_KEY_RE = /^page-image-workflow-v1-[0-9a-f]{64}$/;
+const IDEMPOTENCY_KEY_RE = /^page-image-workflow-[0-9a-f]{64}$/;
 const PROVIDER_INPUT_BINDING_KEYS = Object.freeze([
   "compiled_provider_input_sha256",
   "provider_content_sha256",
@@ -45,13 +43,6 @@ export class ProgressiveRawSchemaError extends Error {
 
 function fail(code, message) {
   throw new ProgressiveRawSchemaError(code, message);
-}
-
-function assertReplacementRecord(record, kind) {
-  const identity = evaluateReplacementIdentity({ record, recordKind: kind });
-  if (!identity.ok) {
-    fail(identity.code, `${kind} is unsupported by the current Page Image Workflow; use ${identity.owner_action}`);
-  }
 }
 
 function freeze(value) {
@@ -223,16 +214,14 @@ function create(record, validator, options = undefined) {
 
 export function validateProgressiveRawWorkPlan(plan) {
   return result(() => {
-    assertReplacementRecord(plan, "progressive-raw-plan");
-    const v1 = plan?.schema === PROGRESSIVE_RAW_WORK_PLAN_V1_SCHEMA;
-    const v2 = plan?.schema === PROGRESSIVE_RAW_WORK_PLAN_SCHEMA;
+    const hasTaskMandate = Object.hasOwn(plan || {}, "task_mandate_sha256");
     const keys = [
       "schema", "run_version", "source_receipt_sha256", "source_epoch", "workflow",
       "provider_profile_sha256", "effective_style_master_sha256", "source_execution_sha256",
-      ...(v2 ? ["task_mandate_sha256"] : []),
+      ...(hasTaskMandate ? ["task_mandate_sha256"] : []),
       "ordered_slide_ids", "items",
     ];
-    if ((!v1 && !v2) || !exactKeys(plan, keys)) {
+    if (plan?.schema !== PROGRESSIVE_RAW_WORK_PLAN_SCHEMA || !exactKeys(plan, keys)) {
       fail("progressive_raw_plan_invalid", "raw work plan has an invalid shape");
     }
     assertRunVersion(plan.run_version);
@@ -242,7 +231,7 @@ export function validateProgressiveRawWorkPlan(plan) {
     assertDigest(plan.provider_profile_sha256, "provider_profile_sha256");
     assertDigest(plan.effective_style_master_sha256, "effective_style_master_sha256");
     assertDigest(plan.source_execution_sha256, "source_execution_sha256");
-    if (v2) assertDigest(plan.task_mandate_sha256, "task_mandate_sha256");
+    if (hasTaskMandate) assertDigest(plan.task_mandate_sha256, "task_mandate_sha256");
     assertOrderedIds(plan.ordered_slide_ids);
     assertItems(plan.items, plan.ordered_slide_ids, { workflow: plan.workflow });
     return plan;
@@ -253,7 +242,7 @@ export function createProgressiveRawWorkPlan(input = {}) {
   const hasTaskMandate = Object.hasOwn(input, "task_mandate_sha256");
   const taskMandate = input.task_mandate_sha256;
   return create({
-    schema: hasTaskMandate ? PROGRESSIVE_RAW_WORK_PLAN_SCHEMA : PROGRESSIVE_RAW_WORK_PLAN_V1_SCHEMA,
+    schema: PROGRESSIVE_RAW_WORK_PLAN_SCHEMA,
     run_version: input.run_version,
     source_receipt_sha256: input.source_receipt_sha256,
     source_epoch: input.source_epoch,
@@ -269,7 +258,6 @@ export function createProgressiveRawWorkPlan(input = {}) {
 
 export function validateProgressiveRawScopeHead(head, { plan = null } = {}) {
   return result(() => {
-    assertReplacementRecord(head, "progressive-raw-scope-head");
     if (!exactKeys(head, ["schema", "run_version", "workflow", "plan_sha256", "plan_generation", "previous_plan_sha256"]) ||
       head.schema !== PROGRESSIVE_RAW_SCOPE_HEAD_SCHEMA) {
       fail("progressive_raw_head_invalid", "scope head has an invalid shape");
@@ -305,7 +293,6 @@ export function createProgressiveRawScopeHead(input = {}, options = undefined) {
 
 export function validateProgressiveRawBatch(batch, { plan = null } = {}) {
   return result(() => {
-    assertReplacementRecord(batch, "progressive-raw-batch");
     if (!exactKeys(batch, [
       "schema", "plan_sha256", "run_version", "source_receipt_sha256", "source_epoch", "workflow",
       "provider_profile_sha256", "effective_style_master_sha256", "source_execution_sha256", "kind",
@@ -360,7 +347,6 @@ export function createProgressiveRawBatch(input = {}, options = undefined) {
 
 export function validateProgressiveRawBatchGrant(grant, { plan = null, batch = null } = {}) {
   return result(() => {
-    assertReplacementRecord(grant, "progressive-raw-batch-grant");
     if (!exactKeys(grant, [
       "schema", "plan_sha256", "batch_sha256", "run_version", "source_receipt_sha256", "source_epoch",
       "workflow", "provider_profile_sha256", "effective_style_master_sha256", "source_execution_sha256",
@@ -411,17 +397,16 @@ export function progressiveRawAttemptKey({ plan_sha256, batch_sha256, slide_id, 
   assertDigest(batch_sha256, "batch_sha256");
   assertSlideId(slide_id);
   assertDigest(raw_contract_sha256, "raw_contract_sha256");
-  return canonicalJsonSha256({ schema: "page-image-progressive-raw-attempt-key-v1", plan_sha256, batch_sha256, slide_id, raw_contract_sha256 });
+  return canonicalJsonSha256({ schema: "page-image-progressive-raw-attempt-key", plan_sha256, batch_sha256, slide_id, raw_contract_sha256 });
 }
 
 export function progressiveRawIdempotencyKey({ attempt_key_sha256 } = {}) {
   assertDigest(attempt_key_sha256, "attempt_key_sha256");
-  return `page-image-workflow-v1-${attempt_key_sha256}`;
+  return `page-image-workflow-${attempt_key_sha256}`;
 }
 
 export function validateProgressiveRawItemAttempt(attempt, { plan = null, batch = null, grant = null } = {}) {
   return result(() => {
-    assertReplacementRecord(attempt, "progressive-raw-item-attempt");
     if (!exactKeys(attempt, [
       "schema", "attempt_key_sha256", "plan_sha256", "batch_sha256", "grant_sha256", "run_version",
       "source_receipt_sha256", "source_epoch", "workflow", "provider_profile_sha256",
@@ -514,8 +499,6 @@ export function createProgressiveRawItemAttempt(input = {}, options = undefined)
 
 export function validateProgressiveRawAttemptTransition(previous, next) {
   return result(() => {
-    assertReplacementRecord(previous, "progressive-raw-item-attempt");
-    assertReplacementRecord(next, "progressive-raw-item-attempt");
     const prior = validateProgressiveRawItemAttempt(previous);
     const following = validateProgressiveRawItemAttempt(next);
     if (!prior.ok || !following.ok) fail("progressive_raw_attempt_transition_invalid", "attempt transition contains an invalid record");
@@ -535,7 +518,6 @@ export function validateProgressiveRawAttemptTransition(previous, next) {
 
 export function validateProgressiveRawMaterializationProvenance(provenance, { plan = null, batch = null, grant = null, attempt = null } = {}) {
   return result(() => {
-    assertReplacementRecord(provenance, "progressive-raw-materialization-provenance");
     if (!exactKeys(provenance, [
       "schema", "kind", "plan_sha256", "run_version", "source_receipt_sha256", "source_epoch", "workflow",
       "provider_profile_sha256", "effective_style_master_sha256", "source_execution_sha256", "slide_id",
@@ -617,7 +599,6 @@ function validatePilotCoverage(record, { plan = null, batch = null } = {}) {
 
 export function validateProgressiveRawPilotEvidence(evidence, { plan = null, batch = null } = {}) {
   return result(() => {
-    assertReplacementRecord(evidence, "progressive-raw-pilot-evidence");
     if (!exactKeys(evidence, [
       "schema", "plan_sha256", "batch_sha256", "run_version", "source_receipt_sha256", "source_epoch", "workflow",
       "provider_profile_sha256", "effective_style_master_sha256", "source_execution_sha256", "ordered_slide_ids",
@@ -651,7 +632,6 @@ export function createProgressiveRawPilotEvidence(input = {}, options = undefine
 
 export function validateProgressiveRawPilotDecision(decision, { plan = null, batch = null, evidence = null } = {}) {
   return result(() => {
-    assertReplacementRecord(decision, "progressive-raw-pilot-decision");
     if (!exactKeys(decision, [
       "schema", "plan_sha256", "batch_sha256", "pilot_evidence_sha256", "run_version", "source_receipt_sha256",
       "source_epoch", "workflow", "provider_profile_sha256", "effective_style_master_sha256", "source_execution_sha256", "decision",
@@ -690,7 +670,6 @@ export function createProgressiveRawPilotDecision(input = {}, options = undefine
 
 export function validateProgressiveRawCompleteReview(review, { plan = null } = {}) {
   return result(() => {
-    assertReplacementRecord(review, "progressive-raw-complete-review");
     const keys = [
       "schema", "plan_sha256", "run_version", "source_receipt_sha256", "source_epoch", "workflow",
       "provider_profile_sha256", "effective_style_master_sha256", "source_execution_sha256", "ordered_slide_ids", "items",
@@ -742,7 +721,6 @@ export function createProgressiveRawCompleteReview(input = {}, options = undefin
 
 export function validateProgressiveAcceptedRawEvidence(evidence, { plan = null, completeReview = null } = {}) {
   return result(() => {
-    assertReplacementRecord(evidence, "progressive-accepted-raw-evidence");
     if (!exactKeys(evidence, [
       "schema", "raw_work_plan_sha256", "run_version", "source_receipt_sha256", "source_epoch", "workflow",
       "provider_profile_sha256", "effective_style_master_sha256", "source_execution_sha256", "complete_raw_review_sha256",

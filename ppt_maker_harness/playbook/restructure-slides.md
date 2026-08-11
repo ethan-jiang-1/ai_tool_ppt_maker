@@ -1,7 +1,7 @@
 ---
 playbook: restructure-slides
 description: Page Image Workflow structural versioning
-supported_pipelines: [page-image-workflow-v1]
+supported_pipelines: [page-image-workflow]
 includes: [classify-change]
 ---
 
@@ -11,7 +11,7 @@ includes: [classify-change]
 
 ### classify-change (shared)
 
-Resolve every position/spoken selector to the current stable ID. New IDs are Agent-authored mnemonic-v1, exactly two BlockCase semantic chunks, 5-8 ASCII letters, preferably 5-6.
+Resolve every position/spoken selector to the current stable ID. New IDs are Agent-authored mnemonic, exactly two BlockCase semantic chunks, 5-8 ASCII letters, preferably 5-6.
 
 ## Current structural path
 
@@ -22,7 +22,7 @@ Resolve every position/spoken selector to the current stable ID. New IDs are Age
 node: preview-target-structural-version
 lifecycle_phase: 5
 method_module: 06-iteration
-production_modes: [image2-page-workflow-v1]
+production_modes: [image2-page-workflow]
 production_workflows: [framed, pure]
 requires: [classify-change]
 produces: [target-structural-preview, target-workflow-choice]
@@ -38,7 +38,7 @@ exit: [user_decision_recorded]
 node: apply-target-structural-version
 lifecycle_phase: 5
 method_module: 06-iteration
-production_modes: [image2-page-workflow-v1]
+production_modes: [image2-page-workflow]
 production_workflows: [framed, pure]
 requires: [preview-target-structural-version]
 produces: [target-vnext-source, target-vnext-raw-debt]
@@ -52,7 +52,7 @@ exit: [evidence:target-structural-published]
 node: review-target-structural-route
 lifecycle_phase: 5
 method_module: 06-iteration
-production_modes: [image2-page-workflow-v1]
+production_modes: [image2-page-workflow]
 production_workflows: [framed, pure]
 requires: [apply-target-structural-version]
 produces: [reviewed-target-structural-route]

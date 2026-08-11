@@ -28,21 +28,24 @@ An older bundle may physically lack a newer locator or Agent card without failin
 
 ### Requirement: Run Bundle locator binds one exact local Harness
 
-A current Run Bundle locator SHALL use schema `pptmaker-run-bundle-v2` and
-contain exactly the scalar fields `schema`, `deck_root`, `harness_root`, and
-`harness_relation`. `deck_root` and `harness_root` SHALL be canonical absolute
-local paths to distinct roots, and `harness_relation` SHALL be the normalized
-relative relation from the Deck root to that exact Harness root. The declared
-root and relation SHALL resolve to the same verified Harness root; the locator
-SHALL not carry `harness_id`, a release, a Git revision, a content hash, or a
-portable cross-Harness identity.
+A current Run Bundle locator SHALL use the unversioned shared contract declared
+as `run-bundle-locator` in the serialization inventory and retain exactly the
+fields `schema`, `deck_root`, `harness_root`, and `harness_relation`. The
+locator continues to bind one local Harness root without becoming a Page Image
+production protocol, portability layer, or historical-format resolver.
+
+#### Scenario: A current locator is inspected
+
+- **WHEN** a locator is read for an active local Harness binding
+- **THEN** its contract marker resolves as `run-bundle-locator` in the schema
+  inventory and its exact required fields validate
+- **AND** an undeclared locator is not converted or adopted
 
 #### Scenario: A new locator describes a local Harness binding
 
-- **WHEN** a current Run Bundle locator is rendered
-- **THEN** it contains only the four v2 binding fields and resolves both binding
-  references to the same local `ppt_maker_harness/` root
-- **AND** it contains no retired root field or portability identifier
+- **WHEN** initialization writes a current bundle locator
+- **THEN** it describes one exact local Harness relation under the declared contract
+- **AND** it does not encode production workflow authority
 
 ### Requirement: Run Bundle placement remains external to its Harness
 
@@ -72,36 +75,31 @@ infer a global or cross-session memory from those files.
 
 ### Requirement: Page Image Workflow artifacts have canonical rebuildable owners
 
-Run-Bundle Layout SHALL give the current Page Image Workflow canonical owners
-for normalized source, matching state, source receipt, Style Master lifecycle,
-compiled provider input and digest, raw provider page/provenance, Page Review
-contributions, `page-image-final-slide-manifest-v1`, JPEG delivery media and
-its `page-image-delivery-media-v1` manifest, assembly, and notes. The selected
-adapter owns policy-specific raw and review contributions; shared delivery owns
-the common final-manifest projection and its JPEG delivery derivative. All
-media, receipts, inspection projections, composites, and task cards beneath
-`_generated/` or their declared derived owner remain rebuildable and SHALL NOT
-become source authority by path, filename, timestamp, or hand edit.
+The current artifact-owner map SHALL identify normalized source, matching state,
+source receipt, Style Master lifecycle, compiled provider input, raw provider
+page/provenance, review contributions, the declared final-page-list,
+delivery-package media, assembly, and notes under one current schema contract.
+Selected adapters retain policy-specific raw/review contributions and shared
+delivery retains the common final-page/delivery projection. No owner map may
+name a version-suffixed artifact schema or an alternate historical publisher.
 
-For Framed, the review owner SHALL retain the exact provider page and its
-production-equivalent transparent header composite as distinct bound
-contributions to one Complete Page Review. For Pure, the provider page is the
-complete-page contribution. Neither layout creates a second local-composite
-approval record.
+#### Scenario: A maintainer traces a current artifact owner
+
+- **WHEN** a current Page Image artifact is located in the layout
+- **THEN** its declared stage/role resolves to one current owner
+- **AND** no historical artifact name creates a second owner path
 
 #### Scenario: A Framed review has two bound views but one owner
 
-- **WHEN** layout resolves current Framed complete-page review artifacts
-- **THEN** it identifies the raw provider page and local-header composite as
-  separate derived contributions to one review record
-- **AND** it does not treat either filename as a second acceptance decision
+- **WHEN** current Framed review produces its provider and composited views
+- **THEN** both remain bound to one declared review owner
+- **AND** no alternate schema creates another review authority
 
 #### Scenario: Deleting a current derived artifact does not make it source
 
-- **WHEN** a generated provider page, composite, final PNG, JPEG delivery
-  file, delivery-media manifest, or task projection is absent
-- **THEN** layout identifies its declared rebuild owner
-- **AND** it does not accept a manually placed replacement as current evidence
+- **WHEN** a rebuildable declared artifact is absent
+- **THEN** the owner retains the existing source/derived distinction and rebuild path
+- **AND** it does not use a historical artifact as replacement source
 
 ### Requirement: Current Page Image lifecycle records remain append-mostly and CAS-scoped
 
@@ -139,82 +137,6 @@ may retain a typed handoff reference but not a duplicate lifecycle ledger.
 - **THEN** layout resolves the owner-declared CAS head and exact predecessor
   lineage
 - **AND** it does not reopen a terminal plan or choose a directory by timestamp
-
-### Requirement: Content-addressed physical paths use short on-disk names
-
-For a supported current `page-image-workflow-v1` Pure or Framed run, content-addressed immutable owner storage SHALL name every `<hash>` directory and file **on disk** by a deterministic short form: the **first 8 hex characters** of the item's content-address SHA-256. This covers Style Master iteration plan roots and their nested candidate data, progressive page-production plans, batches, materializations, attempts, complete-reviews, accepted-evidence, both generated-review roots `review/complete-page/<raw-plan-hash>` and `review/pilot/<batch-hash>`, and any content-address-derived `.lock` file or other `<hash>`-derived name beneath those locations. The full 64-hex SHA-256 SHALL remain the item's internal identity and the value stored in state, receipts, CAS heads, and every JSON/record payload; the on-disk short name is never itself a selector or authority. Fixed semantic lock names and bounded non-hash identifiers such as `candidate-NNN` and slide IDs remain unchanged.
-
-When the first 8 hex characters of two distinct full SHA-256 values collide within the same parent directory, the owner SHALL NOT silently overwrite or re-derive; it SHALL fail with a clear conflict error and keep both records intact, because an on-disk name must always be deterministically derivable from the full SHA-256. A lookup given a full SHA-256 SHALL resolve the on-disk name by trying the 8-character short name first and, when no record under it embeds the expected full SHA-256, by falling back to the full 64-hex name (legacy pre-migration layout); in both cases it SHALL verify the record embeds the expected full SHA-256 before treating the bytes as the addressed artifact.
-
-The sole migration owner is the non-public `migrateCurrentRunContentAddresses({ runDir })` operation. Before reading an owner artifact, it SHALL use the normal read-only workflow inspection to establish one exact supported current v1 Pure or Framed source/state pair. It SHALL not scan `3_versions/`, choose a sibling, or accept a caller-provided workflow/hash/path override. It SHALL migrate only records bound to that exact run version and that run's `review/complete-page/` and `review/pilot/` roots. A historical v2 or otherwise unresolved input SHALL return its existing bounded `unsupported-protocol/export` or owner-issued action before owner-artifact reads and SHALL not receive short-path migration, adoption, or compatibility treatment.
-
-For an eligible exact run, the owner SHALL first acquire the deck-root `.content-address-migration.lock`; a second migration SHALL hard-stop before writes. It SHALL then recursively preflight each affected container, rejecting any owner resource lock, symbolic link, malformed/unexpected container, failed typed canonical-record/evidence binding, duplicate target, or occupied 8-character target before it renames any entry. It SHALL not skip, rename, or remove a lock. Each affected owner writer SHALL acquire its resource lock and then check the deck-root migration lock before addressed reads or writes, failing and releasing its resource lock when migration is in progress. On a successful preflight, the owner SHALL execute the complete child-first rename plan, verify each new path's unchanged bytes and embedded full SHA-256, and reverse completed moves on an ordinary execution error. An unrecoverable rollback or interruption SHALL leave state, receipts, and records unchanged, return `migration_recovery_required`, and preserve a tree that the verified short-first/full-name fallback can read for one later owner rerun. The short name remains no authority.
-
-#### Scenario: Lookup resolves a short on-disk name from a full SHA-256
-
-- **WHEN** a current owner reads an immutable artifact by its full content-address SHA-256
-- **THEN** it derives the on-disk path from the first 8 hex characters of that SHA-256
-- **AND** it verifies the record under that path embeds the expected full SHA-256 before treating the bytes as the addressed artifact
-
-#### Scenario: An 8-character prefix collision fails loudly
-
-- **WHEN** two distinct full SHA-256 values in the same parent directory share their first 8 hex characters
-- **THEN** the owner SHALL NOT overwrite either record and SHALL fail with a clear conflict error naming the colliding hashes
-- **AND** a reader given either full SHA-256 never mistakes the other record's bytes for it, because resolution always verifies the embedded full SHA-256
-
-#### Scenario: A full-64-hex legacy directory is migrated
-
-- **WHEN** an explicit migration operation encounters an existing full-64-hex content-addressed directory or file
-- **THEN** it renames it to the deterministic short form without changing its record bytes
-- **AND** lookups for the same content-address resolve to the migrated short name afterwards
-
-#### Scenario: Migration finds an owner lock
-
-- **WHEN** the explicit migration operation preflights an affected immutable owner root and finds a lock directory
-- **THEN** it reports the bounded concurrent-mutation failure before renaming or deleting any entry
-- **AND** the nearest recovery is to wait for the owner mutation to finish and rerun the same migration operation
-
-#### Scenario: Migration receives a sibling or historical version by implication
-
-- **WHEN** an Agent invokes the migration owner for one exact run while the deck also contains another version, or its supplied run is historical v2
-- **THEN** the owner operates only on the supplied current v1 run or returns the existing bounded protocol action before owner-artifact reads
-- **AND** it does not scan for, select, migrate, or mutate a sibling version
-
-#### Scenario: A writer begins while migration is pending
-
-- **WHEN** an affected owner writer acquires its resource lock after migration has acquired the deck-root migration lock
-- **THEN** it releases its resource lock and reports the bounded migration-in-progress diagnostic before it reads or writes the addressed artifact
-- **AND** the migration can either finish from its verified preflight or fail without concurrent publication
-
-#### Scenario: A validated migration cannot complete a rename
-
-- **WHEN** an ordinary filesystem failure occurs after one or more validated rename steps
-- **THEN** the owner attempts completed moves in reverse order while retaining the migration lock
-- **AND** it either restores the pre-migration paths or returns `migration_recovery_required` with unchanged state/receipt/record bytes and a readable mixed tree for one later owner rerun
-
-#### Scenario: A v2 run requests short-path migration
-
-- **WHEN** a `page-authority-image2-v2` source/state pair requests the migration operation
-- **THEN** it returns `unsupported-protocol/export` before reading legacy artifacts or mutating the bundle
-- **AND** it does not create a short-path compatibility or adoption route
-
-### Requirement: Current layout records do not adopt v2 Page Authority artifacts
-
-`page-authority-image2-v2` source/state, receipt, plan, provider media,
-review, final-manifest, or delivery records may remain physically present but
-are unsupported input to current Page Image Workflow layout and lifecycle
-readers. Those readers SHALL stop at identity before following a v2 artifact
-path, deriving provenance, or using a v2 record as a current pointer. They
-SHALL NOT create an adoption directory, converter, evidence bridge, or
-automatic cleanup.
-
-#### Scenario: Old raw media cannot become a current rebuild source
-
-- **WHEN** a current layout reader encounters a v2 raw artifact and its
-  accompanying receipt
-- **THEN** it returns the `unsupported-protocol/export` boundary before reading media
-  provenance or review facts
-- **AND** it does not copy, convert, or register the bytes in current layout
 
 ### Requirement: Current Page Image human artifact reference view is a canonical derived artifact
 
@@ -292,3 +214,67 @@ a prior plan, inspection projection, or accepted image.
 - **WHEN** a version provides a valid visual-style override of the Pure visual-system record
 - **THEN** current Pure planning uses that version-resolved record and its digest
 - **AND** sibling versions and immutable artifacts remain unchanged
+
+### Requirement: Current content-addressed physical paths use short on-disk names
+
+For a supported current `page-image-workflow` Pure or Framed run,
+content-addressed immutable owner storage SHALL retain the existing deterministic
+short physical naming and full internal SHA-256 identity rules. The current
+workflow marker and all serialized artifacts SHALL use only schema-declared
+unversioned values. An undeclared marker fails before content-addressed owner
+work; the layout SHALL not scan or migrate a historical format.
+
+#### Scenario: A current run resolves a content-addressed path
+
+- **WHEN** an exact current run addresses an immutable owner artifact
+- **THEN** it applies the established short-name/full-hash validation under the
+  declared current workflow
+- **AND** it does not fall back to a historical contract reader
+
+#### Scenario: Lookup resolves a short on-disk name from a full SHA-256
+
+- **WHEN** a current owner looks up a full content hash
+- **THEN** it retains the established short-name then verified-full-name resolution
+- **AND** it validates only current declared artifact contracts
+
+#### Scenario: An 8-character prefix collision fails loudly
+
+- **WHEN** two current full hashes share a short prefix in one owner directory
+- **THEN** the owner retains the existing conflict failure before overwrite
+- **AND** it does not select an alternate contract
+
+#### Scenario: An unsupported full-64-hex directory is rejected
+
+- **WHEN** a current owner encounters an obsolete physical-path form
+- **THEN** it rejects it as outside the current contract before mutable owner work
+- **AND** it does not migrate or adopt the directory
+
+#### Scenario: An unsupported path has an owner lock
+
+- **WHEN** an obsolete path condition includes an owner lock
+- **THEN** current layout validation remains non-mutating and rejects the condition
+- **AND** it does not acquire a migration lock or rename bytes
+
+#### Scenario: An unsupported path implies a sibling version
+
+- **WHEN** a caller supplies a path outside the exact current run binding
+- **THEN** layout rejects it before sibling selection or artifact reads
+- **AND** it does not infer a migration target
+
+#### Scenario: A writer encounters an unsupported path
+
+- **WHEN** a current writer detects an obsolete migration-only condition
+- **THEN** it retains current owner integrity checks before writes
+- **AND** it does not coordinate or resume a migration
+
+#### Scenario: An unsupported path would require a rename
+
+- **WHEN** an obsolete path would require a rename to continue
+- **THEN** current layout stops before rename planning
+- **AND** it preserves no compatibility or rollback protocol
+
+#### Scenario: An undeclared run requests a short-path operation
+
+- **WHEN** an undeclared run contract requests a path operation
+- **THEN** the owner rejects it before artifact inspection or mutation
+- **AND** it does not create a short-path migration route

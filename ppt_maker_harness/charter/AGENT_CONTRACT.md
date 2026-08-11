@@ -2,9 +2,9 @@
 
 ## Authority
 
-New Page Image authoring uses `page-image-workflow-v1`. A version records
+New Page Image authoring uses `page-image-workflow`. A version records
 exactly one `production.workflow: framed|pure` before provider work; state then
-binds the same workflow in `image2-page-workflow-v1`. The target method graph
+binds the same workflow in `image2-page-workflow`. The target method graph
 is `03-framed-image XOR 04-pure-image -> 05-delivery -> 06-iteration`.
 
 | Target concern | Sole owner | Refresh consequence |
@@ -14,7 +14,7 @@ is `03-framed-image XOR 04-pure-image -> 05-delivery -> 06-iteration`.
 | Final projection, PPTX, notes, delivery | `05-delivery` | Notes-only work refreshes delivery lineage without pixel work. |
 | Refresh classification and structural routing | `06-iteration` | Workflow switches and structural edits create a previewed vNext. |
 
-Any v2, corrupt, hybrid, or ambiguous source/state pair is an unsupported-protocol hard-stop. It is not a
+Any undeclared, corrupt, hybrid, or ambiguous source/state pair is a current-protocol-invalid hard-stop. It is not a
 workflow choice and is never silently rewritten or interpreted as current.
 
 ## Invalidation
@@ -83,8 +83,8 @@ commands and are never human artifact-navigation paths.
 
 ## Unsupported boundary
 
-V2, corrupt, hybrid, or ambiguous source/state pairs stop at the generic
-unsupported-protocol/export action. Observation creates no receipt, state,
+Undeclared, corrupt, hybrid, or ambiguous source/state pairs stop at the generic
+repair-current-protocol-identity action. Observation creates no receipt, state,
 adapter, provider request, or generated-artifact read.
 
 ## RUN_BUNDLE locator entry
@@ -92,7 +92,7 @@ adapter, provider request, or generated-artifact read.
 When no exact local run directory is known, a user may provide `RUN_BUNDLE.md`
 bytes. Resolve them through
 `scripts/shared/run-bundle/run_bundle_locator.mjs`; the card is the only direct
-binding record and must be a current `pptmaker-run-bundle-v2` card with exactly
+binding record and must be a current `pptmaker-run-bundle` card with exactly
 `schema`, `deck_root`, `harness_root`, and `harness_relation`. It verifies the
 exact local PPT Maker Harness rather than accepting an original-card path,
 human-supplied replacement root, fallback, or relocation recovery. It does not
@@ -110,7 +110,7 @@ PPT Maker Harness capability.
 
 ## Intent Discovery Handoff
 
-`playbook/intent-routes-v1.json` is a closed discovery catalog, not a parser,
+`playbook/intent-routes.json` is a closed discovery catalog, not a parser,
 dispatcher, Controller, or authorization record. The Agent interprets the
 user's words and uses the catalog only to check the first safe handoff.
 
@@ -207,4 +207,4 @@ change Git state. 普通 checkpoint 授权不包含任何 inspection.
 - Do not hand-edit `_generated/`, state, receipts, or journals.
 - Keep stable mnemonic `slide_id` values; position is snapshot-local.
 - Do not request provider credentials for local Framed composition.
-- Do not infer a current route from historical source, state, or output bytes.
+- Do not infer a current route from unsupported source, state, or output bytes.

@@ -30,36 +30,30 @@ changes with reordering.
 
 ### Requirement: Current Page Image Workflow has one selected finalization publisher
 
-For an exact current `page-image-workflow-v1` source/state/receipt tuple, the
-selected `framed` or `pure` adapter SHALL be the sole publisher of
-`page-image-final-slide-manifest-v1`. It SHALL publish only after the current
-Complete Page Review has proceeded and all bound source, profile, provider-page,
-and workflow facts remain current. A mismatch, stale evidence, or wrong
-workflow owner SHALL hard-stop before final media or manifest publication.
+For an exact current schema-declared Page Image source/state/receipt tuple, the
+selected `framed` or `pure` adapter SHALL be the sole publisher of the declared
+`final-page-list` role. It SHALL retain the existing current-review and bound
+fact checks before publication. A missing, mismatched, or undeclared contract
+value SHALL fail through its owner and SHALL not select a historical finalization
+or compatibility publisher.
 
-Pure finalization SHALL publish the accepted provider page bytes and their
-actual verified dimensions unchanged. Framed finalization SHALL publish the
-current provider page combined with the deterministic local
-kicker/title/subtitle overlay under the same evaluated profile used for its
-review composite. Both adapters SHALL publish the same final-slide manifest
-shape for shared delivery; neither adapter SHALL publish a PPTX, notes receipt,
-or delivery decision.
+#### Scenario: A current finalization is published
+
+- **WHEN** the selected adapter has current reviewed and bound facts
+- **THEN** it publishes only the declared final-page-list contract
+- **AND** no alternate or historical manifest format is emitted or accepted
 
 #### Scenario: Pure preserves current provider page bytes
 
-- **WHEN** a proceeded Pure Complete Page Review reaches finalization
-- **THEN** the final manifest binds the accepted provider page bytes and actual
-  dimensions unchanged
-- **AND** finalization does not crop, resize, transcode, or invoke a Framed
-  local renderer
+- **WHEN** a current Pure page is finalized after review
+- **THEN** its current final-page-list retains the reviewed provider bytes under the declared role
+- **AND** it does not translate an alternate artifact format
 
 #### Scenario: Framed finalization repeats its reviewed overlay
 
-- **WHEN** a proceeded Framed Complete Page Review reaches finalization
-- **THEN** finalization uses the same current local header profile and input as
-  the production-equivalent composite under review
-- **AND** it publishes no final manifest if the profile, header input, or raw
-  provider page has drifted
+- **WHEN** a current Framed page is finalized after review
+- **THEN** finalization retains the established reviewed overlay behavior
+- **AND** it publishes only the declared current final-page-list
 
 ### Requirement: Complete Page Review makes one complete-page decision
 

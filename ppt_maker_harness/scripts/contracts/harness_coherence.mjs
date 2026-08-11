@@ -1,25 +1,10 @@
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, isAbsolute, join, normalize, resolve } from "node:path";
 import { EXECUTABLE_INVENTORY, normalizeExecutablePath } from "./executable_inventory.mjs";
-import {
-  LEGACY_TOKEN_EXCEPTIONS,
-  RETIRED_WHOLE_PAGE_TOKEN_EXCEPTIONS,
-  scanRetiredWholePageTerms,
-  validateLegacyTokenExceptions,
-  validateRetiredWholePageTokenExceptions,
-} from "./harness_static_coherence.mjs";
 import { validateDocumentedCommands } from "./harness_document_command_audit.mjs";
 
-export {
-  LEGACY_TOKEN_EXCEPTIONS,
-  RETIRED_WHOLE_PAGE_TOKEN_EXCEPTIONS,
-  scanRetiredWholePageTerms,
-  validateLegacyTokenExceptions,
-  validateRetiredWholePageTokenExceptions,
-} from "./harness_static_coherence.mjs";
-
 export const DOC_EXCEPTIONS = Object.freeze({
-  "ppt_maker_harness/reference/version-log.md": "historical migration record",
+  "ppt_maker_harness/reference/version-log.md": "version log record",
 });
 
 export const CURRENT_CONTRACT_FILES = Object.freeze({
@@ -54,10 +39,10 @@ function lineAt(text, offset) { return text.slice(0, offset).split("\n").length;
 function issue(file, line, rule, message, hint) { return { file, line, rule, message, hint }; }
 
 export function validateExceptionMap(exceptions = DOC_EXCEPTIONS, linkExceptions = LINK_EXCEPTIONS) {
-  const issues = [...validateLegacyTokenExceptions(), ...validateRetiredWholePageTokenExceptions()];
+  const issues = [];
   for (const [file, reason] of Object.entries(exceptions)) {
     if (/[*?]|\/$/.test(file)) issues.push(issue(file, 1, "exception-scope", "broad exception is forbidden", "name one exact file"));
-    if (!String(reason).trim()) issues.push(issue(file, 1, "exception-reason", "exception reason is empty", "provide a concrete historical/template reason"));
+    if (!String(reason).trim()) issues.push(issue(file, 1, "exception-reason", "exception reason is empty", "provide a concrete file or template reason"));
   }
   for (const entry of linkExceptions) {
     if (!entry || /[*?]|\/$/.test(entry.file || "") || !String(entry.target || "").trim()) {
@@ -92,7 +77,7 @@ const STALE_RULES = [
 ];
 
 const NEGATIVE_POLICY = /(?:不要求|不搜索|不依赖|禁止|不得|绝对禁止|无需|no external|does not require|shall not search|shall not require)/i;
-const BODY_HEADER_LOCK_COMPATIBILITY_LABEL = "body\\+header" + "-lock";
+const BODY_HEADER_LOCK_ALTERNATE_LABEL = "body\\+header" + "-lock";
 
 const CANONICAL_PATHS = Object.freeze([
   "Header Text & Style Refresh",
@@ -101,7 +86,7 @@ const CANONICAL_PATHS = Object.freeze([
   "Structural Versioning Path",
 ]);
 
-const LEGACY_ALIAS_RULES = Object.freeze([
+const RETIRED_ALIAS_RULES = Object.freeze([
   Object.freeze({ alias: /(?:Chain\s*A\b|链\s*A\b|链A\b)/i, canonical: CANONICAL_PATHS[0] }),
   Object.freeze({ alias: /(?:Chain\s*B\b|链\s*B\b|链B\b)/i, canonical: CANONICAL_PATHS[1] }),
   Object.freeze({ alias: /(?:Chain\s*C\b|链\s*C\b|链C\b)/i, canonical: CANONICAL_PATHS[2] }),
@@ -133,23 +118,23 @@ export function scanSemanticDrift(file, text = readFileSync(file, "utf8")) {
       if (!match || (rule === "external-image-skill" && NEGATIVE_POLICY.test(line))) continue;
       issues.push(issue(file, lineAt(text, offset + match.index), rule, match[0].trim(), hint));
     }
-    for (const { alias, canonical } of LEGACY_ALIAS_RULES) {
+    for (const { alias, canonical } of RETIRED_ALIAS_RULES) {
       const match = alias.exec(line);
       if (!match) continue;
       if (!registry) {
-        issues.push(issue(file, lineAt(text, offset + match.index), "legacy-edit-path", `${match[0]} is a compatibility alias in operational prose`, `use ${canonical}`));
+        issues.push(issue(file, lineAt(text, offset + match.index), "retired-edit-path", `${match[0]} is a retired alias in operational prose`, `use ${canonical}`));
       } else if (!line.includes(canonical)) {
-        issues.push(issue(file, lineAt(text, offset + match.index), "unpaired-legacy-alias", `${match[0]} is not paired locally with ${canonical}`, `put the canonical English name in the same definition, sentence, or table row`));
+        issues.push(issue(file, lineAt(text, offset + match.index), "unpaired-retired-alias", `${match[0]} is not paired locally with ${canonical}`, `put the canonical English name in the same definition, sentence, or table row`));
       }
     }
     if (!registry && /\|\s*(?:\*\*)?[ABC](?:\*\*)?\s*\|/.test(line) && /(?:Stage|(?:1\s*(?:→|,)[^|]*[345])|(?:5\s*(?:only|仅)))/i.test(line)) {
-      issues.push(issue(file, lineAt(text, offset), "legacy-edit-path-table", "bare A/B/C editing-path stage table", "use the canonical English refresh-path name"));
+      issues.push(issue(file, lineAt(text, offset), "retired-edit-path-table", "bare A/B/C editing-path stage table", "use the canonical English refresh-path name"));
     }
     if (/(?:safe[- ]?zone|render[- ]?mode|RENDER MODE)[^.;。|]*(?:use|uses|using|使用|走|归为|→|=)[^.;。|]*Header Text & Style Refresh/i.test(line)) {
       issues.push(issue(file, lineAt(text, offset), "raw-contract-header-route", "raw-image contract change is routed to Header Text & Style Refresh", "use Generated Image Rebuild for safe-zone or render-mode changes"));
     }
     const imageOwnedHeaderRoute = /(?:KPI|card|chart|case|body (?:text|data)|body 文案|body 数据|案例|数据|卡片|图表)[^.;。|]*(?:use|uses|using|使用|走|归为|→|=)[^.;。|]*Header Text & Style Refresh/i.exec(line);
-    if (imageOwnedHeaderRoute && !imageOwnedHeaderRoute[0].includes("Generated Image Rebuild") && !new RegExp(`(?:${BODY_HEADER_LOCK_COMPATIBILITY_LABEL}|body-lock)`, "i").test(imageOwnedHeaderRoute[0])) {
+    if (imageOwnedHeaderRoute && !imageOwnedHeaderRoute[0].includes("Generated Image Rebuild") && !new RegExp(`(?:${BODY_HEADER_LOCK_ALTERNATE_LABEL}|body-lock)`, "i").test(imageOwnedHeaderRoute[0])) {
       issues.push(issue(file, lineAt(text, offset), "image-owned-header-route", "image-owned body content is routed to Header Text & Style Refresh", "use Generated Image Rebuild for content burned into the image"));
     }
     if (/(?:add(?:ing)? (?:a )?slide|新增|添加|加一页)/i.test(line) && line.includes("Generated Image Rebuild") && !line.includes("Structural Versioning Path") && !/(?:not|不是|不能|不得|不只|after|随后|先|affected|受影响|新版本)/i.test(line)) {
@@ -271,6 +256,5 @@ export function scanHarnessCoherence({ root = "ppt_maker_harness", exceptions = 
       activeSurfaceFiles[normalize(file).split("\\").join("/")] = readFileSync(file, "utf8");
     }
   }
-  issues.push(...scanRetiredWholePageTerms(activeSurfaceFiles));
   return issues;
 }

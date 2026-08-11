@@ -16,9 +16,9 @@ function fixture() {
   writeFileSync(join(runDir, SLIDE_SPECS_NAME), [
     "---",
     "identity:",
-    "  scheme: mnemonic-v1",
+    "  scheme: mnemonic",
     "production:",
-    "  pipeline: page-image-workflow-v1",
+    "  pipeline: page-image-workflow",
     "  workflow: pure",
     "---",
     "",

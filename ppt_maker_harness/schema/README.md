@@ -3,7 +3,8 @@
 This directory is the authoritative, non-executable vocabulary for Page Image
 production. Its YAML files describe meaningful source, derived, and record
 artifacts from a deck argument through delivery. They are readable by humans
-and Agents now; C2 will make code constants a tested mirror of this vocabulary.
+and Agents, and `serialization-contracts.yaml` is the tested declaration home
+for active durable contracts.
 
 These files do not introduce a runtime validator, a lifecycle controller, a
 gate outcome, or a record migration. They never authorize provider work. Run
@@ -18,11 +19,12 @@ not copy this directory into a `deck_*` bundle or edit a bundle from it.
 - `recovery-route.yaml`: the authoritative C1-C7 recovery-route labels used
   by planned producers.
 - `stages/`: exactly nineteen conceptual definitions, one per filename.
-- `frozen-identifiers.yaml`: historical record identifiers and live identity
-  literals that later code must preserve rather than rename.
+- `serialization-contracts.yaml`: active unversioned selectors, shared
+  contracts, and wire-schema-to-stage/role mappings used by code mirrors.
 
 The stage names are conceptual and unversioned. A current implementation may
-serialize multiple internal records for one stage. A planned C3-C5 stage names
+serialize multiple precise wire shapes for one stage; each maps to a declared
+stage reference and role in `serialization-contracts.yaml`. A planned C3-C5 stage names
 its planned owning change or capability and uses `producer_status: planned`; it
 does not claim an implementation module that does not exist. Every planned
 stage and flow producer also carries a `route_ref` that resolves in
@@ -49,8 +51,8 @@ hand without naming a source field or schema file. They are collaboration
 context, not an authorization, diagnostic, state mutation, record, or gate.
 
 An omitted value that intentionally normalizes declares `default` in the stage
-definition. C1 only documents that behavior; C2 owns applying those defaults
-and projecting Repair Guidance through an existing runtime handoff.
+definition. The declaration does not itself apply that default or project
+Repair Guidance; those remain responsibilities of their existing runtime owner.
 
 ## Verification
 

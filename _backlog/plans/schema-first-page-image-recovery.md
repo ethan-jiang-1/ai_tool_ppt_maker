@@ -1,6 +1,6 @@
 # Progressive Plan: Schema-First Page Image Recovery
 
-> Type: progressive coordination plan | Updated: 2026-08-11 | Status: active (C1 archived; C2 proposal next)
+> Type: progressive coordination plan | Updated: 2026-08-11 | Status: active (C1 archived; C2 is being replanned for a clean cutover)
 >
 > **This is the only route document for Page Image recovery.** Three earlier
 > plans were closed on 2026-08-11 as CLS-025/026/027; everything from them that
@@ -9,6 +9,14 @@
 > [framed-provider-protected-composition.md](framed-provider-protected-composition.md)
 > and
 > [framed-provider-capability-discovery-research.md](framed-provider-capability-discovery-research.md).
+
+> **Current decision override.** The earlier frozen-identifier and
+> compatibility-preservation conclusions in this plan are superseded. C2 is a
+> one-contract clean cutover: active historical `*-vN` names are removed rather
+> than preserved. Apply the decision procedure in
+> [Schema-First Clean-Cutover Decisions](schema-first-clean-cutover-decisions.md)
+> whenever implementation inspection exposes a hidden contract. Archived
+> OpenSpec artifacts remain history only; they do not define active behavior.
 
 ## Read This First: Orientation For The Implementing Agent
 
@@ -115,6 +123,25 @@ open.Spec来调整东西啊，我看你刚才立刻已经动schema了".
 I violated this rule once by creating `ppt_maker_harness/schema/` directly and
 had to delete it. Do not repeat that: C1 creates that directory *through an
 OpenSpec change*.
+
+**The accepted specs are part of the source domain and are cleaned through an
+OpenSpec change — never hand-edited.** A version-suffixed literal in
+`openspec/specs/` is a live contradiction of the no-versioning rule: it is
+written down as the *contract* and every future change inherits it. It is
+removed the same way it was written — a delta spec inside an OpenSpec change.
+C2's final step scans the accepted specs to zero, including `openspec/specs/`.
+
+**The owner's standing instruction, restated so a future reader does not have
+to guess:** the point of this whole route is that every contract ends up
+declared once under `ppt_maker_harness/schema/`, and the old scattered,
+differently-named versions are *replaced* — not preserved. Whenever later work
+hits another hidden contract (a term, serialization format, protocol label,
+mode, identity scheme, record type, or recovery rule that lives in code or in
+an accepted spec instead of under `schema/`), the disposition is
+[Schema-First Clean-Cutover Decisions](schema-first-clean-cutover-decisions.md):
+define it in `schema/` first, replace every active reader and writer together,
+delete what has no role, and leave historical Run Bundle data untouched. That
+decision is a standing rule for the entire route, not a one-time C2 event.
 
 ### Where to start reading the code
 
@@ -265,7 +292,6 @@ definitions do not already deliver, and it costs the readability of evidence of
 money already spent. The `-v1` here is a frozen literal inside an identity
 function — the same category as the record identifiers above, not a version
 number anyone may bump.
-
 Two other live literals are frozen for the same reason:
 `image2-page-workflow-v1` (the per-version production mode, in
 `production_mode.mjs`) and `mnemonic-v1` (the slide identity scheme).
@@ -285,9 +311,14 @@ the module scans raw record bytes for retired identifiers and returns
 `UNSUPPORTED_PROTOCOL` with `byte_preserving: true` and an export action.
 
 Two lessons for C1/C2. First, the repo's established answer to "this name is
-obsolete" is *refuse and preserve*, never *rewrite*. Second, that module is a
-working reference implementation for how `frozen-identifiers.yaml` should be
-enforced at runtime — do not design a new mechanism without reading it.
+obsolete" is *refuse and preserve*, never *rewrite* — the clean-cutover
+decision builds on that: historical data stays byte-preserved, and the
+refusal path stays, while the active *write* path moves to the one declared
+unversioned contract. Second, that module is a working reference implementation
+for how a contract register should be enforced at runtime — do not design a new
+mechanism without reading it. (The earlier phrase "how `frozen-identifiers.yaml`
+should be enforced" is superseded: that file is deleted in C2; the module's
+pattern transfers to `serialization-contracts.yaml`.)
 
 ## Target: 19 Schemas
 
@@ -403,25 +434,26 @@ ppt_maker_harness/schema/
                      + the required on_violation shape (Repair Guidance)
   flow.yaml          the dataflow: each transformation, owner, invalidation
   stages/            19 field-level definitions, one file each
-  frozen-identifiers.yaml  the 15 record schemas + 3 protocol/mode/identity
-                           literals, read-only forever, each with its reason
+  serialization-contracts.yaml  one declared unversioned value per durable
+                     selector and wire schema — the clean-cutover register,
+                     added by C2
 ```
 
 Code constants become mirrors annotated `// anchor: schema/stages/<name>.yaml`.
 A regression test enumerates schema constants across `.mjs` and fails on any
-name with no definition. `frozen-identifiers.yaml` is the explicit exception
-list. Its two entry kinds differ:
+name with no definition. `serialization-contracts.yaml` is the exception list
+of the clean cutover: every durable selector and wire schema has exactly one
+declared unversioned value there, so a `-vN` literal in active code or an
+accepted spec is a defect, not an inheritance. It replaces the earlier
+`frozen-identifiers.yaml` proposal: the frozen list preserved old names, and the
+clean-cutover decision supersedes that — nothing active keeps a version suffix
+merely because historical code or data understood it. Each entry carries the
+specific data at risk, so a future reader sees why the value exists rather than
+a bare `-vN` to "fix".
 
-- **Frozen record schema** (the 15) — reading is permitted, writing new data
-  under the identifier is not. New records use the new vocabulary.
-- **Frozen literal** (`page-image-workflow-v1`, `image2-page-workflow-v1`,
-  `mnemonic-v1`) — still actively written, because it identifies the live
-  protocol, mode, and identity scheme. It is frozen against *renaming*, not
-  against use.
-
-Every entry carries a `reason:` naming the specific data that would become
-unreadable. Without it a future reader sees only a `-v1` suffix and re-proposes
-the rename this plan already rejected.
+The owner's intent behind this directory, restated: **all contracts end up
+declared once, here, and the old scattered, differently-named versions are
+replaced — not preserved.**
 
 ### Every rule carries its Repair Guidance
 
@@ -479,9 +511,11 @@ Landed
      Checkpoint 1: the data flow is visible and agreed
        |
        v
- C2  Make code conform to the definitions              (rename + mirror + test)
+ C2  Clean-cutover the contract: one unversioned value per durable selector,
+     replace readers and writers together, zero version-suffixed literal in
+     active source, tests, or accepted specs
        |
-     Checkpoint 2: one vocabulary, records still readable
+     Checkpoint 2: one contract, records preserved, scans zero
        |
        v
  C3  Close the upstream gap: story, constraints, pagination
@@ -516,7 +550,7 @@ purely a human judgment — the rest are evidence plus a short confirmation.
 | Checkpoint | Passed when |
 | --- | --- |
 | 1 | The owner has read `flow.yaml` and the 19 stage files and says the flow is what they want. No test can substitute for this. |
-| 2 | `npm test` green; the drift test fails on a deliberately renamed constant; an existing v3 attempt record still validates. |
+| 2 | All required tests pass; the static drift proof fails deliberately; all active consumers use one contract; the accepted-spec scan (including `openspec/specs/`) is zero; no production data was read or migrated. |
 | 3 | A deck's argument and constraints exist as Source Data, and a page list derives from them carrying provenance. |
 | 4 | One page resolves to exactly one workflow projection; the resolved view shows inherited values and their origin; editing an unselected profile invalidates nothing. |
 | 5 | For one page, a human reads source → receipt → layout → render model → generation spec → provider bytes on disk, without running anything. |
@@ -534,8 +568,8 @@ unreviewable or unsafe to land partially.
 
 | Change | Scope | Why it cannot merge with its neighbour |
 | --- | --- | --- |
-| **C1** Publish schema definitions | `ppt_maker_harness/schema/` only; zero runtime behaviour | This is the artifact the owner reviews. Mixing it with code changes makes the review impossible. Landing it alone is risk-free. |
-| **C2** Conform code to definitions | Rename constants, add anchors, add the drift test, enforce `frozen-identifiers.yaml` | Touches nearly every `.mjs` but changes no behaviour. A pure-rename change is reviewable by diff; bundling semantics into it is not. |
+| **C1** Publish schema definitions | `ppt_maker_harness/schema/` only; zero runtime behaviour | This is the artifact the owner reviews. Mixing it with code changes makes the review impossible. Landing it alone is risk-free. **Archived 2026-08-11.** |
+| **C2** Clean-cutover the contract | One unversioned value per durable selector/wire schema; replace all readers and writers together; zero version-suffixed literal in active source, tests, or accepted specs | Touches nearly every `.mjs` and every accepted spec, but changes no behaviour. A pure-cleanup change is reviewable by diff; bundling semantics into it is not. |
 | **C3** Upstream gap | `story-outline`, `design-constraints`, pagination | New capability territory. Independent of Page Class. |
 | **C4** Page Class + layout config | Parser, Core, resolver, both adapters, invalidation | The `XL` change. Needs C1/C2 vocabulary settled first or it re-scatters the schema. |
 | **C5** Per-page derived data on disk | `image2 plan` writer, path layout | Depends on C4's resolver existing. Provider-free, so it can land and be inspected before any spend. |
@@ -565,8 +599,11 @@ the prompt, and the JS can all read, so that every later change argues against a
 written definition instead of against code.
 
 **In scope.** Only `ppt_maker_harness/schema/`: `README.md`, `META.yaml`,
-`flow.yaml`, `stages/` (19 files), `frozen-identifiers.yaml`. Plus whatever
-`openspec/specs/` requirement declares that directory authoritative.
+`flow.yaml`, `stages/` (19 files), `serialization-contracts.yaml` (published
+by C2). Plus whatever `openspec/specs/` requirement declares that directory
+authoritative. **Status: archived 2026-08-11** — C1 is done; the
+`frozen-identifiers.yaml` mention in the archived scope was superseded by the
+clean-cutover decision and C2 deletes it.
 
 **Out of scope.** Every `.mjs` file. Any behaviour change. Any rename. If the
 diff touches `scripts/`, the change is wrong.
@@ -580,9 +617,10 @@ right. It is also risk-free to land: nothing executes it yet.
 - `flow.yaml` is the piece with no precedent. It must record, per
   transformation: input schema, output schema, owning module, what invalidates
   the output. This is what lets an Agent answer "what else changes with it".
-- `frozen-identifiers.yaml` needs the two entry kinds described above, and every
-  entry needs a `reason:` naming the specific data at risk. Without the reason a
-  future reader sees only a `-v1` suffix and re-proposes the rename.
+- `serialization-contracts.yaml` (added by C2, not C1) supersedes the earlier
+  `frozen-identifiers.yaml` idea: one declared unversioned value per durable
+  selector and wire schema, with the specific data at risk named, so a future
+  reader sees why the value exists rather than a bare `-vN` to "fix".
 - **Every constrained field needs its `on_violation` block** — see "Every rule
   carries its Repair Guidance". `META.yaml` requires it, so it cannot be skipped
   one field at a time. This is the single easiest thing to omit in C1 and the
@@ -593,52 +631,60 @@ right. It is also risk-free to land: nothing executes it yet.
 
 **Exit evidence.** The owner has read `flow.yaml` and the 19 stage files and
 agrees the data flow is what they want. That agreement is Checkpoint 1 — it is
-a human judgment, not a test result.
+a human judgment, not a test result. **Status: archived 2026-08-11** — evidence
+at commit `948681a`; checkpoint satisfied in conversation.
 
 ---
 
-### C2 — `conform-code-to-schema-definitions`
+### C2 — `clean-cutover-contract-conformance`
 
-**Goal.** Make the code a mirror of C1's definitions, and make drift between
-them fail a test rather than accumulate silently.
+**Goal.** Make the active Harness have exactly one declared unversioned
+serialization contract under `schema/`, then replace every active reader,
+writer, test, and operating document to use it together — and clean
+`openspec/specs/` the same way.
 
-**In scope.** Rename schema constants where C1's vocabulary differs and the
-identifier is not frozen; add `// anchor: schema/stages/<name>.yaml` comments;
-add the drift test; enforce `frozen-identifiers.yaml` at runtime.
+**In scope.** The complete active Page Image and directly affected shared
+Harness contract inventory: source/state/receipt/record/protocol/mode/identity/
+idempotency/locator/catalog values. C2 adds `serialization-contracts.yaml`,
+uses C1 stages as conceptual `schema` names, uses `artifact_role` only when a
+stage has multiple concrete forms, and removes the frozen inventory and
+historical scanners.
 
-**Out of scope.** Any semantic change whatsoever. Any frozen identifier. New
-schemas — those are C3/C4/C5.
-
-**Why it is alone.** It touches nearly every `.mjs` while changing no
-behaviour. A pure-rename diff is reviewable by scanning; a diff that mixes in
-one semantic change is not, and the semantic change hides.
+**Out of scope.** Run Bundle or research-data inspection/migration/deletion;
+provider semantic changes; and C3-C5 producer work such as Page Class.
 
 **Design notes.**
-- The drift test enumerates schema constants across `.mjs` and fails on any
-  name with no definition in `stages/` and no entry in `frozen-identifiers.yaml`.
-- **Do not invent the enforcement mechanism.** `scripts/contracts/harness_architecture.mjs`
-  already does cross-file schema-ownership validation — see
-  `PAGE_IMAGE_PROVIDER_INPUT_COMPILER_SCHEMA_BY_ADAPTER` at `:88` and
-  `validatePageImageProviderInputCompilation` at `:337`, which asserts that only
-  the Framed adapter may declare `page-image-framed-provider-input-v1`. Extend
-  that contract; do not build a parallel one.
-- `page_image_workflow_identity.mjs` is the reference for refusing a retired
-  identifier without rewriting records.
-- Expect the count to be roughly 89 identifiers against 19 definitions. Most map
-  as "internal projection of stage X". Resist the urge to rename them all.
-- **Wire the `on_violation` guidance into the actual refusal path.** C1 writes
-  the guidance; if C2 does not route it, the author still sees a rule citation
-  and the whole obligation is decorative. Two tests belong here: no
-  author-facing message contains a schema identifier or a source field name, and
-  every `META.yaml` default is applied rather than validated against.
-- The Harness already has the seam for this — `AGENT_CONTRACT.md` §"Human-facing
-  CLI success handoff" and §"Diagnostic Recovery Handoff" define how results
-  reach a person, and `next_action` already exists across 13 modules. Extend
-  those; do not add a second message channel.
+- The authoritative detailed decision is
+  [Schema-First Clean-Cutover Decisions](schema-first-clean-cutover-decisions.md).
+  It supersedes every earlier C2 preservation and compatibility instruction.
+- **The accepted specs are inside C2's cleanup, through the change.** Today
+  `openspec/specs/` carries at least 13 distinct version-suffixed identifiers —
+  including `page-image-workflow-v1` (18×), `page-authority-image2-v2` (9×),
+  `image2-page-workflow-v1` (6×), `page-image-final-slide-manifest-v1` (4×),
+  `pptmaker-run-bundle-v2` (3×). That is the scattered, inconsistently-named
+  state this route exists to end, written down as the *contract* — every future
+  change inherits it. C2 removes them with a delta spec per affected capability
+  (same procedure as its own main specs) and then scans the accepted specs to
+  zero. Never a hand edit.
+- A durable semantic value belongs in `schema/`; an implementation-only value
+  has one documented owning invariant; an unused value is deleted. No active
+  value is retained because old code happens to understand it.
+- Extend the existing pure `harness_architecture.mjs` evaluator and its
+  protected-core seam. The opt-in YAML/source sweep owns real-file parsing; it
+  is not a runtime gate or second controller.
+- C2 must not overload established `kind` fields. `artifact_role` is the new
+  serialization discriminator when it is actually needed.
+- The cleanup proof scans active Harness source, tests, and operating documents
+  for version-suffixed production identifiers. The C2 deltas are the
+  pre-archive specification proof; after sync/archive, accepted specs receive
+  the same zero-result scan — including `openspec/specs/` itself, which C2
+  edits through delta specs, never by hand.
 
-**Exit evidence.** `npm test` green; the drift test present and failing when a
-constant is deliberately renamed in a scratch commit; every frozen identifier
-still readable — prove it by validating an existing v3 attempt record.
+**Exit evidence.** The inventory is reviewed; active-scope cleanup scans are
+zero; focused owner and conformance tests pass; protected core remains
+YAML-free; and after spec sync/archive the accepted-spec scan is zero —
+including `openspec/specs/`. No Run Bundle was used as a fixture or
+compatibility target.
 
 ---
 
@@ -863,7 +909,7 @@ contracts, both adapters, paths, and regression suites:
 | Change | Estimate | Dominant risk |
 | --- | --- | --- |
 | C1 | `S` | none — documentation only |
-| C2 | `M` | wide diff; the 15 frozen record identifiers must survive |
+| C2 | `M` | wide diff; the frozen record identifiers must be removed — not preserved — and the accepted specs cleaned |
 | C3 | `M` | new territory, low coupling |
 | C4 | `XL` | selected-vs-unselected invalidation, and source migration |
 | C5 | `M` | must not become a second authority or a navigation copy |
@@ -932,13 +978,24 @@ These survive from the earlier plans and must not be re-litigated:
   provider-rendered.
 - `_generated/`, receipts, review records, and state are never hand-edited.
 - A provider avoidance instruction is not a collision guarantee.
-- Record Data is append-only. The 15 frozen record schemas are read forever and
-  never rewritten.
-- No *new* schema identifier gains a `-vN` suffix. If the charter changes,
-  everything changes together. The existing frozen literals keep theirs because
-  persisted identity keys depend on the exact string.
+- **The clean cutover is the law of the route.** Every active durable selector
+  and wire schema has exactly one declared unversioned value in
+  `serialization-contracts.yaml`. A version-suffixed production literal in
+  active source, tests, or accepted specs is a defect, not an inheritance.
+  Nothing active is retained merely because old code, tests, sample data, or a
+  prior plan can still read it. No compatibility reader, migration, conversion
+  path, frozen-name exception, or dual writer is ever added to make old and new
+  contracts coexist. Replace all active writers and readers together; there is
+  no legacy read path and no mixed-format interval. Historical `deck_*` data
+  stays byte-preserved and untouched.
+- The accepted specs are part of the source domain and are cleaned **through an
+  OpenSpec change** — never hand-edited. `openspec/changes/archive` is decision
+  history, not active vocabulary.
 - A derived value without provenance is a defect: the Agent could not then state
   a change's blast radius, and the human could not check the claim.
+- When a hidden contract surfaces later in the route, apply
+  [Schema-First Clean-Cutover Decisions](schema-first-clean-cutover-decisions.md)
+  before changing any caller. It is a standing rule, not a one-time C2 event.
 
 ## Update Protocol
 
@@ -988,7 +1045,7 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done with evidence
 - [x] Every field that can be defaulted has a `default:` rather than an error path
 - [x] Test: every constrained field in `stages/` has an `on_violation` block
 - [x] `page-render-model` and `page-generation-spec` each carry a "does not contain" clause naming the other
-- [x] `schema/frozen-identifiers.yaml` — both entry kinds, every entry has a `reason:`
+- [x] `schema/frozen-identifiers.yaml` — both entry kinds, every entry has a `reason:` *(superseded — C2 deletes it in favor of `serialization-contracts.yaml`)*
 - [x] Verify the diff has no production-runtime `.mjs` change; the approved static directory assertion and one contracts-only test are the only `.mjs` exceptions
 - [x] Archive the change
 - [x] **Checkpoint 1** — the owner has read `flow.yaml` and the 19 stage files and agrees the flow is right
@@ -1002,24 +1059,26 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done with evidence
 > `openspec/changes/archive/2026-08-11-publish-production-schema-definitions/`.
 > Completion commit: `7be177f`.
 
-### C2 — `conform-code-to-schema-definitions`
+### C2 — `clean-cutover-contract-conformance`
 
-- [ ] Re-derive the identifier inventory with the two commands in "How to reproduce the inventory" — do not trust this plan's counts
-- [ ] Classify all ~89 identifiers: rename / internal-projection-of-stage-X / frozen
-- [ ] Read `page_image_workflow_identity.mjs` and `harness_architecture.mjs:88` before designing enforcement
-- [ ] Extend the existing `harness_architecture.mjs` contract; do not build a parallel mechanism
-- [ ] Rename non-frozen constants to C1 vocabulary
-- [ ] Add `// anchor: schema/stages/<name>.yaml` comments
-- [ ] Add the drift test — fails on any constant with no definition and no frozen entry
-- [ ] Enforce `frozen-identifiers.yaml` at runtime
-- [ ] Route `on_violation` guidance to the author through the existing `next_action` / handoff seam — no second message channel
-- [ ] Test: no author-facing message contains a schema identifier or a source field name
-- [ ] Test: every `META.yaml` default is applied, not validated against
-- [ ] Prove no semantic change: the diff is renames, anchors, and the new tests only
+- [ ] Re-derive the complete active contract inventory; do not trust historical counts or inspect a Run Bundle
+- [ ] Classify every active value as a C1 stage, shared schema contract, documented implementation invariant, or deletion
+- [ ] Publish `serialization-contracts.yaml`; delete `frozen-identifiers.yaml` and every active preservation/compatibility reference
+- [ ] Replace readers and writers together with unversioned selectors and C1-stage/`artifact_role` records; keep existing `kind` semantics
+- [ ] Delete legacy scanners, special historical branches, migration/conversion paths, frozen fixtures, and dual-writer assumptions
+- [ ] Extend the pure `harness_architecture.mjs` evaluator; keep YAML parsing in the opt-in test, never in the protected core or runtime control path
+- [ ] Update active templates, guidance, tests, and all C2 capability deltas to the current contract
+- [ ] Prove the active source/test/document scan has no version-suffixed production literal or undeclared durable contract
+- [ ] **Clean `openspec/specs/` through the change** — a delta spec per affected capability: version-suffixed identifiers removed, unversioned ones declared; never a hand edit. Same procedure as the C2 main specs
+- [ ] After sync/archive, prove the same zero-result scan for accepted main specs and for `openspec/specs/`
 - [ ] Archive the change
-- [ ] **Checkpoint 2** — `npm test` green; drift test fails on a deliberately renamed constant; an existing v3 attempt record still validates
+- [ ] **Checkpoint 2** — all required tests pass; the static drift proof fails
+  deliberately; all active consumers use one contract; the accepted-spec scan is
+  zero; no production data was read or migrated
 
-> Evidence: _(archived change path; test output; the record that was re-validated)_
+> Evidence: _(archived change path; reviewed inventory; zero-result scans for
+> source, tests, documents, and accepted specs; protected-core and opt-in
+> conformance output; focused owner-test output)_
 
 ### C3 — `close-upstream-narrative-gap`
 
@@ -1103,6 +1162,24 @@ only — this is not Harness maintenance.
 - [ ] Update the `deck_dark_factory_current` memory entry
 
 > Evidence: _(successor version number; the review decision record; the delivery receipt)_
+
+### Cleanup must not be forgotten
+
+This route's whole reason for existing is that schemas were scattered with
+inconsistent names. The final state is therefore not "C1–C6 landed" — it is
+**everything ends up declared once under `schema/`, and the old versions
+replaced everywhere they used to live, including the accepted specs.** Use this
+checklist at closeout, and at any later point in the route when a hidden
+contract surfaces:
+
+- [ ] No version-suffixed production literal remains in active source or tests — C2's scan proves it
+- [ ] No version-suffixed production literal remains in `openspec/specs/` — C2's accepted-spec scan proves it, applied through an OpenSpec change
+- [ ] Every durable selector and wire schema has exactly one unversioned entry in `serialization-contracts.yaml`
+- [ ] No compatibility reader, migration path, frozen-name exception, or dual writer exists anywhere in active scope
+- [ ] Historical `deck_*` data untouched and byte-preserved
+- [ ] The decision record itself stays with the route: close
+      [schema-first-clean-cutover-decisions.md](schema-first-clean-cutover-decisions.md)
+      alongside this plan when the last change archives
 
 ### Route closeout
 

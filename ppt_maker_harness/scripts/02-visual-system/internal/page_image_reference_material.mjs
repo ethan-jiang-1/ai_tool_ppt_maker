@@ -8,7 +8,7 @@ import {
   resolvePageImageVisualLanguageSelection,
 } from "./page_image_visual_language.mjs";
 
-export const PAGE_IMAGE_REFERENCE_REGISTRY_SCHEMA = "pptmaker-image2-reference-registry-v1";
+export const PAGE_IMAGE_REFERENCE_REGISTRY_SCHEMA = "pptmaker-image2-reference-registry";
 export const PAGE_IMAGE_REFERENCE_ROOT = "2_backbone/visual-style/assets/reference";
 export const AMBER_AGENT_MODEL_SHEET_SHA256 = "f71a7ed8ec8f69e10ffbe2997e81f123d46515b5608de61afc155d6b3ed6c756";
 
@@ -236,7 +236,7 @@ function verifyAmberModelSheet(profileId, directory) {
   if (!existsSync(path)) throw new PageImageReferenceMaterialError(problem("missing_model_sheet", "amber-agent doctrine model sheet is missing", { path }));
   const actual = sha256(readFileSync(path));
   if (actual !== AMBER_AGENT_MODEL_SHEET_SHA256) {
-    throw new PageImageReferenceMaterialError(problem("amber_model_sheet_sha_mismatch", "amber-agent doctrine model sheet checksum differs from the verified v1 source", { path, actual, expected: AMBER_AGENT_MODEL_SHEET_SHA256 }));
+    throw new PageImageReferenceMaterialError(problem("amber_model_sheet_sha_mismatch", "amber-agent doctrine model sheet checksum differs from the verified reference source", { path, actual, expected: AMBER_AGENT_MODEL_SHEET_SHA256 }));
   }
 }
 

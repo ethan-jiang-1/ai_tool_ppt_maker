@@ -1,6 +1,6 @@
 # 03-framed-image
 
-This target method module owns the `framed` workflow: `standard-v1` Header
+This target method module owns the `framed` workflow: `standard` Header
 Rendering Policy fit/preflight, protected composition geometry, typed provider
 input, and transparent local header overlay from accepted provider-page evidence.
 It publishes the common Page Image final-slide manifest and never assembles PPTX,

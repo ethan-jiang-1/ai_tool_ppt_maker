@@ -25,7 +25,7 @@ import { pageImageWorkflowPaths } from "../../ppt_maker_harness/scripts/shared/r
 import {
   derivePageImageDeliveryMedia,
   publishPageImageDeliveryMedia,
-} from "../../ppt_maker_harness/scripts/05-delivery/internal/page_image_delivery_media_v1.mjs";
+} from "../../ppt_maker_harness/scripts/05-delivery/internal/page_image_delivery_media.mjs";
 import { pageImageProviderInputBinding } from "../helpers/page_image_provider_input_binding.mjs";
 
 const digest = (letter) => letter.repeat(64);
@@ -128,10 +128,10 @@ describe("target Page Image delivery", () => {
       await deliverTargetFinalSlideManifest({
         runDir, manifest, acceptedRawEvidence: evidence, finalBytesBySlide, notesBySlide, sourceEpoch: 1,
       });
-      const before = readFileSync(join(pageImageWorkflowPaths(runDir).final_root, "delivery-receipt-v1.json"));
+      const before = readFileSync(join(pageImageWorkflowPaths(runDir).final_root, "delivery-receipt.json"));
       const inspected = await inspectCurrentTargetPageImageDelivery({ runDir });
-      expect(inspected).toMatchObject({ available: true, receipt: { schema: "page-image-delivery-receipt-v1" } });
-      expect(readFileSync(join(pageImageWorkflowPaths(runDir).final_root, "delivery-receipt-v1.json"))).toEqual(before);
+      expect(inspected).toMatchObject({ available: true, receipt: { schema: "page-image-delivery-receipt" } });
+      expect(readFileSync(join(pageImageWorkflowPaths(runDir).final_root, "delivery-receipt.json"))).toEqual(before);
     } finally {
       rmSync(deckDir, { recursive: true, force: true });
     }
@@ -141,9 +141,9 @@ describe("target Page Image delivery", () => {
     const pure = deliveryInput("pure");
     const framed = deliveryInput("framed");
     expect(validatePageImageDeliveryInput({ ...pure, acceptedRawEvidence: pure.evidence, sourceEpoch: 1 }))
-      .toMatchObject({ protocol: "page-image-workflow-v1" });
+      .toMatchObject({ protocol: "page-image-workflow" });
     expect(validatePageImageDeliveryInput({ ...framed, acceptedRawEvidence: framed.evidence, sourceEpoch: 1 }))
-      .toMatchObject({ protocol: "page-image-workflow-v1" });
+      .toMatchObject({ protocol: "page-image-workflow" });
   });
 
   it("accepts one common manifest regardless of its provenance and retains ordered source notes", () => {
@@ -237,10 +237,10 @@ describe("target Page Image delivery", () => {
       });
       expect(result.receipt).toMatchObject({ ordered_slide_ids: ["DeckGo"], notes_injected: 1 });
       expect(existsSync(result.assembly.path)).toBe(true);
-      expect(result.assembly.receipt).toMatchObject({ schema: "page-image-pptx-assembly-v1" });
-      expect(result.notes.receipt).toMatchObject({ schema: "page-image-notes-receipt-v1" });
+      expect(result.assembly.receipt).toMatchObject({ schema: "page-image-pptx-assembly" });
+      expect(result.notes.receipt).toMatchObject({ schema: "page-image-notes-receipt" });
       expect(result.delivery_media.manifest).toMatchObject({
-        schema: "page-image-delivery-media-v1",
+        schema: "page-image-delivery-media",
         profile: { quality: 95, chroma_subsampling: "4:4:4", alpha_background: "#ffffff" },
       });
       expect(result.receipt).toMatchObject({
@@ -262,7 +262,7 @@ describe("target Page Image delivery", () => {
       });
       expect(refreshed.notes.receipt).toMatchObject({ notes_injected: 1 });
       expect(refreshed.receipt).toMatchObject({
-        schema: "page-image-delivery-receipt-v1",
+        schema: "page-image-delivery-receipt",
         final_manifest_sha256: manifest.sha256,
         notes_injected: 1,
       });
@@ -507,27 +507,27 @@ describe("target Page Image delivery", () => {
     }
   });
 
-  it("hard-stops a v2 final manifest before writing delivery artifacts", async () => {
-    const deckDir = mkdtempSync(join(tmpdir(), "deck_delivery_v2_hard_stop_"));
+  it("rejects an undeclared final manifest before writing delivery artifacts", async () => {
+    const deckDir = mkdtempSync(join(tmpdir(), "deck_delivery_undeclared_"));
     const runDir = join(deckDir, "3_versions", "v1");
     mkdirSync(runDir, { recursive: true });
     const paths = pageImageWorkflowPaths(runDir);
     try {
       await expect(deliverTargetFinalSlideManifest({
         runDir,
-        manifest: { schema: "page-authority-final-slide-manifest-v2" },
-        acceptedRawEvidence: { schema: "page-authority-accepted-raw-evidence-v2" },
+        manifest: { schema: "unrecognized-final-slide-manifest" },
+        acceptedRawEvidence: { schema: "unrecognized-accepted-raw-evidence" },
         finalBytesBySlide: { DeckGo: NATIVE_PROVIDER_PNG },
         notesBySlide: { DeckGo: "Source-owned note" },
-      })).rejects.toMatchObject({ code: "UNSUPPORTED_PROTOCOL" });
+      })).rejects.toMatchObject({ code: "final_manifest_invalid" });
       expect(existsSync(paths.final_root)).toBe(false);
     } finally {
       rmSync(deckDir, { recursive: true, force: true });
     }
   });
 
-  it("hard-stops a persisted v2 manifest before assembly reads final media", async () => {
-    const deckDir = mkdtempSync(join(tmpdir(), "deck_assembly_v2_hard_stop_"));
+  it("rejects a persisted undeclared manifest before assembly reads final media", async () => {
+    const deckDir = mkdtempSync(join(tmpdir(), "deck_assembly_undeclared_"));
     const runDir = join(deckDir, "3_versions", "v1");
     mkdirSync(runDir, { recursive: true });
     const { manifest, evidence, finalBytesBySlide } = deliveryInput("pure");
@@ -535,7 +535,7 @@ describe("target Page Image delivery", () => {
     try {
       mkdirSync(paths.final_root, { recursive: true });
       writeFileSync(paths.target_final_manifest, JSON.stringify({
-        schema: "page-authority-final-slide-manifest-v2",
+        schema: "unrecognized-final-slide-manifest",
       }));
       writeFileSync(join(paths.final_root, manifest.items[0].path), finalBytesBySlide.DeckGo);
 
@@ -543,7 +543,7 @@ describe("target Page Image delivery", () => {
         sourceEpoch: 1,
         manifest,
         acceptedRawEvidence: evidence,
-      })).rejects.toMatchObject({ code: "UNSUPPORTED_PROTOCOL" });
+      })).rejects.toThrow("Page Image final manifest is stale before assembly");
 
       expect(existsSync(join(paths.final_root, "deck.pptx"))).toBe(false);
       expect(readFileSync(join(paths.final_root, manifest.items[0].path))).toEqual(finalBytesBySlide.DeckGo);
@@ -552,8 +552,8 @@ describe("target Page Image delivery", () => {
     }
   });
 
-  it("hard-stops a persisted v2 manifest before a notes-only refresh reads or rewrites the PPTX", async () => {
-    const deckDir = mkdtempSync(join(tmpdir(), "deck_notes_v2_hard_stop_"));
+  it("rejects a persisted undeclared manifest before a notes-only refresh reads or rewrites the PPTX", async () => {
+    const deckDir = mkdtempSync(join(tmpdir(), "deck_notes_undeclared_"));
     const runDir = join(deckDir, "3_versions", "v1");
     mkdirSync(runDir, { recursive: true });
     const paths = pageImageWorkflowPaths(runDir);
@@ -561,17 +561,17 @@ describe("target Page Image delivery", () => {
     const sentinel = Buffer.from("retained-delivery-pptx");
     try {
       mkdirSync(paths.final_root, { recursive: true });
-      writeFileSync(join(paths.final_root, "delivery-receipt-v1.json"), JSON.stringify({
-        schema: "page-image-delivery-receipt-v1",
+      writeFileSync(join(paths.final_root, "delivery-receipt.json"), JSON.stringify({
+        schema: "page-image-delivery-receipt",
         source_epoch: 1,
       }));
       writeFileSync(paths.target_final_manifest, JSON.stringify({
-        schema: "page-authority-final-slide-manifest-v2",
+        schema: "unrecognized-final-slide-manifest",
       }));
       writeFileSync(pptxPath, sentinel);
 
       await expect(refreshTargetPageImageNotes({ runDir, sourcePath: join(runDir, "slide-specifications.md") }))
-        .rejects.toMatchObject({ code: "UNSUPPORTED_PROTOCOL" });
+        .rejects.toMatchObject({ code: "final_manifest_invalid" });
 
       expect(readFileSync(pptxPath)).toEqual(sentinel);
       expect(existsSync(join(paths.final_root, "pptx-assembly.json"))).toBe(false);

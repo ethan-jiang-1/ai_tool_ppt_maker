@@ -11,16 +11,16 @@ import { statePath } from "../../ppt_maker_harness/scripts/shared/state/state.mj
 function source() {
   return `---
 identity:
-  scheme: mnemonic-v1
+  scheme: mnemonic
 production:
-  pipeline: page-image-workflow-v1
+  pipeline: page-image-workflow
   workflow: framed
 ---
 
 ## Slide 01: \`DeckGo\`
 
 **TITLE**: Framed Style Master scope
-**FRAME PRESET**: standard-v1
+**FRAME PRESET**: standard
 **VISUAL BRIEF**:
 \`\`\`yaml
 recipe: editorial-systems

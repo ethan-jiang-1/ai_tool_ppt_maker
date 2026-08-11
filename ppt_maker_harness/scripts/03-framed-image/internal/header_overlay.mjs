@@ -3,7 +3,7 @@ import { canonicalJsonSha256 } from "../../contracts/canonical_json.mjs";
 // The Framed adapter owns only this closed local header overlay. Provider page
 // content, including body copy and callouts, never enters this module.
 
-export const FRAMED_HEADER_OVERLAY_PRESET = "standard-v1";
+export const FRAMED_HEADER_OVERLAY_PRESET = "standard";
 
 const CANVAS = Object.freeze({
   css_width: 1000,
@@ -41,7 +41,7 @@ function deepFreeze(value) {
   return Object.freeze(value);
 }
 
-const STANDARD_V1 = deepFreeze({
+const STANDARD = deepFreeze({
   id: FRAMED_HEADER_OVERLAY_PRESET,
   canvas: CANVAS,
   font_families: FONT_FAMILIES,
@@ -56,15 +56,15 @@ const STANDARD_V1 = deepFreeze({
   },
 });
 
-export const FRAMED_HEADER_OVERLAY_STANDARD_V1 = STANDARD_V1;
-export const FRAMED_HEADER_OVERLAY_STANDARD_V1_DIGEST = canonicalJsonSha256(STANDARD_V1);
+export const FRAMED_HEADER_OVERLAY_STANDARD = STANDARD;
+export const FRAMED_HEADER_OVERLAY_STANDARD_DIGEST = canonicalJsonSha256(STANDARD);
 
 /** Resolve the sole current overlay preset. Caller-supplied styling is rejected. */
 export function resolveFramedHeaderOverlayPreset(preset = FRAMED_HEADER_OVERLAY_PRESET) {
   if (preset !== FRAMED_HEADER_OVERLAY_PRESET) {
     throw new FramedHeaderOverlayError("unsupported_header_overlay_preset", `FRAME PRESET must equal ${FRAMED_HEADER_OVERLAY_PRESET}`);
   }
-  return STANDARD_V1;
+  return STANDARD;
 }
 
 /** Validate the only local-rendering input permitted to the Framed adapter. */

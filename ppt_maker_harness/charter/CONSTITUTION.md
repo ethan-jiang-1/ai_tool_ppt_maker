@@ -118,15 +118,15 @@ deck_{NAME}/
 │
 └── 3_versions/                       ← 下游 DOWNSTREAM · 微调+生产 · versions live here
     ├── v1/                               ← --run-dir (one design iteration = downstream delta)
-    │   ├── slide-specifications.md       ← Page Image source; stable IDs + one v2 version workflow
+    │   ├── slide-specifications.md       ← Page Image source; stable IDs + one current version workflow
     │   ├── overrides/                    ← only what THIS version changes vs backbone; empty = inherit
     │   │   ├── visual-style/           ←   (optional) this version's visual tweaks
     │   │   └── manuscript/               ←   (optional) this version's script tweaks
     │   ├── _generated/                    ← GENERATED · rm -rf & rerun · never hand-edit
     │   │   ├── page_image_workflow/receipts/source-receipt.json
-    │   │   ├── page_image_workflow/raw/plan-manifest-v1.json
+    │   │   ├── page_image_workflow/raw/plan-manifest.json
     │   │   ├── page_image_workflow/review/
-    │   │   ├── page_image_workflow/final/final-slide-manifest-v1.json
+    │   │   ├── page_image_workflow/final/final-slide-manifest.json
     │   │   └── ppt/{NAME}.pptx (+ notes receipt)
     │   └── _scratch/                      ← THIS version temp/bak · not SSOT · deletable
     └── v2/  (--new-version v1 → copies source delta only; clean _generated/ + _scratch/; backbone referenced)

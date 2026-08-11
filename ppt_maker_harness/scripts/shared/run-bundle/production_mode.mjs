@@ -5,19 +5,19 @@
  * state pairs cannot become a policy, adapter, or state record through this
  * interface.
  */
-import { PAGE_IMAGE_WORKFLOW_V1_PIPELINE, PAGE_IMAGE_WORKFLOWS } from "./production_marker.mjs";
+import { PAGE_IMAGE_WORKFLOW_PIPELINE, PAGE_IMAGE_WORKFLOWS } from "./production_marker.mjs";
 
-export const PAGE_IMAGE_WORKFLOW_PRODUCTION_MODE = "image2-page-workflow-v1";
+export const PAGE_IMAGE_WORKFLOW_PRODUCTION_MODE = "image2-page-workflow";
 export const PRODUCTION_MODES = Object.freeze([PAGE_IMAGE_WORKFLOW_PRODUCTION_MODE]);
 export const PRODUCTION_ENGINES = Object.freeze(["image2"]);
 export const PRODUCTION_REFINEMENT_POLICIES = Object.freeze(["not-applicable"]);
 export const PRODUCTION_STYLE_MASTER_POLICIES = Object.freeze(["current"]);
-export const PAGE_IMAGE_WORKFLOW_ADAPTER = "page-image-workflow-v1";
+export const PAGE_IMAGE_WORKFLOW_ADAPTER = "page-image-workflow";
 export const PRODUCTION_ADAPTERS = Object.freeze([PAGE_IMAGE_WORKFLOW_ADAPTER]);
 
 const TARGET_POLICY = Object.freeze({
   mode: PAGE_IMAGE_WORKFLOW_PRODUCTION_MODE,
-  pipeline: PAGE_IMAGE_WORKFLOW_V1_PIPELINE,
+  pipeline: PAGE_IMAGE_WORKFLOW_PIPELINE,
   engine: "image2",
   refinement_policy: "not-applicable",
   style_master_policy: "current",
@@ -59,7 +59,7 @@ export function pipelineFromSourceMarker(sourceMarker) {
     return { ok: false, code: "MARKER_MISSING", issues: [] };
   }
   const issues = Array.isArray(sourceMarker.issues) ? sourceMarker.issues : [];
-  if (sourceMarker.branch === PAGE_IMAGE_WORKFLOW_V1_PIPELINE) {
+  if (sourceMarker.branch === PAGE_IMAGE_WORKFLOW_PIPELINE) {
     return {
       ok: true,
       pipeline: sourceMarker.branch,

@@ -14,6 +14,7 @@ import {
   TARGET_ITERATION_INTERFACES,
   TARGET_WORKFLOW_INTERFACES,
   collectLiteralImports,
+  evaluateProductionSchemaConformance,
   validateArchitectureSnapshot,
   validateRepositoryArchitecture,
 } from "../../ppt_maker_harness/scripts/contracts/harness_architecture.mjs";
@@ -23,8 +24,6 @@ const REQUIRED_CONTRACTS = [
   "contracts/executable_inventory.mjs",
   "contracts/harness_architecture.mjs",
   "contracts/harness_document_command_audit.mjs",
-  "contracts/harness_static_coherence.mjs",
-  "contracts/retirement_ledger_audit.mjs",
 ];
 
 function ownerFor(path) {
@@ -74,7 +73,7 @@ function canonicalSnapshot() {
     files[testPath] = "// owned synthetic test\n";
     for (const field of ["interfaces", "executables", "unit_integration", "e2e"]) entry[field].sort();
   }
-  return { files, manifest: { schema: "pptmaker-source-test-ownership-v1", owners: [...grouped.values()].sort((a, b) => a.owner.localeCompare(b.owner)) } };
+  return { files, manifest: { schema: "pptmaker-source-test-ownership", owners: [...grouped.values()].sort((a, b) => a.owner.localeCompare(b.owner)) } };
 }
 
 function issueCodes(result) {
@@ -106,7 +105,7 @@ describe("Harness architecture contract", () => {
 
   it("rejects old paths, scripts/lib, generic roots, and root business dumping", () => {
     for (const [path, code] of [
-      ["lib/old.mjs", "legacy-lib"],
+      ["lib/old.mjs", "retired-lib"],
       ["utils/misc.mjs", "generic-root"],
       ["visual_config.mjs", "old-flat-path"],
     ]) {
@@ -189,11 +188,11 @@ describe("Harness architecture contract", () => {
     expect(issueCodes(validateArchitectureSnapshot(missing))).toContain("page-image-provider-input-compiler-missing");
 
     const sharedCompiler = canonicalSnapshot();
-    sharedCompiler.files["shared/image2/page_image_target_runtime.mjs"] = `const providerInput = { schema: "page-image-pure-provider-input-v1" };`;
+    sharedCompiler.files["shared/image2/page_image_target_runtime.mjs"] = `const providerInput = { schema: "page-image-pure-provider-input" };`;
     expect(issueCodes(validateArchitectureSnapshot(sharedCompiler))).toContain("page-image-provider-input-illegal-compiler");
 
     const siblingCompiler = canonicalSnapshot();
-    siblingCompiler.files["04-pure-image/index.mjs"] += `\nconst wrongPolicy = { schema: "page-image-framed-provider-input-v1" };`;
+    siblingCompiler.files["04-pure-image/index.mjs"] += `\nconst wrongPolicy = { schema: "page-image-framed-provider-input" };`;
     expect(issueCodes(validateArchitectureSnapshot(siblingCompiler))).toContain("page-image-provider-input-illegal-compiler");
 
     const rootAssembly = canonicalSnapshot();
@@ -232,22 +231,37 @@ describe("Harness architecture contract", () => {
     expect(issueCodes(validateArchitectureSnapshot(snapshot))).toContain("second-delivery-owner");
   });
 
-  it("fails closed when a retired protocol owner reappears", () => {
-    const snapshot = canonicalSnapshot();
-    const retiredOwner = ["compatibility", "current-v1-page-image", "index.mjs"].join("/");
-    snapshot.files[retiredOwner] = "export {};";
-    expect(issueCodes(validateArchitectureSnapshot(snapshot))).toContain("retired-protocol-owner");
+  it("evaluates serialization declarations without file or YAML access", () => {
+    const valid = {
+      stage_names: ["page-source-receipt"],
+      anchors: ["scripts/01-content/internal/page_image_source.mjs#PAGE_IMAGE_WORKFLOW_SOURCE_RECEIPT_SCHEMA"],
+      selectors: [{ value: "page-image-workflow" }],
+      wire_schemas: [{ value: "page-image-workflow-source", stage_ref: "page-source-receipt", role: "parsed-source" }],
+      shared_contracts: [{ name: "run-bundle-locator", value: "pptmaker-run-bundle", field: "schema", anchors: ["scripts/01-content/internal/page_image_source.mjs#PAGE_IMAGE_WORKFLOW_SOURCE_RECEIPT_SCHEMA"] }],
+      contract_fields: [{ field: "pipeline", value: "page-image-workflow" }],
+      literal_occurrences: [{ value: "page-image-workflow" }],
+    };
+    expect(evaluateProductionSchemaConformance(valid)).toEqual({ ok: true, issues: [] });
   });
 
-  it("rejects retired parser, adapter, state, and evidence imports or dispatch", () => {
-    const imported = canonicalSnapshot();
-    imported.files["04-pure-image/index.mjs"] = `import "../shared/image2/page_authority_artifacts.mjs";`;
-    imported.files["shared/image2/page_authority_artifacts.mjs"] = "export {};";
-    expect(issueCodes(validateArchitectureSnapshot(imported))).toContain("retired-protocol-import");
-
-    const dispatched = canonicalSnapshot();
-    dispatched.files["03-framed-image/index.mjs"] = "const parsePageAuthoritySource = () => null;";
-    expect(issueCodes(validateArchitectureSnapshot(dispatched))).toContain("retired-protocol-dispatch");
+  it("reports invalid stage roles, missing anchors, undeclared fields, and suffixes", () => {
+    const result = evaluateProductionSchemaConformance({
+      stage_names: [],
+      anchors: [],
+      wire_schemas: [{ value: "page-image-record", stage_ref: "missing-stage", role: "" }],
+      shared_contracts: [{ name: "locator", value: "pptmaker-run-bundle", field: "schema", anchors: ["missing#anchor"] }],
+      contract_fields: [{ field: "schema", value: "undeclared-contract" }],
+      literal_occurrences: [{ value: ["page-image-workflow", "v7"].join("-") }],
+    });
+    expect(result.ok).toBe(false);
+    expect(result.issues.map((issue) => issue.code)).toEqual(expect.arrayContaining([
+      "wire-stage-role-invalid",
+      "contract-anchor-missing",
+      "contract-field-undeclared",
+      "version-suffixed-production-literal",
+    ]));
+    expect(evaluateProductionSchemaConformance({}).issues.map((issue) => issue.code))
+      .toContain("contract-snapshot-incomplete");
   });
 
   it("fails closed on executable, recursive test, and source ownership drift", () => {
