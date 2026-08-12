@@ -630,7 +630,6 @@ function headerPolicy(document, block, workflow, header, fields, issues) {
     }
     return {
       local_header: { ...header },
-      context_not_to_render: { ...header },
     };
   }
   return { provider_visible: { ...header } };

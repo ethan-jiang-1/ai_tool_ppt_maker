@@ -46,15 +46,23 @@ function inputFor(workflow, { ids = ["StoryGo", "ChartUp"], requestSuffix = "" }
       binding_sha256: fixedDigest(hexAt(index + 2)),
       provenance: { profile_id: "selected-profile", defaults: "deck-defaults" },
       profile: { id: `${workflow}-${pageClass}`, permitted_fields: ["title"] },
+      ...(workflow === "framed" ? {
+        protected_composition: {
+          coordinate_space: "normalized-canvas",
+          reserved_header: { x: 0.04, y: 0.05, width: 0.92, height: 0.4 },
+          body_safe: { x: 0, y: 0.45, width: 1, height: 0.55 },
+        },
+      } : {}),
     };
     return {
       slide_id,
       position: index + 1,
       page_class: pageClass,
+      subject_restrictions: "none",
       header_policy: workflow === "framed"
-        ? { local_header: { kicker: null, title: `Title ${index + 1}`, subtitle: null }, context_not_to_render: { kicker: null, title: `Title ${index + 1}`, subtitle: null } }
+        ? { local_header: { kicker: null, title: `Title ${index + 1}`, subtitle: null } }
         : { provider_visible: { kicker: null, title: `Title ${index + 1}`, subtitle: null } },
-      provider_content: { items: [{ role: "body", literal: `Body ${index + 1}`, copy_policy: "exact" }] },
+      provider_content: { items: [{ role: "body", literal: workflow === "framed" ? `Title ${index + 1}` : `Body ${index + 1}`, copy_policy: "exact" }] },
       visual_language: {
         presentation,
         projection: { recipe: "flat editorial", composition: "clear hierarchy", motifs: ["grid"] },
@@ -69,8 +77,17 @@ function inputFor(workflow, { ids = ["StoryGo", "ChartUp"], requestSuffix = "" }
     source_sha256: sourceSha,
     slides: pages,
   };
-  const providerInputs = Object.fromEntries(pages.map((page, index) => {
-    const utf8 = `{"exact":"${workflow}-${page.slide_id}${requestSuffix}"}`;
+  const providerInputs = Object.fromEntries(pages.map((page) => {
+    const utf8 = workflow === "framed"
+      ? JSON.stringify({
+        schema: "page-image-framed-provider-input",
+        slide_id: page.slide_id,
+        subject_restrictions: page.subject_restrictions,
+        protected_composition: page.visual_language.presentation.protected_composition,
+        provider_rendered_content: page.provider_content,
+        exact: `${workflow}-${page.slide_id}${requestSuffix}`,
+      })
+      : `{"exact":"${workflow}-${page.slide_id}${requestSuffix}"}`;
     return [page.slide_id, { utf8, sha256: digest(utf8) }];
   }));
   const coreSlides = pages.map((page, index) => ({
@@ -86,6 +103,7 @@ function inputFor(workflow, { ids = ["StoryGo", "ChartUp"], requestSuffix = "" }
     generation_profile_sha256: profileSha,
     header_policy_sha256: fixedDigest(hexAt(index + 4)),
     page_presentation_sha256: page.visual_language.presentation.binding_sha256,
+    subject_restrictions: page.subject_restrictions,
     provider_content: page.provider_content,
     header_policy: page.header_policy,
     visual_selection: page.visual_language,
@@ -99,7 +117,7 @@ function inputFor(workflow, { ids = ["StoryGo", "ChartUp"], requestSuffix = "" }
     header_policy_sha256: coreSlides[index].header_policy_sha256,
     page_presentation_sha256: coreSlides[index].page_presentation_sha256,
     local_header_profile_sha256: workflow === "framed" ? fixedDigest(hexAt(index + 5)) : null,
-    protected_geometry_sha256: workflow === "framed" ? fixedDigest(hexAt(index)) : null,
+    protected_composition_sha256: workflow === "framed" ? canonicalJsonSha256(page.visual_language.presentation.protected_composition) : null,
   }));
   const raw = createRawWorkPlan({
     source_receipt_sha256: sourceSha,
@@ -187,7 +205,22 @@ describe("page-derived data publisher", () => {
       expect(existsSync(join(pagePaths.root, "framed-header.json"))).toBe(false);
       const index = readJson(pagePaths.artifact_index);
       expect(index.payload.artifact_references.framed_header_html).toMatchObject({ format: "html", path: "pages/FrameGo/framed-header.html" });
-      expect(readJson(pagePaths.layout).payload.selected_presentation.profile_id).toBe("framed-opening");
+      const source = readJson(pagePaths.source_receipt);
+      const layout = readJson(pagePaths.layout);
+      const request = readJson(pagePaths.image2_request);
+      const parsedRequest = JSON.parse(request.payload.canonical_utf8);
+      expect(layout.payload.selected_presentation.profile_id).toBe("framed-opening");
+      expect(source.payload.parsed_page.subject_restrictions).toBe("none");
+      expect(layout.payload.selected_presentation.protected_composition).toEqual(
+        input.receipt.slides[0].visual_language.presentation.protected_composition,
+      );
+      expect(parsedRequest).toMatchObject({
+        subject_restrictions: "none",
+        protected_composition: input.receipt.slides[0].visual_language.presentation.protected_composition,
+        provider_rendered_content: { items: [{ literal: "Title 1" }] },
+      });
+      expect(parsedRequest).not.toHaveProperty("local_header");
+      expect(parsedRequest).not.toHaveProperty("context_not_to_render");
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

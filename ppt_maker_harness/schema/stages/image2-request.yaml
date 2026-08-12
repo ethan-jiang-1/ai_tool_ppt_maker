@@ -51,3 +51,11 @@ fields:
       means: "The request may not belong to the page or workflow being reviewed."
       ask: "Which page and selected production treatment should this request represent?"
       never: "Never submit a request assembled from mixed page treatments."
+  framed_composition_boundary:
+    type: workflow-specific mapping
+    description: "The Framed request binding for selected normalized protected composition and parser-owned subject restrictions."
+    rule: "A Framed request must bind the selected reserved_header and full-width body_safe composition plus subject restrictions; it must omit every local_header, header-derived context, protected_geometry, and provider-native region or mask field."
+    on_violation:
+      means: "The request cannot prove the current local-header/provider boundary or exact Framed raw lineage."
+      ask: "Repair the selected source or Framed profile, then rebuild the current provider-free plan."
+      never: "Never copy local header literals into the request, reinterpret matching provider content as header context, or add an unverified provider primitive."

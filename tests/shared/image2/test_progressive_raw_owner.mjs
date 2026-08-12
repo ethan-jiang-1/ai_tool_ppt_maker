@@ -523,14 +523,14 @@ describe("progressive Page Image raw owner", () => {
         expected_plan: fixturePlan(2, { workflow: "framed", profile_token: "stale" }),
       })).rejects.toMatchObject({ code: "progressive_raw_plan_stale" });
 
-      const geometryDrift = structuredClone(plan);
-      geometryDrift.items[0].provider_input_binding.protected_geometry_sha256 = digest("9");
+      const compositionDrift = structuredClone(plan);
+      compositionDrift.items[0].provider_input_binding.protected_composition_sha256 = digest("9");
       await expect(authorizeProgressiveRawBatch({
         runDir,
         workflow: "framed",
         plan_hash: plan.sha256,
         batch_hash: pilot.batch.batch_hash,
-        expected_plan: geometryDrift,
+        expected_plan: compositionDrift,
       })).rejects.toMatchObject({ code: "progressive_raw_plan_stale" });
 
       const submit = vi.fn(async () => Buffer.from("must not submit"));

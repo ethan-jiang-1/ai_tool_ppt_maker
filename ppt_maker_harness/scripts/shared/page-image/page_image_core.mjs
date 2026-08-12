@@ -19,6 +19,7 @@ const SHA256_RE = /^[0-9a-f]{64}$/;
 const WORKFLOWS = new Set(["framed", "pure"]);
 const HEADER_KEYS = Object.freeze(["kicker", "title", "subtitle"]);
 const PAGE_CLASSES = new Set(["standard", "opening", "transition", "closing"]);
+const SUBJECT_RESTRICTIONS = new Set(["none", "no-generic-metal-robot", "no-identity-subject"]);
 
 export class PageImageCoreError extends Error {
   constructor(code, message, details = {}) {
@@ -129,17 +130,12 @@ export function normalizePageImageHeaderPolicy(value, workflow) {
     throw new PageImageCoreError("page_image_core_workflow_invalid", "Header Rendering Policy requires workflow framed or pure", { actual: workflow });
   }
   if (workflow === "framed") {
-    if (!hasExactKeys(value, ["local_header", "context_not_to_render"])) {
-      throw new PageImageCoreError("page_image_core_framed_header_policy_invalid", "Framed Header Rendering Policy requires local_header and context_not_to_render");
+    if (!hasExactKeys(value, ["local_header"])) {
+      throw new PageImageCoreError("page_image_core_framed_header_policy_invalid", "Framed Header Rendering Policy requires local_header only");
     }
     const localHeader = normalizeHeaderValues(value.local_header, "local_header", { requireTitle: true });
-    const contextNotToRender = normalizeHeaderValues(value.context_not_to_render, "context_not_to_render", { requireTitle: true });
-    if (canonicalJson(localHeader) !== canonicalJson(contextNotToRender)) {
-      throw new PageImageCoreError("page_image_core_framed_header_context_mismatch", "Framed local header and context_not_to_render must contain the same exact literals");
-    }
     return deepFreeze({
       local_header: localHeader,
-      context_not_to_render: contextNotToRender,
     });
   }
   if (!hasExactKeys(value, ["provider_visible"])) {
@@ -186,7 +182,7 @@ function requireCurrentReceipt(sourceReceipt, headerRenderingPolicy) {
   const stableIds = new Set();
   const normalizedSlides = sourceReceipt.slides.map((slide, index) => {
     if (!isPlainObject(slide) || typeof slide.slide_id !== "string" || !slide.slide_id || slide.position !== index + 1 ||
-      !PAGE_CLASSES.has(slide.page_class) ||
+      !PAGE_CLASSES.has(slide.page_class) || !SUBJECT_RESTRICTIONS.has(slide.subject_restrictions) ||
       Object.hasOwn(slide, "workflow") || Object.hasOwn(slide, "authority")) {
       throw new PageImageCoreError("page_image_core_source_slide_invalid", "source receipt must contain ordered stable slide IDs with no per-slide workflow", { index });
     }
@@ -198,6 +194,7 @@ function requireCurrentReceipt(sourceReceipt, headerRenderingPolicy) {
       slide_id: slide.slide_id,
       position: slide.position,
       page_class: slide.page_class,
+      subject_restrictions: slide.subject_restrictions,
       provider_content: normalizePageImageProviderContent(slide.provider_content),
       header_policy: normalizePageImageHeaderPolicy(slide.header_policy, sourceReceipt.workflow),
       visual_language: slide.visual_language,
@@ -242,6 +239,8 @@ export function createPageImageCoreFacts({
       slide_id: slide.slide_id,
       position: slide.position,
       page_class: slide.page_class,
+      subject_restrictions: slide.subject_restrictions,
+      subject_restrictions_sha256: canonicalJsonSha256(slide.subject_restrictions),
       provider_content: slide.provider_content,
       provider_content_sha256: canonicalJsonSha256(slide.provider_content),
       header_policy: slide.header_policy,
@@ -283,13 +282,13 @@ export function createPageImageCoreFacts({
 /**
  * Bind adapter-compiled bytes to the shared semantic facts without compiling
  * provider input in the Core. The selected adapter supplies its policy-specific
- * local profile and geometry digests.
+ * local profile and protected-composition digests.
  */
 export function createPageImageProviderInputBinding({
   coreSlide,
   compiledProviderInputSha256,
   localHeaderProfileSha256 = null,
-  protectedGeometrySha256 = null,
+  protectedCompositionSha256 = null,
 } = {}) {
   if (!isPlainObject(coreSlide) || coreSlide.schema !== PAGE_IMAGE_CORE_SLIDE_FACTS_SCHEMA ||
     !WORKFLOWS.has(coreSlide.workflow) || typeof coreSlide.slide_id !== "string" || !coreSlide.slide_id) {
@@ -307,12 +306,12 @@ export function createPageImageProviderInputBinding({
   assertSha256(coreSlide.page_presentation_sha256, "coreSlide.page_presentation_sha256");
   assertSha256(compiledProviderInputSha256, "compiledProviderInputSha256");
   assertSha256(localHeaderProfileSha256, "localHeaderProfileSha256", { nullable: true });
-  assertSha256(protectedGeometrySha256, "protectedGeometrySha256", { nullable: true });
-  if (coreSlide.workflow === "framed" && (!localHeaderProfileSha256 || !protectedGeometrySha256)) {
-    throw new PageImageCoreError("page_image_core_framed_binding_invalid", "Framed provider input binding requires local profile and protected geometry digests");
+  assertSha256(protectedCompositionSha256, "protectedCompositionSha256", { nullable: true });
+  if (coreSlide.workflow === "framed" && (!localHeaderProfileSha256 || !protectedCompositionSha256)) {
+    throw new PageImageCoreError("page_image_core_framed_binding_invalid", "Framed provider input binding requires local profile and protected composition digests");
   }
-  if (coreSlide.workflow === "pure" && (localHeaderProfileSha256 !== null || protectedGeometrySha256 !== null)) {
-    throw new PageImageCoreError("page_image_core_pure_binding_invalid", "Pure provider input binding cannot contain Framed profile or geometry digests");
+  if (coreSlide.workflow === "pure" && (localHeaderProfileSha256 !== null || protectedCompositionSha256 !== null)) {
+    throw new PageImageCoreError("page_image_core_pure_binding_invalid", "Pure provider input binding cannot contain Framed profile or protected composition digests");
   }
   return deepFreeze({
     compiled_provider_input_sha256: compiledProviderInputSha256,
@@ -323,6 +322,6 @@ export function createPageImageProviderInputBinding({
     header_policy_sha256: coreSlide.header_policy_sha256,
     page_presentation_sha256: coreSlide.page_presentation_sha256,
     local_header_profile_sha256: localHeaderProfileSha256,
-    protected_geometry_sha256: protectedGeometrySha256,
+    protected_composition_sha256: protectedCompositionSha256,
   });
 }

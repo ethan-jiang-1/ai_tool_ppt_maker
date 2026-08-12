@@ -189,6 +189,7 @@ describe("Pure Page Image Core adapter", () => {
           },
         }],
       });
+      expect(coreSlide.subject_restrictions).toBe("none");
       expect(contract).toMatchObject({
         workflow: "pure",
         page_image_core: {
@@ -214,14 +215,14 @@ describe("Pure Page Image Core adapter", () => {
         header_policy_sha256: coreSlide.header_policy_sha256,
         page_presentation_sha256: coreSlide.page_presentation_sha256,
         local_header_profile_sha256: null,
-        protected_geometry_sha256: null,
+        protected_composition_sha256: null,
       });
       const serialized = JSON.stringify(contract);
       expect(contract.page_presentation.binding_sha256).toBe(coreSlide.page_presentation_sha256);
       expect(JSON.parse(request.compiled_provider_input.utf8).page_presentation).toEqual(contract.page_presentation);
+      expect(JSON.parse(request.compiled_provider_input.utf8)).not.toHaveProperty("subject_restrictions");
       expect(serialized).not.toContain("local_header");
-      expect(serialized).not.toContain("context_not_to_render");
-      expect(serialized).not.toContain("protected_geometry");
+      expect(serialized).not.toContain("protected_composition");
       expect(serialized).not.toContain("text_frame");
     } finally {
       rmSync(root, { recursive: true, force: true });

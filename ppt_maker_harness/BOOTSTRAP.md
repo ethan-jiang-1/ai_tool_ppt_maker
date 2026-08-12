@@ -29,7 +29,7 @@ node ppt_maker_harness/scripts/ppt_flow.mjs doctor --run-dir <run-dir> --operati
 
 新 source 的唯一 pipeline 是 `page-image-workflow`。`init` 创建当前 authoring draft；人必须先在 `production.workflow` 明确记录一次 `framed` 或 `pure`，source 才能进入 provider-work route。state 在 receipt 绑定后记录 `image2-page-workflow` 和同一 workflow；`project-metadata.yaml` 只是非权威镜像。不得从 deck type、任一 slide 或已有 artifact 推断 workflow。
 
-- `framed`: Provider 生成连续全画布以及 source-owned body、labels、metrics、callouts 和 supporting copy；固定 `standard` Header Rendering Policy 只在本地透明叠加 kicker、title、subtitle，并将它们作为 `context_not_to_render` 绑定进 provider input。
+- `framed`: Provider 生成连续全画布以及 source-owned body、labels、metrics、callouts 和 supporting copy；固定 `standard` Header Rendering Policy 只在本地透明叠加 kicker、title、subtitle。选中的 profile 以一个 CSS-pixel `header_region` 推导 `normalized-canvas` 的 `protected_composition`：`reserved_header` 与其下方全宽的 `body_safe`。这些是 provider 的有限避让提示和 Complete Page Review 指引；本地 header literal 与其派生上下文绝不写入 provider input。`SUBJECT RESTRICTIONS` 是 source-owned 的闭集事实，Framed 将其绑定进 raw/request lineage。
 - `pure`: `04-pure-image` 让 Provider 生成包括 header 在内的所有最终像素。
 
 一次选择覆盖整个 `vN`，绝不在 slide 上选择 authority。只写 closed `VISUAL BRIEF`、registered identity 与 Page Image source fields。不得写 retired source-only fields、slide-owned markup/CSS 或 provider 指令。init 只创建 source/control/state scaffolding；不会创建 style master、raw/final evidence、PPTX、notes 或 provider attempt。
@@ -48,7 +48,7 @@ raw projection 或 delivery evidence 已完整但还没有 `proceed|repair|redir
 
 ## Step 4 - Refresh and structural changes
 
-显式 change 先进入当前 classifier。仅当 Framed 的 compiled provider input、protected geometry、raw contract 与 local header profile 都精确不变时，才可 provider-free 地刷新 local header overlay；任何 header literal、body、visual、geometry 或 profile drift 都回到 selected workflow 的 raw rebuild handoff；notes-only work 只走 `05-delivery`。不要从旧 command sequence 猜下一步。
+显式 change 先进入当前 classifier。仅当 Framed 的 compiled provider input、protected composition、raw contract 与 local header profile 都精确不变时，才可 provider-free 地刷新 local header overlay；任何 header literal、body、visual、composition 或 profile drift 都回到 selected workflow 的 raw rebuild handoff；notes-only work 只走 `05-delivery`。不要从旧 command sequence 猜下一步。
 
 增删重排和 workflow switch 都是 Structural Versioning Path：先 preview，再确认 exact plan 后发布 clean target。target 只可得到 plan-bound、target-owned `unreviewed` raw materialization 或 `needs_raw_generation` debt；不复制 raw acceptance、provider authorization、final evidence 或 delivery decision，apply 本身零远端。
 

@@ -128,7 +128,7 @@ describe("Page Image schema definitions", () => {
     expect(failures).toEqual([]);
   });
 
-  it("declares only the two normalized standard Page Class defaults", () => {
+  it("declares normalized Page Class and subject-restriction defaults", () => {
     const defaults = [];
 
     for (const name of EXPECTED_STAGE_NAMES) {
@@ -140,6 +140,7 @@ describe("Page Image schema definitions", () => {
     expect(defaults).toEqual([
       { stage: "layout-config", path: "fields.page_class", value: "standard" },
       { stage: "page-source", path: "fields.page_class", value: "standard" },
+      { stage: "page-source-receipt", path: "fields.subject_restrictions", value: "none" },
     ]);
   });
 
@@ -226,5 +227,21 @@ describe("Page Image schema definitions", () => {
         },
       });
     }
+  });
+
+  it("defines C6 source restrictions and Framed-only composition boundaries", () => {
+    const layout = parseYamlFile(join(STAGES_ROOT, "layout-config.yaml"));
+    const receipt = parseYamlFile(join(STAGES_ROOT, "page-source-receipt.yaml"));
+    const pageLayout = parseYamlFile(join(STAGES_ROOT, "page-layout.yaml"));
+    const request = parseYamlFile(join(STAGES_ROOT, "image2-request.yaml"));
+    const inventory = parseYamlFile(SERIALIZATION_CONTRACTS);
+
+    expect(receipt.fields.subject_restrictions).toMatchObject({ default: "none" });
+    expect(layout.fields).toHaveProperty("framed_header_region");
+    expect(layout.fields).toHaveProperty("framed_protected_composition");
+    expect(pageLayout.fields.geometry.rule).toContain("protected_composition");
+    expect(request.fields.framed_composition_boundary.rule).toContain("local_header");
+    expect(request.fields.framed_composition_boundary.rule).toContain("protected_geometry");
+    expect(inventory.implementation_invariants.map((entry) => entry.name).join("\n")).toContain("protected_composition");
   });
 });

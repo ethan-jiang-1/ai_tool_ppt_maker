@@ -38,12 +38,12 @@ fields:
       never: "Never merge classes, infer a class, or attach a Pure projection to Framed work."
   geometry:
     type: mapping
-    description: "Workflow-specific profile facts: Pure whole-page facts or Framed local-header/protected-region facts."
-    rule: "Must expose only the selected workflow's facts and identify their source origins."
+    description: "Workflow-specific profile facts: Pure whole-page facts or Framed local header_region and resolver-derived protected_composition facts."
+    rule: "Must expose only the selected workflow's facts and identify their source origins; Framed protected_composition must retain normalized-canvas reserved_header and the exact full-width body_safe formula."
     on_violation:
       means: "The selected profile cannot supply deterministic adapter facts."
       ask: "Repair the selected profile source and rerun the same checkpoint."
-      never: "Never use provider media, an unselected sibling, or a caller geometry override as the source."
+      never: "Never use protected_geometry, provider media, an unselected sibling, or a caller geometry override as the source."
   provenance_map:
     type: mapping
     description: "A reference from each resolved value to its source, deck default, or selected profile."

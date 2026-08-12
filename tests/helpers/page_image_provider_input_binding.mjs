@@ -19,6 +19,6 @@ export function pageImageProviderInputBinding({ workflow = "pure", compiled = "1
     header_policy_sha256: digest("6"),
     page_presentation_sha256: digest("9"),
     local_header_profile_sha256: workflow === "framed" ? digest("7") : null,
-    protected_geometry_sha256: workflow === "framed" ? digest("8") : null,
+    protected_composition_sha256: workflow === "framed" ? digest("8") : null,
   });
 }

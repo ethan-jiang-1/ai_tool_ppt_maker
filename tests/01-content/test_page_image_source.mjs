@@ -125,15 +125,10 @@ describe("Page Image Workflow source", () => {
     expect(Object.isFrozen(receipt.slides[0].provider_content.items[0])).toBe(true);
   });
 
-  it("keeps Framed header literals local and provider context-not-to-render", () => {
+  it("keeps Framed header literals local without provider-visible header context", () => {
     const receipt = parsePageImageSource(source(), { registry });
     expect(receipt.slides[0].header_policy).toEqual({
       local_header: {
-        kicker: "Operations",
-        title: "A current source",
-        subtitle: "A concise premise",
-      },
-      context_not_to_render: {
         kicker: "Operations",
         title: "A current source",
         subtitle: "A concise premise",
@@ -157,6 +152,19 @@ describe("Page Image Workflow source", () => {
     }));
     expect(issueCodes(error)).toContain("unsupported_page_image_field");
     expect(error.issues.find((issue) => issue.code === "unsupported_page_image_field").subject.field).toBe("FRAME PRESET");
+  });
+
+  it("normalizes the closed subject-restriction grammar on both workflows", () => {
+    const explicit = parsePageImageSource(source({
+      slides: [slide({ extra: "**SUBJECT RESTRICTIONS**: no-generic-metal-robot\n" })],
+    }), { registry });
+    expect(explicit.slides[0].subject_restrictions).toBe("no-generic-metal-robot");
+    expect(parsePageImageSource(source({ workflow: "pure" }), { registry }).slides[0].subject_restrictions).toBe("none");
+
+    const invalid = source({ slides: [slide({ extra: "**SUBJECT RESTRICTIONS**: no-robot\n" })] });
+    const repeated = source({ slides: [slide({ extra: "**SUBJECT RESTRICTIONS**: none\n**SUBJECT RESTRICTIONS**: no-identity-subject\n" })] });
+    expect(issueCodes(parseError(invalid))).toContain("invalid_page_image_enum");
+    expect(issueCodes(parseError(repeated))).toContain("duplicate_page_image_field");
   });
 
   it("requires an explicit Framed title but no obsolete preset", () => {

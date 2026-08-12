@@ -9,10 +9,11 @@ import { HTML_CAPTURE_PROFILE } from './capture_runtime.mjs';
 export const FRAMED_HEADER_OVERLAY_RENDER_PROFILE_SCHEMA = 'pptmaker-framed-header-overlay-render-profile';
 export const FRAMED_HEADER_OVERLAY_LAYOUT_COMPILER = Object.freeze({
   schema: 'pptmaker-framed-header-overlay-layout-compiler',
-  version: '3',
+  version: '4',
 });
 export const FRAMED_HEADER_OVERLAY_LAYOUT_COMPILER_COHERENCE_HISTORY = Object.freeze([
   Object.freeze({ version: '3', fixture_sha256: '1c061a72106de98d17b79237edcf95cdfffc0f79c9f688b6b81b78b4d2d084af' }),
+  Object.freeze({ version: '4', fixture_sha256: '3da94aeb360ea86d565b6f02dd666a3e114df952e0546e9635ee3f087440b053' }),
 ]);
 export { FRAMED_FONT_SELECTION_ALGORITHM } from '../../00-setup/internal/html_fonts.mjs';
 
@@ -87,26 +88,18 @@ function normalizedFields(value, label) {
   return Object.freeze(Object.fromEntries(HEADER_FIELDS.map((field) => [field, normalizedField(source[field], `${label}.${field}`)])));
 }
 
-function normalizedProtectedGeometry(value, label) {
-  if (!Array.isArray(value) || value.length === 0) {
-    throw new FramedHeaderOverlayProfileError('header_overlay_profile_input_invalid', `${label} must be a nonempty array`);
+function normalizedHeaderRegion(value, label) {
+  const entry = exactKeys(value, RECTANGLE_KEYS, label);
+  const normalized = {
+    x: finiteNumber(entry.x, `${label}.x`),
+    y: finiteNumber(entry.y, `${label}.y`),
+    width: finiteNumber(entry.width, `${label}.width`),
+    height: finiteNumber(entry.height, `${label}.height`),
+  };
+  if (normalized.width <= 0 || normalized.height <= 0 || normalized.x < 0 || normalized.y < 0) {
+    throw new FramedHeaderOverlayProfileError('header_overlay_profile_input_invalid', `${label} must be a positive in-canvas rectangle`);
   }
-  const ids = new Set();
-  return Object.freeze(value.map((item, index) => {
-    const entry = exactKeys(item, ['id', ...RECTANGLE_KEYS], `${label}[${index}]`);
-    const normalized = {
-      id: nonEmptyString(entry.id, `${label}[${index}].id`),
-      x: finiteNumber(entry.x, `${label}[${index}].x`),
-      y: finiteNumber(entry.y, `${label}[${index}].y`),
-      width: finiteNumber(entry.width, `${label}[${index}].width`),
-      height: finiteNumber(entry.height, `${label}[${index}].height`),
-    };
-    if (ids.has(normalized.id) || normalized.width <= 0 || normalized.height <= 0 || normalized.x < 0 || normalized.y < 0) {
-      throw new FramedHeaderOverlayProfileError('header_overlay_profile_input_invalid', `${label}[${index}] must be a unique positive protected rectangle`);
-    }
-    ids.add(normalized.id);
-    return normalized;
-  }));
+  return Object.freeze(normalized);
 }
 
 function normalizedTheme(value) {
@@ -136,7 +129,7 @@ function normalizedTheme(value) {
 
 /** Select the pixel-producing facts of the closed transparent header preset. */
 export function normalizedFramedHeaderOverlayPresetFacts(preset) {
-  const source = exactKeys(preset, ['id', 'canvas', 'font_families', 'theme', 'protected_geometry', 'fields'], 'preset');
+  const source = exactKeys(preset, ['id', 'canvas', 'font_families', 'theme', 'header_region', 'fields'], 'preset');
   const canvas = exactKeys(source.canvas, ['css_width', 'css_height', 'capture_width', 'capture_height'], 'preset.canvas');
   const normalizedCanvas = {
     css_width: finiteNumber(canvas.css_width, 'preset.canvas.css_width'),
@@ -147,18 +140,16 @@ export function normalizedFramedHeaderOverlayPresetFacts(preset) {
   if (Object.values(normalizedCanvas).some((value) => value <= 0)) {
     throw new FramedHeaderOverlayProfileError('header_overlay_profile_input_invalid', 'preset.canvas must have positive dimensions');
   }
-  const protectedGeometry = normalizedProtectedGeometry(source.protected_geometry, 'preset.protected_geometry');
-  for (const rectangle of protectedGeometry) {
-    if (rectangle.x + rectangle.width > normalizedCanvas.css_width || rectangle.y + rectangle.height > normalizedCanvas.css_height) {
-      throw new FramedHeaderOverlayProfileError('header_overlay_profile_input_invalid', 'protected geometry must stay within the canvas');
-    }
+  const headerRegion = normalizedHeaderRegion(source.header_region, 'preset.header_region');
+  if (headerRegion.x + headerRegion.width > normalizedCanvas.css_width || headerRegion.y + headerRegion.height >= normalizedCanvas.css_height) {
+    throw new FramedHeaderOverlayProfileError('header_overlay_profile_input_invalid', 'header region must stay in canvas and leave positive height below');
   }
   return Object.freeze({
     id: source.id,
     canvas: Object.freeze(normalizedCanvas),
     font_families: Object.freeze(stringArray(source.font_families, 'preset.font_families')),
     theme: normalizedTheme(source.theme),
-    protected_geometry: protectedGeometry,
+    header_region: headerRegion,
     fields: normalizedFields(source.fields, 'preset.fields'),
   });
 }
@@ -172,7 +163,7 @@ export function compileFramedHeaderOverlayGeometry({ preset } = {}) {
     canvas: normalizedPreset.canvas,
     font_families: normalizedPreset.font_families,
     theme: normalizedPreset.theme,
-    protected_geometry: normalizedPreset.protected_geometry,
+    header_region: normalizedPreset.header_region,
     fields: normalizedPreset.fields,
   });
 }
@@ -257,7 +248,7 @@ export function createFramedHeaderOverlayRenderProfile({
       id: normalizedPreset.id,
       digest: canonicalJsonSha256(normalizedPreset),
     },
-    protected_geometry: normalizedPreset.protected_geometry,
+    header_region: normalizedPreset.header_region,
     layout_compiler: normalizedCompiler(layoutCompiler),
     font_render_inventory: {
       schema: normalizedInventory.schema,

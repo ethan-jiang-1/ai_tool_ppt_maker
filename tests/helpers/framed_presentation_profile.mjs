@@ -15,7 +15,7 @@ export const STANDARD_FRAMED_PRESENTATION_PROFILE = deepFreeze({
     kicker: "#ffd27f",
     contrast: { kind: "text-shadow", color: "#000000", opacity: 0.42, offset_x: 0, offset_y: 1, blur: 3 },
   },
-  protected_geometry: [{ id: "header", x: 40, y: 28, width: 920, height: 238 }],
+  header_region: { x: 40, y: 28, width: 920, height: 238 },
   fields: {
     kicker: { x: 64, y: 54, width: 872, height: 22, font_size: 16, line_height: 20, weight: 600, color: "#ffd27f", max_lines: 1 },
     title: { x: 64, y: 82, width: 872, height: 104, font_size: 46, line_height: 52, weight: 700, color: "#fffdf8", max_lines: 2 },
@@ -24,6 +24,6 @@ export const STANDARD_FRAMED_PRESENTATION_PROFILE = deepFreeze({
 });
 
 export function framedRenderProfileFacts(profile = STANDARD_FRAMED_PRESENTATION_PROFILE) {
-  const { id, canvas, font_families, theme, protected_geometry, fields } = profile;
-  return deepFreeze({ id, canvas, font_families, theme, protected_geometry, fields });
+  const { id, canvas, font_families, theme, header_region, fields } = profile;
+  return deepFreeze({ id, canvas, font_families, theme, header_region, fields });
 }

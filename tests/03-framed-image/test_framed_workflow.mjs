@@ -13,6 +13,7 @@ import { canonicalJsonSha256 } from "../../ppt_maker_harness/scripts/shared/iden
 import {
   classifyFramedRefresh,
   createFramedRawWorkPlan,
+  createFramedTargetRawReviewContribution,
   publishFramedFinalSlideManifest,
   readFramedTargetStoredPlanContext,
   authorizeFramedTargetRawPlan,
@@ -32,13 +33,18 @@ import {
   prepareFramedTargetRawReview,
   refreshFramedTargetNotes,
   refreshFramedTargetText,
+  readFramedProgressiveTargetPlanCandidate,
   resolveFramedStyleMasterScope,
   validateFramedRawContract,
 } from "../../ppt_maker_harness/scripts/03-framed-image/index.mjs";
 import { renderFramedHeaderOverlayHtml, verifyFramedHeaderOverlays } from "../../ppt_maker_harness/scripts/03-framed-image/internal/framed_render_contract.mjs";
 import { STANDARD_FRAMED_PRESENTATION_PROFILE } from "../helpers/framed_presentation_profile.mjs";
 import { targetPageImageSubmitFactory } from "../../ppt_maker_harness/scripts/ppt_flow.mjs";
-import { initBundle } from "../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
+import {
+  FRAMED_HEADER_PROFILES_FILE,
+  initBundle,
+  pageImagePresentationAsset,
+} from "../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
 import { pageImageDerivedPagePaths, pageImageWorkflowPaths } from "../../ppt_maker_harness/scripts/shared/run-bundle/page_image_paths.mjs";
 import { readState } from "../../ppt_maker_harness/scripts/shared/state/state.mjs";
 import {
@@ -62,7 +68,7 @@ function framedProviderInputBinding(compiled = "a") {
     header_policy_sha256: digest("f"),
     page_presentation_sha256: digest("9"),
     local_header_profile_sha256: digest("1"),
-    protected_geometry_sha256: digest("2"),
+    protected_composition_sha256: digest("2"),
   };
 }
 const FLOW = "ppt_maker_harness/scripts/ppt_flow.mjs";
@@ -134,8 +140,8 @@ const receipt = {
     provider_content: { items: [{ role: "label", literal: "Provider-owned content remains readable.", copy_policy: "exact" }] },
     header_policy: {
       local_header: { kicker: null, title: "A title", subtitle: null },
-      context_not_to_render: { kicker: null, title: "A title", subtitle: null },
     },
+    subject_restrictions: "none",
   }],
 };
 
@@ -249,9 +255,107 @@ relationship: causal-flow`,
     }
   });
 
-  it.todo("preserves Framed source subject restrictions through Core, raw contract, and bound compiled provider input");
-  it.todo("declares normalized Framed protected-region coordinate and canvas semantics");
-  it.todo("declares a Framed provider body-safe region outside the reserved header region");
+  it("binds source restrictions and exact normalized composition through C5 and the single review path", async () => {
+    const root = mkdtempSync(join(tmpdir(), "framed-c6-provider-boundary-"));
+    const deck = join(root, "deck_framed_c6_provider_boundary");
+    const runDir = join(deck, "3_versions", "v1");
+    const image = createCanvas(2000, 1125);
+    image.getContext("2d").fillRect(0, 0, 2000, 1125);
+    const sharedLiteral = "Shared provider-owned spelling";
+    try {
+      initBundle(deck, null, "keynote", "dark-executive");
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+      writeFileSync(join(runDir, "slide-specifications.md"), framedSource({
+        title: sharedLiteral,
+        subjectRestrictions: "no-generic-metal-robot",
+        bodyYaml: `items:
+  - role: label
+    literal: "${sharedLiteral}"`,
+      }));
+      await acceptLocalStyleMasterFixture(resolveFramedStyleMasterScope(runDir));
+
+      const candidate = readFramedProgressiveTargetPlanCandidate(runDir);
+      const plan = await buildFramedProgressiveTargetRawPlan(runDir);
+      const coreSlide = candidate.page_image_core.slides[0];
+      const rawContract = plan.provider_requests_by_slide.DeckGo.raw_contract;
+      const request = JSON.parse(plan.provider_requests_by_slide.DeckGo.compiled_provider_input.utf8);
+      const composition = coreSlide.visual_selection.presentation.protected_composition;
+      const binding = plan.raw_work_plan.items[0].provider_input_binding;
+      const paths = pageImageWorkflowPaths(runDir);
+      const derivedPaths = pageImageDerivedPagePaths(runDir, "DeckGo");
+
+      expect(coreSlide.subject_restrictions).toBe("no-generic-metal-robot");
+      expect(rawContract.framed).toMatchObject({
+        subject_restrictions: "no-generic-metal-robot",
+        protected_composition: composition,
+      });
+      expect(binding.protected_composition_sha256).toBe(canonicalJsonSha256(composition));
+      expect(request).toMatchObject({
+        subject_restrictions: "no-generic-metal-robot",
+        protected_composition: composition,
+        provider_rendered_content: { items: [{ literal: sharedLiteral }] },
+      });
+      expect(request.protected_composition.body_safe).toEqual({
+        x: 0,
+        y: composition.reserved_header.y + composition.reserved_header.height,
+        width: 1,
+        height: 1 - composition.reserved_header.y - composition.reserved_header.height,
+      });
+      expect(request).not.toHaveProperty("local_header");
+      expect(request).not.toHaveProperty("header_policy");
+      expect(request).not.toHaveProperty("context_not_to_render");
+      expect(request).not.toHaveProperty("protected_geometry");
+      expect(request).not.toHaveProperty("region");
+      expect(request).not.toHaveProperty("mask");
+
+      const layout = JSON.parse(readFileSync(derivedPaths.layout, "utf8"));
+      const imageRequest = JSON.parse(readFileSync(derivedPaths.image2_request, "utf8"));
+      const inspection = JSON.parse(readFileSync(paths.target_provider_request_inspection, "utf8"));
+      expect(layout.payload.selected_presentation.protected_composition).toEqual(composition);
+      expect(imageRequest.payload).toMatchObject({
+        canonical_utf8: plan.provider_requests_by_slide.DeckGo.compiled_provider_input.utf8,
+        request_digest: plan.provider_requests_by_slide.DeckGo.compiled_provider_input.sha256,
+        adapter_binding: binding,
+      });
+      expect(JSON.parse(inspection.items[0].prompt)).toEqual(plan.provider_requests_by_slide.DeckGo);
+
+      const contribution = createFramedTargetRawReviewContribution({
+        receipt: plan.receipt,
+        rawWorkPlan: plan.raw_work_plan,
+      });
+      expect(contribution.coverage.items[0].guide_primitives).toEqual([
+        { kind: "rectangle", guide_id: "reserved_header", ...composition.reserved_header },
+        { kind: "rectangle", guide_id: "body_safe", ...composition.body_safe },
+      ]);
+      const pilot = await planFramedTargetPilot(runDir, {
+        planHash: plan.progressive_raw_work_plan.sha256,
+        slideIds: ["DeckGo"],
+      });
+      await authorizeFramedProgressiveRawBatch(runDir, {
+        planHash: plan.progressive_raw_work_plan.sha256,
+        batchHash: pilot.batch.batch_hash,
+      });
+      await generateFramedProgressiveRawItem(runDir, {
+        planHash: plan.progressive_raw_work_plan.sha256,
+        batchHash: pilot.batch.batch_hash,
+        submit: async () => NATIVE_PROVIDER_PNG,
+      });
+      await expect(prepareFramedProgressiveRawReview(runDir, {
+        planHash: plan.progressive_raw_work_plan.sha256,
+      })).resolves.toMatchObject({
+        complete_raw_review_sha256: expect.stringMatching(/^[0-9a-f]{64}$/),
+      });
+
+      const overlappingComposition = structuredClone(rawContract);
+      overlappingComposition.framed.protected_composition.body_safe.y = composition.reserved_header.y;
+      expect(validateFramedRawContract(overlappingComposition)).toMatchObject({
+        ok: false,
+        code: "framed_raw_contract_invalid",
+      });
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
 
   it("rejects the 28-W regression through the canonical browser render contract", async () => {
     await expect(verifyFramedHeaderOverlays([{
@@ -293,6 +397,53 @@ relationship: causal-flow`,
       });
       expect(readFileSync(join(deck, "_state", "state.yaml"))).toEqual(beforeState);
       expect(derived.every((path) => !existsSync(path))).toBe(true);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  }, 20_000);
+
+  it("stops malformed Framed profile repair before C5 publication and returns to the plan checkpoint", async () => {
+    const root = mkdtempSync(join(tmpdir(), "framed-profile-repair-boundary-"));
+    const deck = join(root, "deck_framed_profile_repair");
+    const runDir = join(deck, "3_versions", "v1");
+    const image = createCanvas(2000, 1125);
+    image.getContext("2d").fillRect(0, 0, 2000, 1125);
+    try {
+      initBundle(deck, null, "keynote", "dark-executive");
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+      writeFileSync(join(runDir, "slide-specifications.md"), framedSource({
+        title: "Profile repair gate",
+      }));
+      await acceptLocalStyleMasterFixture(resolveFramedStyleMasterScope(runDir));
+
+      const paths = pageImageWorkflowPaths(runDir);
+      const derived = pageImageDerivedPagePaths(runDir, "DeckGo");
+      const profiles = pageImagePresentationAsset(runDir, FRAMED_HEADER_PROFILES_FILE);
+      const originalProfiles = readFileSync(profiles, "utf8");
+      const stateBeforeFailure = readFileSync(join(deck, "_state", "state.yaml"));
+      writeFileSync(profiles, originalProfiles.replace(
+        "header_region: { x: 40, y: 28, width: 920, height: 238 }",
+        "header_region: { x: 40, y: 28, width: 961, height: 238 }",
+      ));
+
+      const unpublished = [
+        paths.target_source_receipt,
+        paths.target_raw_plan,
+        paths.target_provider_request_inspection,
+        paths.derived_index,
+        derived.source_receipt,
+        derived.layout,
+        derived.image2_request,
+      ];
+      expect(unpublished.every((path) => !existsSync(path))).toBe(true);
+      await expect(buildFramedProgressiveTargetRawPlan(runDir)).rejects.toThrow();
+      expect(readFileSync(join(deck, "_state", "state.yaml"))).toEqual(stateBeforeFailure);
+      expect(unpublished.every((path) => !existsSync(path))).toBe(true);
+
+      writeFileSync(profiles, originalProfiles);
+      const repaired = await buildFramedProgressiveTargetRawPlan(runDir);
+      expect(repaired.source_epoch).toBe(1);
+      expect(readFramedTargetStoredPlanContext(runDir).source_epoch).toBe(1);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
@@ -382,7 +533,6 @@ relationship: causal-flow`,
         header_policy: {
           ...receipt.slides[0].header_policy,
           local_header: { kicker: null, title: "Updated stable heading", subtitle: null },
-          context_not_to_render: { kicker: null, title: "Updated stable heading", subtitle: null },
         },
       }],
     };

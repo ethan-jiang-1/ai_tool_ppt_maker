@@ -72,7 +72,7 @@ function pureProviderInputBinding(compiled = "a") {
     header_policy_sha256: digest("f"),
     page_presentation_sha256: digest("9"),
     local_header_profile_sha256: null,
-    protected_geometry_sha256: null,
+    protected_composition_sha256: null,
   };
 }
 const NATIVE_PROVIDER_PNG = (() => {
@@ -84,7 +84,7 @@ const NATIVE_PROVIDER_PNG = (() => {
 function receipt(source = "a") {
   return {
     schema: "page-image-workflow-source", pipeline: "page-image-workflow", workflow: "pure", source_sha256: digest(source),
-    slides: [{ slide_id: "DeckGo", position: 1, display: { title: "Visible pure text" } }],
+    slides: [{ slide_id: "DeckGo", position: 1, subject_restrictions: "none", display: { title: "Visible pure text" } }],
   };
 }
 

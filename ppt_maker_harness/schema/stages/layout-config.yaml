@@ -46,3 +46,19 @@ fields:
       means: "A selected input cannot be attributed for invalidation or review lineage."
       ask: "Repair the direct package source supplying the selected binding."
       never: "Never expose an unexplained page override or persist a C5 derived projection."
+  framed_header_region:
+    type: CSS-pixel rectangle
+    description: "The one selected Framed profile header region for deterministic local overlay rendering."
+    rule: "For Framed, must contain exactly x, y, width, and height, stay in the selected canvas, contain every permitted local header field, and leave positive canvas height below it."
+    on_violation:
+      means: "The selected Framed profile cannot define one attributable local header treatment."
+      ask: "Repair the selected Framed profile's one header region and its permitted field rectangles."
+      never: "Never accept protected_geometry, multiple regions, a per-page override, or a generated-layout fallback."
+  framed_protected_composition:
+    type: normalized-canvas mapping
+    description: "The resolver-derived reserved-header and full-width body-safe guidance from the selected Framed header region."
+    rule: "For Framed, reserved_header must normalize header_region and body_safe must equal x 0, y reserved_header.y plus height, width 1, and height 1 minus that bottom edge; provenance must identify the selected profile and inherited values."
+    on_violation:
+      means: "The selected profile cannot produce one exact provider-facing composition lineage."
+      ask: "Repair the selected profile or its declared canvas, then rerun the same resolution checkpoint."
+      never: "Never infer composition from a slide, C5 output, prior plan, or Pure projection."

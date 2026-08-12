@@ -18,7 +18,7 @@ const renderControls = vi.hoisted(() => ({
   proof_error_before_launch: false,
   proof_batches: [],
   proof_stale_slide_id: null,
-  safe_zone_drift: false,
+  header_region_drift: false,
 }));
 const framedResolverControls = vi.hoisted(() => ({ null_provider_clauses: false }));
 
@@ -62,18 +62,14 @@ vi.mock("../../ppt_maker_harness/scripts/03-framed-image/internal/framed_render_
     ...actual,
     describeFramedHeaderOverlay(...args) {
       const frame = actual.describeFramedHeaderOverlay(...args);
-      if (!renderControls.safe_zone_drift) return frame;
-      const protectedGeometry = frame.layout.protected_geometry.map((rectangle, index) => (
-        index === 0
-          ? Object.freeze({
-            ...rectangle,
-            width: rectangle.width - 1,
-          })
-          : rectangle
-      ));
+      if (!renderControls.header_region_drift) return frame;
+      const headerRegion = Object.freeze({
+        ...frame.layout.header_region,
+        width: frame.layout.header_region.width - 1,
+      });
       return Object.freeze({
         ...frame,
-        layout: Object.freeze({ ...frame.layout, protected_geometry: Object.freeze(protectedGeometry) }),
+        layout: Object.freeze({ ...frame.layout, header_region: headerRegion }),
       });
     },
     async verifyFramedHeaderOverlays(frames) {
@@ -90,7 +86,7 @@ vi.mock("../../ppt_maker_harness/scripts/03-framed-image/internal/framed_render_
           render_profile_digest: frame.slide_id === renderControls.proof_stale_slide_id
             ? "d".repeat(64)
             : renderControls.profile_digests_by_id[frame.presentation_profile.id],
-          layout: Object.freeze({ protected_geometry: frame.presentation_profile.protected_geometry }),
+          layout: Object.freeze({ header_region: frame.presentation_profile.header_region }),
         }))),
       });
     },
@@ -326,7 +322,7 @@ describe("Framed proof-before-materialization lifecycle", () => {
       proof_error_before_launch: false,
       proof_batches: [],
       proof_stale_slide_id: null,
-      safe_zone_drift: false,
+      header_region_drift: false,
     });
     framedResolverControls.null_provider_clauses = false;
   });
@@ -467,7 +463,6 @@ describe("Framed proof-before-materialization lifecycle", () => {
         },
         header_policy: {
           local_header: { kicker: null, title: "Exact lifecycle proof", subtitle: null },
-          context_not_to_render: { kicker: null, title: "Exact lifecycle proof", subtitle: null },
         },
       });
       expect(rawContracts.DeckGo).toMatchObject({
@@ -484,7 +479,7 @@ describe("Framed proof-before-materialization lifecycle", () => {
         },
         framed: {
           local_header: { kicker: null, title: "Exact lifecycle proof", subtitle: null },
-          context_not_to_render: { kicker: null, title: "Exact lifecycle proof", subtitle: null },
+          subject_restrictions: "none",
         },
       });
       for (const [slideId, rawContract] of Object.entries(rawContracts)) {
@@ -507,7 +502,7 @@ describe("Framed proof-before-materialization lifecycle", () => {
           header_policy_sha256: coreSlide.header_policy_sha256,
           page_presentation_sha256: coreSlide.page_presentation_sha256,
           local_header_profile_sha256: rawContract.framed.render_profile_digest,
-          protected_geometry_sha256: canonicalJsonSha256(rawContract.framed.protected_geometry),
+          protected_composition_sha256: canonicalJsonSha256(rawContract.framed.protected_composition),
         });
       }
       const clauses = rawContracts.DeckGo.provider_clauses;
@@ -817,7 +812,7 @@ describe("Framed proof-before-materialization lifecycle", () => {
       expect(renderControls.composition_calls).toBe(1);
 
       renderControls.profile_digest_override = null;
-      renderControls.safe_zone_drift = true;
+      renderControls.header_region_drift = true;
       writeFileSync(
         join(fixture.runDir, "slide-specifications.md"),
         source().replace("Exact lifecycle proof", "Safe-zone coverage must remain exact"),

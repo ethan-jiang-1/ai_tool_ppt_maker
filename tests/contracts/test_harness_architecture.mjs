@@ -16,6 +16,7 @@ import {
   TARGET_ITERATION_INTERFACES,
   TARGET_WORKFLOW_INTERFACES,
   collectLiteralImports,
+  evaluateC6CompositionConformance,
   evaluateProductionSchemaConformance,
   validateArchitectureSnapshot,
   validateRepositoryArchitecture,
@@ -258,6 +259,34 @@ describe("Harness architecture contract", () => {
       literal_occurrences: [{ value: "page-image-workflow" }],
     };
     expect(evaluateProductionSchemaConformance(valid)).toEqual({ ok: true, issues: [] });
+  });
+
+  it("evaluates C6 composition snapshots without file, YAML, provider, or lifecycle access", () => {
+    const reserved_header = { x: 0.04, y: 28 / 562.5, width: 0.92, height: 238 / 562.5 };
+    const snapshot = {
+      workflow: "framed",
+      source_receipt: { subject_restrictions: "none" },
+      presentation: {
+        profile: {
+          canvas: { css_width: 1000, css_height: 562.5, capture_width: 2000, capture_height: 1125 },
+          header_region: { x: 40, y: 28, width: 920, height: 238 },
+        },
+        protected_composition: {
+          coordinate_space: "normalized-canvas",
+          reserved_header,
+          body_safe: { x: 0, y: reserved_header.y + reserved_header.height, width: 1, height: 1 - reserved_header.y - reserved_header.height },
+        },
+        provenance: { catalog: "catalog", defaults: "defaults", profile: "profile" },
+      },
+      raw_contract: { framed: { protected_composition: null, subject_restrictions: "none" } },
+      provider_request: { protected_composition: null, subject_restrictions: "none", provider_rendered_content: { items: [{ literal: "Header spelling remains provider-owned here" }] } },
+      provider_input_binding: { protected_composition_sha256: "a".repeat(64) },
+    };
+    snapshot.raw_contract.framed.protected_composition = snapshot.presentation.protected_composition;
+    snapshot.provider_request.protected_composition = snapshot.presentation.protected_composition;
+    expect(evaluateC6CompositionConformance(snapshot)).toEqual({ ok: true, issues: [] });
+    snapshot.provider_request.context_not_to_render = { title: "Forbidden" };
+    expect(issueCodes(evaluateC6CompositionConformance(snapshot))).toContain("c6-framed-request-local-header");
   });
 
   it("reports invalid stage roles, missing anchors, undeclared fields, and suffixes", () => {

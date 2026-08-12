@@ -206,6 +206,141 @@ export function evaluateProductionSchemaConformance(snapshot = {}) {
   return Object.freeze({ ok: issues.length === 0, issues: Object.freeze(issues) });
 }
 
+const C6_SUBJECT_RESTRICTIONS = new Set(["none", "no-generic-metal-robot", "no-identity-subject"]);
+const C6_RECTANGLE_KEYS = Object.freeze(["x", "y", "width", "height"]);
+const C6_REQUEST_FORBIDDEN_FIELDS = new Set(["local_header", "header_policy", "context_not_to_render", "protected_geometry"]);
+const C6_PURE_FORBIDDEN_FIELDS = new Set([
+  "header_region",
+  "protected_composition",
+  "protected_composition_sha256",
+  "local_header",
+  "context_not_to_render",
+  "protected_geometry",
+]);
+
+function c6PlainObject(value) {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+function c6ExactKeys(value, keys) {
+  return c6PlainObject(value) && Object.keys(value).length === keys.length && keys.every((key) => Object.hasOwn(value, key));
+}
+
+function c6Rectangle(value) {
+  return c6ExactKeys(value, C6_RECTANGLE_KEYS) &&
+    C6_RECTANGLE_KEYS.every((key) => Number.isFinite(value[key])) &&
+    value.x >= 0 && value.y >= 0 && value.width > 0 && value.height > 0 &&
+    value.x + value.width <= 1 && value.y + value.height <= 1;
+}
+
+function c6ContainsField(value, forbidden) {
+  if (Array.isArray(value)) return value.some((entry) => c6ContainsField(entry, forbidden));
+  if (!c6PlainObject(value)) return false;
+  return Object.entries(value).some(([key, entry]) => forbidden.has(key) || c6ContainsField(entry, forbidden));
+}
+
+function c6ContainsPureFramedField(value) {
+  if (Array.isArray(value)) return value.some((entry) => c6ContainsPureFramedField(entry));
+  if (!c6PlainObject(value)) return false;
+  return Object.entries(value).some(([key, entry]) => {
+    if (key === "protected_composition_sha256") return entry !== null;
+    return C6_PURE_FORBIDDEN_FIELDS.has(key) || c6ContainsPureFramedField(entry);
+  });
+}
+
+function c6Same(left, right) {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
+/**
+ * Evaluate synthetic C6 composition facts without loading YAML, a Run Bundle,
+ * provider configuration, or lifecycle state. Runtime owners remain the
+ * authority for current source and adapter validation.
+ */
+export function evaluateC6CompositionConformance(snapshot = {}) {
+  const issues = [];
+  const issue = (code, path, message) => issues.push({ code, path, message });
+  const workflow = snapshot?.workflow;
+  const receipt = snapshot?.source_receipt;
+  if (!["framed", "pure"].includes(workflow) || !c6PlainObject(receipt) || !C6_SUBJECT_RESTRICTIONS.has(receipt.subject_restrictions)) {
+    issue("c6-source-restriction-invalid", "source_receipt.subject_restrictions", "every C6 snapshot requires one closed parser-owned subject restriction");
+    return Object.freeze({ ok: false, issues: Object.freeze(issues) });
+  }
+
+  if (workflow === "pure") {
+    for (const [name, value] of Object.entries({
+      presentation: snapshot.presentation,
+      raw_contract: snapshot.raw_contract,
+      provider_request: snapshot.provider_request,
+      provider_input_binding: snapshot.provider_input_binding,
+    })) {
+      if (c6ContainsPureFramedField(value)) {
+        issue("c6-pure-framed-binding", name, "Pure may retain the receipt restriction but must not carry a Framed C6 binding");
+      }
+    }
+    if (c6ContainsField(snapshot.provider_request, new Set(["subject_restrictions"]))) {
+      issue("c6-pure-request-restriction", "provider_request", "Pure provider requests must not receive the C6 Framed restriction binding");
+    }
+    return Object.freeze({ ok: issues.length === 0, issues: Object.freeze(issues) });
+  }
+
+  const presentation = snapshot.presentation;
+  const profile = presentation?.profile;
+  const canvas = profile?.canvas;
+  const headerRegion = profile?.header_region;
+  const composition = presentation?.protected_composition;
+  if (!c6ExactKeys(canvas, ["css_width", "css_height", "capture_width", "capture_height"]) ||
+    !Object.values(canvas).every((value) => Number.isFinite(value) && value > 0) ||
+    !c6ExactKeys(headerRegion, C6_RECTANGLE_KEYS) ||
+    !Object.values(headerRegion).every(Number.isFinite) ||
+    headerRegion.x < 0 || headerRegion.y < 0 || headerRegion.width <= 0 || headerRegion.height <= 0 ||
+    headerRegion.x + headerRegion.width > canvas.css_width || headerRegion.y + headerRegion.height >= canvas.css_height) {
+    issue("c6-header-region-invalid", "presentation.profile.header_region", "Framed requires one in-canvas CSS-pixel header_region with positive body height below it");
+  }
+  const expectedReserved = c6PlainObject(canvas) && c6PlainObject(headerRegion) ? {
+    x: headerRegion.x / canvas.css_width,
+    y: headerRegion.y / canvas.css_height,
+    width: headerRegion.width / canvas.css_width,
+    height: headerRegion.height / canvas.css_height,
+  } : null;
+  const expectedBodySafe = c6PlainObject(expectedReserved) ? {
+    x: 0,
+    y: expectedReserved.y + expectedReserved.height,
+    width: 1,
+    height: 1 - expectedReserved.y - expectedReserved.height,
+  } : null;
+  if (!c6ExactKeys(composition, ["coordinate_space", "reserved_header", "body_safe"]) ||
+    composition.coordinate_space !== "normalized-canvas" || !c6Rectangle(composition.reserved_header) || !c6Rectangle(composition.body_safe) ||
+    !c6Same(composition.reserved_header, expectedReserved) || !c6Same(composition.body_safe, expectedBodySafe)) {
+    issue("c6-protected-composition-invalid", "presentation.protected_composition", "Framed composition must be the exact normalized header region and full-width body-safe formula");
+  }
+  if (!c6PlainObject(presentation?.provenance) || typeof presentation.provenance.profile !== "string" || !presentation.provenance.profile ||
+    typeof presentation.provenance.catalog !== "string" || !presentation.provenance.catalog ||
+    typeof presentation.provenance.defaults !== "string" || !presentation.provenance.defaults) {
+    issue("c6-composition-provenance-missing", "presentation.provenance", "Framed composition requires selected-profile and inherited-value provenance");
+  }
+
+  const frame = snapshot.raw_contract?.framed;
+  if (!c6PlainObject(frame) || !c6Same(frame.protected_composition, composition) || frame.subject_restrictions !== receipt.subject_restrictions) {
+    issue("c6-framed-raw-lineage-invalid", "raw_contract.framed", "Framed raw contract must retain the selected composition and Core-bound restriction");
+  }
+  if (!/^[0-9a-f]{64}$/.test(snapshot.provider_input_binding?.protected_composition_sha256 || "")) {
+    issue("c6-composition-digest-missing", "provider_input_binding.protected_composition_sha256", "Framed raw-plan binding requires the protected composition digest");
+  }
+
+  const request = snapshot.provider_request;
+  if (!c6PlainObject(request) || !c6Same(request.protected_composition, composition) || request.subject_restrictions !== receipt.subject_restrictions) {
+    issue("c6-framed-request-lineage-invalid", "provider_request", "Framed request must retain the selected composition and source restriction");
+  }
+  if (c6ContainsField(request, C6_REQUEST_FORBIDDEN_FIELDS)) {
+    issue("c6-framed-request-local-header", "provider_request", "Framed provider request must not serialize local header or former geometry fields");
+  }
+  if (c6ContainsField({ presentation, raw_contract: snapshot.raw_contract, provider_input_binding: snapshot.provider_input_binding }, new Set(["protected_geometry"]))) {
+    issue("c6-legacy-geometry", "framed-lineage", "Framed current lineage must not retain protected_geometry");
+  }
+  return Object.freeze({ ok: issues.length === 0, issues: Object.freeze(issues) });
+}
+
 const C5_PAGE_STAGES = Object.freeze({
   "page-source-receipt": "parsed-source",
   "page-layout": "resolved-presentation",
@@ -453,7 +588,7 @@ function validatePageImageProviderInputCompilation(files, issues) {
   }
 
   const rootSource = files.get("ppt_flow.mjs");
-  const semanticFields = ["provider_rendered_content", "context_not_to_render", "protected_geometry"];
+  const semanticFields = ["provider_rendered_content", "local_header", "subject_restrictions", "protected_composition"];
   const foundSemanticField = semanticFields.find((field) => new RegExp(`\\b${field}\\b`).test(rootSource || ""));
   if (foundSemanticField) {
     addIssue(issues, "root-page-image-prompt-assembly", "ppt_flow.mjs", `ppt_flow may not assemble Page Image prompt semantics (${foundSemanticField})`);

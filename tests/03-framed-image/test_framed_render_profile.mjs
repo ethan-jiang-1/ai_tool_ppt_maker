@@ -42,7 +42,7 @@ describe('Framed header-overlay render profile', () => {
     expect(profile()).toMatchObject({
       schema: FRAMED_HEADER_OVERLAY_RENDER_PROFILE_SCHEMA,
       preset: { id: 'standard', digest: expect.any(String) },
-      protected_geometry: framedRenderProfileFacts().protected_geometry,
+      header_region: framedRenderProfileFacts().header_region,
       layout_compiler: FRAMED_HEADER_OVERLAY_LAYOUT_COMPILER,
       font_render_inventory: { schema: fontRenderInventory.schema, digest: expect.any(String) },
       font_selection_algorithm: FRAMED_FONT_SELECTION_ALGORITHM,
@@ -69,12 +69,12 @@ describe('Framed header-overlay render profile', () => {
       preset.theme.contrast.opacity = 0.33;
       return { preset };
     }],
-    ['protected geometry', () => {
+    ['header region', () => {
       const preset = structuredClone(framedRenderProfileFacts());
-      preset.protected_geometry[0].height -= 1;
+      preset.header_region.height -= 1;
       return { preset };
     }],
-    ['layout compiler', () => ({ layoutCompiler: { ...FRAMED_HEADER_OVERLAY_LAYOUT_COMPILER, version: '4' } })],
+    ['layout compiler', () => ({ layoutCompiler: { ...FRAMED_HEADER_OVERLAY_LAYOUT_COMPILER, version: '5' } })],
     ['font render inventory', () => ({
       fontRenderInventory: {
         ...fontRenderInventory,
@@ -96,6 +96,10 @@ describe('Framed header-overlay render profile', () => {
     const calloutPreset = structuredClone(framedRenderProfileFacts());
     calloutPreset.fields.callout = { ...calloutPreset.fields.title };
     expect(() => profile({ preset: calloutPreset })).toThrow(/preset.fields must contain only/);
+
+    const legacyGeometryPreset = structuredClone(framedRenderProfileFacts());
+    legacyGeometryPreset.protected_geometry = [{ x: 40, y: 28, width: 920, height: 238 }];
+    expect(() => profile({ preset: legacyGeometryPreset })).toThrow(/preset must contain only/);
   });
 
   it('requires a new compiler identity when the canonical geometry fixture changes', () => {

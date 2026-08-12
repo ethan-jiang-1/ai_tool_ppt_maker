@@ -3,7 +3,7 @@ import { join, relative } from "node:path";
 import { parseDocument } from "yaml";
 import { describe, expect, it } from "vitest";
 
-import { evaluatePageDerivedPublicationConformance, evaluateProductionSchemaConformance } from "../../ppt_maker_harness/scripts/contracts/harness_architecture.mjs";
+import { evaluateC6CompositionConformance, evaluatePageDerivedPublicationConformance, evaluateProductionSchemaConformance } from "../../ppt_maker_harness/scripts/contracts/harness_architecture.mjs";
 
 const ROOT = process.cwd();
 const HARNESS = join(ROOT, "ppt_maker_harness");
@@ -85,6 +85,59 @@ function currentSnapshot() {
   };
 }
 
+function c6Snapshot(workflow = "framed") {
+  const header_region = { x: 40, y: 28, width: 920, height: 238 };
+  const canvas = { css_width: 1000, css_height: 562.5, capture_width: 2000, capture_height: 1125 };
+  const reserved_header = {
+    x: header_region.x / canvas.css_width,
+    y: header_region.y / canvas.css_height,
+    width: header_region.width / canvas.css_width,
+    height: header_region.height / canvas.css_height,
+  };
+  const protected_composition = {
+    coordinate_space: "normalized-canvas",
+    reserved_header,
+    body_safe: {
+      x: 0,
+      y: reserved_header.y + reserved_header.height,
+      width: 1,
+      height: 1 - reserved_header.y - reserved_header.height,
+    },
+  };
+  if (workflow === "pure") {
+    return {
+      workflow,
+      source_receipt: { subject_restrictions: "none" },
+      presentation: { profile: { typography: "provider-owned" } },
+      raw_contract: { provider_rendered_content: { header: { title: "Shared spelling" } } },
+      provider_request: { provider_rendered_content: { items: [{ literal: "Shared spelling" }] } },
+      provider_input_binding: { local_header_profile_sha256: null, protected_composition_sha256: null },
+    };
+  }
+  return {
+    workflow,
+    source_receipt: { subject_restrictions: "no-identity-subject" },
+    presentation: {
+      profile: { canvas, header_region },
+      protected_composition,
+      provenance: { catalog: "catalog.yaml", defaults: "defaults.yaml", profile: "framed-header-profiles.yaml" },
+    },
+    raw_contract: {
+      framed: {
+        local_header: { title: "Shared spelling" },
+        protected_composition,
+        subject_restrictions: "no-identity-subject",
+      },
+    },
+    provider_request: {
+      protected_composition,
+      subject_restrictions: "no-identity-subject",
+      provider_rendered_content: { items: [{ literal: "Shared spelling" }] },
+    },
+    provider_input_binding: { protected_composition_sha256: "a".repeat(64) },
+  };
+}
+
 describe("production schema conformance", () => {
   it("matches the declared active source, test, and E2E contract surface", () => {
     const result = evaluateProductionSchemaConformance(currentSnapshot());
@@ -156,5 +209,35 @@ describe("production schema conformance", () => {
       "page-derived-identity-mixed",
       "page-derived-framed-artifact-on-pure",
     ]));
+  });
+
+  it("checks C6 composition ownership from synthetic data without provider or runtime access", () => {
+    expect(evaluateC6CompositionConformance(c6Snapshot()).issues).toEqual([]);
+    expect(evaluateC6CompositionConformance(c6Snapshot("pure")).issues).toEqual([]);
+
+    const invalidSource = c6Snapshot();
+    invalidSource.source_receipt.subject_restrictions = "no-robot";
+    expect(evaluateC6CompositionConformance(invalidSource).issues.map((issue) => issue.code))
+      .toContain("c6-source-restriction-invalid");
+
+    const malformedComposition = c6Snapshot();
+    malformedComposition.presentation.protected_composition.body_safe.width = 0.9;
+    expect(evaluateC6CompositionConformance(malformedComposition).issues.map((issue) => issue.code))
+      .toContain("c6-protected-composition-invalid");
+
+    const localHeaderLeak = c6Snapshot();
+    localHeaderLeak.provider_request.local_header = { title: "Shared spelling" };
+    expect(evaluateC6CompositionConformance(localHeaderLeak).issues.map((issue) => issue.code))
+      .toContain("c6-framed-request-local-header");
+
+    const legacyGeometry = c6Snapshot();
+    legacyGeometry.presentation.profile.protected_geometry = [];
+    expect(evaluateC6CompositionConformance(legacyGeometry).issues.map((issue) => issue.code))
+      .toContain("c6-legacy-geometry");
+
+    const pureLeak = c6Snapshot("pure");
+    pureLeak.provider_request.protected_composition = c6Snapshot().presentation.protected_composition;
+    expect(evaluateC6CompositionConformance(pureLeak).issues.map((issue) => issue.code))
+      .toContain("c6-pure-framed-binding");
   });
 });

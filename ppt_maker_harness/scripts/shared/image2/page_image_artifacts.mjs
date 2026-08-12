@@ -23,7 +23,7 @@ const PROVIDER_INPUT_BINDING_KEYS = Object.freeze([
   "header_policy_sha256",
   "page_presentation_sha256",
   "local_header_profile_sha256",
-  "protected_geometry_sha256",
+  "protected_composition_sha256",
 ]);
 
 export class PageImageArtifactError extends Error {

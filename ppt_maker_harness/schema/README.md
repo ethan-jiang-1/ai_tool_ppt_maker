@@ -30,6 +30,30 @@ does not claim an implementation module that does not exist. Every planned
 stage and flow producer also carries a `route_ref` that resolves in
 `recovery-route.yaml`.
 
+## Current Framed Composition Terms
+
+`SUBJECT RESTRICTIONS` is a closed parser-owned page fact on both workflows.
+Its normalized receipt value is one of `none`, `no-generic-metal-robot`, or
+`no-identity-subject`. Page Image Core retains that fact. Framed alone binds it
+into its raw contract and canonical provider request; Pure retains its existing
+receipt and identity-resolution use without a Framed request binding.
+
+Framed has one selected-profile CSS-pixel `header_region`, with exactly `x`,
+`y`, `width`, and `height`. It contains every permitted deterministic local
+header field and leaves positive canvas height below it. The resolver derives
+the only provider-facing composition in `normalized-canvas`: `reserved_header`
+is the normalized region, and `body_safe` is the full-width rectangle directly
+below it. This is provider best-effort guidance and Complete Page Review
+context, never a native provider region/mask claim or an automated acceptance
+check.
+
+Local header literals remain exclusively in Framed's deterministic renderer.
+The Framed request has no `local_header`, header-derived context, or former
+`protected_geometry` field. Independently source-owned provider content can
+still use the same literal spelling as a local header. These definitions are
+current-only: no legacy reader, converter, alias, or migration path is
+declared here.
+
 ## Recovery Route Labels
 
 `C1` through `C7` are labels for the current Page Image recovery route. They

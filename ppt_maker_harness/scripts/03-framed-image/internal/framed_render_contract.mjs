@@ -187,7 +187,7 @@ function contractLayout(headerOverlay, layoutGeometry, selection) {
     canvas: layoutGeometry.canvas,
     font_families: layoutGeometry.font_families,
     theme: layoutGeometry.theme,
-    protected_geometry: layoutGeometry.protected_geometry,
+    header_region: layoutGeometry.header_region,
     fields,
   });
 }
@@ -202,9 +202,9 @@ function normalizedHeaderOverlay(presentationProfile, localHeader) {
 }
 
 function renderProfileFacts(presentationProfile) {
-  exactKeys(presentationProfile, ['id', 'permitted_fields', 'canvas', 'font_families', 'theme', 'protected_geometry', 'fields'], 'resolved Framed presentation profile');
-  const { id, canvas, font_families, theme, protected_geometry, fields } = presentationProfile;
-  return Object.freeze({ id, canvas, font_families, theme, protected_geometry, fields });
+  exactKeys(presentationProfile, ['id', 'permitted_fields', 'canvas', 'font_families', 'theme', 'header_region', 'fields'], 'resolved Framed presentation profile');
+  const { id, canvas, font_families, theme, header_region, fields } = presentationProfile;
+  return Object.freeze({ id, canvas, font_families, theme, header_region, fields });
 }
 
 /** Derive the immutable three-field Framed header-overlay contract without a browser. */
@@ -251,7 +251,7 @@ function capturePageSpec(contract, verifiedRaw = null) {
         height: contract.layout.canvas.css_height,
       },
       fields: contract.layout.fields,
-      protected_geometry: contract.layout.protected_geometry,
+      header_region: contract.layout.header_region,
       overlay: {
         transparent: true,
         requires_full_canvas_provider_page: Boolean(verifiedRaw),

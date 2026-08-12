@@ -14,6 +14,14 @@ Style Master facts, and current adapter policy. The compiled input SHALL carry
 the declared `image2-request` schema and role, retain existing digest and
 immutability rules, and use no version-suffixed or alternate protocol marker.
 
+For Framed, the exact current input SHALL bind its selected normalized
+protected composition and source restrictions, while omitting every
+local-header field, header-derived `context_not_to_render` field, and
+`protected_geometry` field. Independently source-owned provider content retains
+its own permitted literal when its spelling matches a local header. For Pure,
+the input remains limited to its selected Pure projection and does not receive
+a Framed composition or C6 Framed restriction binding.
+
 #### Scenario: A current provider input is compiled
 
 - **WHEN** a valid current receipt reaches its selected adapter
@@ -23,8 +31,11 @@ immutability rules, and use no version-suffixed or alternate protocol marker.
 #### Scenario: Framed compilation binds non-rendering header context
 
 - **WHEN** a current Framed source reaches compilation
-- **THEN** its compiled declared request retains the existing non-rendering header context
-- **AND** it does not create a second or historical request contract
+- **THEN** its compiled declared request binds the selected non-text protected
+  composition and source restrictions without a local-header field or
+  header-literal context
+- **AND** independently sourced provider content may retain matching spelling,
+  and the request does not create a second or historical contract
 
 #### Scenario: Transport cannot rewrite an adapter input
 
@@ -37,15 +48,19 @@ immutability rules, and use no version-suffixed or alternate protocol marker.
 Current Page Image raw contracts SHALL separately record canonical source
 authority, normalized Provider Content Schema, visual direction, generation
 profile, Header Rendering Policy, compiled provider-input digest, and any
-Framed local header-renderer input. They SHALL preserve exact literals and
-explicit presentation-adaptable permissions without granting the provider
-semantic authorship.
+Framed local header-renderer input. A Framed contract SHALL additionally retain
+one selected protected-composition binding and source restrictions without an
+exact local-header-literal mirror or `protected_geometry` field. They SHALL
+preserve exact literals and explicit presentation-adaptable permissions without
+granting the provider semantic authorship.
 
 Before hashing or authorizing a raw contract, the selected adapter SHALL
 validate the complete current contract shape. Unknown content roles, unbound
-provider bytes, a duplicate Framed header instruction, an invalid protected
-geometry, or an unrecognized literal policy SHALL fail closed with the owning
-source/configuration repair action before provider work.
+provider bytes, a serialized Framed local-header field or header-literal
+context, malformed or stale protected composition/restriction binding, a former
+`context_not_to_render` or `protected_geometry` field, or an unrecognized
+literal policy SHALL fail closed with the owning source/configuration repair
+action before provider work.
 
 #### Scenario: Adaptable supporting copy remains explicitly bounded
 
@@ -58,11 +73,116 @@ source/configuration repair action before provider work.
 
 #### Scenario: Invalid current contract stops before authorization
 
-- **WHEN** a compiled Framed contract omits its provider-input digest or
-  protected geometry
+- **WHEN** a compiled Framed contract omits its provider-input digest,
+  protected-composition binding, or source restriction binding
 - **THEN** raw planning fails before plan publication or provider authorization
 - **AND** it returns one owning repair action rather than constructing a
   fallback request
+
+### Requirement: Framed protected composition binds one exact bounded provider request
+
+For every current Framed page, Page Image Core and the selected Framed adapter
+SHALL retain the existing parsed source-owned `subject_restrictions` and bind
+one selected profile's protected-composition facts into the immutable raw
+contract, canonical provider-input bytes, raw-plan bindings, and C5 inspection
+artifacts. The composition facts SHALL use `coordinate_space:
+normalized-canvas`, identify one normalized canvas-relative reserved-header
+region, and one normalized body-safe region that excludes it. The body-safe
+region SHALL be the exact full-width rectangle below the reserved header:
+`x: 0`, `y: reserved_header.y + reserved_header.height`, `width: 1`, and
+`height: 1 - reserved_header.y - reserved_header.height`. They are derived only from the selected Framed
+presentation projection; a slide, review projection, C5-derived file, or
+caller SHALL NOT supply substitute coordinates, restrictions, or a profile.
+
+The compiled request SHALL direct provider-rendered readable body content and
+key subjects to the body-safe region, retain the full continuous provider
+canvas, and contain no serialized local-header field or header-derived
+`context_not_to_render` equivalent. Independently source-owned provider content
+retains its own permitted literal even when its spelling matches a local header
+literal. The raw contract retains the local-header facts only for deterministic
+local rendering. This is a bounded provider avoidance instruction and review
+guide, not a claim that the provider has a native region primitive or will obey
+the instruction in its raster output. Pure
+SHALL not receive Framed composition or the C6 Framed raw/request
+subject-restriction binding. This SHALL not remove the existing parser-owned
+source restriction from a Pure receipt or prevent its existing Visual Config
+identity-resolution use.
+
+A missing, malformed, cross-workflow, or digest-mismatched composition or
+restriction binding is an integrity hard-stop for that plan materialization. It
+SHALL return the existing nearest source/configuration repair action before C5
+publication, authorization, provider initialization, grant, attempt, review,
+or lifecycle reuse; it SHALL not read a prior derived file, raw contract, or
+provider page as a fallback.
+
+#### Scenario: A Framed request carries its exact selected composition
+
+- **WHEN** a valid current Framed page reaches provider-free planning
+- **THEN** its raw contract and canonical provider request bind the same
+  selected normalized reserved-header region, body-safe region, and parsed
+  source restrictions
+- **AND** the request remains an exact adapter-owned byte sequence with no
+  provider submission or new human decision
+
+#### Scenario: A Framed request does not repeat local header literals
+
+- **WHEN** a valid Framed page has a non-empty local title, kicker, or subtitle
+- **THEN** its raw contract retains those facts for the deterministic local
+  overlay while its canonical provider request contains no local-header field
+  or header-literal context field
+- **AND** independently source-owned provider content may retain a matching
+  literal while the request otherwise carries only the selected non-text
+  composition guidance
+
+#### Scenario: An incomplete composition stops before provider work
+
+- **WHEN** a selected Framed projection lacks a valid body-safe region or its
+  source restriction binding differs from the current receipt
+- **THEN** planning stops at the direct repair action before it publishes a
+  current plan or authorizes provider work
+- **AND** it does not substitute a prior geometry, silently omit restrictions,
+  or create a partial C5 publication
+
+#### Scenario: Pure remains isolated from Framed protection facts
+
+- **WHEN** a valid current Pure page reaches its selected adapter
+- **THEN** its raw contract and provider input contain no Framed reserved-header
+  region, body-safe region, local header context, or C6 Framed
+  subject-restriction binding
+- **AND** its source receipt may retain the parser-owned restriction for its
+  existing identity-resolution use while the request continues to use only the
+  selected Pure projection
+
+### Requirement: Framed composition evidence preserves one human review decision
+
+The existing Complete Page Review SHALL remain the only acceptance decision for
+Framed provider output. It SHALL continue to bind the exact provider page and
+production-equivalent transparent-header composite to the composition-bound raw
+lineage. Its existing Framed review contribution SHALL display exactly one
+normalized `reserved_header` guide rectangle and one normalized `body_safe`
+guide rectangle from that lineage. Provider-safe wording, a successful
+deterministic contract check, or an observed provider result SHALL not establish
+a general layout guarantee or accepted evidence without that review decision.
+
+C6 SHALL NOT add a protected-area occupancy, collision, OCR, or other automated
+observation. The two composition guides remain review context only: they SHALL
+not submit provider work, set `repair` or `proceed`, create approval or waiver
+state, replace Complete Page Review, or become a runtime dependency.
+
+#### Scenario: A compliant-looking provider page still requires review
+
+- **WHEN** a Framed provider page appears to respect its composition guidance
+- **THEN** the existing Complete Page Review presents the exact provider and
+  composite evidence and the two exact composition guides for the human's
+  `proceed` or `repair` decision
+- **AND** no prompt fact, diagnostic, or probe sample accepts the page itself
+
+#### Scenario: Composition guides cannot control the lifecycle
+
+- **WHEN** a Framed Complete Page Review includes the two composition guides
+- **THEN** they remain context for the existing human review and repair path
+- **AND** it creates no additional gate, state transition, retry, or provider
+  authorization
 
 ### Requirement: Complete Page Review exposes complete current page evidence
 
@@ -822,3 +942,98 @@ lifecycle selector.
 - **THEN** navigation can continue to describe available review artifacts
   without copying the request's raw prompt prose
 - **AND** its short locator cannot authorize, select, or submit that request
+
+### Requirement: Framed Provider Constraint Trial records bounded empirical evidence
+
+After an explicit human Work Request identifies and authorizes one newly
+initialized disposable probe run for bounded provider cost, the Page Image
+Workflow SHALL conduct a Framed Provider Constraint Trial only through the existing
+provider-free plan, Task Mandate, exact batch grant, one-item attempt,
+provenance, and Complete Page Review paths. Each selected sample SHALL bind one
+current protected-composition-bound compiled provider input, its selected
+profile and composition digests, the current transport field set, and the exact
+provider/composite review evidence. It SHALL submit no more than three one-item
+samples for that Work Request.
+
+A multi-sample trial SHALL use distinct stable `slide_id` values in one exact
+current batch and grant, whose `maximum_submissions` is the selected sample
+count. Each selected probe page SHALL retain the same declared non-identity
+probe content, visual direction, subject restrictions, generation profile, and
+Framed presentation selection; its compiled provider input remains
+page-specific because formal identity is bound into the current request. A
+submitted page SHALL not be reopened, resubmitted, or replaced to obtain an
+additional sample.
+
+The trial evidence SHALL preserve only stable identifiers, digests, artifact
+locators, submitted sample count, and bounded observations for
+`provider_body_in_reserved_header`, `key_subject_in_reserved_header`,
+`provider_body_in_body_safe`, and `local_header_legible_in_composite`. It SHALL
+classify every observation as `observed`, `not_observed`, or `indeterminate`;
+it SHALL not copy credentials, authorization headers, exact prompt prose,
+provider response bodies, or raster bytes into a parallel record.
+The conclusion SHALL be a bounded statement about the sampled current request
+and transport only. It SHALL NOT accept a page, establish a general provider
+guarantee or native capability, decide `proceed` or `repair`, establish a
+provider-native region/mask contract, or authorize a transport extension.
+
+The MD Controller SHALL use its existing changed-goal Work Request path before
+the trial can create a provider attempt. A missing current protected-composition
+binding, exact plan/grant, sample capacity, or lineage SHALL stop through the
+existing nearest JS owner. Either failure SHALL not create a trial attempt,
+acceptance, approval, waiver, retry, native-capability claim, fallback request,
+or production-bundle mutation. Complete Page Review remains the only human
+acceptance decision for each actual provider page.
+
+The Work Request authorizes only the bounded raw-page provider cost. It SHALL
+NOT replace the existing exact narrative-plan confirmation, Style Master review
+and promotion, or Complete Page Review decision. A fresh probe without a valid
+canonical local Style Master candidate SHALL stop at the existing Style Master
+candidate-planning action before raw planning, grant, attempt, or provider
+initialization. The trial SHALL not infer a candidate from C7 or production
+material, use the Work Request as generated-Style-Master authorization, or add
+a candidate-acquisition path.
+
+#### Scenario: An authorized disposable trial binds its exact samples
+
+- **WHEN** a human Work Request identifies a valid newly initialized disposable
+  current Framed run with a protected-composition-bound exact selected-ID batch
+  and current grant
+- **THEN** each of at most three submitted samples binds the exact compiled
+  input, composition, transport field set, and existing provider/composite
+  evidence for that run
+- **AND** the trial conclusion remains bounded to those submitted samples
+
+#### Scenario: Multiple samples use one bounded grant without resubmission
+
+- **WHEN** a Work Request authorizes three probe samples
+- **THEN** one exact grant binds three distinct selected slide IDs with
+  `maximum_submissions: 3`, and each generation invocation claims at most one
+  eligible page
+- **AND** no submitted page is reopened or resubmitted to obtain another sample
+
+#### Scenario: An unauthorized or invalid trial stops before provider work
+
+- **WHEN** a requested trial lacks an explicit Work Request for a newly
+  initialized disposable scope, exceeds three samples, or cannot establish
+  current protected-composition/plan/grant lineage
+- **THEN** the MD Controller or owning JS preflight returns its nearest existing
+  scope, repair, or authorization action before provider submission
+- **AND** it creates no trial result, provider attempt, acceptance, or
+  substitute request
+
+#### Scenario: Trial observations cannot accept a page or prove a capability
+
+- **WHEN** every bounded observation for a submitted sample appears favorable
+- **THEN** the result records only the observation and references the existing
+  Complete Page Review evidence and decision path
+- **AND** it does not mark the page accepted, assert a provider guarantee, or
+  enable a native transport field
+
+#### Scenario: A Work Request does not bypass existing content or Style Master decisions
+
+- **WHEN** an authorized fresh probe has not received its exact narrative-plan
+  confirmation or has no accepted current Style Master selection
+- **THEN** the existing owner returns its current confirmation or Style Master
+  action before raw planning or provider submission
+- **AND** the Work Request does not create a substitute source, selection,
+  generated Style Master authorization, grant, attempt, or acceptance

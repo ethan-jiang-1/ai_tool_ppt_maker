@@ -100,7 +100,7 @@ function hangingBrowserTracker() {
 }
 
 describe('Framed header-overlay contract', () => {
-  it('derives a transparent three-field overlay and protected geometry from one normalized preset', async () => {
+  it('derives a transparent three-field overlay and header region from one normalized preset', async () => {
     const overlay = describeFramedHeaderOverlay({ slide_id: 'DeckGo', ...headerInput() });
 
     expect(overlay).toMatchObject({
@@ -110,7 +110,7 @@ describe('Framed header-overlay contract', () => {
       layout: {
         canvas: STANDARD_RENDER_PROFILE.canvas,
         theme: STANDARD_RENDER_PROFILE.theme,
-        protected_geometry: STANDARD_RENDER_PROFILE.protected_geometry,
+        header_region: STANDARD_RENDER_PROFILE.header_region,
       },
       render_profile: { render_profile_digest: expect.any(String) },
     });
@@ -139,7 +139,7 @@ describe('Framed header-overlay contract', () => {
       id: 'DeckGo',
       expectedLeafMarkers: ['kicker', 'title', 'subtitle'],
       layout: {
-        protected_geometry: STANDARD_RENDER_PROFILE.protected_geometry,
+        header_region: STANDARD_RENDER_PROFILE.header_region,
         overlay: { transparent: true, requires_full_canvas_provider_page: false },
       },
     });

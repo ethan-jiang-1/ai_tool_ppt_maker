@@ -13,6 +13,12 @@ import { validateTargetRawReviewContribution } from "../../ppt_maker_harness/scr
 
 const digest = (letter) => letter.repeat(64);
 const STANDARD_PRESENTATION_PROFILE = STANDARD_FRAMED_PRESENTATION_PROFILE;
+const STANDARD_RESERVED_HEADER = Object.freeze({ x: 40 / 1000, y: 28 / 562.5, width: 920 / 1000, height: 238 / 562.5 });
+const STANDARD_PROTECTED_COMPOSITION = Object.freeze({
+  coordinate_space: "normalized-canvas",
+  reserved_header: STANDARD_RESERVED_HEADER,
+  body_safe: Object.freeze({ x: 0, y: STANDARD_RESERVED_HEADER.y + STANDARD_RESERVED_HEADER.height, width: 1, height: 1 - STANDARD_RESERVED_HEADER.y - STANDARD_RESERVED_HEADER.height }),
+});
 const STANDARD_RENDER_PROFILE = currentFramedHeaderOverlayRenderProfile({
   preset: framedRenderProfileFacts(STANDARD_PRESENTATION_PROFILE),
 });
@@ -27,7 +33,7 @@ function framedProviderInputBinding(compiled) {
     header_policy_sha256: digest("f"),
     page_presentation_sha256: digest("9"),
     local_header_profile_sha256: digest("1"),
-    protected_geometry_sha256: digest("2"),
+    protected_composition_sha256: digest("2"),
   };
 }
 
@@ -35,7 +41,6 @@ function headerPolicy(title) {
   const header = { kicker: null, title, subtitle: null };
   return {
     local_header: header,
-    context_not_to_render: { ...header },
   };
 }
 
@@ -46,8 +51,8 @@ function framedReceipt({ firstTitle = "First framed title", secondTitle = "Secon
     workflow: "framed",
     source_sha256: digest("a"),
     slides: [
-      { slide_id: "DeckGo", position: 1, page_class: "standard", header_policy: headerPolicy(firstTitle), visual_language: { presentation: { workflow: "framed", page_class: "standard", binding_sha256: digest("9"), profile: STANDARD_PRESENTATION_PROFILE } } },
-      { slide_id: "FlowUp", position: 2, page_class: "standard", header_policy: headerPolicy(secondTitle), visual_language: { presentation: { workflow: "framed", page_class: "standard", binding_sha256: digest("9"), profile: STANDARD_PRESENTATION_PROFILE } } },
+      { slide_id: "DeckGo", position: 1, page_class: "standard", subject_restrictions: "none", header_policy: headerPolicy(firstTitle), visual_language: { presentation: { workflow: "framed", page_class: "standard", binding_sha256: digest("9"), profile: STANDARD_PRESENTATION_PROFILE, protected_composition: STANDARD_PROTECTED_COMPOSITION } } },
+      { slide_id: "FlowUp", position: 2, page_class: "standard", subject_restrictions: "none", header_policy: headerPolicy(secondTitle), visual_language: { presentation: { workflow: "framed", page_class: "standard", binding_sha256: digest("9"), profile: STANDARD_PRESENTATION_PROFILE, protected_composition: STANDARD_PROTECTED_COMPOSITION } } },
     ],
   };
 }
@@ -66,7 +71,7 @@ function rawWorkPlan(receipt) {
 }
 
 describe("Framed raw-review contribution", () => {
-  it("maps transparent header protected geometry and render profile into generic coverage", () => {
+  it("maps transparent header protected composition and render profile into generic coverage", () => {
     const receipt = framedReceipt();
     const plan = rawWorkPlan(receipt);
     const contribution = createFramedTargetRawReviewContribution({ receipt, rawWorkPlan: plan });
@@ -80,11 +85,17 @@ describe("Framed raw-review contribution", () => {
       {
         stable_id: "DeckGo",
         coverage_profile_digest: expect.stringMatching(/^[0-9a-f]{64}$/),
-        guide_primitives: [{ kind: "rectangle", guide_id: "guide_1", x: 40 / 1000, y: 28 / 562.5, width: 920 / 1000, height: 238 / 562.5 }],
+        guide_primitives: [
+          { kind: "rectangle", guide_id: "reserved_header", ...STANDARD_RESERVED_HEADER },
+          { kind: "rectangle", guide_id: "body_safe", ...STANDARD_PROTECTED_COMPOSITION.body_safe },
+        ],
       },
       {
         stable_id: "FlowUp",
-        guide_primitives: [{ kind: "rectangle", guide_id: "guide_1", x: 40 / 1000, y: 28 / 562.5, width: 920 / 1000, height: 238 / 562.5 }],
+        guide_primitives: [
+          { kind: "rectangle", guide_id: "reserved_header", ...STANDARD_RESERVED_HEADER },
+          { kind: "rectangle", guide_id: "body_safe", ...STANDARD_PROTECTED_COMPOSITION.body_safe },
+        ],
       },
     ]);
     expect(contribution.projection.labels).toEqual([
@@ -95,7 +106,30 @@ describe("Framed raw-review contribution", () => {
     expect(JSON.stringify(contribution.coverage)).not.toContain("callout");
   });
 
-  it("keeps the review-guide identity tied to protected geometry rather than header text", () => {
+  it("keeps composition guides as data without a lifecycle controller", () => {
+    const receipt = framedReceipt();
+    const plan = rawWorkPlan(receipt);
+    const contribution = createFramedTargetRawReviewContribution({ receipt, rawWorkPlan: plan });
+
+    expect(Object.keys(contribution)).toEqual(["schema", "workflow", "coverage", "projection"]);
+    expect(Object.keys(contribution.coverage.items[0])).toEqual([
+      "stable_id",
+      "coverage_profile_digest",
+      "guide_primitives",
+    ]);
+    for (const guide of contribution.coverage.items[0].guide_primitives) {
+      expect(Object.keys(guide)).toEqual(["kind", "guide_id", "x", "y", "width", "height"]);
+    }
+
+    for (const field of ["approval", "waiver", "retry", "state", "decision", "occupancy", "collision", "ocr"]) {
+      const invalid = structuredClone(contribution);
+      invalid.coverage.items[0].guide_primitives[0][field] = true;
+      expect(validateTargetRawReviewContribution(invalid, { rawWorkPlan: plan, expectedWorkflow: "framed" }))
+        .toMatchObject({ ok: false, code: "target_raw_review_contribution_invalid" });
+    }
+  });
+
+  it("keeps the review-guide identity tied to protected composition rather than header text", () => {
     const initialReceipt = framedReceipt();
     const plan = rawWorkPlan(initialReceipt);
     const initial = createFramedTargetRawReviewContribution({ receipt: initialReceipt, rawWorkPlan: plan });
@@ -108,7 +142,7 @@ describe("Framed raw-review contribution", () => {
     expect(relabeled.typed_review_contribution_sha256).toBe(initial.typed_review_contribution_sha256);
   });
 
-  it("invalidates coverage identity when protected geometry drifts", () => {
+  it("invalidates coverage identity when protected composition drifts", () => {
     const receipt = framedReceipt();
     const plan = rawWorkPlan(receipt);
     const contribution = createFramedTargetRawReviewContribution({ receipt, rawWorkPlan: plan });

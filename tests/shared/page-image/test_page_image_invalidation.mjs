@@ -22,11 +22,11 @@ function receipt({ workflow = "framed", source = "a" } = {}) {
       slide_id: "DeckGo",
       position: 1,
       page_class: "standard",
+      subject_restrictions: "none",
       provider_content: { items: [] },
       header_policy: workflow === "framed"
         ? {
           local_header: { kicker: null, title: "Current title", subtitle: null },
-          context_not_to_render: { kicker: null, title: "Current title", subtitle: null },
         }
         : { provider_visible: { kicker: null, title: "Current title", subtitle: null } },
       visual_language: {},
@@ -88,6 +88,33 @@ describe("Page Image invalidation", () => {
     });
   });
 
+  it("requires a raw rebuild and a new review when Framed source restrictions drift", () => {
+    const previousReceipt = receipt({ source: "a" });
+    const nextReceipt = {
+      ...receipt({ source: "b" }),
+      slides: [{
+        ...receipt({ source: "b" }).slides[0],
+        subject_restrictions: "no-identity-subject",
+      }],
+    };
+    const previousPlan = rawPlan(previousReceipt);
+    const nextPlan = rawPlan(nextReceipt, { compiled: "9", rawContract: "9" });
+
+    expect(evaluatePageImageInvalidation({
+      previousReceipt,
+      nextReceipt,
+      previousRawWorkPlan: previousPlan,
+      nextRawWorkPlan: nextPlan,
+      acceptedRawEvidence: acceptedEvidence(previousPlan),
+    })).toMatchObject({
+      workflow: "framed",
+      kind: "raw_rebuild",
+      provider_required: true,
+      next_action: "authorize_and_rebuild_framed_raw",
+      reason: "raw_contract_drift",
+    });
+  });
+
   it("allows Framed local overlay refresh only when every bound provider fact remains equal", () => {
     const previousReceipt = receipt({ source: "a" });
     const nextReceipt = receipt({ source: "b" });
@@ -108,7 +135,7 @@ describe("Page Image invalidation", () => {
     });
   });
 
-  it("rejects Framed overlay reuse when a raw contract, profile, geometry, or accepted evidence binding drifts", () => {
+  it("rejects Framed overlay reuse when a raw contract, profile, composition, or accepted evidence binding drifts", () => {
     const previousReceipt = receipt({ source: "a" });
     const nextReceipt = receipt({ source: "b" });
     const previousPlan = rawPlan(previousReceipt);
@@ -127,10 +154,10 @@ describe("Page Image invalidation", () => {
       nextReceipt,
       previousRawWorkPlan: previousPlan,
       nextRawWorkPlan: rawPlan(nextReceipt, {
-        binding: { protected_geometry_sha256: digest("9") },
+        binding: { protected_composition_sha256: digest("9") },
       }),
       acceptedRawEvidence: currentEvidence,
-    })).toMatchObject({ kind: "raw_rebuild", reason: "protected_geometry_drift" });
+    })).toMatchObject({ kind: "raw_rebuild", reason: "protected_composition_drift" });
 
     const staleEvidencePlan = rawPlan(previousReceipt, { providerProfile: "9" });
     expect(evaluatePageImageInvalidation({
@@ -169,7 +196,7 @@ describe("Page Image invalidation", () => {
       ["header_policy_sha256", "header_policy_drift", "9"],
       ["page_presentation_sha256", "page_presentation_drift", "8"],
       ["local_header_profile_sha256", "local_header_profile_drift", "9"],
-      ["protected_geometry_sha256", "protected_geometry_drift", "9"],
+      ["protected_composition_sha256", "protected_composition_drift", "9"],
     ];
 
     for (const [field, reason, replacement] of cases) {
