@@ -1,6 +1,6 @@
 # Progressive Plan: Schema-First Page Image Recovery
 
-> Type: progressive coordination plan | Updated: 2026-08-13 | Status: active (C1-C6 and the Pre-C7 convergence checkpoint are complete; C7 remains open for a bounded production repair after post-delivery visual review)
+> Type: progressive coordination plan | Updated: 2026-08-13 | Status: complete (C1-C7 and the Pre-C7 convergence checkpoint are complete; C7 closed after the source epoch 3 repair passed Complete Page Review and Delivery Review)
 >
 > **This is the only route document for Page Image recovery.** Three earlier
 > plans were closed on 2026-08-11 as CLS-025/026/027; everything from them that
@@ -571,8 +571,8 @@ it before editing Harness source.
 | Order | Name | Kind | Status and boundary |
 | --- | --- | --- | --- |
 | 1 | `converge-active-schema-authority` | OpenSpec change | **Done.** Archived at `openspec/changes/archive/2026-08-12-converge-active-schema-authority/`; all 20 tasks passed their named verification and the completion was committed as `f3dc282`. |
-| 2 | C7 — reconstruct and repair Dark Factory through a current Work Version | Production operation | **In progress.** `deck_dark_factory_current` remains byte-preserved and unavailable as a current protocol source. The separately initialized, Harness-bound `deck_dark_factory_reconstructed/3_versions/v1` has a complete prior receipt chain, but post-delivery visual review found provider-rendered supporting text in `DarkGo`'s exclusive `reserved_header`; that chain is not acceptable for intended delivery. Preserve it as evidence and repair the current source/configuration before any fresh plan, grant, generation, review, and delivery. |
-| 3 | Close this route | Backlog bookkeeping | Pending the repaired C7 delivery and visual acceptance. No Harness source change is implied unless a genuine current capability gap is proven. |
+| 2 | C7 — reconstruct and repair Dark Factory through a current Work Version | Production operation | **Done.** `deck_dark_factory_current` remains byte-preserved and unavailable as a current protocol source. The separately initialized, Harness-bound `deck_dark_factory_reconstructed/3_versions/v1` corrected `DarkGo` at source epoch 3, completed a fresh three-page Framed lifecycle, and passed both Complete Page Review and Delivery Review. The earlier chain remains preserved and non-acceptable historical evidence. |
+| 3 | Close this route | Backlog bookkeeping | **Ready.** Archive this plan through the normal Backlog procedure. No Harness source change is implied. |
 
 **Known remaining OpenSpec change count: zero.** There is no planned C8 or
 unnamed post-C7 cleanup change. If work outside C7 is later proven necessary,
@@ -615,7 +615,7 @@ does not rewrite what those labels mean.
 | **C5** Per-page derived data on disk | `image2 plan` writer, path layout | Archived 2026-08-12 at [`publish-per-page-derived-data`](../../openspec/changes/archive/2026-08-12-publish-per-page-derived-data/); six delta specs synced and completion commit `fcd9652`. It remains provider-free and inspectable before any spend. |
 | **C6** Framed hardening | `subject_restrictions` propagation, normalized composition, body-safe region | Archived 2026-08-12 at [`harden-framed-provider-protected-composition`](../../openspec/changes/archive/2026-08-12-harden-framed-provider-protected-composition/). It establishes bounded best-effort provider guidance, not a native guarantee; no paid call, native transport claim, production-bundle read, or v3 repair occurred. Completion commit: `693921e`. |
 | **Pre-C7** Active contract convergence | Three bounded groups from the [readiness audit](schema-first-active-contract-convergence-research.md): retire the Harness version axis, close schema/owner/test proof, and retire route scaffolding from permanent schema authority | Archived 2026-08-12 at [`converge-active-schema-authority`](../../openspec/changes/archive/2026-08-12-converge-active-schema-authority/); all 20 tasks completed and commit `f3dc282` records the result. This is an unnumbered readiness checkpoint, so C1-C7 retain their original labels and responsibilities. |
-| **C7** v3 repair | Production data path only | **In progress.** The historical Bundle remains byte-preserved and unavailable as a current protocol source. The reconstruction Bundle's prior receipt-bound Framed delivery is retained as evidence but is not acceptable for intended delivery after the `DarkGo` header-reservation finding. |
+| **C7** v3 repair | Production data path only | **Done.** The historical Bundle remains byte-preserved and unavailable as a current protocol source. The reconstruction Bundle's prior delivery is retained but non-acceptable; source epoch 3 completed a fresh Framed evidence and delivery chain after `DarkGo` was repaired. |
 
 C1-C6 are complete. The unnumbered convergence checkpoint strengthens their
 shared exit proof; it does not reopen or repudiate them. C7 then resumes with
@@ -1001,18 +1001,18 @@ chain without copying any historical production fact. That chain remains intact
 as production evidence, but its later visual finding means it is not an
 acceptable intended delivery.
 
-**Post-delivery visual correction.** The formal `proceed` was too narrow:
+**Post-delivery visual correction and closure.** The first formal `proceed` was too narrow:
 `DarkGo` still contains provider-rendered callout/supporting text on the right
 side of `reserved_header`. A legible local title on the left does not satisfy
 the Framed policy: the whole `reserved_header` is exclusive to the deterministic
 local overlay. `LessMore` and `RoadWay` remain visually compliant in this
 specific respect. Do not delete, rewrite, retry, or reclassify the previous
 raw plan, grant, requests, review, accepted evidence, final media, or delivery
-receipt. They are valid lineage evidence but are non-acceptable for the intended
-delivery. C7 now requires a material source/configuration repair for `DarkGo`,
-then a fresh `image2 plan`, exact new grant, fresh raw generation, Complete Page
-Review, and delivery review. The earlier three-submission authorization does
-not cover that successor work.
+receipt. They remain valid lineage evidence but are non-acceptable for the
+intended delivery. C7 completed the required material source/configuration
+repair for `DarkGo`, then a fresh `image2 plan`, exact new grant, fresh raw
+generation, Complete Page Review, and Delivery Review. The earlier
+three-submission authorization was not reused.
 
 **Hard rules.** Never hand-edit `_generated/`, state, receipts, or review
 records. Never carry a prior authorization forward. Inspect both the provider
@@ -1401,9 +1401,9 @@ only — this is not Harness maintenance.
 - [x] Apply the material `DarkGo` source repair — provider-owned `SLIDE BODY` is now `items: []`; the original page argument is retained in the speaker note while the local kicker, title, and subtitle remain visible. `LessMore` and `RoadWay` source bytes are unchanged.
 - [x] Rebind the changed source through the selected Framed owner and validate it — `image2 plan` advanced the source to epoch 3 and published full provider-free plan `8d402d30fdc14e31c6117c72987d178df98bc468301f25c492d158a19d4d1a33`; `bundle_layout --check` and `ppt_flow validate` pass. The old grant, raw review, accepted evidence, final manifest, and delivery receipt are no longer current authority and were not rewritten.
 - [x] Publish the successor Pilot scope — full Pilot batch `717f8cddf71dd4d1c53827c7aad9f7289dfdd666e17437deb7ef033a70fb57b7` binds exactly `DarkGo`, `LessMore`, and `RoadWay`, with at most three submissions. The raw owner requires that complete set for one-through-five-item paid debt; a DarkGo-only Pilot was rejected before a batch or provider call was created.
-- [~] Obtain a fresh exact grant for the successor three-page Pilot — this batch awaits the Deck Author's explicit authorization; prior authorization is exhausted and does not carry forward.
-- [ ] Submit each granted page once, inspect the new Complete Page Review, and accept only if every pixel in each `reserved_header` is free of provider-rendered content or visual subjects.
-- [ ] Rebuild final media, notes, PPTX, and delivery review from the new accepted evidence; then close C7 and this route through the normal Backlog procedure.
+- [x] Obtain a fresh exact grant for the successor three-page Pilot — grant `455dd94e1a0e4af4df9453e10d07716d97c871800a9bb2ee928f16d956fddd81` binds exactly batch `717f8cdd`; the earlier grant remained exhausted and was not reused.
+- [x] Submit each granted page once, inspect the new Complete Page Review, and accept only if every pixel in each `reserved_header` is free of provider-rendered content or visual subjects — `DarkGo`, `LessMore`, and `RoadWay` each materialized exactly once with no failure, unknown outcome, or retry. Complete Page Review `e372ccd63d77dd105dfc6681dc489fcf59fd07380929656186a893084c44c69a` was accepted as raw evidence `670307049d6fbc33b8b13a97332db9b34c1425af84b06df9d3b733c088cf2329`; visual review found every `reserved_header` exclusive to the local overlay.
+- [x] Rebuild final media, notes, PPTX, and Delivery Review from the new accepted evidence — final manifest `b0af634a4af393b96c60531035fd8a860fbf0949c562ff7396e35b21b972f88d` and delivery receipt `c640e9f62ee2cbb8bbab8decd6e4df282bfdb8d5cd6a343fb849fdbc0115bb7d` bind three final PNGs, three delivery JPEGs, three injected speaker notes, and the current PPTX. The Deck Author recorded Delivery Review `proceed`; workflow inspection reports `complete`.
 
 > Evidence: reconstruction v1; the new receipt/authorization/review chain; the delivery receipt. Historical v3 remains preservation evidence only.
 
@@ -1450,5 +1450,5 @@ contract surfaces:
 - [x] C1-C6 archived; the separate provider constraint trial is also archived
 - [x] Pre-C7 convergence change proposed, applied, verified, and archived —
       `converge-active-schema-authority`, 20/20 tasks, 2026-08-12
-- [~] C7 production repair has a bounded successor scope — source epoch 3 plan `8d402d30` is current, but it awaits a fresh exact three-page grant, materialization, visual review, and delivery; the previous delivery is retained but non-acceptable.
-- [ ] This plan closes only after the repaired C7 delivery passes visual review: `git mv` to `_backlog/_done/_closed_plans/`, assigned CLS-NNN, three index files updated per `_backlog/plans/README.md`
+- [x] C7 production repair completed — source epoch 3 plan `8d402d30`, its exact three-page grant, accepted complete-page review, final manifest, delivery receipt, and user Delivery Review `proceed` form the current complete chain; the previous delivery remains retained but non-acceptable.
+- [x] This plan is ready to close: `git mv` to `_backlog/_done/_closed_plans/`, assigned CLS-NNN, three index files updated per `_backlog/plans/README.md`

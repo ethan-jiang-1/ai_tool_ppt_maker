@@ -50,7 +50,8 @@ plan 完成后从 `_backlog/plans/` 通过 `git mv` 移入本目录：
 | [CLS-029](framed-provider-capability-discovery-research.md) | 2026-08-13 | `framed-provider-capability-discovery-research.md` | C6 provider transport 面与 synthetic probe 准备；其有界结论已由归档 change 的 evidence 取代。 |
 | [CLS-030](schema-first-active-contract-convergence-research.md) | 2026-08-13 | `schema-first-active-contract-convergence-research.md` | Pre-C7 收敛审计；三项 cleanup 已由 `converge-active-schema-authority` 完成并归档。 |
 | [CLS-031](schema-first-clean-cutover-decisions.md) | 2026-08-13 | `schema-first-clean-cutover-decisions.md` | schema-first clean-cutover 决策规则；C2 与 Pre-C7 完成后随总路线关闭，保留为历史决策。 |
+| [CLS-032](schema-first-page-image-recovery.md) | 2026-08-13 | `schema-first-page-image-recovery.md` | 总控路线：C1-C6、Pre-C7 收敛及 C7 reconstruction 均完成。C7 的初始 delivery 因 `DarkGo` header-reservation 视觉问题被保留为非交付 evidence；source epoch 3 修复后通过新的三页 review 与 delivery review。 |
 
-**Next available plan ID: CLS-032**
+**Next available plan ID: CLS-033**
 
 > 已完成计划保留历史决策；当前工作只从 `_backlog/plans/` 重新进入。
