@@ -1,6 +1,6 @@
 # Closed Plans Index — 已完成 plan 归档
 
-> 最后更新: 2026-08-09 | `_backlog/_done/_closed_plans/` — 已完成 plan 的归档目录。
+> 最后更新: 2026-08-13 | `_backlog/_done/_closed_plans/` — 已完成 plan 的归档目录。
 > 接收来自 [`../../plans/`](../../plans/) 的 plan。`_` 前缀 = coding agent 默认忽略。
 >
 > **plan 完成后文件名不变，位置即状态。** 移入时分配 `CLS-NNN` 序号（Closed），按完成时间递增。
@@ -46,7 +46,12 @@ plan 完成后从 `_backlog/plans/` 通过 `git mv` 移入本目录：
 | [CLS-025](page-image-progressive-plan.md) | 2026-08-11 | `page-image-progressive-plan.md` | Phase 0/0.5/Track A/Track P 已落地并被 `schema-first-page-image-recovery.md` 吸收；Phase 1–6 的路线因 schema-first 决策作废。 |
 | [CLS-026](page-image-presentation-schema.md) | 2026-08-11 | `page-image-presentation-schema.md` | Q2–Q13 决策与四文档配置包结构已吸收进 C4/C5；`-v1` 标识符与 `Header Profile Set` 等术语作废。 |
 | [CLS-027](page-image-progressive-plan-feasibility-research.md) | 2026-08-11 | `page-image-progressive-plan-feasibility-research.md` | 基线、缺陷定位、工作量与回归影响面分析已吸收进 C1–C7；结尾的执行顺序建议作废。 |
+| [CLS-028](framed-provider-protected-composition.md) | 2026-08-13 | `framed-provider-protected-composition.md` | C6 Framed 保护区诊断、设计与风险边界；实现、两页 disposable probe 与 C7 delivery 已完成，保留为历史证据。 |
+| [CLS-029](framed-provider-capability-discovery-research.md) | 2026-08-13 | `framed-provider-capability-discovery-research.md` | C6 provider transport 面与 synthetic probe 准备；其有界结论已由归档 change 的 evidence 取代。 |
+| [CLS-030](schema-first-active-contract-convergence-research.md) | 2026-08-13 | `schema-first-active-contract-convergence-research.md` | Pre-C7 收敛审计；三项 cleanup 已由 `converge-active-schema-authority` 完成并归档。 |
+| [CLS-031](schema-first-clean-cutover-decisions.md) | 2026-08-13 | `schema-first-clean-cutover-decisions.md` | schema-first clean-cutover 决策规则；C2 与 Pre-C7 完成后随总路线关闭，保留为历史决策。 |
+| [CLS-032](schema-first-page-image-recovery.md) | 2026-08-13 | `schema-first-page-image-recovery.md` | 总控路线：C1–C6、Pre-C7 收敛与 C7 Dark Factory reconstruction/delivery 全部完成。 |
 
-**Next available plan ID: CLS-028**
+**Next available plan ID: CLS-033**
 
 > 已完成计划保留历史决策；当前工作只从 `_backlog/plans/` 重新进入。
