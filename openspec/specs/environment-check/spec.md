@@ -104,13 +104,14 @@ failed `image_base_url` check SHALL prevent `--smoke` or `--probe-vendors` from 
 - **WHEN** no base URL is set and env-check runs in base mode
 - **THEN** no `image_base_url` check is emitted
 
-### Requirement: Structured READY/NOT READY output
+### Requirement: Environment check emits one declared current report
 
-The env check SHALL output a structured report with per-check status and an
+The environment check SHALL output a structured report with per-check status and an
 overall verdict for the selected Page Image Workflow mode and operation. It SHALL
 exit 0 on READY and non-zero on NOT READY. The direct `--json` form SHALL
-retain the existing `env-check-v1` top-level booleans and generic check-array
-contract; it SHALL not expose secrets or add a second incompatible report
+retain one declared current set of top-level readiness booleans and generic
+check-array contract; it SHALL not expose secrets, name a Harness report
+generation, or add a second incompatible report
 schema. Every accepted JSON combination SHALL emit exactly one parseable JSON
 document on stdout. Live heartbeat, progress, and human Summary text SHALL be
 sent to stderr or represented inside structured check evidence, never
@@ -142,14 +143,14 @@ Authority mode, and `--smoke` / `--probe-vendors` remain mutually exclusive.
 
 - **WHEN** all selected checks and a `--smoke` submit pass
 - **THEN** the human conclusion and smoke check evidence describe connectivity-only success while retaining the
-  existing READY status and `env-check-v1` report shape
+  existing READY status and declared current report shape
 - **AND** neither form says that production prompt/media compatibility or a later generation authorization passed
 
-#### Scenario: JSON compatibility is preserved
+#### Scenario: JSON has one current shape
 
 - **WHEN** direct `env-check --json` runs for a supported local or
   raw-generation operation
-- **THEN** the report remains valid under `env-check-v1`
+- **THEN** stdout is one document under the declared current report contract
 - **AND** mode-specific behavior is represented by included checks and existing
   live-probe booleans rather than a duplicate diagnostic schema
 
@@ -170,7 +171,7 @@ Authority mode, and `--smoke` / `--probe-vendors` remain mutually exclusive.
 #### Scenario: Live JSON stdout remains parseable
 
 - **WHEN** direct `env-check --json --smoke` or `env-check --json --probe-vendors` runs
-- **THEN** stdout parses as exactly one `env-check-v1` JSON document
+- **THEN** stdout parses as exactly one declared-current JSON document
 - **AND** live progress or human summary lines do not appear outside that document on stdout
 
 ### Requirement: Live Image2 smoke states its connectivity-only evidence boundary
@@ -346,7 +347,7 @@ The check SHALL be `ok` only when a conservatively recognized version is availab
 
 ### Requirement: Git warnings do not alter environment readiness
 
-The `git` check SHALL participate in the existing text and direct `env-check --json` check list but SHALL omit the optional `foundation` field and SHALL NOT change the established meaning of `allPass`, foundation readiness, READY/NOT READY text, or process exit status. Git availability, worktree status, verifiable history, worktree cleanliness, and commit history SHALL NOT be hard prerequisites for `doctor`, `init`, Stage execution, rendering, gate approval, or structural version publication. This change SHALL retain the existing generic `env-check-v1` JSON check-array contract and SHALL NOT add `--json` to `ppt_flow doctor`.
+The `git` check SHALL participate in the existing text and direct `env-check --json` check list but SHALL omit the optional `foundation` field and SHALL NOT change the established meaning of `allPass`, foundation readiness, READY/NOT READY text, or process exit status. Git availability, worktree status, verifiable history, worktree cleanliness, and commit history SHALL NOT be hard prerequisites for `doctor`, `init`, Stage execution, rendering, gate approval, or structural version publication. This change SHALL retain the declared current JSON check-array contract and SHALL NOT add `--json` to `ppt_flow doctor`.
 
 #### Scenario: Git-only warning keeps direct environment check ready
 

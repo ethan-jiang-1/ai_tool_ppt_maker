@@ -20,7 +20,7 @@ outputs:
   - image-generation-plan
 provenance:
   source: "One normalized Page Source receipt plus its resolved layout-config projection."
-  requirement: "Keep normalized class, selected profile, selected defaults, provenance, and binding digest in immutable raw lineage and its read-only C5 publication."
+  requirement: "Keep normalized class, selected profile, selected defaults, provenance, and binding digest in immutable raw lineage and its read-only derived publication."
 downstream_consumers:
   - page-generation-spec
   - image-generation-plan

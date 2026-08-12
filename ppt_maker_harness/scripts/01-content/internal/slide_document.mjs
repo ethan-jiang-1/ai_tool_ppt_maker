@@ -9,8 +9,6 @@ import {
   validateNewSlideId,
 } from "./slide_ids.mjs";
 
-export const SLIDE_DOCUMENT_SCHEMA_VERSION = 1;
-export const SLIDE_EDIT_SCHEMA_VERSION = 1;
 export const IDENTITY_SCHEME_MNEMONIC = "mnemonic";
 
 const SLIDE_LIKE_HEADING_RE = /^##[ \t]+Slide\b/i;
@@ -328,7 +326,6 @@ export function parseSlideDocument(text, source = "slide-specifications.md") {
   const preambleEnd = firstSlideStart;
   const finalEpilogueStart = epilogueStart ?? sourceText.length;
   return {
-    schema_version: SLIDE_DOCUMENT_SCHEMA_VERSION,
     source: sourceLocator(source),
     source_text: sourceText,
     newline: sourceText.includes("\r\n") ? "\r\n" : "\n",
@@ -561,7 +558,6 @@ export function canonicalSlideEditJson(value) {
 
 export function slideEditMutationPayload(transaction) {
   return {
-    schema_version: transaction.schema_version,
     source: transaction.source,
     base_spec_sha256: transaction.base_spec_sha256,
     publication: transaction.publication,
@@ -875,7 +871,6 @@ export function planSlideEdit(document, selectors = [], operations = [], history
 
   const structural = formalOperations.some((operation) => operation.op !== "normalize");
   const transaction = {
-    schema_version: SLIDE_EDIT_SCHEMA_VERSION,
     source: document.source,
     base_spec_sha256: document.sha256,
     publication: args.options.publication || {
@@ -981,7 +976,6 @@ export function applySlideEdit(transaction, sourceText, { expectedPlanSha256 } =
   return {
     text: outputText,
     receipt: {
-      schema_version: SLIDE_EDIT_SCHEMA_VERSION,
       source: transaction.source,
       plan_sha256: transaction.plan_sha256,
       base_spec_sha256: transaction.base_spec_sha256,

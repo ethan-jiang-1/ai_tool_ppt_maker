@@ -45,7 +45,7 @@ fields:
     on_violation:
       means: "A selected input cannot be attributed for invalidation or review lineage."
       ask: "Repair the direct package source supplying the selected binding."
-      never: "Never expose an unexplained page override or persist a C5 derived projection."
+      never: "Never expose an unexplained page override or persist a derived projection."
   framed_header_region:
     type: CSS-pixel rectangle
     description: "The one selected Framed profile header region for deterministic local overlay rendering."
@@ -61,4 +61,4 @@ fields:
     on_violation:
       means: "The selected profile cannot produce one exact provider-facing composition lineage."
       ask: "Repair the selected profile or its declared canvas, then rerun the same resolution checkpoint."
-      never: "Never infer composition from a slide, C5 output, prior plan, or Pure projection."
+      never: "Never infer composition from a slide, derived output, prior plan, or Pure projection."

@@ -33,8 +33,10 @@ export {
 
 export {
   PAGE_IMAGE_PRESENTATION_FILES,
+  PAGE_IMAGE_PRESENTATION_ARTIFACT_ROLE,
   PAGE_IMAGE_PRESENTATION_SCHEMA,
   PageImagePresentationError,
+  hasCurrentPageImagePresentationEnvelope,
   loadPageImagePresentationPackage,
   resolvePageImagePresentation,
 } from "./internal/page_image_presentation.mjs";

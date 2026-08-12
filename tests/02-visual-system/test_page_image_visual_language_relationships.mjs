@@ -28,7 +28,6 @@ const RELATIONSHIP_CLAUSES = `relationships:
 
 function registrySource({ relationships = true } = {}) {
   return `schema: pptmaker-page-image-visual-language
-revision: 1
 recipes:
   editorial-systems:
     provider_clause: architectural editorial scene, layered amber and cobalt light, quiet depth

@@ -1029,16 +1029,16 @@ async function commandNewVersion(runDir, { name }) {
   const { resolved, deckDir } = binding;
   try {
     const {
-      resolveRunProductionAdapter,
       activateCleanPageImageTargetDraft,
     } = await import("./shared/state/state.mjs");
-    const sourceRoute = resolveRunProductionAdapter(deckDir, { runDir: resolved, purpose: "observe" });
-    const activateTargetDraft = sourceRoute.ok &&
-      sourceRoute.adapter === "page-image-workflow";
+    const source = findSlideSpecs(resolved);
+    if (!source) throw new Error("CLEAN_TARGET_SOURCE_INVALID");
+    const sourcePipeline = probeProductionMarker(readFileSync(source), { source: basename(source) });
+    if (sourcePipeline.branch !== PAGE_IMAGE_WORKFLOW_PIPELINE) {
+      throw new Error("CLEAN_TARGET_SOURCE_INVALID");
+    }
     const target = createVersion(resolved, name);
-    const activation = activateTargetDraft
-      ? activateCleanPageImageTargetDraft(deckDir, { sourceRunDir: resolved, targetRunDir: target })
-      : null;
+    const activation = activateCleanPageImageTargetDraft(deckDir, { sourceRunDir: resolved, targetRunDir: target });
     console.log(`✓ Created clean version: ${target}`);
     console.log("  Generated artifacts were not copied.");
     if (activation) {

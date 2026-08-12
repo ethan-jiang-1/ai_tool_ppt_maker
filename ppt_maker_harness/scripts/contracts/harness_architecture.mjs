@@ -44,6 +44,8 @@ export const PUBLIC_SHARED_INTERFACES = Object.freeze([
   "shared/identity/byte_hash.mjs",
   "shared/page-image/page_image_core.mjs",
   "shared/page-image/page_image_invalidation.mjs",
+  "shared/page-image/page_image_presentation_envelope.mjs",
+  "shared/page-image/page_image_source_receipt.mjs",
   "shared/image2/credentials.mjs",
   "shared/image2/content_address_store.mjs",
   "shared/image2/page_image_artifacts.mjs",
@@ -156,17 +158,24 @@ const CONTRACT_VALUE = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
  */
 export function evaluateProductionSchemaConformance(snapshot = {}) {
   const issues = [];
-  for (const key of ["stage_names", "anchors", "selectors", "wire_schemas", "shared_contracts", "contract_fields", "literal_occurrences"]) {
+  for (const key of ["stage_names", "anchors", "selectors", "wire_schemas", "stage_artifact_envelopes", "shared_contracts", "state_shapes", "semantic_exclusions", "contract_fields", "envelope_observations", "literal_occurrences", "numeric_marker_occurrences"]) {
     if (!Array.isArray(snapshot[key])) issues.push({ code: "contract-snapshot-incomplete", path: key, message: `${key} must be an array` });
   }
   const stageNames = new Set(snapshot.stage_names || []);
   const anchors = new Set(snapshot.anchors || []);
   const selectors = Array.isArray(snapshot.selectors) ? snapshot.selectors : [];
   const wireSchemas = Array.isArray(snapshot.wire_schemas) ? snapshot.wire_schemas : [];
+  const stageArtifactEnvelopes = Array.isArray(snapshot.stage_artifact_envelopes) ? snapshot.stage_artifact_envelopes : [];
   const sharedContracts = Array.isArray(snapshot.shared_contracts) ? snapshot.shared_contracts : [];
+  const stateShapes = Array.isArray(snapshot.state_shapes) ? snapshot.state_shapes : [];
+  const semanticExclusions = Array.isArray(snapshot.semantic_exclusions) ? snapshot.semantic_exclusions : [];
   const fieldAssignments = Array.isArray(snapshot.contract_fields) ? snapshot.contract_fields : [];
+  const envelopeObservations = Array.isArray(snapshot.envelope_observations) ? snapshot.envelope_observations : [];
   const literals = Array.isArray(snapshot.literal_occurrences) ? snapshot.literal_occurrences : [];
+  const numericMarkers = Array.isArray(snapshot.numeric_marker_occurrences) ? snapshot.numeric_marker_occurrences : [];
   const declaredValues = new Set();
+  const declaredStageRoles = new Set();
+  const declaredEnvelopeForms = new Map();
 
   const declare = (entry, type) => {
     const value = entry?.value;
@@ -177,12 +186,39 @@ export function evaluateProductionSchemaConformance(snapshot = {}) {
     declaredValues.add(value);
   };
 
+  for (const value of stageNames) declare({ value, location: "stage_names" }, "stage name");
   for (const entry of selectors) declare(entry, "selector");
   for (const entry of wireSchemas) {
     declare(entry, "wire schema");
     if (!stageNames.has(entry?.stage_ref) || typeof entry?.role !== "string" || !entry.role.trim()) {
       issues.push({ code: "wire-stage-role-invalid", path: entry?.location || "wire schema", message: `${entry?.value || "wire schema"} must reference one declared stage and role` });
     }
+  }
+  for (const entry of stageArtifactEnvelopes) {
+    const stage = entry?.stage_ref;
+    const role = entry?.artifact_role;
+    const form = entry?.form;
+    const requiredFields = entry?.required_fields;
+    if (!stageNames.has(stage) || typeof role !== "string" || !CONTRACT_VALUE.test(role) ||
+      typeof form !== "string" || !CONTRACT_VALUE.test(form) ||
+      !Array.isArray(requiredFields) || requiredFields.length === 0 || new Set(requiredFields).size !== requiredFields.length ||
+      requiredFields.some((field) => typeof field !== "string" || !field) ||
+      typeof entry?.producer !== "string" || !entry.producer || !Array.isArray(entry?.anchors) || entry.anchors.length === 0) {
+      issues.push({ code: "stage-artifact-envelope-invalid", path: entry?.location || stage || "stage artifact envelope", message: "stage artifact envelope requires one declared stage, role, physical form, producer, anchors, and required fields" });
+      continue;
+    }
+    declare({ value: role, location: entry?.location || stage }, "artifact role");
+    const stageRole = `${stage}\u0000${role}`;
+    const key = `${stageRole}\u0000${form}`;
+    if (declaredEnvelopeForms.has(key)) {
+      issues.push({ code: "stage-artifact-envelope-duplicate", path: entry?.location || stage, message: `${stage}/${role}/${form} is declared more than once` });
+      continue;
+    }
+    for (const anchor of entry.anchors) {
+      if (!anchors.has(anchor)) issues.push({ code: "contract-anchor-missing", path: entry?.location || stage, message: `missing declared anchor ${anchor}` });
+    }
+    declaredStageRoles.add(stageRole);
+    declaredEnvelopeForms.set(key, new Set(requiredFields));
   }
   for (const entry of sharedContracts) {
     declare(entry, "shared contract");
@@ -193,9 +229,59 @@ export function evaluateProductionSchemaConformance(snapshot = {}) {
       if (!anchors.has(anchor)) issues.push({ code: "contract-anchor-missing", path: entry?.location || entry?.name || "shared contract", message: `missing declared anchor ${anchor}` });
     }
   }
+  for (const stateShape of stateShapes) {
+    if (typeof stateShape?.name !== "string" || !stateShape.name || typeof stateShape?.owner !== "string" || !stateShape.owner ||
+      !Array.isArray(stateShape?.required_fields) || stateShape.required_fields.length === 0 ||
+      new Set(stateShape.required_fields).size !== stateShape.required_fields.length ||
+      !Array.isArray(stateShape?.anchors) || stateShape.anchors.length === 0) {
+      issues.push({ code: "state-shape-incomplete", path: stateShape?.location || "current state shape", message: "state shape requires name, owner, anchors, and unique required fields" });
+      continue;
+    }
+    if (stateShape.value !== undefined) declare(stateShape, "state shape");
+    for (const anchor of stateShape.anchors) {
+      if (!anchors.has(anchor)) issues.push({ code: "contract-anchor-missing", path: stateShape.location || stateShape.name, message: `missing declared anchor ${anchor}` });
+    }
+  }
+  const declaredExclusions = new Map();
+  for (const exclusion of semanticExclusions) {
+    if (typeof exclusion?.name !== "string" || !exclusion.name || typeof exclusion?.field !== "string" || !exclusion.field ||
+      !Array.isArray(exclusion?.values) || exclusion.values.length === 0 || exclusion.values.some((value) => typeof value !== "string" || !value) ||
+      typeof exclusion?.meaning !== "string" || !exclusion.meaning ||
+      (exclusion.anchors !== undefined && (!Array.isArray(exclusion.anchors) || exclusion.anchors.length === 0))) {
+      issues.push({ code: "semantic-exclusion-invalid", path: exclusion?.name || "semantic exclusion", message: "semantic exclusion requires a name, field, values, and declared meaning" });
+      continue;
+    }
+    for (const anchor of exclusion.anchors || []) {
+      if (!anchors.has(anchor)) issues.push({ code: "contract-anchor-missing", path: exclusion.name, message: `missing declared anchor ${anchor}` });
+    }
+    declaredExclusions.set(exclusion.name, exclusion);
+  }
   for (const assignment of fieldAssignments) {
+    if (assignment?.intent === "test-input") continue;
+    const semantic = assignment?.semantic ? declaredExclusions.get(assignment.semantic) : null;
+    if (semantic && semantic.field === assignment.field && semantic.values.includes(assignment.value)) continue;
     if (!declaredValues.has(assignment?.value)) {
       issues.push({ code: "contract-field-undeclared", path: assignment?.location || assignment?.field || "contract field", message: `${assignment?.value || "missing value"} is not declared` });
+    }
+  }
+  const observedEnvelopeForms = new Set();
+  for (const observation of envelopeObservations) {
+    const stage = observation?.schema;
+    const role = observation?.artifact_role;
+    const form = observation?.form;
+    const declared = declaredEnvelopeForms.get(`${stage}\u0000${role}\u0000${form}`);
+    if (!declared) {
+      issues.push({ code: "artifact-envelope-undeclared", path: observation?.location || "artifact envelope", message: `${stage || "missing schema"}/${role || "missing artifact_role"}/${form || "missing form"} is not declared` });
+      continue;
+    }
+    observedEnvelopeForms.add(`${stage}\u0000${role}\u0000${form}`);
+    const fields = Array.isArray(observation?.fields) ? new Set(observation.fields) : new Set();
+    const missing = [...declared].filter((field) => !fields.has(field));
+    if (missing.length) issues.push({ code: "artifact-envelope-fields-missing", path: observation?.location || stage, message: `${stage}/${role} omits ${missing.join(", ")}` });
+  }
+  for (const key of declaredEnvelopeForms.keys()) {
+    if (!observedEnvelopeForms.has(key)) {
+      issues.push({ code: "artifact-envelope-unobserved", path: key.replaceAll("\u0000", "/"), message: "declared physical artifact form has no current producer observation" });
     }
   }
   for (const literal of literals) {
@@ -203,13 +289,24 @@ export function evaluateProductionSchemaConformance(snapshot = {}) {
       issues.push({ code: "version-suffixed-production-literal", path: literal?.location || "literal", message: `${literal.value} has a prohibited version suffix` });
     }
   }
+  for (const marker of numericMarkers) {
+    if (marker?.intent === "expected-rejection") continue;
+    const declared = declaredExclusions.get(marker?.value);
+    if (!declared) {
+      issues.push({ code: "numeric-harness-marker-undeclared", path: marker?.location || marker?.field || "numeric marker", message: `${marker?.field || "marker"}=${marker?.value ?? "missing"} has no declared semantic classification` });
+      continue;
+    }
+    if (declared.name === "style-master-plan-generation" && marker.scope !== "exact-work-version-workflow") {
+      issues.push({ code: "numeric-harness-marker-invalid", path: marker?.location || marker?.field, message: "Style Master plan_generation must be a positive exact Work Version/workflow ordering fact" });
+    }
+  }
   return Object.freeze({ ok: issues.length === 0, issues: Object.freeze(issues) });
 }
 
-const C6_SUBJECT_RESTRICTIONS = new Set(["none", "no-generic-metal-robot", "no-identity-subject"]);
-const C6_RECTANGLE_KEYS = Object.freeze(["x", "y", "width", "height"]);
-const C6_REQUEST_FORBIDDEN_FIELDS = new Set(["local_header", "header_policy", "context_not_to_render", "protected_geometry"]);
-const C6_PURE_FORBIDDEN_FIELDS = new Set([
+const FRAMED_COMPOSITION_SUBJECT_RESTRICTIONS = new Set(["none", "no-generic-metal-robot", "no-identity-subject"]);
+const FRAMED_COMPOSITION_RECTANGLE_KEYS = Object.freeze(["x", "y", "width", "height"]);
+const FRAMED_COMPOSITION_REQUEST_FORBIDDEN_FIELDS = new Set(["local_header", "header_policy", "context_not_to_render", "protected_geometry"]);
+const PURE_FORBIDDEN_FRAMED_COMPOSITION_FIELDS = new Set([
   "header_region",
   "protected_composition",
   "protected_composition_sha256",
@@ -218,52 +315,52 @@ const C6_PURE_FORBIDDEN_FIELDS = new Set([
   "protected_geometry",
 ]);
 
-function c6PlainObject(value) {
+function framedCompositionPlainObject(value) {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }
 
-function c6ExactKeys(value, keys) {
-  return c6PlainObject(value) && Object.keys(value).length === keys.length && keys.every((key) => Object.hasOwn(value, key));
+function framedCompositionExactKeys(value, keys) {
+  return framedCompositionPlainObject(value) && Object.keys(value).length === keys.length && keys.every((key) => Object.hasOwn(value, key));
 }
 
-function c6Rectangle(value) {
-  return c6ExactKeys(value, C6_RECTANGLE_KEYS) &&
-    C6_RECTANGLE_KEYS.every((key) => Number.isFinite(value[key])) &&
+function framedCompositionRectangle(value) {
+  return framedCompositionExactKeys(value, FRAMED_COMPOSITION_RECTANGLE_KEYS) &&
+    FRAMED_COMPOSITION_RECTANGLE_KEYS.every((key) => Number.isFinite(value[key])) &&
     value.x >= 0 && value.y >= 0 && value.width > 0 && value.height > 0 &&
     value.x + value.width <= 1 && value.y + value.height <= 1;
 }
 
-function c6ContainsField(value, forbidden) {
-  if (Array.isArray(value)) return value.some((entry) => c6ContainsField(entry, forbidden));
-  if (!c6PlainObject(value)) return false;
-  return Object.entries(value).some(([key, entry]) => forbidden.has(key) || c6ContainsField(entry, forbidden));
+function framedCompositionContainsField(value, forbidden) {
+  if (Array.isArray(value)) return value.some((entry) => framedCompositionContainsField(entry, forbidden));
+  if (!framedCompositionPlainObject(value)) return false;
+  return Object.entries(value).some(([key, entry]) => forbidden.has(key) || framedCompositionContainsField(entry, forbidden));
 }
 
-function c6ContainsPureFramedField(value) {
-  if (Array.isArray(value)) return value.some((entry) => c6ContainsPureFramedField(entry));
-  if (!c6PlainObject(value)) return false;
+function pureContainsFramedCompositionField(value) {
+  if (Array.isArray(value)) return value.some((entry) => pureContainsFramedCompositionField(entry));
+  if (!framedCompositionPlainObject(value)) return false;
   return Object.entries(value).some(([key, entry]) => {
     if (key === "protected_composition_sha256") return entry !== null;
-    return C6_PURE_FORBIDDEN_FIELDS.has(key) || c6ContainsPureFramedField(entry);
+    return PURE_FORBIDDEN_FRAMED_COMPOSITION_FIELDS.has(key) || pureContainsFramedCompositionField(entry);
   });
 }
 
-function c6Same(left, right) {
+function framedCompositionSame(left, right) {
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
 /**
- * Evaluate synthetic C6 composition facts without loading YAML, a Run Bundle,
+ * Evaluate synthetic Framed composition facts without loading YAML, a Run Bundle,
  * provider configuration, or lifecycle state. Runtime owners remain the
  * authority for current source and adapter validation.
  */
-export function evaluateC6CompositionConformance(snapshot = {}) {
+export function evaluateFramedCompositionConformance(snapshot = {}) {
   const issues = [];
   const issue = (code, path, message) => issues.push({ code, path, message });
   const workflow = snapshot?.workflow;
   const receipt = snapshot?.source_receipt;
-  if (!["framed", "pure"].includes(workflow) || !c6PlainObject(receipt) || !C6_SUBJECT_RESTRICTIONS.has(receipt.subject_restrictions)) {
-    issue("c6-source-restriction-invalid", "source_receipt.subject_restrictions", "every C6 snapshot requires one closed parser-owned subject restriction");
+  if (!["framed", "pure"].includes(workflow) || !framedCompositionPlainObject(receipt) || !FRAMED_COMPOSITION_SUBJECT_RESTRICTIONS.has(receipt.subject_restrictions)) {
+    issue("framed-composition-source-restriction-invalid", "source_receipt.subject_restrictions", "every composition snapshot requires one closed parser-owned subject restriction");
     return Object.freeze({ ok: false, issues: Object.freeze(issues) });
   }
 
@@ -274,12 +371,12 @@ export function evaluateC6CompositionConformance(snapshot = {}) {
       provider_request: snapshot.provider_request,
       provider_input_binding: snapshot.provider_input_binding,
     })) {
-      if (c6ContainsPureFramedField(value)) {
-        issue("c6-pure-framed-binding", name, "Pure may retain the receipt restriction but must not carry a Framed C6 binding");
+      if (pureContainsFramedCompositionField(value)) {
+        issue("pure-framed-composition-binding", name, "Pure may retain the receipt restriction but must not carry a Framed composition binding");
       }
     }
-    if (c6ContainsField(snapshot.provider_request, new Set(["subject_restrictions"]))) {
-      issue("c6-pure-request-restriction", "provider_request", "Pure provider requests must not receive the C6 Framed restriction binding");
+    if (framedCompositionContainsField(snapshot.provider_request, new Set(["subject_restrictions"]))) {
+      issue("pure-provider-request-restriction", "provider_request", "Pure provider requests must not receive the Framed restriction binding");
     }
     return Object.freeze({ ok: issues.length === 0, issues: Object.freeze(issues) });
   }
@@ -289,80 +386,93 @@ export function evaluateC6CompositionConformance(snapshot = {}) {
   const canvas = profile?.canvas;
   const headerRegion = profile?.header_region;
   const composition = presentation?.protected_composition;
-  if (!c6ExactKeys(canvas, ["css_width", "css_height", "capture_width", "capture_height"]) ||
+  if (!framedCompositionExactKeys(canvas, ["css_width", "css_height", "capture_width", "capture_height"]) ||
     !Object.values(canvas).every((value) => Number.isFinite(value) && value > 0) ||
-    !c6ExactKeys(headerRegion, C6_RECTANGLE_KEYS) ||
+    !framedCompositionExactKeys(headerRegion, FRAMED_COMPOSITION_RECTANGLE_KEYS) ||
     !Object.values(headerRegion).every(Number.isFinite) ||
     headerRegion.x < 0 || headerRegion.y < 0 || headerRegion.width <= 0 || headerRegion.height <= 0 ||
     headerRegion.x + headerRegion.width > canvas.css_width || headerRegion.y + headerRegion.height >= canvas.css_height) {
-    issue("c6-header-region-invalid", "presentation.profile.header_region", "Framed requires one in-canvas CSS-pixel header_region with positive body height below it");
+    issue("framed-composition-header-region-invalid", "presentation.profile.header_region", "Framed requires one in-canvas CSS-pixel header_region with positive body height below it");
   }
-  const expectedReserved = c6PlainObject(canvas) && c6PlainObject(headerRegion) ? {
+  const expectedReserved = framedCompositionPlainObject(canvas) && framedCompositionPlainObject(headerRegion) ? {
     x: headerRegion.x / canvas.css_width,
     y: headerRegion.y / canvas.css_height,
     width: headerRegion.width / canvas.css_width,
     height: headerRegion.height / canvas.css_height,
   } : null;
-  const expectedBodySafe = c6PlainObject(expectedReserved) ? {
+  const expectedBodySafe = framedCompositionPlainObject(expectedReserved) ? {
     x: 0,
     y: expectedReserved.y + expectedReserved.height,
     width: 1,
     height: 1 - expectedReserved.y - expectedReserved.height,
   } : null;
-  if (!c6ExactKeys(composition, ["coordinate_space", "reserved_header", "body_safe"]) ||
-    composition.coordinate_space !== "normalized-canvas" || !c6Rectangle(composition.reserved_header) || !c6Rectangle(composition.body_safe) ||
-    !c6Same(composition.reserved_header, expectedReserved) || !c6Same(composition.body_safe, expectedBodySafe)) {
-    issue("c6-protected-composition-invalid", "presentation.protected_composition", "Framed composition must be the exact normalized header region and full-width body-safe formula");
+  if (!framedCompositionExactKeys(composition, ["coordinate_space", "reserved_header", "body_safe"]) ||
+    composition.coordinate_space !== "normalized-canvas" || !framedCompositionRectangle(composition.reserved_header) || !framedCompositionRectangle(composition.body_safe) ||
+    !framedCompositionSame(composition.reserved_header, expectedReserved) || !framedCompositionSame(composition.body_safe, expectedBodySafe)) {
+    issue("framed-composition-protected-composition-invalid", "presentation.protected_composition", "Framed composition must be the exact normalized header region and full-width body-safe formula");
   }
-  if (!c6PlainObject(presentation?.provenance) || typeof presentation.provenance.profile !== "string" || !presentation.provenance.profile ||
+  if (!framedCompositionPlainObject(presentation?.provenance) || typeof presentation.provenance.profile !== "string" || !presentation.provenance.profile ||
     typeof presentation.provenance.catalog !== "string" || !presentation.provenance.catalog ||
     typeof presentation.provenance.defaults !== "string" || !presentation.provenance.defaults) {
-    issue("c6-composition-provenance-missing", "presentation.provenance", "Framed composition requires selected-profile and inherited-value provenance");
+    issue("framed-composition-provenance-missing", "presentation.provenance", "Framed composition requires selected-profile and inherited-value provenance");
   }
 
   const frame = snapshot.raw_contract?.framed;
-  if (!c6PlainObject(frame) || !c6Same(frame.protected_composition, composition) || frame.subject_restrictions !== receipt.subject_restrictions) {
-    issue("c6-framed-raw-lineage-invalid", "raw_contract.framed", "Framed raw contract must retain the selected composition and Core-bound restriction");
+  if (!framedCompositionPlainObject(frame) || !framedCompositionSame(frame.protected_composition, composition) || frame.subject_restrictions !== receipt.subject_restrictions) {
+    issue("framed-composition-raw-lineage-invalid", "raw_contract.framed", "Framed raw contract must retain the selected composition and Core-bound restriction");
   }
   if (!/^[0-9a-f]{64}$/.test(snapshot.provider_input_binding?.protected_composition_sha256 || "")) {
-    issue("c6-composition-digest-missing", "provider_input_binding.protected_composition_sha256", "Framed raw-plan binding requires the protected composition digest");
+    issue("framed-composition-digest-missing", "provider_input_binding.protected_composition_sha256", "Framed raw-plan binding requires the protected composition digest");
   }
 
   const request = snapshot.provider_request;
-  if (!c6PlainObject(request) || !c6Same(request.protected_composition, composition) || request.subject_restrictions !== receipt.subject_restrictions) {
-    issue("c6-framed-request-lineage-invalid", "provider_request", "Framed request must retain the selected composition and source restriction");
+  if (!framedCompositionPlainObject(request) || !framedCompositionSame(request.protected_composition, composition) || request.subject_restrictions !== receipt.subject_restrictions) {
+    issue("framed-composition-request-lineage-invalid", "provider_request", "Framed request must retain the selected composition and source restriction");
   }
-  if (c6ContainsField(request, C6_REQUEST_FORBIDDEN_FIELDS)) {
-    issue("c6-framed-request-local-header", "provider_request", "Framed provider request must not serialize local header or former geometry fields");
+  if (framedCompositionContainsField(request, FRAMED_COMPOSITION_REQUEST_FORBIDDEN_FIELDS)) {
+    issue("framed-composition-request-local-header", "provider_request", "Framed provider request must not serialize local header or former geometry fields");
   }
-  if (c6ContainsField({ presentation, raw_contract: snapshot.raw_contract, provider_input_binding: snapshot.provider_input_binding }, new Set(["protected_geometry"]))) {
-    issue("c6-legacy-geometry", "framed-lineage", "Framed current lineage must not retain protected_geometry");
+  if (framedCompositionContainsField({ presentation, raw_contract: snapshot.raw_contract, provider_input_binding: snapshot.provider_input_binding }, new Set(["protected_geometry"]))) {
+    issue("framed-composition-legacy-geometry", "framed-lineage", "Framed current lineage must not retain protected_geometry");
   }
   return Object.freeze({ ok: issues.length === 0, issues: Object.freeze(issues) });
 }
 
-const C5_PAGE_STAGES = Object.freeze({
-  "page-source-receipt": "parsed-source",
-  "page-layout": "resolved-presentation",
-  "page-render-model": "reviewable-page",
-  "page-generation-spec": "compiled-page-facts",
-  "image2-request": "provider-input",
-  "page-artifact-index": "page-derived-index",
-  "framed-header-html": "local-header-overlay",
-});
+function pageDerivedPublicationRoles(entries) {
+  if (!Array.isArray(entries)) return null;
+  const roles = new Map();
+  for (const entry of entries) {
+    const stage = entry?.stage_ref;
+    const role = entry?.artifact_role;
+    const isPerPagePublication = entry?.form === "per-page-derived-publication" ||
+      entry?.form === "framed-header-html-projection";
+    if (typeof stage !== "string" || !stage || typeof role !== "string" || !role ||
+      role === "deck-derived-index" || !isPerPagePublication || !Array.isArray(entry?.required_fields)) {
+      continue;
+    }
+    const isHtmlProjection = stage === "framed-header-html" &&
+      entry.required_fields.includes("artifact_role") && entry.required_fields.includes("format");
+    const isObjectEnvelope = entry.required_fields.includes("schema") && entry.required_fields.includes("artifact_role");
+    if (!isObjectEnvelope && !isHtmlProjection) continue;
+    if (roles.has(stage)) return null;
+    roles.set(stage, role);
+  }
+  return roles.size > 0 ? roles : null;
+}
 
 /**
- * Evaluate a C5 publication shape without loading a Run Bundle. This remains
+ * Evaluate a derived-publication shape without loading a Run Bundle. This remains
  * an opt-in contract sweep, never a runtime planning gate.
  */
 export function evaluatePageDerivedPublicationConformance(snapshot = {}) {
   const issues = [];
   const workflow = snapshot?.workflow;
   const pages = snapshot?.pages;
-  if (!['framed', 'pure'].includes(workflow) || !Array.isArray(pages) || pages.length === 0) {
-    return Object.freeze({ ok: false, issues: Object.freeze([{ code: "page-derived-snapshot-invalid", path: "snapshot", message: "workflow and nonempty pages are required" }]) });
+  const declaredRoles = pageDerivedPublicationRoles(snapshot?.stage_artifact_envelopes);
+  if (!['framed', 'pure'].includes(workflow) || !Array.isArray(pages) || pages.length === 0 || !declaredRoles) {
+    return Object.freeze({ ok: false, issues: Object.freeze([{ code: "page-derived-snapshot-invalid", path: "snapshot", message: "workflow, declarations, and nonempty pages are required" }]) });
   }
-  const expected = Object.entries(C5_PAGE_STAGES)
+  const expected = [...declaredRoles.entries()]
     .filter(([stage]) => workflow === "framed" || stage !== "framed-header-html");
   for (const page of pages) {
     const pageId = page?.slide_id;
@@ -376,21 +486,21 @@ export function evaluatePageDerivedPublicationConformance(snapshot = {}) {
     }
     const byStage = new Map();
     for (const artifact of page.artifacts) {
-      const stage = artifact?.stage;
-      if (!Object.hasOwn(C5_PAGE_STAGES, stage)) {
-        issues.push({ code: "page-derived-stage-undeclared", path: pageId, message: `${stage || "missing"} is not a declared C5 stage` });
+      const schema = artifact?.schema;
+      if (!declaredRoles.has(schema)) {
+        issues.push({ code: "page-derived-schema-undeclared", path: pageId, message: `${schema || "missing"} is not a declared derived-publication schema` });
         continue;
       }
-      if (byStage.has(stage)) issues.push({ code: "page-derived-stage-duplicate", path: pageId, message: `${stage} appears more than once` });
-      byStage.set(stage, artifact);
-      if (artifact.role !== C5_PAGE_STAGES[stage]) {
-        issues.push({ code: "page-derived-role-invalid", path: pageId, message: `${stage} has an undeclared role` });
+      if (byStage.has(schema)) issues.push({ code: "page-derived-schema-duplicate", path: pageId, message: `${schema} appears more than once` });
+      byStage.set(schema, artifact);
+      if (artifact.artifact_role !== declaredRoles.get(schema)) {
+        issues.push({ code: "page-derived-artifact-role-invalid", path: pageId, message: `${schema} has an undeclared artifact_role` });
       }
       if (artifact?.page?.slide_id !== pageId) {
-        issues.push({ code: "page-derived-identity-mixed", path: pageId, message: `${stage} does not bind its page identity` });
+        issues.push({ code: "page-derived-identity-mixed", path: pageId, message: `${schema} does not bind its page identity` });
       }
       if (artifact?.producer !== "scripts/shared/image2/page_derived_data.mjs" || !artifact.upstream_bindings || !artifact.invalidated_by) {
-        issues.push({ code: "page-derived-provenance-missing", path: pageId, message: `${stage} lacks declared producer or provenance` });
+        issues.push({ code: "page-derived-provenance-missing", path: pageId, message: `${schema} lacks declared producer or provenance` });
       }
     }
     for (const [stage] of expected) if (!byStage.has(stage)) issues.push({ code: "page-derived-stage-missing", path: pageId, message: `${stage} is required for ${workflow}` });

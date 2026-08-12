@@ -34,10 +34,10 @@ without a YAML definition — cheap, and it fails at the moment of divergence.
 
 ## No schema versioning
 
-Schema identifiers carry no `-v1` suffix. The root `VERSION` is the only
-version number: it is the charter, and when the charter changes everything
-changes with it. Of the fifty-odd identifiers, exactly one had genuine dual
-versions; the rest were compared for exact equality, meaning the suffix was
+Schema identifiers carry no `-v1` suffix. Harness maintenance history is held
+by Git commits and archived OpenSpec changes, not by a root version number.
+Of the fifty-odd identifiers, exactly one had genuine dual versions; the rest
+were compared for exact equality, meaning the suffix was
 identity noise that invited nobody-needed migrations. Supporting two schema
 generations at once is a cost we are choosing never to pay.
 

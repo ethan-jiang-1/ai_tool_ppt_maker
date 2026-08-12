@@ -45,7 +45,6 @@ agent_action: navigate
 | `reference/quick-start.md` | 人类上手——5 分钟找到你的路径 |
 | `reference/glossary.md` | 术语表——Run Bundle、Source File、Derived Artifact 等 |
 | `reference/anti-patterns.md` | 常见错误——跳过内容设计、手改 _generated/、临场发挥目录结构 |
-| `VERSION_LOG.md` | 版本日志——v1.x.x 线 changelog |
 
 ### 宪法 (在 `../charter/`)
 

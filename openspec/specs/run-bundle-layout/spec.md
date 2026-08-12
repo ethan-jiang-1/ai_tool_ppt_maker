@@ -16,15 +16,28 @@ Run-bundle layout SHALL follow **stricter toward the root, looser toward the lea
 - **THEN** the text states the deck root is the strictest layer
 - **AND** version `_scratch/` is the official loose temp outlet
 
-### Requirement: Run-bundle root admits an agent-agnostic generated entry control
-The canonical strict deck root SHALL admit RUN_BUNDLE.md and AGENTS.md alongside CLAUDE.md and deck-guide.md without loosening any other root name. RUN_BUNDLE.md is a static locator manifest; deck-guide.md is the operating guide; AGENTS.md and CLAUDE.md are short pointers to locator then guide. None claims current run version, mode, node, gate, digest, next action, or approval. The root-control validator is shared by structure checking and locator verification and neither reads state nor selects a version.
+### Requirement: Run Bundle entry controls remain non-authorizing
 
-An older bundle may physically lack a newer locator or Agent card without failing structure-only validation. That tolerance is layout-only: it SHALL not establish current source/state identity, select a run, permit resume, or trigger a write. State-aware commands classify unsupported protocol separately and return one bounded owner-issued typed next action.
+The canonical strict Run Bundle root SHALL admit `RUN_BUNDLE.md` and `AGENTS.md`
+alongside `CLAUDE.md` and `deck-guide.md` without loosening any other root name.
+`RUN_BUNDLE.md` is a static locator manifest; `deck-guide.md` is the operating
+guide; `AGENTS.md` and `CLAUDE.md` are short pointers to locator then guide.
+None claims current Work Version, mode, node, gate, digest, next action, or
+approval. The root-control validator is shared by structure checking and locator
+verification and neither reads state nor selects a Work Version.
 
-#### Scenario: Optional historical card is not execution authority
-- **WHEN** an existing bundle lacks RUN_BUNDLE.md or AGENTS.md
-- **THEN** structure validation may report its layout without mutation
-- **AND** no state/resume command treats that absence or presence as current run authority
+`--structure-only` may report whether an inspected filesystem tree conforms to
+the canonical layout, but it never establishes source/state identity, selects a
+run, permits resume, or triggers a write. An input that lacks the declared
+current controls remains unbound for every authority-carrying operation and is
+handled by that operation's existing owner-issued boundary.
+
+#### Scenario: Structure-only inspection has no execution authority
+
+- **WHEN** a structure-only check reports a tree that lacks a declared current
+  root control
+- **THEN** it reports only the physical-layout fact without mutation
+- **AND** no state or resume command treats that report as current run authority
 
 ### Requirement: Run Bundle locator binds one exact local Harness
 
@@ -117,7 +130,7 @@ before its head CAS. Staging and complete-but-unreferenced plans are never
 current authority, and cleanup is confined to the owner staging root during an
 explicit mutating operation. Immutable plans, grants, attempts, provenance,
 and provider bytes SHALL not be selected, overwritten, or recovered by
-directory order, timestamps, filenames, copied media, compatibility payloads,
+directory order, timestamps, filenames, copied media, alternate projections,
 or `_generated/` artifacts. Current media and provenance become evidence only
 through their exact terminal attempt and plan/batch/selection lineage; State
 may retain a typed handoff reference but not a duplicate lifecycle ledger.
@@ -138,7 +151,7 @@ may retain a typed handoff reference but not a duplicate lifecycle ledger.
   lineage
 - **AND** it does not reopen a terminal plan or choose a directory by timestamp
 
-### Requirement: Current Page Image human artifact reference view is a canonical derived artifact
+### Requirement: Current Page Image human navigation is canonical derived output
 
 For one exact current Page Image Workflow run, Run-Bundle Layout SHALL reserve
 `_generated/nav/` as the canonical run-scoped Human Navigation Path tree and
@@ -155,11 +168,9 @@ evidence, or an input selector by path, filename, timestamp, or hand edit. Remov
 the tree SHALL not alter current authority; its owning explicit projection operation is the only
 supported rebuild route. The tree and every ancestor created for it SHALL not be a symbolic link.
 
-The retired long-name human-reference leaf under
-`_generated/page_image_workflow/reference/` SHALL not be emitted as a current human navigation
-entry after this contract applies. A supported explicit rebuild MAY remove that exact derived leaf
-only after it has materialized the new navigation tree; it SHALL not rename, delete, or rewrite an
-immutable owner artifact.
+The current projection operation writes only `_generated/nav/` from canonical
+owners. It SHALL not inspect, rename, delete, or use any other derived
+reference path as input to establish authority.
 
 #### Scenario: A reference view is deleted or changed
 
@@ -169,25 +180,13 @@ immutable owner artifact.
 - **AND** the supported projection operation can replace it from canonical owners without using
   its previous contents as input
 
-#### Scenario: Layout resolves a human locator beside immutable history
+#### Scenario: Current navigation is rebuilt
 
-- **WHEN** a current owner establishes an available artifact below a content-addressed immutable
-  owner root
-- **THEN** the human navigation index names a confined regular derived copy under
-  `_generated/nav/` using only short path components
-- **AND** the canonical immutable artifact, its short on-disk directory name (first 8 hex
-  characters of its content-address), and its ownership records
-  remain unchanged and are not exposed as the human navigation path
-
-#### Scenario: A legacy long reference leaf is present before migration
-
-- **WHEN** a supported current run contains the retired long-name reference leaf and an Agent
-  explicitly rebuilds its artifact view
-- **THEN** layout publishes the canonical `_generated/nav/index.md` entry and may remove only the
-  retired derived leaf after that publication succeeds
-- **AND** the artifact-view rebuild itself does not create a symlink, rename an immutable root, or infer
-  current evidence from the legacy file; immutable renames are reserved to the separate explicit migration
-  owner above
+- **WHEN** a current owner establishes an available artifact below a
+  content-addressed immutable owner root
+- **THEN** the human navigation index names a confined regular derived copy
+  under `_generated/nav/` using only short path components
+- **AND** the operation does not read or mutate another derived reference path
 
 ### Requirement: Run-Bundle Layout owns the Pure visual-system source location
 

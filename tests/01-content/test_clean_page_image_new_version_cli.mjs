@@ -1,4 +1,4 @@
-import { mkdtempSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -53,11 +53,6 @@ function activateCurrentSource(deck) {
   }));
 }
 
-function finalFailureEnvelope(stderr) {
-  const line = stderr.split(/\r?\n/).filter(Boolean).at(-1);
-  return JSON.parse(line);
-}
-
 describe("ppt_flow new-version Page Image draft activation", () => {
   it("creates a clean target that validates through the draft route", () => {
     const root = mkdtempSync(join(tmpdir(), "clean-page-image-new-version-cli-"));
@@ -107,7 +102,7 @@ describe("ppt_flow new-version Page Image draft activation", () => {
     }
   });
 
-  it("does not report a created version when target-draft activation rejects inherited lineage", () => {
+  it("replaces inherited target state with one fresh target draft", () => {
     const root = mkdtempSync(join(tmpdir(), "clean-page-image-new-version-cli-failure-"));
     const deck = join(root, "deck_target");
     const sourceRunDir = join(deck, "3_versions", "v1");
@@ -125,24 +120,38 @@ describe("ppt_flow new-version Page Image draft activation", () => {
       };
       writeState(deck, state);
 
-      const failed = runCli(["new-version", sourceRunDir, "--name", "v2"]);
+      const created = runCli(["new-version", sourceRunDir, "--name", "v2"]);
 
-      expect(failed.status).toBe(1);
-      expect(failed.stdout).not.toContain("Created clean version:");
+      expect(created.status).toBe(0);
+      expect(created.stdout).toContain(`Created clean version: ${targetRunDir}`);
       expect(readdirSync(join(targetRunDir, "_generated")).sort()).toEqual(["README.md"]);
-      expect(finalFailureEnvelope(failed.stderr)).toMatchObject({
-        ok: false,
-        code: "FAILED",
-        where: "ppt_flow.new-version",
-        diagnostic: {
-          schema: "pptmaker-cli-diagnostic",
-          category: "structure",
-          next: { action: "repair_prerequisite", requires_human: false },
-        },
-      });
-      expect(failed.stderr).toContain("CLEAN_TARGET_LINEAGE_CONFLICT:production_mode");
-      expect(readState(deck, { purpose: "observe" }).production_mode.by_version["3_versions/v2"])
-        .toEqual(state.production_mode.by_version["3_versions/v2"]);
+      expect(created.stderr).toBe("");
+      const draftState = readState(deck, { purpose: "observe", runDir: targetRunDir });
+      expect(draftState.production_mode.by_version).toEqual({});
+      expect(draftState).not.toHaveProperty("page_image_target_evidence");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("hard-stops an undeclared source before creating a successor", () => {
+    const root = mkdtempSync(join(tmpdir(), "clean-page-image-new-version-cli-undeclared-"));
+    const deck = join(root, "deck_target");
+    const sourceRunDir = join(deck, "3_versions", "v1");
+    const targetRunDir = join(deck, "3_versions", "v2");
+    try {
+      initBundle(deck, null, "keynote", "dark-executive");
+      writeFileSync(join(sourceRunDir, "slide-specifications.md"), source().replace("pipeline: page-image-workflow", "pipeline: retired-page-image-workflow"));
+      activateCurrentSource(deck);
+      const sourceBytes = readFileSync(join(sourceRunDir, "slide-specifications.md"));
+
+      const result = runCli(["new-version", sourceRunDir, "--name", "v2"]);
+
+      expect(result.status).toBe(1);
+      expect(result.stdout).toBe("");
+      expect(result.stderr).toContain("CLEAN_TARGET_SOURCE_INVALID");
+      expect(existsSync(targetRunDir)).toBe(false);
+      expect(readFileSync(join(sourceRunDir, "slide-specifications.md"))).toEqual(sourceBytes);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

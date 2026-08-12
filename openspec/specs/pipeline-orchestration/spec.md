@@ -106,7 +106,7 @@ remains attributable to the existing Task Mandate.
   normalized body-safe binding
 - **THEN** the existing planning checkpoint returns the direct repair action
   before authorization or provider initialization
-- **AND** it does not create a C6-specific confirmation, fallback, or control
+- **AND** it does not create a composition-specific confirmation, fallback, or control
   record
 
 ### Requirement: Current Page Image lifecycle has one policy per version
@@ -166,7 +166,7 @@ authorization, generated-artifact reader, or recovery branch.
 ### Requirement: Image2 planning has one provider-free derived-data publication checkpoint
 
 For a valid current Page Image Workflow candidate, `image2 plan` SHALL compile
-the exact selected-workflow raw-plan candidate, publish its complete C5
+the exact selected-workflow raw-plan candidate, publish its complete derived
 derived-data chain, and only then expose the existing next action for
 authorization or review. The publisher is deterministic JS work owned by the
 existing planning route; the MD Controller continues to own intent and
@@ -193,4 +193,4 @@ surface.
 - **WHEN** the derived-data chain cannot be fully materialized for a candidate
 - **THEN** the route returns the existing owner-issued direct repair action and
   exposes neither authorization nor a partial plan as current
-- **AND** it does not add a waiver, a retry state, or a C5-specific review
+- **AND** it does not add a waiver, a retry state, or a publication-specific review

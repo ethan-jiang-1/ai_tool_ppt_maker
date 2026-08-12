@@ -120,7 +120,15 @@ block order.
 - **THEN** each file is validated for its own continuous local numbering
 - **AND** the merged plan positions increase globally in input and block order
 
-### Requirement: Structural plans bind one replacement Page Image Workflow without acceptance inheritance
+#### Scenario: A structural transaction is inspected
+
+- **WHEN** a maintainer inspects a current structural plan or result
+- **THEN** its schema and field names use declared current shapes without a
+  numeric document revision
+- **AND** the result does not imply a reader, writer, or workflow path for a
+  prior document generation
+
+### Requirement: Structural plans bind one declared current Page Image Workflow without acceptance inheritance
 
 Structural preview and exact-plan apply SHALL bind the target version to one
 explicit `framed` or `pure` `page-image-workflow` selection. A workflow change,
@@ -195,7 +203,7 @@ render-debt path.
 After source publication, it SHALL invoke the existing Page Image source-state
 owner with the plan's validated source receipt. That owner records the current
 source-bound evidence; publication reports existing render debt for every target
-slide. C3 SHALL not introduce another State shape, receipt store, or evidence
+slide. Source publication SHALL not introduce another State shape, receipt store, or evidence
 record. If the initial in-place source write completed but that State binding
 did not, retrying the same exact plan MAY finish only that binding when the
 current source exactly matches the plan's target bytes and no target-evidence

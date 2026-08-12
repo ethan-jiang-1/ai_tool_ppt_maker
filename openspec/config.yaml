@@ -105,7 +105,6 @@ context: |-
   | `run-bundle-management` | init、check、new-version 与 layout 执法 | `bundle_layout.mjs` |
   | `bootstrap-env-guidance` | BOOTSTRAP 环境修复与首次凭据指导 | `BOOTSTRAP.md`, `env-check.mjs` |
   | `environment-check` | Node/npm/凭据/字体/Harness 内图像能力检查 | `env-check.mjs` |
-  | `project-versioning` | VERSION、VERSION_LOG 与 archive 后版本判断 | `VERSION`, `VERSION_LOG.md` |
 
   ### 生产管线
 
@@ -174,7 +173,6 @@ context: |-
   - Design 记录 HOW、关键取舍、迁移与验证策略。
   - Tasks 把 specs/design 完整转成可跟踪实施清单。
 
-  Archive 后按 `project-versioning` 判断 MINOR / PATCH / no bump，并在用户确认后更新版本位置。
 
 rules:
   proposal:

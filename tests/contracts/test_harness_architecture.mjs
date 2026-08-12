@@ -16,7 +16,7 @@ import {
   TARGET_ITERATION_INTERFACES,
   TARGET_WORKFLOW_INTERFACES,
   collectLiteralImports,
-  evaluateC6CompositionConformance,
+  evaluateFramedCompositionConformance,
   evaluateProductionSchemaConformance,
   validateArchitectureSnapshot,
   validateRepositoryArchitecture,
@@ -93,7 +93,7 @@ function walkHarnessScripts(root, files = []) {
 }
 
 describe("Harness architecture contract", () => {
-  it("registers the one provider-free C5 publisher as a public shared interface", () => {
+  it("registers the one provider-free derived-publication writer as a public shared interface", () => {
     expect(PAGE_DERIVED_DATA_INTERFACE).toBe("shared/image2/page_derived_data.mjs");
     expect(PUBLIC_SHARED_INTERFACES).toContain(PAGE_DERIVED_DATA_INTERFACE);
   });
@@ -253,15 +253,27 @@ describe("Harness architecture contract", () => {
       stage_names: ["page-source-receipt"],
       anchors: ["scripts/01-content/internal/page_image_source.mjs#PAGE_IMAGE_WORKFLOW_SOURCE_RECEIPT_SCHEMA"],
       selectors: [{ value: "page-image-workflow" }],
-      wire_schemas: [{ value: "page-image-workflow-source", stage_ref: "page-source-receipt", role: "parsed-source" }],
+      wire_schemas: [{ value: "page-source-receipt", stage_ref: "page-source-receipt", role: "parsed-source" }],
+      stage_artifact_envelopes: [{
+        stage_ref: "page-source-receipt",
+        artifact_role: "parsed-source",
+        form: "source-receipt",
+        producer: "scripts/01-content/internal/page_image_source.mjs",
+        anchors: ["scripts/01-content/internal/page_image_source.mjs#PAGE_IMAGE_WORKFLOW_SOURCE_RECEIPT_SCHEMA"],
+        required_fields: ["schema", "artifact_role", "pipeline"],
+      }],
       shared_contracts: [{ name: "run-bundle-locator", value: "pptmaker-run-bundle", field: "schema", anchors: ["scripts/01-content/internal/page_image_source.mjs#PAGE_IMAGE_WORKFLOW_SOURCE_RECEIPT_SCHEMA"] }],
+      state_shapes: [{ name: "md-controller-state", owner: "scripts/shared/state/state.mjs", anchors: ["scripts/01-content/internal/page_image_source.mjs#PAGE_IMAGE_WORKFLOW_SOURCE_RECEIPT_SCHEMA"], required_fields: ["pipeline"] }],
+      semantic_exclusions: [],
       contract_fields: [{ field: "pipeline", value: "page-image-workflow" }],
+      envelope_observations: [{ schema: "page-source-receipt", artifact_role: "parsed-source", form: "source-receipt", fields: ["schema", "artifact_role", "pipeline"] }],
       literal_occurrences: [{ value: "page-image-workflow" }],
+      numeric_marker_occurrences: [],
     };
     expect(evaluateProductionSchemaConformance(valid)).toEqual({ ok: true, issues: [] });
   });
 
-  it("evaluates C6 composition snapshots without file, YAML, provider, or lifecycle access", () => {
+  it("evaluates Framed composition snapshots without file, YAML, provider, or lifecycle access", () => {
     const reserved_header = { x: 0.04, y: 28 / 562.5, width: 0.92, height: 238 / 562.5 };
     const snapshot = {
       workflow: "framed",
@@ -284,9 +296,9 @@ describe("Harness architecture contract", () => {
     };
     snapshot.raw_contract.framed.protected_composition = snapshot.presentation.protected_composition;
     snapshot.provider_request.protected_composition = snapshot.presentation.protected_composition;
-    expect(evaluateC6CompositionConformance(snapshot)).toEqual({ ok: true, issues: [] });
+    expect(evaluateFramedCompositionConformance(snapshot)).toEqual({ ok: true, issues: [] });
     snapshot.provider_request.context_not_to_render = { title: "Forbidden" };
-    expect(issueCodes(evaluateC6CompositionConformance(snapshot))).toContain("c6-framed-request-local-header");
+    expect(issueCodes(evaluateFramedCompositionConformance(snapshot))).toContain("framed-composition-request-local-header");
   });
 
   it("reports invalid stage roles, missing anchors, undeclared fields, and suffixes", () => {
@@ -294,15 +306,24 @@ describe("Harness architecture contract", () => {
       stage_names: [],
       anchors: [],
       wire_schemas: [{ value: "page-image-record", stage_ref: "missing-stage", role: "" }],
+      stage_artifact_envelopes: [{ stage_ref: "missing-stage", artifact_role: "", form: "", producer: "", anchors: [], required_fields: [] }],
       shared_contracts: [{ name: "locator", value: "pptmaker-run-bundle", field: "schema", anchors: ["missing#anchor"] }],
+      state_shapes: [{ name: "", owner: "", anchors: [], required_fields: [] }],
+      semantic_exclusions: [{ name: "broken", field: "", values: [], meaning: "" }],
       contract_fields: [{ field: "schema", value: "undeclared-contract" }],
+      envelope_observations: [{ schema: "missing-stage", artifact_role: "missing-role", form: "missing-form", fields: [] }],
       literal_occurrences: [{ value: ["page-image-workflow", "v7"].join("-") }],
+      numeric_marker_occurrences: [{ field: "schema_version", value: "7", number: 7, intent: "current-contract" }],
     });
     expect(result.ok).toBe(false);
     expect(result.issues.map((issue) => issue.code)).toEqual(expect.arrayContaining([
       "wire-stage-role-invalid",
       "contract-anchor-missing",
       "contract-field-undeclared",
+      "stage-artifact-envelope-invalid",
+      "artifact-envelope-undeclared",
+      "semantic-exclusion-invalid",
+      "numeric-harness-marker-undeclared",
       "version-suffixed-production-literal",
     ]));
     expect(evaluateProductionSchemaConformance({}).issues.map((issue) => issue.code))
@@ -334,7 +355,7 @@ describe("Harness architecture contract", () => {
     }
   });
 
-  it("keeps C4 presentation selection in Visual Config with no retired control path", () => {
+  it("keeps presentation selection in Visual Config with no retired control path", () => {
     const harnessRoot = join(process.cwd(), "ppt_maker_harness");
     const retiredTokens = /FRAME PRESET|frame_preset|framed_header_preset|pure-deck-visual-system-v1|pure_deck_visual_system_v1/i;
     const occurrences = walkHarnessScripts(join(harnessRoot, "scripts"))

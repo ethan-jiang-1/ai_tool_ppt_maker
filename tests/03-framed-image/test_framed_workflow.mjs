@@ -10,6 +10,12 @@ import {
 } from "../../ppt_maker_harness/scripts/shared/image2/page_image_artifacts.mjs";
 import { resolveContentAddressName } from "../../ppt_maker_harness/scripts/shared/image2/content_address_store.mjs";
 import { canonicalJsonSha256 } from "../../ppt_maker_harness/scripts/shared/identity/canonical_json.mjs";
+import { sha256Bytes } from "../../ppt_maker_harness/scripts/shared/identity/byte_hash.mjs";
+import { canonicalJson } from "../../ppt_maker_harness/scripts/shared/identity/canonical_json.mjs";
+import {
+  FRAMED_EXCLUSIVE_HEADER_RESERVATION_INSTRUCTION,
+  validateFramedProviderInputContract,
+} from "../../ppt_maker_harness/scripts/03-framed-image/internal/framed_provider_input_contract.mjs";
 import {
   classifyFramedRefresh,
   createFramedRawWorkPlan,
@@ -129,7 +135,8 @@ function runFlow(args) {
 }
 
 const receipt = {
-  schema: "page-image-workflow-source",
+  schema: "page-source-receipt",
+    artifact_role: "parsed-source",
   pipeline: "page-image-workflow",
   workflow: "framed",
   source_sha256: digest("a"),
@@ -255,9 +262,9 @@ relationship: causal-flow`,
     }
   });
 
-  it("binds source restrictions and exact normalized composition through C5 and the single review path", async () => {
-    const root = mkdtempSync(join(tmpdir(), "framed-c6-provider-boundary-"));
-    const deck = join(root, "deck_framed_c6_provider_boundary");
+  it("binds source restrictions and exact normalized composition through derived publication and the single review path", async () => {
+    const root = mkdtempSync(join(tmpdir(), "framed-composition-provider-boundary-"));
+    const deck = join(root, "deck_framed_composition_provider_boundary");
     const runDir = join(deck, "3_versions", "v1");
     const image = createCanvas(2000, 1125);
     image.getContext("2d").fillRect(0, 0, 2000, 1125);
@@ -295,6 +302,10 @@ relationship: causal-flow`,
         protected_composition: composition,
         provider_rendered_content: { items: [{ literal: sharedLiteral }] },
       });
+      expect(request.instruction).toBe(FRAMED_EXCLUSIVE_HEADER_RESERVATION_INSTRUCTION);
+      expect(request.instruction).toContain("exclusively reserved");
+      expect(request.instruction).toContain("Do not render provider typography, labels, readable body content, or key subjects in reserved_header.");
+      expect(request.instruction).toContain("place all provider-rendered readable body content, labels, and key subjects in the normalized body_safe region.");
       expect(request.protected_composition.body_safe).toEqual({
         x: 0,
         y: composition.reserved_header.y + composition.reserved_header.height,
@@ -307,6 +318,39 @@ relationship: causal-flow`,
       expect(request).not.toHaveProperty("protected_geometry");
       expect(request).not.toHaveProperty("region");
       expect(request).not.toHaveProperty("mask");
+
+      const weakenedRequest = {
+        ...request,
+        instruction: "Reserve the normalized header region for the deterministic local overlay.",
+      };
+      const weakenedUtf8 = canonicalJson(weakenedRequest);
+      const weakenedInput = {
+        schema: plan.provider_requests_by_slide.DeckGo.compiled_provider_input.schema,
+        utf8: weakenedUtf8,
+        sha256: sha256Bytes(Buffer.from(weakenedUtf8, "utf8")),
+      };
+      expect(weakenedInput.sha256).not.toBe(plan.provider_requests_by_slide.DeckGo.compiled_provider_input.sha256);
+      expect(validateFramedProviderInputContract({
+        rawContract,
+        generationProfile: plan.provider_requests_by_slide.DeckGo.generation_profile,
+        compiledProviderInput: weakenedInput,
+      })).toMatchObject({
+        ok: false,
+        code: "framed_provider_input_contract_invalid",
+      });
+
+      const nonCanonicalInput = {
+        ...plan.provider_requests_by_slide.DeckGo.compiled_provider_input,
+        utf8: `${plan.provider_requests_by_slide.DeckGo.compiled_provider_input.utf8}\n`,
+      };
+      expect(validateFramedProviderInputContract({
+        rawContract,
+        generationProfile: plan.provider_requests_by_slide.DeckGo.generation_profile,
+        compiledProviderInput: nonCanonicalInput,
+      })).toMatchObject({
+        ok: false,
+        code: "framed_provider_input_contract_invalid",
+      });
 
       const layout = JSON.parse(readFileSync(derivedPaths.layout, "utf8"));
       const imageRequest = JSON.parse(readFileSync(derivedPaths.image2_request, "utf8"));
@@ -402,7 +446,7 @@ relationship: causal-flow`,
     }
   }, 20_000);
 
-  it("stops malformed Framed profile repair before C5 publication and returns to the plan checkpoint", async () => {
+  it("stops malformed Framed profile repair before derived publication and returns to the plan checkpoint", async () => {
     const root = mkdtempSync(join(tmpdir(), "framed-profile-repair-boundary-"));
     const deck = join(root, "deck_framed_profile_repair");
     const runDir = join(deck, "3_versions", "v1");
@@ -1082,6 +1126,58 @@ negative_constraints:
         code: "framed_finalization_review_stale",
       });
       expect(readFileSync(paths.target_final_manifest)).toEqual(finalManifest);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  }, 30_000);
+
+  it("keeps a Framed header-encroachment repair on the existing raw rebuild path", async () => {
+    const root = mkdtempSync(join(tmpdir(), "framed-progressive-repair-"));
+    const deck = join(root, "deck_framed_progressive_repair");
+    const runDir = join(deck, "3_versions", "v1");
+    const image = createCanvas(2000, 1125);
+    image.getContext("2d").fillRect(0, 0, 2000, 1125);
+    try {
+      initBundle(deck, null, "keynote", "dark-executive");
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+      writeFileSync(join(runDir, "slide-specifications.md"), framedSource({
+        title: "Header encroachment requires repair",
+        bodyYaml: `items:
+  - role: label
+    literal: "The human must reject visible provider content in the local header reserve."`,
+      }));
+      await acceptLocalStyleMasterFixture(resolveFramedStyleMasterScope(runDir));
+
+      const plan = await buildFramedProgressiveTargetRawPlan(runDir);
+      const planHash = plan.progressive_raw_work_plan.sha256;
+      const pilot = await planFramedTargetPilot(runDir, { planHash, slideIds: ["DeckGo"] });
+      await authorizeFramedProgressiveRawBatch(runDir, { planHash, batchHash: pilot.batch.batch_hash });
+      await generateFramedProgressiveRawItem(runDir, {
+        planHash,
+        batchHash: pilot.batch.batch_hash,
+        submit: async () => NATIVE_PROVIDER_PNG,
+      });
+      await prepareFramedProgressiveRawReview(runDir, { planHash });
+
+      const repaired = await acceptFramedProgressiveRawReview(runDir, {
+        planHash,
+        decision: "repair",
+      });
+      expect(repaired).toMatchObject({
+        accepted_raw_evidence_sha256: null,
+        next_action: { action_id: "rebuild_progressive_raw_work", kind: "repair", plan_hash: planHash },
+      });
+      expect(readState(deck, { purpose: "observe", runVersion: "v1" })
+        .page_image_progressive_handoff.by_version["3_versions/v1"])
+        .toMatchObject({
+          complete_raw_review_sha256: repaired.complete_raw_review_sha256,
+          accepted_raw_evidence_sha256: null,
+          final_manifest_sha256: null,
+          delivery_receipt_sha256: null,
+        });
+      await expect(buildFramedProgressiveTargetDelivery(runDir)).rejects.toMatchObject({
+        code: "progressive_raw_accepted_evidence_required",
+      });
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

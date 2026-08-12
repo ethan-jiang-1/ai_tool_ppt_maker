@@ -11,9 +11,12 @@ format, protocol label, mode, identity scheme, record type, or recovery rule
 that was previously hidden in code rather than deliberately owned by
 `ppt_maker_harness/schema/`.
 
-The decision is a clean cutover, not compatibility work. The future Harness
-has one current Page Image contract. The root `VERSION` is the charter version;
-it is not a suffix to repeat in serialized names.
+The decision is a clean cutover, not compatibility work. The Harness is one
+continuously improved current tool with one current Page Image contract. Only a
+Run Bundle has Work Versions; external dependency/tool versions are environment
+facts. Git commits and OpenSpec archives preserve Harness history, so a
+Harness/repo release number must not become another identity or compatibility
+axis.
 
 ## Governing Decision
 

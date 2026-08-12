@@ -15,8 +15,6 @@ import { sha256Bytes } from "../../../ppt_maker_harness/scripts/shared/identity/
 import { createRawWorkPlan } from "../../../ppt_maker_harness/scripts/shared/image2/page_image_artifacts.mjs";
 import { createProgressiveRawWorkPlan } from "../../../ppt_maker_harness/scripts/shared/image2/page_image_progressive_schema.mjs";
 import {
-  PAGE_DERIVED_DATA_ARTIFACT_SCHEMA,
-  PAGE_DERIVED_DATA_INDEX_SCHEMA,
   PageDerivedDataError,
   publishPageDerivedData,
 } from "../../../ppt_maker_harness/scripts/shared/image2/page_derived_data.mjs";
@@ -40,6 +38,8 @@ function inputFor(workflow, { ids = ["StoryGo", "ChartUp"], requestSuffix = "" }
   const pages = ids.map((slide_id, index) => {
     const pageClass = index === 0 ? "opening" : "standard";
     const presentation = {
+      schema: "page-layout",
+      artifact_role: "resolved-presentation",
       workflow,
       page_class: pageClass,
       profile_id: `${workflow}-${pageClass}`,
@@ -71,7 +71,8 @@ function inputFor(workflow, { ids = ["StoryGo", "ChartUp"], requestSuffix = "" }
     };
   });
   const receipt = {
-    schema: "page-image-workflow-source",
+    schema: "page-source-receipt",
+    artifact_role: "parsed-source",
     pipeline: "page-image-workflow",
     workflow,
     source_sha256: sourceSha,
@@ -166,18 +167,30 @@ function readJson(path) {
 }
 
 describe("page-derived data publisher", () => {
+  it("rejects a resolved presentation with a parallel legacy discriminator", () => {
+    const { root, runDir } = fixtureRun("derived-legacy-presentation");
+    const input = inputFor("pure");
+    try {
+      input.receipt.slides[0].visual_language.presentation.role = "resolved-presentation";
+      expect(() => publishPageDerivedData({ run_dir: runDir, ...input }))
+        .toThrow(PageDerivedDataError);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("writes independently indexed Pure artifacts and preserves the selected adapter's exact request bytes", () => {
     const { root, runDir, paths } = fixtureRun("derived-pure");
     const input = inputFor("pure");
     try {
       const report = publishPageDerivedData({ run_dir: runDir, ...input });
       const index = readJson(report.index);
-      expect(index).toMatchObject({ schema: PAGE_DERIVED_DATA_INDEX_SCHEMA });
+      expect(index).toMatchObject({ schema: "page-artifact-index", artifact_role: "deck-derived-index" });
       expect(index.publication.workflow).toBe("pure");
       expect(index.payload.pages).toHaveLength(2);
       for (const [position, id] of input.raw_work_plan.ordered_slide_ids.entries()) {
         const pagePaths = pageImageDerivedPagePaths(runDir, id);
-        expect(readJson(pagePaths.source_receipt)).toMatchObject({ schema: PAGE_DERIVED_DATA_ARTIFACT_SCHEMA, stage: "page-source-receipt", page: { slide_id: id, position: position + 1 } });
+        expect(readJson(pagePaths.source_receipt)).toMatchObject({ schema: "page-source-receipt", artifact_role: "parsed-source", page: { slide_id: id, position: position + 1 } });
         const request = readJson(pagePaths.image2_request);
         const exact = input.provider_requests_by_slide[id].compiled_provider_input;
         expect(request.payload.canonical_utf8).toBe(exact.utf8);
@@ -204,7 +217,11 @@ describe("page-derived data publisher", () => {
       expect(readFileSync(pagePaths.framed_header_html, "utf8")).toBe(input.framed_header_html_by_slide.FrameGo);
       expect(existsSync(join(pagePaths.root, "framed-header.json"))).toBe(false);
       const index = readJson(pagePaths.artifact_index);
-      expect(index.payload.artifact_references.framed_header_html).toMatchObject({ format: "html", path: "pages/FrameGo/framed-header.html" });
+      expect(index.payload.artifact_references.framed_header_html).toMatchObject({
+        artifact_role: "local-header-overlay",
+        format: "html",
+        path: "pages/FrameGo/framed-header.html",
+      });
       const source = readJson(pagePaths.source_receipt);
       const layout = readJson(pagePaths.layout);
       const request = readJson(pagePaths.image2_request);

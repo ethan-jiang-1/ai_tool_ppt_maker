@@ -176,4 +176,4 @@ transformations:
 
 notes:
   - "This flow shows provenance and rebuild impact only. It is not a lifecycle controller, authorization path, or second state machine."
-  - "Every current producer names its implementation owner; no planned C5 route remains."
+  - "Every current producer names its implementation owner."

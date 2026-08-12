@@ -14,7 +14,8 @@ const digest = (letter) => letter.repeat(64);
 
 function receipt({ workflow = "framed", source = "a" } = {}) {
   return {
-    schema: "page-image-workflow-source",
+    schema: "page-source-receipt",
+    artifact_role: "parsed-source",
     pipeline: "page-image-workflow",
     workflow,
     source_sha256: digest(source),

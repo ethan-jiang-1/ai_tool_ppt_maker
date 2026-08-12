@@ -6,7 +6,7 @@ Define the current PPT Maker Harness directory map. It exposes Page Image Workfl
 its retained private runtime seams, and one current production owner graph.
 ## Requirements
 ### Requirement: Harness layout has no retired production owner
-The Harness directory map and executable inventory SHALL give every registered production executable one declared current Page Image Workflow/shared owner. It SHALL NOT expose a compatibility home, v1 implementation, v1 guidance, v1-focused proof, generic branch, README-only test owner, or uncalled iteration interface.
+The Harness directory map and executable inventory SHALL give every registered production executable one declared current Page Image Workflow/shared owner. It SHALL NOT expose a compatibility home, retired implementation or guidance, generic branch, README-only test owner, or uncalled iteration interface.
 
 #### Scenario: Script inventory is audited
 - **WHEN** Harness executable ownership is validated
@@ -39,14 +39,15 @@ The map SHALL not identify another-protocol resolver, conversion runtime, or sec
 - **THEN** Framed, Pure, Delivery, and Iteration each have one declared owner and `03`/`04` are shown as XOR siblings
 - **AND** no active directory path claims a second target delivery or retired owner
 
-### Requirement: Harness exposes one authoritative production schema definition home
+### Requirement: Harness exposes one permanent production schema definition home
 
 The Harness SHALL expose `ppt_maker_harness/schema/` as the single authoritative
 definition home for current production semantics and serialization. It SHALL be
 separate from Run Bundles and contain a README, `META.yaml`, `flow.yaml`,
-`stages/` with exactly the nineteen C1 conceptual stage definitions,
-`recovery-route.yaml`, and `serialization-contracts.yaml`. It SHALL NOT contain
-`frozen-identifiers.yaml` or another historical/compatibility exception list.
+`stages/` with exactly the nineteen conceptual stage definitions, and
+`serialization-contracts.yaml`. It SHALL NOT contain `recovery-route.yaml`,
+route references, `frozen-identifiers.yaml`, or another historical/
+compatibility exception list.
 
 The nineteen stage definitions retain the established unversioned vocabulary:
 `story-outline`, `visual-language`, `design-constraints`, `layout-config`,
@@ -67,33 +68,34 @@ home and verify it without putting test implementation in the README.
 
 - **WHEN** a maintainer opens the Harness schema definition home
 - **THEN** they can locate all nineteen stages, the transformation flow,
-recovery-route labels, and one current serialization inventory
-- **AND** they do not encounter a frozen historical identifier policy
+  one current serialization inventory
+- **AND** they do not encounter route-planning labels or a frozen historical
+  identifier policy
 
 #### Scenario: A maintainer inspects production schemas
 
 - **WHEN** a maintainer opens the schema definition home
-- **THEN** the stage flow, recovery route, and current serialization inventory are discoverable
-- **AND** no historical exception defines current behavior
+- **THEN** the stage flow and current serialization inventory are discoverable
+- **AND** no historical exception or route plan defines current behavior
 
-#### Scenario: A planned producer is inspected
+#### Scenario: A current producer is inspected
 
-- **WHEN** a definition declares a planned C3-C5 producer
-- **THEN** its route reference resolves in the recovery route
-- **AND** it does not imply an implementation exists
+- **WHEN** a maintainer inspects a current schema definition
+- **THEN** it names a materialized current producer or stable owning capability
+- **AND** it does not imply a nonexistent implementation exists
 
 #### Scenario: The schema home is regression-tested
 
 - **WHEN** the schema-contract test runs
-- **THEN** it rejects a missing/extra stage, unresolved planned producer,
-invalid serialization declaration, or stale historical inventory
-- **AND** the README remains explanatory rather than a test host
+- **THEN** it rejects a missing/extra stage, invalid serialization declaration,
+  or stale historical inventory
+- **AND** it does not require a recovery route or make the README a test host
 
 #### Scenario: Schema definitions are regression-tested
 
 - **WHEN** the schema-contract sweep runs
-- **THEN** it rejects invalid stage, route, or serialization declarations
-- **AND** it does not make the README a test host
+- **THEN** it rejects invalid stage or serialization declarations
+- **AND** it does not make the README a test host or validate route history
 
 #### Scenario: A historical identifier is inspected
 
@@ -107,14 +109,14 @@ invalid serialization declaration, or stale historical inventory
 - **THEN** it accepts the exact schema definition directory
 - **AND** it retains existing font and third-party-toolchain checks
 
-### Requirement: Schema definitions expose provenance and author-term repair context
+### Requirement: Schema definitions name current owners and author repair context
 
-Each `flow.yaml` transformation SHALL identify its input schema or schemas,
-output schema, owner, current producer status, and invalidation cause. A
-materialized transformation SHALL name its owning module; an unmaterialized
-C3-C5 transformation SHALL instead name its planned owning change or
-capability and SHALL NOT invent an implementation module. Each derived stage
-definition SHALL state the provenance needed to identify its upstream source or
+Each `flow.yaml` transformation SHALL identify its declared input stage or shared
+contract, output stage or shared contract, materialized current owner or stable
+owning capability, and invalidation cause. Every declared stage has such an
+owner; a route reference, planned status, planned change, or speculative
+implementation path SHALL NOT substitute for one. Each derived stage definition
+SHALL state the provenance needed to identify its upstream source or
 configuration layer.
 
 `META.yaml` SHALL require every constrained stage field to state its rule and
@@ -130,6 +132,11 @@ what they do not contain, explicitly excluding the other artifact so that a
 human-reviewable page representation and a provider instruction remain
 separate.
 
+The `story-outline`, `design-constraints`, `page-source`, `layout-config`, and
+`page-layout` definitions SHALL name their existing current producers and
+consumers, direct inputs and outputs, workflow-isolation boundary, provenance,
+and invalidation causes.
+
 #### Scenario: A constrained page field needs author guidance
 
 - **WHEN** a maintainer inspects a constrained field in a stage definition
@@ -138,63 +145,21 @@ separate.
 - **AND** the guidance describes the next content decision without naming the
   source field or schema filename to a Deck Author
 
-#### Scenario: An Agent traces a derived page artifact
+#### Scenario: A maintainer traces a derived page artifact
 
-- **WHEN** an Agent needs to determine what changes after a source or
+- **WHEN** a maintainer needs to determine what changes after a source or
   configuration edit
 - **THEN** it can follow `flow.yaml` and the derived artifact's provenance to
   identify the owning transformation and invalidated downstream artifact
 - **AND** it does not treat the collaboration guidance as a separate source of
   record or execution authority
 
-#### Scenario: A future transformation is inspected before its producer exists
+#### Scenario: A maintainer inspects a declared stage owner
 
-- **WHEN** a maintainer inspects a C3-C5 schema whose producer is not yet
-  materialized
-- **THEN** `flow.yaml` identifies its planned owning change or capability and
-  marks its producer status as planned
-- **AND** it does not claim that a nonexistent module already writes the
-  artifact
-
-### Requirement: Schema definitions name C3's materialized upstream producers
-After C3 lands, the schema definition home SHALL name `story-outline` and
-`design-constraints` as human-authored current source stages and SHALL name the
-story-to-page-source transformation as a materialized current owner. Their
-stage definitions, `flow.yaml`, recovery route, serialization inventory where a
-durable value is introduced, and code anchors SHALL agree on that one ownership.
-
-The definition home remains descriptive authority. It SHALL NOT become a
-runtime controller, a Run Bundle reader, a page-plan state store, or a
-historical-source migration facility.
-
-#### Scenario: A maintainer traces the upstream flow
-- **WHEN** a maintainer opens the Story Outline, Design Constraints, and
-  page-source definitions
-- **THEN** the flow identifies their current owner, direct inputs, output, and
-  invalidation causes
-- **AND** it does not describe C3's producer as merely planned or imply a
-  compatibility path for an old source layout
-
-### Requirement: Schema definitions materialize the Page Class presentation flow
-
-The Harness schema home and serialization inventory SHALL identify the current
-executable producers and consumers for Page Source `page_class`, version-level
-`layout-config`, and per-page `page-layout`. The definitions SHALL state their
-source or derived role, scope, workflow-isolation boundary, direct inputs and
-outputs, provenance requirement, and selected-profile invalidation cause; code
-anchors and the inventory SHALL agree on that one ownership.
-
-The serialization inventory SHALL group the four unversioned presentation
-source contracts `pptmaker-page-image-class-catalog`,
-`pptmaker-page-image-deck-defaults`, `pptmaker-pure-deck-visual-system`, and
-`pptmaker-framed-header-profiles` under `layout-config`. It SHALL remove the
-active `framed_header_preset` selector and the Pure record's visual-language
-registry membership. No C4 source contract may retain a revision/version
-marker, an undeclared value, or a second active selector.
-
-The definition home SHALL describe the current C4 flow only. It SHALL NOT
-become a Run Bundle reader, a Page Class resolver, a generated-layout
-publisher, a compatibility map for `FRAME PRESET`, or a migration facility.
+- **WHEN** a maintainer inspects a schema stage or flow transformation
+- **THEN** it identifies a current materialized owner or stable owning
+  capability and its direct contract relation
+- **AND** it does not expose implementation-route progress as schema meaning
 
 #### Scenario: A maintainer traces Page Class ownership
 
@@ -202,5 +167,5 @@ publisher, a compatibility map for `FRAME PRESET`, or a migration facility.
   definitions
 - **THEN** the current producer/consumer flow identifies source ownership,
   workflow-isolated resolution, provenance, and selected-profile invalidation
-- **AND** it does not mark C4 producers as planned, group Pure presentation
-  under visual language, or describe a legacy selector path
+- **AND** it does not group Pure presentation under visual language or describe
+  an alternate selector path

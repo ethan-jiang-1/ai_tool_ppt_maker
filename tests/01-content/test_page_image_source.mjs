@@ -88,6 +88,7 @@ describe("Page Image Workflow source", () => {
 
     expect(receipt).toMatchObject({
       schema: PAGE_IMAGE_WORKFLOW_SOURCE_RECEIPT_SCHEMA,
+      artifact_role: "parsed-source",
       pipeline: "page-image-workflow",
       workflow: "framed",
       slides: [
@@ -100,6 +101,14 @@ describe("Page Image Workflow source", () => {
       expect(item).not.toHaveProperty("display");
       expect(item).not.toHaveProperty("text_frame");
     }
+    expect(Object.keys(receipt).sort()).toEqual([
+      "artifact_role",
+      "pipeline",
+      "schema",
+      "slides",
+      "source_sha256",
+      "workflow",
+    ]);
   });
 
   it("requires the current mnemonic identity before receipt creation", () => {

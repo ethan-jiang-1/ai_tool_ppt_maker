@@ -94,7 +94,7 @@ function requireDerivedPageId(slideId) {
   return slideId;
 }
 
-/** Canonical independent C5 derived-artifact locations for one stable page. */
+/** Canonical independent derived-artifact locations for one stable page. */
 export function pageImageDerivedPagePaths(runDir, slideId) {
   const paths = pageImageWorkflowPaths(runDir);
   const pageRoot = path.join(paths.derived_pages_root, requireDerivedPageId(slideId));

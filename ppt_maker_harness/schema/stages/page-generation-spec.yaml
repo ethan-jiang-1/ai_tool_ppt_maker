@@ -20,7 +20,7 @@ outputs:
   - image-generation-plan
 provenance:
   source: "The normalized source receipt, selected visual language, generation profile, style-master selection, and resolved layout."
-  requirement: "Retain canonical semantic digests for the page facts, all selected configuration, and the Core binding copied into the C5 publication."
+  requirement: "Retain canonical semantic digests for the page facts, all selected configuration, and the Core binding copied into the derived publication."
 downstream_consumers:
   - image2-request
   - image-generation-plan

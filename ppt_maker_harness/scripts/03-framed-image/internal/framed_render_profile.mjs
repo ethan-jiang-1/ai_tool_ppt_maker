@@ -9,12 +9,7 @@ import { HTML_CAPTURE_PROFILE } from './capture_runtime.mjs';
 export const FRAMED_HEADER_OVERLAY_RENDER_PROFILE_SCHEMA = 'pptmaker-framed-header-overlay-render-profile';
 export const FRAMED_HEADER_OVERLAY_LAYOUT_COMPILER = Object.freeze({
   schema: 'pptmaker-framed-header-overlay-layout-compiler',
-  version: '4',
 });
-export const FRAMED_HEADER_OVERLAY_LAYOUT_COMPILER_COHERENCE_HISTORY = Object.freeze([
-  Object.freeze({ version: '3', fixture_sha256: '1c061a72106de98d17b79237edcf95cdfffc0f79c9f688b6b81b78b4d2d084af' }),
-  Object.freeze({ version: '4', fixture_sha256: '3da94aeb360ea86d565b6f02dd666a3e114df952e0546e9635ee3f087440b053' }),
-]);
 export { FRAMED_FONT_SELECTION_ALGORITHM } from '../../00-setup/internal/html_fonts.mjs';
 
 const HEADER_FIELDS = Object.freeze(['kicker', 'title', 'subtitle']);
@@ -169,10 +164,9 @@ export function compileFramedHeaderOverlayGeometry({ preset } = {}) {
 }
 
 function normalizedCompiler(value) {
-  const compiler = exactKeys(value, ['schema', 'version'], 'layout compiler');
+  const compiler = exactKeys(value, ['schema'], 'layout compiler');
   return {
     schema: nonEmptyString(compiler.schema, 'layout compiler.schema'),
-    version: nonEmptyString(compiler.version, 'layout compiler.version'),
   };
 }
 

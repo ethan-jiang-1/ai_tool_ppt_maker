@@ -255,7 +255,6 @@ const PAGE_PRODUCTION_PLAN_DIRECTORY_RE = /^(?:[0-9a-f]{8}|[0-9a-f]{64})$/;
 const PAGE_PRODUCTION_STAGING_DIRECTORY_RE = /^(?:plan|record|materialization)-[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/;
 const PNG_SIGNATURE = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
 const PAGE_IMAGE_VISUAL_LANGUAGE_SEED = `schema: pptmaker-page-image-visual-language
-revision: 1
 recipes:
   editorial-systems:
     provider_clause: architectural editorial scene, layered amber and cobalt light, quiet depth
@@ -1630,7 +1629,6 @@ function initBundleForMode(deckDir, harnessDir = null, deckType = null, style = 
         '# Page Image asset manifest — optional local asset catalog.\n' +
         '# Bind registered IDs only through current source reference fields.\n' +
         '\n' +
-        'version: 2\n' +
         'assets: {}\n');
     _writeIfAbsent(
         path.join(deckDir, BACKBONE_DIR, BACKBONE_STYLE_SUBDIR, PAGE_IMAGE_VISUAL_LANGUAGE_FILE),

@@ -79,13 +79,13 @@ function expectSuccess(result) {
   return JSON.parse(result.stdout);
 }
 
-function source() {
+function source({ workflow = "pure" } = {}) {
   return `---
 identity:
   scheme: mnemonic
 production:
   pipeline: page-image-workflow
-  workflow: pure
+  workflow: ${workflow}
 ---
 
 ## Slide 01: \`DeckGo\`
@@ -104,12 +104,12 @@ negative_constraints:
 `;
 }
 
-function fixture({ local = false } = {}) {
+function fixture({ local = false, workflow = "pure" } = {}) {
   const root = mkdtempSync(join(tmpdir(), "style-master-lifecycle-cli-"));
   const deck = join(root, "deck_style_master_lifecycle");
   const runDir = join(deck, "3_versions", "v1");
   initBundle(deck, null, "keynote", "dark-executive");
-  writeFileSync(join(runDir, "slide-specifications.md"), source(), "utf8");
+  writeFileSync(join(runDir, "slide-specifications.md"), source({ workflow }), "utf8");
   writeFileSync(styleAsset(runDir, STYLE_MASTER_PROMPT), "Use a calm editorial visual system with material depth.\n", "utf8");
   if (local) writeFileSync(styleAsset(runDir, STYLE_MASTER_IMAGE), LOCAL_PNG);
   return { root, deck, runDir, paths: pageImageWorkflowPaths(runDir) };
@@ -216,6 +216,57 @@ describe("fresh Style Master lifecycle integration", () => {
       expect(existsSync(value.paths.target_raw_evidence)).toBe(false);
       expect(existsSync(value.paths.target_final_manifest)).toBe(false);
     } finally {
+      rmSync(value.root, { recursive: true, force: true });
+    }
+  }, 60_000);
+
+  it("runs the public Framed plan, authorize, generate, and review path against the exact exclusive-header input", async () => {
+    const value = fixture({ local: true, workflow: "framed" });
+    const provider = await startMockProvider(generatedCandidate());
+    try {
+      const stylePlan = expectSuccess(await flow(["style-master", "plan", value.runDir, "--candidate-count", "0"]));
+      expectSuccess(await flow([
+        "style-master", "review", value.runDir,
+        "--plan-hash", stylePlan.plan_sha256,
+      ]));
+      expectSuccess(await flow([
+        "style-master", "accept", value.runDir,
+        "--plan-hash", stylePlan.plan_sha256,
+        "--decision", "proceed",
+        "--candidate-id", "local-existing",
+      ]));
+
+      const planned = expectSuccess(await flow(["image2", "plan", value.runDir]));
+      expect(planned).toMatchObject({ workflow: "framed", maximum_submissions: 1 });
+      const pilot = expectSuccess(await flow([
+        "image2", "pilot", value.runDir,
+        "--plan-hash", planned.plan_hash,
+        "--slide-id", "DeckGo",
+      ]));
+      expectSuccess(await flow([
+        "image2", "authorize", value.runDir,
+        "--plan-hash", planned.plan_hash,
+        "--batch-hash", pilot.batch.batch_hash,
+      ]));
+      expectSuccess(await flow([
+        "image2", "generate", value.runDir,
+        "--plan-hash", planned.plan_hash,
+        "--batch-hash", pilot.batch.batch_hash,
+      ], provider.env));
+      const reviewed = expectSuccess(await flow([
+        "image2", "review", value.runDir,
+        "--plan-hash", planned.plan_hash,
+      ]));
+      expect(reviewed).toMatchObject({ complete_raw_review_sha256: expect.stringMatching(/^[0-9a-f]{64}$/) });
+      expect(provider.calls).toHaveLength(1);
+      const request = JSON.parse(provider.calls[0].body.toString("utf8"));
+      const prompt = JSON.parse(request.prompt);
+      expect(prompt.instruction).toContain("exclusively reserved");
+      expect(prompt.instruction).toContain("Do not render provider typography, labels, readable body content, or key subjects in reserved_header.");
+      expect(prompt).not.toHaveProperty("local_header");
+      expect(prompt).not.toHaveProperty("protected_geometry");
+    } finally {
+      await provider.close();
       rmSync(value.root, { recursive: true, force: true });
     }
   }, 60_000);

@@ -46,7 +46,8 @@ function headerPolicy(title) {
 
 function framedReceipt({ firstTitle = "First framed title", secondTitle = "Second framed title" } = {}) {
   return {
-    schema: "page-image-workflow-source",
+    schema: "page-source-receipt",
+    artifact_role: "parsed-source",
     pipeline: "page-image-workflow",
     workflow: "framed",
     source_sha256: digest("a"),

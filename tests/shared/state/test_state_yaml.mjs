@@ -20,7 +20,7 @@ describe("Page Image state boundary", () => {
       const path = statePath(fixture.deck);
       const before = readFileSync(path);
       const state = readState(fixture.deck, { purpose: "observe", runVersion: "v1" });
-      expect(state.schema_version).toBe(5);
+      expect(state).not.toHaveProperty("schema_version");
       expect(state.production_mode.by_version["3_versions/v1"]).toBeUndefined();
       expect(readFileSync(path)).toEqual(before);
     } finally {
@@ -38,6 +38,21 @@ describe("Page Image state boundary", () => {
       const before = readFileSync(path);
       expect(readState(fixture.deck, { purpose: "observe", runVersion: "v1" })).toMatchObject({ replacement_required: true });
       expect(validateStateReadOnly(fixture.deck, { runDir: fixture.runDir }).valid).toBe(false);
+      expect(readFileSync(path)).toEqual(before);
+    } finally {
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects a numeric state schema marker without rewriting the bytes", () => {
+    const fixture = currentFixture();
+    try {
+      const path = statePath(fixture.deck);
+      const state = readState(fixture.deck, { purpose: "observe", runVersion: "v1" });
+      state.schema_version = 5;
+      writeFileSync(path, `${JSON.stringify(state, null, 2)}\n`);
+      const before = readFileSync(path);
+      expect(readState(fixture.deck, { purpose: "observe", runVersion: "v1" })).toMatchObject({ replacement_required: true });
       expect(readFileSync(path)).toEqual(before);
     } finally {
       rmSync(fixture.root, { recursive: true, force: true });

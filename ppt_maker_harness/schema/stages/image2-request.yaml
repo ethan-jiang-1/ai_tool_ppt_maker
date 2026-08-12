@@ -53,8 +53,8 @@ fields:
       never: "Never submit a request assembled from mixed page treatments."
   framed_composition_boundary:
     type: workflow-specific mapping
-    description: "The Framed request binding for selected normalized protected composition and parser-owned subject restrictions."
-    rule: "A Framed request must bind the selected reserved_header and full-width body_safe composition plus subject restrictions; it must omit every local_header, header-derived context, protected_geometry, and provider-native region or mask field."
+    description: "The Framed request binding for selected normalized protected composition, parser-owned subject restrictions, and the local-overlay-exclusive header reservation."
+    rule: "A Framed request must bind the selected reserved_header and full-width body_safe composition plus subject restrictions. reserved_header is exclusively for the deterministic local kicker/title/subtitle overlay: provider typography, labels, readable body content, and key subjects must remain in body_safe. The request must omit every local_header, header-derived context, protected_geometry, and provider-native region or mask field."
     on_violation:
       means: "The request cannot prove the current local-header/provider boundary or exact Framed raw lineage."
       ask: "Repair the selected source or Framed profile, then rebuild the current provider-free plan."

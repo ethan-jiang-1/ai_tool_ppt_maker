@@ -1,14 +1,12 @@
 # Progressive Plan: Schema-First Page Image Recovery
 
-> Type: progressive coordination plan | Updated: 2026-08-12 | Status: active (C1-C6 archived; C7 is the next production operation)
+> Type: progressive coordination plan | Updated: 2026-08-12 | Status: active (C1-C6 plus the Pre-C7 convergence checkpoint archived and committed at `f3dc282`; next: C7 production repair, not started)
 >
 > **This is the only route document for Page Image recovery.** Three earlier
 > plans were closed on 2026-08-11 as CLS-025/026/027; everything from them that
 > still binds is restated below, so no downstream change needs to open a closed
-> document. Two specialist plans remain active and will guide change C6:
-> [framed-provider-protected-composition.md](framed-provider-protected-composition.md)
-> and
-> [framed-provider-capability-discovery-research.md](framed-provider-capability-discovery-research.md).
+> document. The bounded readiness audit for the next step is
+> [Active Contract Convergence Before C7](schema-first-active-contract-convergence-research.md).
 
 > **Current decision override.** The earlier frozen-identifier and
 > compatibility-preservation conclusions in this plan are superseded. C2
@@ -17,6 +15,10 @@
 > [Schema-First Clean-Cutover Decisions](schema-first-clean-cutover-decisions.md)
 > whenever implementation inspection exposes a hidden contract. Archived
 > OpenSpec artifacts remain history only; they do not define active behavior.
+> The 2026-08-12 convergence audit found a sound foundation and three bounded
+> cleanup groups, not a replacement architecture: retire the Harness-owned
+> version axis, close schema/owner/test proof, and remove completed route
+> scaffolding from permanent schema authority.
 
 ## Read This First: Orientation For The Implementing Agent
 
@@ -41,10 +43,12 @@ have misread the plan.
 1. **Schema lives outside code, in YAML** — "这样三个角色都容易沟通，人、prompt
    和传统的JS". Three consumers must read the same definition: the human, the
    prompt, and the JS. A JS constant serves only the third.
-2. **No versioning, ever** — "我们今后只会有一个版本啊，我不可能支持多个版本…
+2. **The Harness has no version axis** — "我们今后只会有一个版本啊，我不可能支持多个版本…
    唯一的，是我们的宪法宪章，他要变了，大家一块儿变就完了" and "最好别考虑版本了，
-   考虑版本真是个噩梦". The root `VERSION` is the only version number. This is
-   why no *new* schema identifier may carry `-vN`.
+   考虑版本真是个噩梦". The Harness is one continuously improved current
+   tool. Only Run Bundle Work Versions use `vN`; Node, browser, package, and
+   format versions are external facts. Harness schema, protocol, compiler,
+   manifest, report, README, and archive workflow do not expose generations.
 3. **Names are 2–3 words and obvious at a glance** — "别太短…你用两个单词，甚至
    三个单词都好…尽量一眼就能看到，看明白，不要猜测的东西". No abbreviations.
 4. **The whole chain must be visible** — visual → story → pagination → complete
@@ -171,9 +175,12 @@ schema was scattered, invisible, and named inconsistently.
 
 Three founding rules now constrain every phase:
 
-1. **No schema versioning.** The root `VERSION` is the only version number and
-   it is the charter. Schema identifiers carry no `-vN` suffix. Recorded in
-   [ADR 0006](../../docs/adr/0006-define-production-schemas-in-yaml.md).
+1. **One current Harness contract.** Harness schema, protocol, compiler,
+   manifest, diagnostic, report, and release identity carry no generation.
+   Only Run Bundle Work Versions use `vN`; external tool versions remain
+   reproducibility facts. Recorded in
+   [ADR 0006](../../docs/adr/0006-define-production-schemas-in-yaml.md) and
+   refined by the linked convergence audit.
 2. **Names are 2–3 words and obvious at a glance.** No abbreviation, nothing
    the reader has to guess.
 3. **All refinement after the first generation is conversational.** The human
@@ -544,8 +551,33 @@ Landed
      Checkpoint 6: the provider promise is honest
        |
        v
- C7  Repair and resume current v3
+     Pre-C7 OpenSpec change (unnumbered)
+     `converge-active-schema-authority`
+     archived and committed: `f3dc282`
+     one current Harness + schema closure + route-scaffold retirement
+       |
+       v
+ C7  Production operation (not an OpenSpec change)
+     repair and resume current v3 through a successor Work Version
 ```
+
+### Remaining Named Work
+
+This is the complete known remainder of the route. A future Agent must not turn
+an unnamed concern into implementation work: if another OpenSpec change becomes
+necessary, name it, add it to this table with its ordering reason, and propose
+it before editing Harness source.
+
+| Order | Name | Kind | Status and boundary |
+| --- | --- | --- | --- |
+| 1 | `converge-active-schema-authority` | OpenSpec change | **Done.** Archived at `openspec/changes/archive/2026-08-12-converge-active-schema-authority/`; all 20 tasks passed their named verification and the completion was committed as `f3dc282`. |
+| 2 | C7 — repair `deck_dark_factory_current` through a successor Work Version | Production operation | **Next, not started.** It is deck work under the Task Mandate, not Harness maintenance and not an OpenSpec change. It requires an explicit production-work direction before the bundle is read. |
+| 3 | Close this route | Backlog bookkeeping | Pending C7 evidence. Close this plan and its decision record through the normal Backlog procedure; no Harness source change is implied. |
+
+**Known remaining OpenSpec change count: zero.** There is no planned C8 or
+unnamed post-C7 cleanup change. If work outside C7 is later proven necessary,
+it returns to Backlog triage and receives its own name; it does not silently
+expand the completed convergence checkpoint or block C7.
 
 ### What each checkpoint actually requires
 
@@ -561,16 +593,18 @@ purely a human judgment — the rest are evidence plus a short confirmation.
 | 4 | One page resolves to exactly one workflow projection; the resolved view shows inherited values and their origin; editing an unselected profile invalidates nothing. |
 | 5 | For one page, a human reads source → receipt → layout → render model → generation spec → provider bytes on disk, without running anything. |
 | 6 | A written statement that Framed protection is bounded best effort, or a separately verified native primitive with a transport change. Any provider trial is limited to the explicitly authorized disposable samples; its result remains bounded empirical evidence. |
+| Pre-C7 | **Passed 2026-08-12.** `converge-active-schema-authority` is archived and committed as `f3dc282`: current Harness writers expose no Harness-owned generation axis; schema, owner code, tests, and accepted specs form one mechanically checked closure; completed C1-C7 route labels live only in this plan. |
 
 If a checkpoint is not ready, the rule from `CONTEXT.md` applies: name the
 missing fact and prepare the smallest safe next action. Do not proceed into the
 next change on the assumption it will be fixed later — that is precisely the
 patch-on-patch habit this plan exists to end.
 
-## Why Seven Changes, Not One
+## Why C1-C7 Keep Their Numbers
 
-Each boundary below is a place where the work would otherwise become
-unreviewable or unsafe to land partially.
+The new readiness work is deliberately unnumbered. C1-C6 remain completed
+historical changes and C7 remains the production goal; inserting a checkpoint
+does not rewrite what those labels mean.
 
 | Change | Scope | Why it cannot merge with its neighbour |
 | --- | --- | --- |
@@ -580,21 +614,23 @@ unreviewable or unsafe to land partially.
 | **C4** Page Class + layout config | Parser, Core, resolver, both adapters, invalidation | Archived 2026-08-11 at `openspec/changes/archive/2026-08-11-land-page-class-and-layout-config/`; completion commit `1aa1994`. |
 | **C5** Per-page derived data on disk | `image2 plan` writer, path layout | Archived 2026-08-12 at [`publish-per-page-derived-data`](../../openspec/changes/archive/2026-08-12-publish-per-page-derived-data/); six delta specs synced and completion commit `fcd9652`. It remains provider-free and inspectable before any spend. |
 | **C6** Framed hardening | `subject_restrictions` propagation, normalized composition, body-safe region | Archived 2026-08-12 at [`harden-framed-provider-protected-composition`](../../openspec/changes/archive/2026-08-12-harden-framed-provider-protected-composition/). It establishes bounded best-effort provider guidance, not a native guarantee; no paid call, native transport claim, production-bundle read, or v3 repair occurred. Completion commit: `693921e`. |
-| **C7** v3 repair | Production data path only | Not Harness maintenance. Runs under the Task Mandate, not OpenSpec. |
+| **Pre-C7** Active contract convergence | Three bounded groups from the [readiness audit](schema-first-active-contract-convergence-research.md): retire the Harness version axis, close schema/owner/test proof, and retire route scaffolding from permanent schema authority | Archived 2026-08-12 at [`converge-active-schema-authority`](../../openspec/changes/archive/2026-08-12-converge-active-schema-authority/); all 20 tasks completed and commit `f3dc282` records the result. This is an unnumbered readiness checkpoint, so C1-C7 retain their original labels and responsibilities. |
+| **C7** v3 repair | Production data path only | **Next, not started.** Not Harness maintenance. Runs under the Task Mandate, not OpenSpec, and requires explicit production-work direction. |
 
-C1-C5 are complete. C6-C7 absorb the remaining earlier-plan phases with their
-evidence intact.
+C1-C6 are complete. The unnumbered convergence checkpoint strengthens their
+shared exit proof; it does not reopen or repudiate them. C7 then resumes with
+its original production responsibility and evidence intact.
 
-## The Seven Changes In Detail
+## Route Units In Detail
 
-Each entry gives the proposed OpenSpec change name, its goal in one sentence,
-what is in and out of scope, and the exit evidence that lets the next change
-start. **Names are proposals** — confirm against `openspec/config.yaml`'s
-capability registry when you write the proposal, and reuse an existing
-capability rather than inventing one.
+Each entry gives the unit's fixed name, goal, scope, and exit evidence. An
+OpenSpec name is fixed here before proposal work begins; capability ownership
+is still confirmed against `openspec/config.yaml` when its artifacts are
+written.
 
-C1–C6 are OpenSpec changes. C7 is not: it is production work on a `deck_*`
-bundle, entered through `BOOTSTRAP.md` and the controller playbook.
+C1-C6 and `converge-active-schema-authority` are OpenSpec changes. C7 is not:
+it is production work on a `deck_*` bundle, entered through `BOOTSTRAP.md` and
+the controller playbook.
 
 ---
 
@@ -899,6 +935,40 @@ were synced to main specs before archive; completion commit: `693921e`.
 not C6 work. It requires an explicit human Work Request and a separately
 proposed OpenSpec change; it can never make an already-generated v3 page
 acceptable.
+
+---
+
+### Pre-C7 Schema Convergence Checkpoint — `converge-active-schema-authority`
+
+**Goal.** Make the existing schema-first result internally complete before its
+current writers create the C7 successor. This is an unnumbered readiness
+checkpoint; it does not reopen C1-C6 or change C7's name, production goal, or
+evidence.
+
+**Closed scope.** The [readiness audit](schema-first-active-contract-convergence-research.md)
+reduces the work to three packages: one current Harness with no Harness-owned
+version axis; one mechanically verified closure across `schema/`, owners,
+tests, and accepted specs; and one permanent schema authority with completed
+C1-C7 planning scaffolding removed. The audit's detailed findings are evidence
+for those packages, not independent scopes.
+
+**Boundary.** This change reads no `deck_*` or `dpt_*`, migrates no historical
+state, makes no provider call, and performs no C7 production operation. A new
+finding joins the change only if it is required to complete one of the three
+named packages; unrelated cleanup returns to normal Backlog triage.
+
+**Status: archived 2026-08-12.**
+[`converge-active-schema-authority`](../../openspec/changes/archive/2026-08-12-converge-active-schema-authority/)
+completed all 20 tasks: the Harness-owned version axis was removed, current
+durable envelopes and shared reports were declared and mechanically checked,
+successors initialize from copied source and overrides rather than predecessor
+state, and the permanent schema home now contains production definitions only.
+The normal OpenSpec archive command detected that main specs had already been
+synced during implementation, so its repeated-write step was rejected; every
+delta requirement and scenario was then compared against the accepted specs,
+and `openspec validate --specs`, strict change validation, `npm test`, and
+`git diff --check` passed before archival. C7 remains unchanged and is still
+production work, not an OpenSpec change. Completion commit: `f3dc282`.
 
 ---
 
@@ -1285,10 +1355,17 @@ replaced everywhere they used to live, including the accepted specs.** Use this
 checklist at closeout, and at any later point in the route when a hidden
 contract surfaces:
 
-- [x] No version-suffixed production literal remains in active source or tests — C2's scan proves it
-- [x] No version-suffixed production literal remains in `openspec/specs/` — C2's accepted-spec scan proves it, applied through an OpenSpec change
-- [x] Every durable selector and wire schema has exactly one unversioned entry in `serialization-contracts.yaml`
-- [x] No compatibility reader, migration path, frozen-name exception, or dual writer exists anywhere in active scope
+- [x] No Harness-owned version axis remains in runtime, maintained docs/specs,
+      README/release bookkeeping, tests, or archive workflow — the Pre-C7
+      change owns this proof
+- [x] Every active durable selector, envelope, role, and wire schema forms one
+      mechanically checked closure across `schema/`, owner code, tests, and
+      accepted specs — the earlier C2 scan did not cover constant-mediated
+      assignments or `openspec/specs/`
+- [x] Completed C1-C7 route scaffolding no longer lives in permanent
+      `schema/`; this plan remains the route authority
+- [x] No active compatibility reader, migration path, frozen-name exception,
+      dual writer, or historical-generation prose remains
 - [x] Historical `deck_*` data untouched and byte-preserved — C2 did not read, write, migrate, delete, or use it as a fixture
 - [ ] The decision record itself stays with the route: close
       [schema-first-clean-cutover-decisions.md](schema-first-clean-cutover-decisions.md)
@@ -1296,7 +1373,8 @@ contract surfaces:
 
 ### Route closeout
 
-- [x] All six route OpenSpec changes archived; the separate post-route provider constraint trial is also archived
-- [ ] `VERSION` bump judged against `openspec/config.yaml` `rules: version:` and confirmed with the owner
-- [ ] `VERSION_LOG.md`, `ppt_maker_harness/README.md`, `package.json` updated in step
+- [x] C1-C6 archived; the separate provider constraint trial is also archived
+- [x] Pre-C7 convergence change proposed, applied, verified, and archived —
+      `converge-active-schema-authority`, 20/20 tasks, 2026-08-12
+- [ ] C7 production repair completed with its named evidence
 - [ ] This plan closed: `git mv` to `_backlog/_done/_closed_plans/`, assigned CLS-NNN, three index files updated per `_backlog/plans/README.md`
