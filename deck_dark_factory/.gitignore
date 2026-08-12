@@ -1,7 +1,0 @@
-# secrets — never commit your API key
-.env
-# generated artifacts (regenerable from source)
-3_versions/*/_generated/
-# version temp/bak (keep README)
-3_versions/*/_scratch/*
-!3_versions/*/_scratch/README.md

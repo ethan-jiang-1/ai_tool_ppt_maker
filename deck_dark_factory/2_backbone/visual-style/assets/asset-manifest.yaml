@@ -1,5 +1,0 @@
-# Page Authority asset manifest — optional local asset catalog.
-# Bind registered IDs only through current source reference fields.
-
-version: 2
-assets: {}
