@@ -1,6 +1,6 @@
 # Progressive Plan: Schema-First Page Image Recovery
 
-> Type: progressive coordination plan | Updated: 2026-08-12 | Status: active (C1-C6 plus the Pre-C7 convergence checkpoint archived and committed at `f3dc282`; next: C7 production repair, not started)
+> Type: progressive coordination plan | Updated: 2026-08-12 | Status: active (C1-C6 plus the Pre-C7 convergence checkpoint archived and committed at `f3dc282`; C7 reconstruction in progress)
 >
 > **This is the only route document for Page Image recovery.** Three earlier
 > plans were closed on 2026-08-11 as CLS-025/026/027; everything from them that
@@ -571,7 +571,7 @@ it before editing Harness source.
 | Order | Name | Kind | Status and boundary |
 | --- | --- | --- | --- |
 | 1 | `converge-active-schema-authority` | OpenSpec change | **Done.** Archived at `openspec/changes/archive/2026-08-12-converge-active-schema-authority/`; all 20 tasks passed their named verification and the completion was committed as `f3dc282`. |
-| 2 | C7 — repair `deck_dark_factory_current` through a successor Work Version | Production operation | **Next, not started.** It is deck work under the Task Mandate, not Harness maintenance and not an OpenSpec change. It requires an explicit production-work direction before the bundle is read. |
+| 2 | C7 — reconstruct and repair Dark Factory through a current Work Version | Production operation | **In progress.** `deck_dark_factory_current` is preserved after its locator was rejected as invalid; no current-protocol operation may read or convert its source/state/evidence. A fresh, Harness-bound `deck_dark_factory_reconstructed/3_versions/v1` was initialized with the selected `framed` workflow and no copied production facts. It is deck work under the Task Mandate, not Harness maintenance and not an OpenSpec change. |
 | 3 | Close this route | Backlog bookkeeping | Pending C7 evidence. Close this plan and its decision record through the normal Backlog procedure; no Harness source change is implied. |
 
 **Known remaining OpenSpec change count: zero.** There is no planned C8 or
@@ -615,7 +615,7 @@ does not rewrite what those labels mean.
 | **C5** Per-page derived data on disk | `image2 plan` writer, path layout | Archived 2026-08-12 at [`publish-per-page-derived-data`](../../openspec/changes/archive/2026-08-12-publish-per-page-derived-data/); six delta specs synced and completion commit `fcd9652`. It remains provider-free and inspectable before any spend. |
 | **C6** Framed hardening | `subject_restrictions` propagation, normalized composition, body-safe region | Archived 2026-08-12 at [`harden-framed-provider-protected-composition`](../../openspec/changes/archive/2026-08-12-harden-framed-provider-protected-composition/). It establishes bounded best-effort provider guidance, not a native guarantee; no paid call, native transport claim, production-bundle read, or v3 repair occurred. Completion commit: `693921e`. |
 | **Pre-C7** Active contract convergence | Three bounded groups from the [readiness audit](schema-first-active-contract-convergence-research.md): retire the Harness version axis, close schema/owner/test proof, and retire route scaffolding from permanent schema authority | Archived 2026-08-12 at [`converge-active-schema-authority`](../../openspec/changes/archive/2026-08-12-converge-active-schema-authority/); all 20 tasks completed and commit `f3dc282` records the result. This is an unnumbered readiness checkpoint, so C1-C7 retain their original labels and responsibilities. |
-| **C7** v3 repair | Production data path only | **Next, not started.** Not Harness maintenance. Runs under the Task Mandate, not OpenSpec, and requires explicit production-work direction. |
+| **C7** v3 repair | Production data path only | **In progress.** The historical Bundle is byte-preserved but unavailable as a current protocol source; current work uses the separately initialized, Harness-bound reconstruction Bundle under the Task Mandate, not OpenSpec. |
 
 C1-C6 are complete. The unnumbered convergence checkpoint strengthens their
 shared exit proof; it does not reopen or repudiate them. C7 then resumes with
@@ -972,30 +972,55 @@ production work, not an OpenSpec change. Completion commit: `f3dc282`.
 
 ---
 
-### C7 — v3 repair (not an OpenSpec change)
+### C7 — reconstruction and repair (not an OpenSpec change)
 
-**Goal.** Get `deck_dark_factory_current` v3 unstuck and delivered.
+**Goal.** Preserve the historical v3 Bundle unchanged, then reconstruct Dark
+Factory as a current, separately bound Bundle and deliver it through current
+Framed evidence.
 
 **Why it is not OpenSpec.** It is production work on a `deck_*` bundle.
 `openspec/config.yaml` is explicit: production bundles are never Harness source,
 and deck work enters through `BOOTSTRAP.md`, `AGENT_CONTRACT.md`, and the
 controller playbook — not through a proposal.
 
-**Current v3 state.** Framed workflow. Complete-page review for raw plan
+**Historical v3 evidence.** Framed workflow. Complete-page review for raw plan
 `d179342d` shows a header collision on all three pages (`DkfGo`, `TwoMet`,
 `PlatGo`). No accepted raw evidence, no final manifest, no delivery receipt —
 so it cannot proceed. The correct decision is `repair`, not `proceed`.
 
-**The mechanism.** Version succession, not migration. `--new-version` copies
-only `slide-specifications.md` and `overrides/` and resets `_generated/`, so the
-successor gets a clean source snapshot plus the new config package, while v3
-stays byte-preserved with its evidence intact. The successor inherits no raw
-evidence, grant, review decision, or final media. All three v3 pages normalize
-to `standard`, so succession makes no content or class judgment.
+**Current reconstruction status.** On 2026-08-12 the old Bundle's locator was
+rejected as `locator_contract_invalid`, so its source, state, generated output,
+and evidence cannot be read, converted, or used as current authority. It remains
+byte-preserved. The authorized recovery initialized
+`deck_dark_factory_reconstructed/3_versions/v1` with a verified current local
+Harness binding and the explicit `framed` workflow. It contains no copied
+historical source, override, state, authorization, review, raw media, final
+manifest, or delivery evidence. The next owner step is to author and validate
+new current source before receipt-bound planning.
 
 **Hard rules.** Never hand-edit `_generated/`, state, receipts, or review
 records. Never carry a prior authorization forward. Inspect both the provider
 page and the composite before `proceed`.
+
+**Current repair boundary.** The archived Harness change
+[`enforce-framed-header-reservation`](../../openspec/changes/archive/2026-08-12-enforce-framed-header-reservation/)
+now makes the Framed `reserved_header` an exclusive deterministic local-overlay
+reservation in canonical provider input. It is a local compiled-input repair,
+not a retrospective provider-result guarantee. The former current review
+`d672f490` / raw plan `cf0666aa` became stale as soon as the repaired compiler
+rebuilt the raw contract, so the owner correctly refused to write a decision
+against it. C7 now has fresh provider-free raw plan
+`1057e1e4f3aae8854db8daebf0afcca6d3af1b29dc6a854382695b57350f422a` and
+its exact three-page Pilot batch
+`3f5e851ea8e4260134a5cfd8546de65645a8cd14b1e4c7e3b029cfee8725ea95`.
+The owner recorded fresh grant
+`c1073a4317b5c404a69ec91820737db6026ffda3f53cc24468a6fdfefd9cf8b1`,
+then submitted exactly those three items once each. Complete Page Review
+`3dd1358aa7362256fc59dff8c898f9d3085c3567efc436df94aae22fd64a2be8`
+is current and undecided. Its provider and composite pages show key subjects
+or provider labels in `reserved_header` on all three pages, so the existing
+Framed review rule requires a human `repair`, not `proceed`. The old plan,
+review, grant, and provider bytes remain unavailable as current evidence.
 
 ## Absorbed Design Decisions
 
@@ -1316,22 +1341,32 @@ Probe fixture and rubric: [framed-provider-capability-discovery-research.md](fra
 
 > Evidence: [`evidence.md`](../../openspec/changes/archive/2026-08-12-harden-framed-provider-protected-composition/evidence.md); archived change path above; all 19 implementation tasks complete. The prepared probe research remains historical preparation only, not execution evidence.
 
-### C7 — v3 repair (Task Mandate, not OpenSpec)
+### C7 — reconstruction and repair (Task Mandate, not OpenSpec)
 
 Entered through `BOOTSTRAP.md` and the controller playbook. Production data
 only — this is not Harness maintenance.
 
-- [ ] Confirm the current v3 review decision is `repair`, not `proceed`
-- [ ] Create the successor with `--new-version` — copies only `slide-specifications.md` and `overrides/`, resets `_generated/`
-- [ ] Verify v3 is byte-preserved with its evidence intact
-- [ ] Verify the successor inherited no raw evidence, grant, review decision, or final media
-- [ ] Generate under the new config package
-- [ ] Inspect both the provider page and the Production-Equivalent Composite before deciding
+- [x] Confirm the historical v3 review decision is `repair`, not `proceed` — recorded prior evidence: raw plan `d179342d`; pages `DkfGo`, `TwoMet`, `PlatGo`
+- [x] Preserve `deck_dark_factory_current` unchanged after the current Harness rejects its locator as `locator_contract_invalid`
+- [x] Initialize the current, separately bound reconstruction Bundle at `deck_dark_factory_reconstructed/3_versions/v1`; verify its locator resolves to the current local Harness
+- [x] Record the owner-selected `framed` workflow in the exact reconstruction narrative plan; publish it only with the confirmed plan and fresh state binding
+- [x] Verify the reconstruction Bundle inherited no historical source, override, state, grant, review decision, raw/final media, manifest, or delivery evidence
+- [~] Author and validate the new current source; historical v3 source cannot be reused or converted — three-page candidate and zero-submit initial-draft plan `4daafed9898fd998814cf2a547ffdcece016319dd59e0adf564eb69a76ab4708` passed validation; awaiting Deck Author structure confirmation before source/state publication
+- [x] Publish the confirmed initial source/state binding — plan `4daafed9898fd998814cf2a547ffdcece016319dd59e0adf564eb69a76ab4708`, `framed`, source epoch 1, `DarkGo` / `LessMore` / `RoadWay`, zero provider calls and no inherited acceptance
+- [x] Review the first one-item Framed Style Master plan `2560cbe59d1888e3138c88e4628ad58d4c2ecd46a858e4ec61a324b3db6bc35c` — its clean header reserve and bright palette passed, but its dense robotic factory scene failed the single abstract-focus and no-robot direction; owner decision `repair` recorded as `78f84617bc75090466a5f05d5df635250996ee2b3695205a9d8279459f11b673`
+- [~] Repair the Framed Style Master intent and create a successor candidate plan — intent now excludes physical factory equipment and requires one abstract lower-third focal system; plan `ac111f2e31577efdbb46a8cbbc1d2779c9dbbd89fb3bbd51e42898c3622485d8` authorized exactly one candidate, but its submission remains owner-recorded as `submitted` with no reviewable completion bytes. The owner requires one bounded human abandonment reason before any successor plan; do not retry or infer its outcome.
+- [x] Archive `enforce-framed-header-reservation` — canonical Framed input now reserves `reserved_header` exclusively for the deterministic local overlay and fails closed when the clause is absent or mismatched; the existing Complete Page Review remains the sole quality decision
+- [x] Retire the undecided former Complete Page Review `d672f490` / raw plan `cf0666aa` without hand-writing a stale `repair` record — after the compiler repair, the owner rejected `accept --decision repair` as `target_raw_plan_stale` and provider-free `image2 plan` replaced it with current plan `1057e1e4f3aae8854db8daebf0afcca6d3af1b29dc6a854382695b57350f422a`; no old evidence was reused
+- [x] Publish the one valid small-debt Pilot scope — the three current formal IDs `DarkGo`, `LessMore`, and `RoadWay` comprise the complete debt set, so batch `3f5e851ea8e4260134a5cfd8546de65645a8cd14b1e4c7e3b029cfee8725ea95` permits at most three submissions and remains provider-free until an exact grant
+- [x] Obtain the new exact bounded authorization for the three-page Pilot batch — grant `c1073a4317b5c404a69ec91820737db6026ffda3f53cc24468a6fdfefd9cf8b1`, maximum three submissions
+- [x] Generate under the repaired config package — exactly one successful materialization each for `DarkGo`, `LessMore`, and `RoadWay`; no retry, extra submission, unresolved outcome, or remaining paid debt
+- [~] Inspect both the provider page and the Production-Equivalent Composite — current Complete Page Review `3dd1358aa7362256fc59dff8c898f9d3085c3567efc436df94aae22fd64a2be8` shows header-reserve encroachment on all three pages: DarkGo factory upper edge; LessMore branching people/network; RoadWay road system plus provider labels. Human `repair` is required; no acceptance is recorded
+- [ ] Record the required `repair` against current Complete Page Review `3dd1358aa7362256fc59dff8c898f9d3085c3567efc436df94aae22fd64a2be8`, then rebuild a new raw plan before any further provider request
 - [ ] Complete Page Review returns `proceed`
 - [ ] Deliver
 - [ ] Update the `deck_dark_factory_current` memory entry
 
-> Evidence: _(successor version number; the review decision record; the delivery receipt)_
+> Evidence: reconstruction v1; the new receipt/authorization/review chain; the delivery receipt. Historical v3 remains preservation evidence only.
 
 ### Post-route provider constraint trial
 
