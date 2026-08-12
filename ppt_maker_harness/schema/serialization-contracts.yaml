@@ -12,6 +12,64 @@ selectors:
   production_adapter: page-image-workflow
   identity_scheme: mnemonic
 
+current_state_shape:
+  name: md-controller-execution-state
+  storage: _state/state.yaml
+  owner: scripts/shared/state/state.mjs
+  anchors:
+    - scripts/shared/state/state.mjs#STATE_TOP_LEVEL_KEYS
+    - scripts/shared/state/state.mjs#createDefaultState
+    - scripts/shared/state/state.mjs#writeState
+  required_top_level_fields:
+    - pipeline
+    - production_mode
+    - playbook
+    - current_node
+    - execution_id
+    - execution_started_at
+    - run_version
+    - continuation_target_version
+    - started_at
+    - updated_at
+    - nodes
+    - gates
+    - deck
+    - playbook_stack
+  active_execution_fields:
+    - playbook
+    - current_node
+    - execution_id
+    - execution_started_at
+    - run_version
+  execution_lease:
+    name: current-execution-lease
+    value: pptmaker-current-execution-lease
+    storage: _state/current-execution-lease.json
+    owner: scripts/shared/state/state.mjs
+    anchors:
+      - scripts/shared/state/state.mjs#EXECUTION_LEASE_SCHEMA
+      - scripts/shared/state/state.mjs#executionLeaseRecord
+    required_fields:
+      - schema
+      - active_run_version
+      - state_sha256
+
+semantic_exclusions:
+  - name: yaml-parser-core-schema
+    field: yaml.parseDocument.schema
+    values:
+      - core
+    meaning: External YAML parser configuration, not a Harness durable contract.
+  - name: style-master-plan-generation
+    field: plan_generation
+    values:
+      - style-master-plan-generation
+    owner: scripts/shared/image2/style_master_schema.mjs
+    anchors:
+      - scripts/shared/image2/style_master_schema.mjs#validateStyleMasterPlanIdentity
+      - scripts/shared/image2/style_master_schema.mjs#validateStyleMasterHeadRecord
+    meaning: Positive immutable plan ordering within one exact Run Bundle Work Version and workflow scope; it is not a selectable schema, reader, compiler, protocol, report, or manifest generation.
+
 shared_contracts:
   - name: cli-diagnostic
     value: pptmaker-cli-diagnostic
@@ -41,8 +99,22 @@ shared_contracts:
   - name: development-verification-core
     value: pptmaker-development-verification-core
     field: schema
+    owner: tests/contracts/development_verification_admission.mjs
     anchors:
-      - tests/contracts/run_development_verification.mjs
+      - tests/contracts/development-verification-core.json
+      - tests/contracts/development_verification_admission.mjs#INVENTORY_SCHEMA
+  - name: development-verification-report
+    value: development-verification
+    field: schema
+    owner: tests/contracts/run_development_verification.mjs
+    anchors:
+      - tests/contracts/run_development_verification.mjs#SCHEMA
+    required_fields:
+      - schema
+      - tier
+      - result
+      - duration_ms
+      - next_action
   - name: workflow-control-ledger
     value: pptmaker-workflow-control-ledger
     field: schema
@@ -98,16 +170,21 @@ shared_contracts:
     field: schema
     anchors:
       - scripts/03-framed-image/internal/framed_render_profile.mjs
-  - name: page-derived-data-artifact
-    value: page-image-page-derived-artifact
+  - name: page-production-task-projection
+    value: page-production-task-projection
     field: schema
+    owner: scripts/shared/workflow/page_production_task_projection.mjs
     anchors:
-      - scripts/shared/image2/page_derived_data.mjs#PAGE_DERIVED_DATA_ARTIFACT_SCHEMA
-  - name: page-derived-data-index
-    value: page-image-page-derived-index
-    field: schema
-    anchors:
-      - scripts/shared/image2/page_derived_data.mjs#PAGE_DERIVED_DATA_INDEX_SCHEMA
+      - scripts/shared/workflow/page_production_task_projection.mjs#PAGE_PRODUCTION_TASK_PROJECTION_SCHEMA
+    required_fields:
+      - schema
+      - run_version
+      - workflow
+      - controller
+      - next_action
+      - references
+      - progress
+      - human_handoffs
   - name: html-font-inventory
     value: pptmaker-html-font-inventory
     field: schema
@@ -144,7 +221,7 @@ wire_schema_groups:
   - stage_ref: page-source-receipt
     role: parsed-source
     values:
-      - page-image-workflow-source
+      - page-source-receipt
       - page-image-invalidation
       - page-image-target-structural-plan
       - page-image-target-refresh-route
@@ -236,8 +313,171 @@ wire_schema_groups:
       - page-image-raw-manifest
       - pptmaker-page-image-raw-manifest
 
+# Only these records are current Page Image derived-publication envelopes. The
+# broader wire-schema groups above also inventory owner-internal records and
+# selectors; they do not make every schema-bearing object a derived publication.
+stage_artifact_envelopes:
+  - stage_ref: page-source-receipt
+    artifact_role: parsed-source
+    form: source-receipt
+    producer: scripts/01-content/internal/page_image_source.mjs
+    anchors:
+      - scripts/shared/page-image/page_image_source_receipt.mjs#PAGE_IMAGE_WORKFLOW_SOURCE_RECEIPT_SCHEMA
+      - scripts/01-content/internal/page_image_source.mjs#parsePageImageSource
+    required_fields:
+      - schema
+      - artifact_role
+      - pipeline
+      - workflow
+      - source_sha256
+      - slides
+  - stage_ref: page-source-receipt
+    artifact_role: parsed-source
+    form: per-page-derived-publication
+    producer: scripts/shared/image2/page_derived_data.mjs
+    anchors:
+      - scripts/shared/image2/page_derived_data.mjs#artifactEnvelope
+    required_fields:
+      - schema
+      - artifact_role
+      - producer
+      - page
+      - publication
+      - upstream_bindings
+      - digest
+      - invalidated_by
+      - payload
+  - stage_ref: page-layout
+    artifact_role: resolved-presentation
+    form: resolved-presentation-binding
+    producer: scripts/02-visual-system/internal/page_image_presentation.mjs
+    anchors:
+      - scripts/02-visual-system/internal/page_image_presentation.mjs#PAGE_IMAGE_PRESENTATION_SCHEMA
+      - scripts/02-visual-system/internal/page_image_presentation.mjs#resolvePageImagePresentation
+    required_fields:
+      - schema
+      - artifact_role
+      - workflow
+      - page_class
+      - profile_id
+      - binding_sha256
+      - provenance
+  - stage_ref: page-layout
+    artifact_role: resolved-presentation
+    form: per-page-derived-publication
+    producer: scripts/shared/image2/page_derived_data.mjs
+    anchors:
+      - scripts/shared/image2/page_derived_data.mjs#artifactEnvelope
+    required_fields:
+      - schema
+      - artifact_role
+      - producer
+      - page
+      - publication
+      - upstream_bindings
+      - digest
+      - invalidated_by
+      - payload
+  - stage_ref: page-render-model
+    artifact_role: reviewable-page
+    form: per-page-derived-publication
+    producer: scripts/shared/image2/page_derived_data.mjs
+    anchors:
+      - scripts/shared/image2/page_derived_data.mjs#artifactEnvelope
+    required_fields:
+      - schema
+      - artifact_role
+      - producer
+      - page
+      - publication
+      - upstream_bindings
+      - digest
+      - invalidated_by
+      - payload
+  - stage_ref: page-generation-spec
+    artifact_role: compiled-page-facts
+    form: per-page-derived-publication
+    producer: scripts/shared/image2/page_derived_data.mjs
+    anchors:
+      - scripts/shared/image2/page_derived_data.mjs#artifactEnvelope
+    required_fields:
+      - schema
+      - artifact_role
+      - producer
+      - page
+      - publication
+      - upstream_bindings
+      - digest
+      - invalidated_by
+      - payload
+  - stage_ref: image2-request
+    artifact_role: provider-input
+    form: per-page-derived-publication
+    producer: scripts/shared/image2/page_derived_data.mjs
+    anchors:
+      - scripts/shared/image2/page_derived_data.mjs#artifactEnvelope
+    required_fields:
+      - schema
+      - artifact_role
+      - producer
+      - page
+      - publication
+      - upstream_bindings
+      - digest
+      - invalidated_by
+      - payload
+  - stage_ref: framed-header-html
+    artifact_role: local-header-overlay
+    form: framed-header-html-projection
+    producer: scripts/shared/image2/page_derived_data.mjs
+    materialization: raw-html-projection
+    anchors:
+      - scripts/shared/image2/page_derived_data.mjs#headerHtmlBySlide
+      - scripts/shared/image2/page_derived_data.mjs#pageIndex
+    required_fields:
+      - artifact_role
+      - format
+      - producer
+      - purpose
+      - adjustment_scope
+      - downstream_controller
+      - rebuild_impact
+      - invalidated_by
+  - stage_ref: page-artifact-index
+    artifact_role: page-derived-index
+    form: per-page-derived-publication
+    producer: scripts/shared/image2/page_derived_data.mjs
+    anchors:
+      - scripts/shared/image2/page_derived_data.mjs#pageIndex
+    required_fields:
+      - schema
+      - artifact_role
+      - producer
+      - page
+      - publication
+      - upstream_bindings
+      - digest
+      - invalidated_by
+      - payload
+  - stage_ref: page-artifact-index
+    artifact_role: deck-derived-index
+    form: deck-derived-publication
+    producer: scripts/shared/image2/page_derived_data.mjs
+    anchors:
+      - scripts/shared/image2/page_derived_data.mjs#deckIndex
+    required_fields:
+      - schema
+      - artifact_role
+      - producer
+      - publication
+      - upstream_bindings
+      - digest
+      - invalidated_by
+      - payload
+
 implementation_invariants:
   - name: Page Image runtime values are declared by the selector, shared-contract, or wire-schema group above.
   - name: Existing kind fields describe business or action semantics and are not serialization roles.
-  - name: C4 materializes source Page Class, four layout-config contracts, and in-memory per-page presentation bindings; C5 publishes only the current provider-free per-page inspection projection.
-  - name: C6 declares subject_restrictions on both workflow receipts, while Framed alone publishes selected-profile header_region and exact normalized protected_composition lineage; current Framed requests omit local header literals, header-derived context, and protected_geometry.
+  - name: Page Class materializes source facts, four layout-config contracts, and in-memory per-page presentation bindings; the derived publication exposes only the current provider-free per-page inspection projection.
+  - name: Subject restrictions are declared on both workflow receipts, while Framed alone publishes selected-profile header_region and exact normalized protected_composition lineage; current Framed requests omit local header literals, header-derived context, and protected_geometry.
+  - name: The static conformance sweep classifies YAML parser configuration and exact-scope Style Master plan ordering through semantic_exclusions, never by identifier-prefix allowlist.

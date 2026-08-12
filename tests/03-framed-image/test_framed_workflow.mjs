@@ -129,7 +129,8 @@ function runFlow(args) {
 }
 
 const receipt = {
-  schema: "page-image-workflow-source",
+  schema: "page-source-receipt",
+    artifact_role: "parsed-source",
   pipeline: "page-image-workflow",
   workflow: "framed",
   source_sha256: digest("a"),
@@ -255,9 +256,9 @@ relationship: causal-flow`,
     }
   });
 
-  it("binds source restrictions and exact normalized composition through C5 and the single review path", async () => {
-    const root = mkdtempSync(join(tmpdir(), "framed-c6-provider-boundary-"));
-    const deck = join(root, "deck_framed_c6_provider_boundary");
+  it("binds source restrictions and exact normalized composition through derived publication and the single review path", async () => {
+    const root = mkdtempSync(join(tmpdir(), "framed-composition-provider-boundary-"));
+    const deck = join(root, "deck_framed_composition_provider_boundary");
     const runDir = join(deck, "3_versions", "v1");
     const image = createCanvas(2000, 1125);
     image.getContext("2d").fillRect(0, 0, 2000, 1125);
@@ -402,7 +403,7 @@ relationship: causal-flow`,
     }
   }, 20_000);
 
-  it("stops malformed Framed profile repair before C5 publication and returns to the plan checkpoint", async () => {
+  it("stops malformed Framed profile repair before derived publication and returns to the plan checkpoint", async () => {
     const root = mkdtempSync(join(tmpdir(), "framed-profile-repair-boundary-"));
     const deck = join(root, "deck_framed_profile_repair");
     const runDir = join(deck, "3_versions", "v1");

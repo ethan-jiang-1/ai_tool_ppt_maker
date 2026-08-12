@@ -1,6 +1,6 @@
 # Progressive Plan: Schema-First Page Image Recovery
 
-> Type: progressive coordination plan | Updated: 2026-08-12 | Status: active (C1-C6 archived; next OpenSpec change: `converge-active-schema-authority`; then C7 production repair)
+> Type: progressive coordination plan | Updated: 2026-08-12 | Status: active (C1-C6 plus the Pre-C7 convergence checkpoint archived; next: C7 production repair)
 >
 > **This is the only route document for Page Image recovery.** Three earlier
 > plans were closed on 2026-08-11 as CLS-025/026/027; everything from them that
@@ -956,9 +956,18 @@ state, makes no provider call, and performs no C7 production operation. A new
 finding joins the change only if it is required to complete one of the three
 named packages; unrelated cleanup returns to normal Backlog triage.
 
-**Status: research complete; proposal is next.** The intended OpenSpec change
-name is `converge-active-schema-authority`. Its `tasks.md` must be updated after
-each verified package rather than only at final completion.
+**Status: archived 2026-08-12.**
+[`converge-active-schema-authority`](../../openspec/changes/archive/2026-08-12-converge-active-schema-authority/)
+completed all 20 tasks: the Harness-owned version axis was removed, current
+durable envelopes and shared reports were declared and mechanically checked,
+successors initialize from copied source and overrides rather than predecessor
+state, and the permanent schema home now contains production definitions only.
+The normal OpenSpec archive command detected that main specs had already been
+synced during implementation, so its repeated-write step was rejected; every
+delta requirement and scenario was then compared against the accepted specs,
+and `openspec validate --specs`, strict change validation, `npm test`, and
+`git diff --check` passed before archival. C7 remains unchanged and is still
+production work, not an OpenSpec change.
 
 ---
 
@@ -1345,16 +1354,16 @@ replaced everywhere they used to live, including the accepted specs.** Use this
 checklist at closeout, and at any later point in the route when a hidden
 contract surfaces:
 
-- [ ] No Harness-owned version axis remains in runtime, maintained docs/specs,
+- [x] No Harness-owned version axis remains in runtime, maintained docs/specs,
       README/release bookkeeping, tests, or archive workflow — the Pre-C7
       change owns this proof
-- [ ] Every active durable selector, envelope, role, and wire schema forms one
+- [x] Every active durable selector, envelope, role, and wire schema forms one
       mechanically checked closure across `schema/`, owner code, tests, and
       accepted specs — the earlier C2 scan did not cover constant-mediated
       assignments or `openspec/specs/`
-- [ ] Completed C1-C7 route scaffolding no longer lives in permanent
+- [x] Completed C1-C7 route scaffolding no longer lives in permanent
       `schema/`; this plan remains the route authority
-- [ ] No active compatibility reader, migration path, frozen-name exception,
+- [x] No active compatibility reader, migration path, frozen-name exception,
       dual writer, or historical-generation prose remains
 - [x] Historical `deck_*` data untouched and byte-preserved — C2 did not read, write, migrate, delete, or use it as a fixture
 - [ ] The decision record itself stays with the route: close
@@ -1364,6 +1373,7 @@ contract surfaces:
 ### Route closeout
 
 - [x] C1-C6 archived; the separate provider constraint trial is also archived
-- [ ] Pre-C7 convergence change proposed, applied, verified, and archived
+- [x] Pre-C7 convergence change proposed, applied, verified, and archived —
+      `converge-active-schema-authority`, 20/20 tasks, 2026-08-12
 - [ ] C7 production repair completed with its named evidence
 - [ ] This plan closed: `git mv` to `_backlog/_done/_closed_plans/`, assigned CLS-NNN, three index files updated per `_backlog/plans/README.md`

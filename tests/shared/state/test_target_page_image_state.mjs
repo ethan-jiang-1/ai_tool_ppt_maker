@@ -66,7 +66,8 @@ function targetFixture(workflow = "pure") {
     deck,
     runDir,
     sourceReceipt: {
-      schema: "page-image-workflow-source",
+      schema: "page-source-receipt",
+    artifact_role: "parsed-source",
       pipeline: "page-image-workflow",
       workflow,
       source_sha256: sha256(source),

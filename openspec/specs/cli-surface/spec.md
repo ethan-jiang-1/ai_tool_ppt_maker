@@ -4,7 +4,7 @@
 
 Define every registered direct Node CLI and the fixed 12-command unified entry
 point. The CLI producer owns its JSON diagnostics, current Page Image Workflow routing,
-and bounded v2 hard-stop responses; Controller consumers do not copy that
+and bounded undeclared-contract hard-stop responses; Controller consumers do not copy that
 schema.
 ## Requirements
 ### Requirement: Direct CLI is exposed from the canonical Harness root
@@ -207,10 +207,10 @@ editor, compatibility, or arbitrary key-removal form.
 - **AND** it makes no state, history, source, generated-artifact, or provider
   write
 
-### Requirement: Public CLI exposes only replacement Page Image Workflow operations
+### Requirement: Public CLI exposes only declared current Page Image Workflow operations
 
 The registered `style-master` and `image2` command families SHALL operate only
-on one exact current replacement-protocol version/workflow scope. They retain
+on one exact declared current workflow scope. They retain
 provider-free planning/inspection, Task-Mandate-backed exact grants, bounded
 generation and progress, review, acceptance, reconciliation, final delivery,
 notes refresh, previewed structural versioning, and explicit human artifact
@@ -251,13 +251,13 @@ composite, while Pure output contains its complete provider page. The command
 family SHALL not create a second composite approval or treat a Pilot decision
 as final acceptance.
 
-#### Scenario: Public help has no legacy or third-workflow route
+#### Scenario: Public help lists only declared workflow routes
 
 - **WHEN** a user requests public production help
 - **THEN** the help names only current Framed or Pure Page Image Workflow
   operations and their bounded owner actions
-- **AND** it lists no v2, `hybrid`, compatibility, migration, or direct prompt
-  operation
+- **AND** it lists no undeclared workflow, compatibility, migration, or direct
+  prompt operation
 
 #### Scenario: A mandate-covered batch is not a human confirmation
 
@@ -283,6 +283,14 @@ as final acceptance.
 - **THEN** it returns raw provider and production-equivalent composite evidence
   for one `proceed` or `repair` action
 - **AND** it does not expose another local-composite approval operation
+
+#### Scenario: A command reaches an undeclared workflow contract
+
+- **WHEN** a registered Page Image command receives a run outside the declared
+  current workflow contract
+- **THEN** it returns the owning bounded hard-stop before provider, state, or
+  derived-artifact mutation
+- **AND** it does not select or describe another route
 
 ### Requirement: Artifact-view success covers a valid successor with matching predecessor bindings
 
@@ -369,7 +377,7 @@ underlay rule, a force option, or provider-blaming for a pre-submit failure.
 
 ### Requirement: Current Image2 transport remains single-endpoint and bounded
 
-Current replacement-protocol `style-master generate` and `image2 generate`
+Current declared-workflow `style-master generate` and `image2 generate`
 operations SHALL use one fixed 600,000 ms total provider-operation deadline,
 beginning immediately before submit and covering any same-invocation task poll.
 Every network request is bounded by the remaining time. The commands SHALL
@@ -469,14 +477,13 @@ or update it.
   receipt, authorization, or generated artifacts
 - **AND** it does not invoke a provider or create a task card
 
-### Requirement: Page Image response-shape diagnostics remain producer-owned and secret-safe
+### Requirement: Page Image response-shape diagnostics project only declared current facts
 
 When the existing Page Image `known_failure` result projects a provider
 response fact whose classification is `invalid_json`, the CLI producer SHALL
 include `response_shape` only when it is one of `empty`, `html_like`, or
-`other_non_json`. The projection SHALL ignore absent, malformed, or
-unrecognized response-shape values and SHALL retain compatibility with older
-known-failure records that have no such field. Consumers SHALL treat the
+`other_non_json`. The projection SHALL omit absent, malformed, or
+unrecognized response-shape values. Consumers SHALL treat the
 producer-owned value as diagnostic information only and SHALL NOT use it as
 authorization, retry, routing, state, or recovery authority.
 
@@ -500,11 +507,11 @@ remain the sole owner-issued control result.
 - **THEN** the CLI projection keeps only its closed diagnostic fields
 - **AND** it does not emit the arbitrary fields or derive a different action
 
-#### Scenario: Older and non-JSON records retain their current projection
+#### Scenario: An absent or unrelated response shape remains unprojected
 
-- **WHEN** a Page Image known-failure record has no response shape or has a
-  classification other than `invalid_json`
-- **THEN** the CLI retains its existing bounded projection
+- **WHEN** a Page Image known-failure record has no response shape, a malformed
+  response shape, or a classification other than `invalid_json`
+- **THEN** the CLI retains its bounded current projection without the field
 - **AND** it does not synthesize a shape or change the existing control path
 
 ### Requirement: Progressive terminal-sibling diagnostics remain executable

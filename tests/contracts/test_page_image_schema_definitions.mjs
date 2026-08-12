@@ -28,15 +28,6 @@ const EXPECTED_STAGE_NAMES = [
   "visual-style-candidates",
   "production-progress-state",
 ].sort();
-const EXPECTED_ROUTE_IDS = ["C1", "C2", "C3", "C4", "C5", "C6", "C7"];
-const REQUIRED_ROUTE_FIELDS = [
-  "id",
-  "work",
-  "execution_kind",
-  "responsibility",
-  "boundary",
-  "exit_evidence",
-];
 const REPAIR_GUIDANCE_FIELDS = ["means", "ask", "never"];
 
 function parseYamlFile(path) {
@@ -98,33 +89,24 @@ describe("Page Image schema definitions", () => {
     expect(failures).toEqual([]);
   });
 
-  it("keeps C1-C7 complete and resolves every planned producer", () => {
-    const route = parseYamlFile(join(SCHEMA_ROOT, "recovery-route.yaml"));
-    const labels = Array.isArray(route?.labels) ? route.labels : [];
-    const labelsById = new Map(labels.map((entry) => [entry?.id, entry]));
+  it("keeps every stage and transformation bound to one current owner", () => {
     const failures = [];
-
-    expect(labels.map((entry) => entry?.id)).toEqual(EXPECTED_ROUTE_IDS);
-    for (const [id, entry] of labelsById) {
-      for (const field of REQUIRED_ROUTE_FIELDS) {
-        if (typeof entry?.[field] !== "string" || !entry[field].trim()) {
-          failures.push(`recovery-route.yaml:${id ?? "<unknown>"} is missing ${field}`);
-        }
-      }
-    }
-
     for (const [file, definition] of [
       ["flow.yaml", parseYamlFile(join(SCHEMA_ROOT, "flow.yaml"))],
       ...EXPECTED_STAGE_NAMES.map((name) => [`stages/${name}.yaml`, parseYamlFile(join(STAGES_ROOT, `${name}.yaml`))]),
     ]) {
       visit(definition, [], (value, path) => {
-        if (value.producer_status !== "planned") return;
-        if (typeof value.route_ref !== "string" || !labelsById.has(value.route_ref)) {
-          failures.push(`${file}:${formatPath(path)} has an unresolved planned-producer route_ref`);
+        if (!Object.hasOwn(value, "producer_status")) return;
+        if (!["human-authored", "materialized"].includes(value.producer_status)) {
+          failures.push(`${file}:${formatPath(path)} has a non-current producer status`);
+        }
+        if (Object.hasOwn(value, "route_ref")) {
+          failures.push(`${file}:${formatPath(path)} retains a route_ref`);
         }
       });
     }
 
+    expect(existsSync(join(SCHEMA_ROOT, "recovery-route.yaml"))).toBe(false);
     expect(failures).toEqual([]);
   });
 
@@ -144,16 +126,15 @@ describe("Page Image schema definitions", () => {
     ]);
   });
 
-  it("materializes C4 and C5 ownership without a planned publication route", () => {
+  it("materializes presentation and derived-publication ownership", () => {
     const flow = parseYamlFile(join(SCHEMA_ROOT, "flow.yaml"));
     const flowEntries = [
       ...(flow?.sources || []),
       ...(flow?.transformations || []),
     ];
-    const plannedC5 = flowEntries.filter((entry) => entry.route_ref === "C5");
-    const materializedC4 = flowEntries.filter((entry) =>
+    const presentationEntries = flowEntries.filter((entry) =>
       entry.schema === "layout-config" || entry.name === "resolve-page-layout");
-    const materializedC5 = flowEntries.filter((entry) =>
+    const derivedPublicationEntries = flowEntries.filter((entry) =>
       entry.name === "build-page-render-model" || entry.name === "publish-page-artifact-index");
     const scriptFiles = walkFiles(join(process.cwd(), "ppt_maker_harness", "scripts"));
     const runtimeText = scriptFiles
@@ -164,11 +145,10 @@ describe("Page Image schema definitions", () => {
     const stateText = readFileSync(join(process.cwd(), "ppt_maker_harness", "scripts", "shared", "state", "state.mjs"), "utf8");
     const cliText = readFileSync(join(process.cwd(), "ppt_maker_harness", "scripts", "ppt_flow.mjs"), "utf8");
 
-    expect(plannedC5).toEqual([]);
-    expect(materializedC4).toHaveLength(2);
-    expect(materializedC4.every((entry) => entry.producer_status === "materialized" && !Object.hasOwn(entry, "route_ref"))).toBe(true);
-    expect(materializedC5).toHaveLength(2);
-    expect(materializedC5.every((entry) => entry.producer_status === "materialized" &&
+    expect(presentationEntries).toHaveLength(2);
+    expect(presentationEntries.every((entry) => entry.producer_status === "materialized" && !Object.hasOwn(entry, "route_ref"))).toBe(true);
+    expect(derivedPublicationEntries).toHaveLength(2);
+    expect(derivedPublicationEntries.every((entry) => entry.producer_status === "materialized" &&
       entry.owner === "scripts/shared/image2/page_derived_data.mjs" && !Object.hasOwn(entry, "route_ref"))).toBe(true);
     expect(runtimeText).toMatch(/\bpage_class\b/);
     expect(stateText).not.toMatch(/\bpage_class\b|\b(?:layout-config|page-layout|page-render-model|page-artifact-index)\b/);
@@ -204,7 +184,7 @@ describe("Page Image schema definitions", () => {
     expect(existsSync(join(SCHEMA_ROOT, "frozen-identifiers.yaml"))).toBe(false);
   });
 
-  it("declares every C5 publication role and workflow-specific presence rule", () => {
+  it("declares every derived-publication role and workflow-specific presence rule", () => {
     const expected = {
       "page-source-receipt": { role: "parsed-source", framed: "required", pure: "required" },
       "page-layout": { role: "resolved-presentation", framed: "required", pure: "required" },
@@ -229,7 +209,7 @@ describe("Page Image schema definitions", () => {
     }
   });
 
-  it("defines C6 source restrictions and Framed-only composition boundaries", () => {
+  it("defines source restrictions and Framed-only composition boundaries", () => {
     const layout = parseYamlFile(join(STAGES_ROOT, "layout-config.yaml"));
     const receipt = parseYamlFile(join(STAGES_ROOT, "page-source-receipt.yaml"));
     const pageLayout = parseYamlFile(join(STAGES_ROOT, "page-layout.yaml"));

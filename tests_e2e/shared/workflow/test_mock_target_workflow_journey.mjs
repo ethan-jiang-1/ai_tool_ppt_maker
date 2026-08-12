@@ -397,9 +397,9 @@ async function runStyleMasterLifecycle(runDir, env) {
 }
 
 describe("mock TARGET workflow journey", () => {
-  it("publishes C5 before public authorization without exposing request text in Human Navigation", async () => {
-    const slides = [{ id: "PureGo", title: "C5 public plan heading", note: "C5 plan fixture." }];
-    const fixture = createTargetFixture("target-c5-public-plan-", "pure", slides);
+  it("publishes derived data before public authorization without exposing request text in Human Navigation", async () => {
+    const slides = [{ id: "PureGo", title: "Derived public plan heading", note: "Derived plan fixture." }];
+    const fixture = createTargetFixture("target-derived-public-plan-", "pure", slides);
     const provider = await startMockProvider(pngBytes("#205070"));
     try {
       await runStyleMasterLifecycle(fixture.runDir, provider.env);
@@ -443,11 +443,11 @@ describe("mock TARGET workflow journey", () => {
     }
   }, 90_000);
 
-  it("retains the exact Framed C6 request binding through public authorization and review", async () => {
+  it("retains the exact Framed composition request binding through public authorization and review", async () => {
     const slides = [{
       id: "FramGo",
-      title: "C6 public request binding",
-      note: "C6 public workflow fixture.",
+      title: "Framed public request binding",
+      note: "Framed composition public workflow fixture.",
       subjectRestrictions: "no-identity-subject",
     }];
     const fixture = createTargetFixture("target-framed-c6-public-", "framed", slides);

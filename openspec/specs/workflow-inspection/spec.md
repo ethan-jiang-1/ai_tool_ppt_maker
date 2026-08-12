@@ -42,7 +42,7 @@ Workflow from its exact schema-declared `page-image-workflow` source,
 lineage records. It SHALL report the selected `framed` or `pure` workflow and
 one owner-issued nearest action without inferring policy from prose, artifact
 names, or conversation context. It SHALL not initialize a receipt, mutate
-state, submit a provider request, or construct a compatibility projection.
+state, submit a provider request, or construct an alternate projection.
 
 #### Scenario: Current Framed status is projected from direct markers
 

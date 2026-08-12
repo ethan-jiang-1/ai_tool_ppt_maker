@@ -10,7 +10,7 @@ needs to distinguish declared current facts from undeclared input.
 below. The existing `unsupported-protocol/export` hard-stop and byte-preserving
 behavior remain; no source/state/evidence conversion is introduced.
 
-## ADDED Requirements
+## MODIFIED Requirements
 
 ### Requirement: Active Controller guidance rejects undeclared workflow contracts
 

@@ -6,6 +6,7 @@ import { join } from "node:path";
 import {
   PAGE_IMAGE_PRESENTATION_SCHEMA,
   PageImagePresentationError,
+  hasCurrentPageImagePresentationEnvelope,
   loadPageImagePresentationPackage,
   resolvePageImagePresentation,
 } from "../../ppt_maker_harness/scripts/02-visual-system/index.mjs";
@@ -43,6 +44,10 @@ describe("Page Image presentation package", () => {
       const repeat = resolvePageImagePresentation({ package: loadPageImagePresentationPackage(value.runDir), workflow: "pure", pageClass: "opening" });
 
       expect(pure).toMatchObject({ schema: PAGE_IMAGE_PRESENTATION_SCHEMA, workflow: "pure", page_class: "opening", profile_id: "opening" });
+      expect(hasCurrentPageImagePresentationEnvelope(pure, { workflow: "pure", pageClass: "opening" })).toBe(true);
+      expect(hasCurrentPageImagePresentationEnvelope({ ...pure, stage: "page-layout" })).toBe(false);
+      expect(hasCurrentPageImagePresentationEnvelope({ ...pure, role: "resolved-presentation" })).toBe(false);
+      expect(hasCurrentPageImagePresentationEnvelope({ ...pure, artifact_role: "parsed-source" })).toBe(false);
       expect(pure).not.toHaveProperty("protected_composition");
       expect(pure.provenance).toEqual({
         catalog: pageImagePresentationAsset(value.runDir, PAGE_CLASS_CATALOG_FILE),

@@ -9,7 +9,7 @@ protocol version, making a Harness generation visible at the public surface.
 Command forms, owner boundaries, Task Mandate behavior, and review semantics
 remain current behavior; no historical CLI route is retained.
 
-## ADDED Requirements
+## MODIFIED Requirements
 
 ### Requirement: Public CLI exposes only declared current Page Image Workflow operations
 

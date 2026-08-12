@@ -22,6 +22,13 @@ The visual-language registry SHALL NOT require `no-readable-text` or
 forbid all readable page text, transfer content authority to the provider, or
 override the Provider Content Schema SHALL be rejected before raw planning.
 
+#### Scenario: Current visual source resolves without a revision marker
+
+- **WHEN** a current Visual Language source is selected
+- **THEN** the resolver accepts its declared current fields without a numeric
+  revision or format marker
+- **AND** it does not infer another visual source shape
+
 #### Scenario: Framed visual selection allows integrated page text
 
 - **WHEN** a valid Framed Page Image Workflow slide resolves a registered
@@ -37,6 +44,14 @@ override the Provider Content Schema SHALL be rejected before raw planning.
   text-free Framed page
 - **THEN** Visual Config rejects that clause before raw planning
 - **AND** it does not emit a provider request or substitute source content
+
+#### Scenario: Invalid visual source stays owner-rejected
+
+- **WHEN** a selected Visual Language source carries an undeclared field or
+  numeric generation marker
+- **THEN** the visual owner returns its existing bounded source repair action
+- **AND** it does not use a prior source, generate a replacement, or begin raw
+  work
 
 ### Requirement: Page Image presentation is a closed version-resolved package
 
@@ -172,7 +187,7 @@ projection.
 - **THEN** its projection emits the exact normalized reserved-header and
   full-width body-safe rectangles from the declared formula and selected-profile
   provenance
-- **AND** neither a slide nor a prior C5 publication can substitute either
+- **AND** neither a slide nor a prior derived publication can substitute either
   rectangle
 
 #### Scenario: Protected geometry does not create a blank page band

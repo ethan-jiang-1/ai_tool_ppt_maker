@@ -14,15 +14,15 @@ The Harness SHALL maintain `ppt_maker_harness/schema/serialization-contracts.yam
 as the authoritative inventory for every active Page Image and directly affected
 shared-Harness durable contract. The inventory SHALL declare an unversioned
 lowercase-hyphenated identifier grammar, current pipeline/mode/identity
-selectors, C1 conceptual stage names, permitted `artifact_role` values, named
+selectors, conceptual stage names, permitted `artifact_role` values, named
 shared contracts, field ownership, and stable code anchors.
 
-A Page Image artifact's `schema` SHALL identify exactly one C1 stage definition.
+A Page Image artifact's `schema` SHALL identify exactly one declared stage definition.
 When more than one physical record or projection realizes that stage, the
 artifact SHALL use the declared unversioned `artifact_role` discriminator.
 Existing `kind` fields SHALL retain their established business/action meaning
 and SHALL NOT become a serialization-role substitute. A shared Harness object
-outside the C1 Page Image vocabulary SHALL use its named contract declaration
+outside the Page Image stage vocabulary SHALL use its named contract declaration
 at its explicitly declared field.
 
 `frozen-identifiers.yaml` and any replacement exception list for historical,
@@ -35,7 +35,7 @@ record.
 
 - **WHEN** a maintainer inspects a current Page Image receipt, plan, record, or
   delivery artifact
-- **THEN** its `schema` resolves to one C1 stage definition and any
+- **THEN** its `schema` resolves to one declared stage definition and any
   `artifact_role` resolves to that stage's declared role
 - **AND** no version suffix or hidden code-only contract is needed to interpret it
 
@@ -114,11 +114,19 @@ path. Existing owning validators remain the runtime authority.
 - **AND** it does not invoke a runtime owner, write source/state, or begin
   provider work
 
+#### Scenario: A numeric Harness marker cannot bypass the sweep
+
+- **WHEN** active source, test, operational document, or accepted spec adds a
+  numeric schema/revision/compiler/manifest/report marker
+- **THEN** the sweep fails unless the occurrence is a declared Run Bundle Work
+  Version, declared scope-bound lifecycle ordinal, or external environment fact
+- **AND** it does not rely on a version-suffix or identifier-prefix allowlist
+
 ### Requirement: Framed protected-composition fields remain schema-declared and static
 
 The schema README and active `page-source-receipt`, `layout-config`,
 `page-layout`, and `image2-request` stage definitions SHALL collectively
-declare C6's current boundary: the source-owned closed subject-restriction fact
+declare the current Framed composition boundary: the source-owned closed subject-restriction fact
 on both workflows' receipts; one CSS-pixel Framed `header_region`; one
 profile-derived `protected_composition` with `coordinate_space:
 normalized-canvas`, reserved-header and full-width body-safe regions plus
@@ -129,10 +137,10 @@ existing producer, input, downstream consumer, invalidation, and Framed/Pure
 scope without becoming a runtime planner, provider gate, review decision, or
 alternate authority.
 
-The opt-in production-schema conformance sweep SHALL validate a synthetic C6
+The opt-in production-schema conformance sweep SHALL validate a synthetic
 Framed publication/request for those declared bindings and a Pure publication
 that retains its source restriction only at the receipt/ordinary
-identity-resolution boundary while omitting all Framed composition and C6
+identity-resolution boundary while omitting all Framed composition and
 Framed request bindings. It SHALL report a direct schema mismatch for a missing
 source restriction, `header_region`, or Framed composition provenance; an
 undeclared request field; a serialized local-header field or header-derived
@@ -140,9 +148,9 @@ context in a Framed request; a former `protected_geometry` field; or a
 Framed-only binding on Pure. Runtime source/configuration and adapter validators
 remain the owning checks.
 
-#### Scenario: A Framed C6 publication matches declared ownership
+#### Scenario: A Framed composition publication matches declared ownership
 
-- **WHEN** the opt-in sweep inspects a synthetic valid Framed C6 publication
+- **WHEN** the opt-in sweep inspects a synthetic valid Framed composition publication
 - **THEN** it finds declared source restriction, `header_region`, normalized
   composition formula/provenance, and local-only-header/request boundaries
 - **AND** the check remains provider-free and does not create a lifecycle or
@@ -150,9 +158,9 @@ remain the owning checks.
 
 #### Scenario: Schema drift cannot become a runtime control path
 
-- **WHEN** a synthetic Framed C6 request contains a local-header field or
+- **WHEN** a synthetic Framed composition request contains a local-header field or
   header-derived context, or a Pure publication contains a Framed
-  protected-composition or C6 Framed request binding, or an active Framed
+  protected-composition or Framed request binding, or an active Framed
   declaration retains `protected_geometry`
 - **THEN** the opt-in sweep reports the direct static mismatch
 - **AND** it does not call a provider, mutate source/state, or add an
@@ -160,7 +168,7 @@ remain the owning checks.
 
 ### Requirement: Published page-derived data conforms to declared stage ownership
 
-The active serialization inventory and stage definitions SHALL declare the C5
+The active serialization inventory and stage definitions SHALL declare the
 published forms of `page-source-receipt`, `page-layout`, `page-render-model`,
 `page-generation-spec`, `image2-request`, `framed-header-html`, and
 `page-artifact-index`, including their exact producer, derived scope,
@@ -168,7 +176,7 @@ provenance, and current materialization status. `page-render-model` and
 `page-artifact-index` SHALL no longer retain a planned-only producer status
 after this change is applied.
 
-The opt-in conformance sweep SHALL verify that a C5 publisher emits only the
+The opt-in conformance sweep SHALL verify that a derived-data publisher emits only the
 declared current stage/role values and that each page artifact supplies the
 required identity, producer, provenance, invalidation bindings, and
 workflow-specific absence/presence rules. The static evaluator remains
@@ -177,14 +185,14 @@ rather than the conformance sweep.
 
 #### Scenario: A published Framed chain matches its declared stages
 
-- **WHEN** conformance inspects a synthetic valid Framed C5 publication
+- **WHEN** conformance inspects a synthetic valid Framed derived publication
 - **THEN** it finds one declared artifact for every required stage, one HTML
   header artifact, and no duplicate header-controller JSON
 - **AND** every artifact binds the same stable page identity and current plan lineage
 
 #### Scenario: A materialized artifact drifts from its schema declaration
 
-- **WHEN** a C5 writer emits an undeclared role, omits required provenance, or
+- **WHEN** a derived-data writer emits an undeclared role, omits required provenance, or
   gives a Pure page a Framed-only artifact
 - **THEN** the opt-in conformance test reports the direct schema mismatch
 - **AND** it does not become a runtime gate, provider call, or compatibility path

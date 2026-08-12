@@ -7,33 +7,33 @@ exact local Harness binding for Run Bundles.
 ## Requirements
 ### Requirement: Authority-carrying run operations require a current Harness binding
 
-A missing, malformed, conflicting, v1, or retired-root-named locator is a
+A missing, malformed, conflicting, or retired-root-named locator is a
 `hard-stop` protecting the exact Deck-to-Harness identity invariant. Its direct
 source of record is the locator itself and the diagnostic SHALL return the
 nearest safe action: explicitly reconstruct a new current Bundle rather than
 converting the old one. Every run-scoped operation that reads or mutates source,
 state, or production authority SHALL verify the card at its derived Deck root
-through the shared v2 locator evaluator before its owner logic runs. It SHALL
+through the shared declared-current locator evaluator before its owner logic runs. It SHALL
 not write a locator, state, receipt, generated artifact, migration record,
-fallback root, or compatibility projection.
+fallback root, or alternate projection.
 
 `bundle_layout --check --structure-only` SHALL remain a layout-only,
 non-authoritative observation. It MAY report an old or locatorless tree, but it
 SHALL not select a run, read state, inspect production readiness, authorize
 work, or write.
 
-#### Scenario: A v1 Bundle is used by a run operation
+#### Scenario: An undeclared Bundle is used by a run operation
 
 - **WHEN** a run-scoped command derives a Deck root whose card uses a retired
-  v1 schema or retired root fields
+  undeclared schema or retired root fields
 - **THEN** it returns the bounded unsupported-binding hard-stop before
   production, provider, generated-artifact, or state work
 - **AND** it offers neither waiver nor automatic migration
 
-#### Scenario: A structure-only check observes an old tree
+#### Scenario: A structure-only check observes an undeclared tree
 
 - **WHEN** `bundle_layout --check --structure-only` is given a locatorless or
-  v1 Bundle
+  undeclared Bundle
 - **THEN** it may report only the Bundle's filesystem layout without mutation
 - **AND** it does not establish a current binding or continuation authority
 
@@ -104,14 +104,23 @@ authoring draft for that same explicit workflow. It may retain copied canonical
 source and overrides, but it SHALL begin with no source receipt, Style Master
 selection, raw plan/authorization/evidence, Complete Page Review, final-slide
 manifest, assembly, notes, or delivery facts. The copy operation SHALL not
-call a provider or infer evidence from its source version.
+call a provider, infer evidence from its source version, or parse, convert, or
+resume predecessor state.
 
 #### Scenario: A current Framed version is copied cleanly
 
 - **WHEN** `ppt_flow new-version` copies a current selected Framed version
 - **THEN** the target is a Framed authoring draft with fresh workflow evidence
 - **AND** it does not inherit the source version's raw page, header composite,
-  review decision, or final manifest
+  review decision, final manifest, or state format marker
+
+#### Scenario: Successor initialization ignores predecessor state
+
+- **WHEN** a valid current source and overrides are copied to a successor
+- **THEN** the state owner initializes fresh declared-current target state from
+  those current source facts
+- **AND** the operation does not parse, convert, or adopt an existing source
+  state as successor input
 
 ### Requirement: Init emits only a current Harness-bound locator
 
@@ -152,3 +161,18 @@ by the existing initialization path.
 - **THEN** the current narrative source pair is present with the current
   Page Image workflow draft
 - **AND** no page-plan, provider, or review record is created
+
+### Requirement: Initialization emits only unversioned current source seeds
+
+New Run Bundles SHALL seed the declared current Visual Language source and
+optional asset manifest without numeric `revision` or `version` format markers.
+The Visual Language source, asset manifest, and current presentation package
+remain independently owned source/configuration files; their seed SHALL not
+create receipt, raw, review, delivery, or provider evidence.
+
+#### Scenario: A new Bundle receives current source seeds
+
+- **WHEN** initialization creates a new Run Bundle
+- **THEN** its Visual Language source and optional asset manifest have only
+  their declared current fields and no Harness-owned numeric generation marker
+- **AND** initialization creates no lifecycle or provider evidence

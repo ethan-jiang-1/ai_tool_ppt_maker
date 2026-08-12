@@ -20,7 +20,7 @@ local-header field, header-derived `context_not_to_render` field, and
 `protected_geometry` field. Independently source-owned provider content retains
 its own permitted literal when its spelling matches a local header. For Pure,
 the input remains limited to its selected Pure projection and does not receive
-a Framed composition or C6 Framed restriction binding.
+a Framed composition or Framed restriction binding.
 
 #### Scenario: A current provider input is compiled
 
@@ -84,14 +84,14 @@ action before provider work.
 For every current Framed page, Page Image Core and the selected Framed adapter
 SHALL retain the existing parsed source-owned `subject_restrictions` and bind
 one selected profile's protected-composition facts into the immutable raw
-contract, canonical provider-input bytes, raw-plan bindings, and C5 inspection
+contract, canonical provider-input bytes, raw-plan bindings, and derived inspection
 artifacts. The composition facts SHALL use `coordinate_space:
 normalized-canvas`, identify one normalized canvas-relative reserved-header
 region, and one normalized body-safe region that excludes it. The body-safe
 region SHALL be the exact full-width rectangle below the reserved header:
 `x: 0`, `y: reserved_header.y + reserved_header.height`, `width: 1`, and
 `height: 1 - reserved_header.y - reserved_header.height`. They are derived only from the selected Framed
-presentation projection; a slide, review projection, C5-derived file, or
+presentation projection; a slide, review projection, derived file, or
 caller SHALL NOT supply substitute coordinates, restrictions, or a profile.
 
 The compiled request SHALL direct provider-rendered readable body content and
@@ -103,14 +103,14 @@ literal. The raw contract retains the local-header facts only for deterministic
 local rendering. This is a bounded provider avoidance instruction and review
 guide, not a claim that the provider has a native region primitive or will obey
 the instruction in its raster output. Pure
-SHALL not receive Framed composition or the C6 Framed raw/request
+SHALL not receive Framed composition or the Framed raw/request
 subject-restriction binding. This SHALL not remove the existing parser-owned
 source restriction from a Pure receipt or prevent its existing Visual Config
 identity-resolution use.
 
 A missing, malformed, cross-workflow, or digest-mismatched composition or
 restriction binding is an integrity hard-stop for that plan materialization. It
-SHALL return the existing nearest source/configuration repair action before C5
+SHALL return the existing nearest source/configuration repair action before derived
 publication, authorization, provider initialization, grant, attempt, review,
 or lifecycle reuse; it SHALL not read a prior derived file, raw contract, or
 provider page as a fallback.
@@ -141,13 +141,13 @@ provider page as a fallback.
 - **THEN** planning stops at the direct repair action before it publishes a
   current plan or authorizes provider work
 - **AND** it does not substitute a prior geometry, silently omit restrictions,
-  or create a partial C5 publication
+  or create a partial derived publication
 
 #### Scenario: Pure remains isolated from Framed protection facts
 
 - **WHEN** a valid current Pure page reaches its selected adapter
 - **THEN** its raw contract and provider input contain no Framed reserved-header
-  region, body-safe region, local header context, or C6 Framed
+  region, body-safe region, local header context, or Framed
   subject-restriction binding
 - **AND** its source receipt may retain the parser-owned restriction for its
   existing identity-resolution use while the request continues to use only the
@@ -164,7 +164,7 @@ guide rectangle from that lineage. Provider-safe wording, a successful
 deterministic contract check, or an observed provider result SHALL not establish
 a general layout guarantee or accepted evidence without that review decision.
 
-C6 SHALL NOT add a protected-area occupancy, collision, OCR, or other automated
+The Framed composition contract SHALL NOT add a protected-area occupancy, collision, OCR, or other automated
 observation. The two composition guides remain review context only: they SHALL
 not submit provider work, set `repair` or `proceed`, create approval or waiver
 state, replace Complete Page Review, or become a runtime dependency.
@@ -784,6 +784,32 @@ or provider request. This idempotent result SHALL NOT make the retained
 - **AND** it neither selects a terminal child nor creates a retry, state edit,
   replacement authorization, or provider request
 
+### Requirement: Framed render identity is one current compiler contract
+
+The Framed render profile SHALL bind one declared current compiler identity,
+canonical geometry invariant, external runtime/font facts, and deterministic
+render-profile digest. It SHALL contain no numeric compiler version or retained
+compiler history. A change to any current compiler identity, canonical geometry,
+or external reproducibility fact SHALL continue to change the digest and follow
+the existing selected-profile invalidation and raw-rebuild path.
+
+#### Scenario: Current Framed compilation is stable
+
+- **WHEN** the same current Framed input and external runtime facts compile
+  twice
+- **THEN** both render profiles have the same declared compiler identity and
+  deterministic digest
+- **AND** neither profile contains a numeric compiler marker or retained
+  alternative identity
+
+#### Scenario: Current compiler input changes invalidate raw work
+
+- **WHEN** the declared current compiler identity, canonical geometry, or a
+  reproducibility fact consumed by the profile changes
+- **THEN** the render-profile digest changes and the existing raw-rebuild path
+  applies
+- **AND** the owner does not select or support another compiler identity
+
 ### Requirement: Current provider compilation binds one resolved Page Class projection
 
 Before compiling a current provider input, the selected adapter SHALL receive
@@ -797,11 +823,11 @@ its resolved local header/protected-region facts and Pure SHALL use only its
 resolved whole-page Pure facts.
 
 The adapter SHALL not accept a caller-supplied profile, reuse a projection from
-another workflow or class, consult a C5-derived file, or revive raw evidence
+another workflow or class, consult a derived file, or revive raw evidence
 whose bound projection differs. This binding is part of the existing immutable
 raw contract; it SHALL not create a provider call, a separate approval, or a
 duplicate header-controller JSON. The exact bound projection MAY be published
-only through the independent C5 `page-layout` artifact for the same successful
+only through the independent derived `page-layout` artifact for the same successful
 provider-free plan.
 
 #### Scenario: Framed compilation receives its class-bound header treatment
@@ -925,19 +951,19 @@ grant/attempt/review, or offer a fallback from a previous publication.
 
 ### Requirement: Detailed provider input remains outside Human Navigation
 
-The independent C5 derived-data directory SHALL be the canonical per-page
+The independent derived-data directory SHALL be the canonical per-page
 publication for its canonical request serialization and raw prompt prose. The
 existing aggregate provider-input inspection retains its own current contract;
-it SHALL neither be a C5 publication input nor cause C5 payloads to be copied
+it SHALL neither be a derived-publication input nor cause derived payloads to be copied
 into Human Navigation. The existing Human Navigation Path remains a short,
 secret-safe, non-authoritative browsing projection and SHALL not copy, link, or
-render C5 request payloads into its tree. Detailed-derived files remain Agent
+render derived request payloads into its tree. Detailed-derived files remain Agent
 inspection inputs; a path or digest from them SHALL not be accepted as a
 lifecycle selector.
 
 #### Scenario: Rebuilding Human Navigation does not expose a provider request
 
-- **WHEN** an exact current plan has a published C5 `image2-request` artifact
+- **WHEN** an exact current plan has a published derived `image2-request` artifact
   and its Human Navigation Path is rebuilt
 - **THEN** navigation can continue to describe available review artifacts
   without copying the request's raw prompt prose
@@ -989,7 +1015,7 @@ NOT replace the existing exact narrative-plan confirmation, Style Master review
 and promotion, or Complete Page Review decision. A fresh probe without a valid
 canonical local Style Master candidate SHALL stop at the existing Style Master
 candidate-planning action before raw planning, grant, attempt, or provider
-initialization. The trial SHALL not infer a candidate from C7 or production
+initialization. The trial SHALL not infer a candidate from an unrelated production
 material, use the Work Request as generated-Style-Master authorization, or add
 a candidate-acquisition path.
 

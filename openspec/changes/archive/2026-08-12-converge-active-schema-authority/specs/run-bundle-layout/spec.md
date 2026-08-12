@@ -43,6 +43,8 @@ handled by that operation's existing owner-issued boundary.
 - **THEN** it reports only the physical-layout fact without mutation
 - **AND** no state or resume command treats that report as current run authority
 
+## MODIFIED Requirements
+
 ### Requirement: Run Bundle locator binds one exact local Harness
 
 A current Run Bundle locator SHALL use the unversioned shared contract declared
@@ -64,6 +66,8 @@ production protocol or portability layer.
 - **THEN** it describes one exact local Harness relation under the declared
   contract
 - **AND** it does not encode production workflow authority
+
+## ADDED Requirements
 
 ### Requirement: Current Page Image human navigation is canonical derived output
 
@@ -105,6 +109,8 @@ reference path as input to establish authority.
 - **THEN** the human navigation index names a confined regular derived copy
   under `_generated/nav/` using only short path components
 - **AND** the operation does not read or mutate another derived reference path
+
+## MODIFIED Requirements
 
 ### Requirement: Current content-addressed physical paths use short on-disk names
 

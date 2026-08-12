@@ -204,7 +204,9 @@
       "owner": "shared/page-image",
       "interfaces": [
         "shared/page-image/page_image_core.mjs",
-        "shared/page-image/page_image_invalidation.mjs"
+        "shared/page-image/page_image_invalidation.mjs",
+        "shared/page-image/page_image_presentation_envelope.mjs",
+        "shared/page-image/page_image_source_receipt.mjs"
       ],
       "executables": [],
       "unit_integration": [

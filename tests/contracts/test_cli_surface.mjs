@@ -49,7 +49,8 @@ describe("current Page Image CLI surface", () => {
       initializeTargetPageImageState(deck, {
         runDir,
         sourceReceipt: {
-          schema: "page-image-workflow-source",
+          schema: "page-source-receipt",
+    artifact_role: "parsed-source",
           pipeline: "page-image-workflow",
           workflow: "pure",
           source_sha256: createHash("sha256").update(currentSource).digest("hex"),

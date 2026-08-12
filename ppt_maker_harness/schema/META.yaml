@@ -29,12 +29,7 @@ stage_definition:
   producer_status_values:
     - human-authored
     - materialized
-    - planned
-  planned_producer:
-    required_key: route_ref
-    meaning: "A route label defined by recovery-route.yaml for a producer that has not materialized."
-    boundary: "A route reference explains future ownership; it never authorizes implementation or provider work."
-  owner_rule: "Materialized stages name a real current owner. Planned C3-C5 stages name their planned change or capability, never a speculative module path."
+  owner_rule: "Every stage names a real current owner; schema definitions do not reserve future producers or implementation routes."
   provenance_rule: "Every derived or record stage identifies the source, configuration, or upstream record needed to explain how it was made."
 
 field_definition:

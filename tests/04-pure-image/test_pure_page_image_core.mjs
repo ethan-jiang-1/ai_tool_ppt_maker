@@ -300,7 +300,7 @@ describe("Pure Page Image Core adapter", () => {
     }
   });
 
-  it("stops before current-plan publication when C5 replacement is invalid, then repairs through the same plan checkpoint", async () => {
+  it("stops before current-plan publication when derived publication is invalid, then repairs through the same plan checkpoint", async () => {
     const root = mkdtempSync(join(tmpdir(), "pure-page-derived-publication-failure-"));
     const deck = join(root, "deck_pure_page_derived_failure");
     const runDir = join(deck, "3_versions", "v1");

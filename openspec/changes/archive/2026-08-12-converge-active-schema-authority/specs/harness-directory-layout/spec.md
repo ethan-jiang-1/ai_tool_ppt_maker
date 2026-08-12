@@ -9,7 +9,7 @@ the permanent schema home.
 below. The stage vocabulary, descriptive schema authority, static validation,
 and normal README orientation remain.
 
-## ADDED Requirements
+## MODIFIED Requirements
 
 ### Requirement: Harness exposes one permanent production schema definition home
 
@@ -51,7 +51,7 @@ implementation in the README.
 - **THEN** the stage flow and current serialization inventory are discoverable
 - **AND** no historical exception or route plan defines current behavior
 
-#### Scenario: A planned producer is inspected
+#### Scenario: A current producer is inspected
 
 - **WHEN** a maintainer inspects a current schema definition
 - **THEN** it names a materialized current producer or a stable owning
@@ -71,37 +71,18 @@ implementation in the README.
 - **THEN** it rejects invalid stage or serialization declarations
 - **AND** it does not make the README a test host or validate route history
 
-#### Scenario: A declared identifier is inspected
+#### Scenario: A historical identifier is inspected
 
 - **WHEN** a maintainer looks for a current durable identifier
 - **THEN** the serialization inventory provides one unversioned declaration and
   owner anchor
 - **AND** it provides no frozen preservation policy
 
-### Requirement: Schema definitions expose provenance and author-term repair context
+#### Scenario: The Harness root gains the schema definition home
 
-**Reason**: Its planned-producer clauses make implementation-route progress part
-of permanent production authority.
-
-**Migration**: Keep provenance, Repair Guidance, and direct owner semantics in
-the current requirement below; every declared stage must now name a materialized
-owner or stable owning capability.
-
-### Requirement: Schema definitions name C3's materialized upstream producers
-
-**Reason**: This is a completed delivery milestone, not a permanent schema
-responsibility.
-
-**Migration**: Its materialized source ownership is folded into the one
-all-stage owner requirement below.
-
-### Requirement: Schema definitions materialize the Page Class presentation flow
-
-**Reason**: This is a completed delivery milestone, not a permanent schema
-responsibility.
-
-**Migration**: Its current Page Class ownership is folded into the one
-all-stage owner requirement below.
+- **WHEN** the static Harness-root directory assertion runs
+- **THEN** it accepts the exact schema definition directory
+- **AND** it retains existing font and third-party-toolchain checks
 
 ## ADDED Requirements
 
@@ -162,9 +143,3 @@ boundary, provenance, and invalidation causes.
   workflow-isolated resolution, provenance, and selected-profile invalidation
 - **AND** it does not group Pure presentation under visual language or describe
   an alternate selector path
-
-#### Scenario: The Harness root gains the schema definition home
-
-- **WHEN** the static Harness-root directory assertion runs
-- **THEN** it accepts the exact schema definition directory
-- **AND** it retains existing font and third-party-toolchain checks

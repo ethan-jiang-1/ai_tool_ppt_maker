@@ -12,6 +12,7 @@ import { basename, dirname, join, relative, resolve } from "node:path";
 import { createCanvas } from "@napi-rs/canvas";
 
 import { canonicalJson, canonicalJsonSha256 } from "../identity/canonical_json.mjs";
+import { hasCurrentPageImageSourceReceiptEnvelope } from "../page-image/page_image_source_receipt.mjs";
 import { createPngRasterProjectionCanvas } from "./png_raster_projection.mjs";
 import {
   PAGE_IMAGE_COMPILED_PROVIDER_INPUT_SCHEMA,
@@ -157,8 +158,7 @@ function readJson(path, code, message) {
 }
 
 function requireSourceReceipt(receipt, workflow) {
-  if (!receipt || receipt.schema !== "page-image-workflow-source" ||
-    receipt.pipeline !== "page-image-workflow" || receipt.workflow !== workflow ||
+  if (!hasCurrentPageImageSourceReceiptEnvelope(receipt, { workflow }) ||
     !SHA256_RE.test(receipt.source_sha256 || "") || !Array.isArray(receipt.slides) || receipt.slides.length === 0 ||
     receipt.slides.some((slide, index) => !slide || slide.position !== index + 1 ||
       Object.hasOwn(slide, "workflow") || Object.hasOwn(slide, "authority") ||

@@ -20,7 +20,7 @@ outputs:
   - page-artifact-index
 provenance:
   source: "Page source digest and the visual-language selection used during parsing."
-  requirement: "Retain source_sha256, workflow, stable page identity, normalized page facts, and the parser binding that produced the C5 publication."
+  requirement: "Retain source_sha256, workflow, stable page identity, normalized page facts, and the parser binding that produced the derived publication."
 downstream_consumers:
   - page-layout
   - page-generation-spec

@@ -79,6 +79,14 @@ version-suffixed contract marker.
 
 ### Requirement: Intent discovery preserves explicit requests and exact-run boundaries
 
+The command guidance SHALL preserve a user's explicit Deck/run selection and
+route only declared current workflow facts to their existing controller or CLI
+owner. An undeclared source, state, receipt, or locator contract SHALL produce
+the owner-issued `unsupported-protocol/export` boundary without route
+selection, source inspection, conversion, migration, or adoption. Guidance
+SHALL describe the current contract and owner-issued next action without
+inventing another selectable route.
+
 The Agent SHALL interpret natural-language requests, then use the catalog only
 to validate the first safe discovery step. `work-resume` for a known exact run
 SHALL obtain `workflow_inspection.primary_action`. An explicit change request
@@ -101,6 +109,14 @@ An unrecognized request SHALL produce the non-persistent Route Gap through
 extension is a route, playbook, or owner capability, but SHALL not automatically
 create a backlog item, issue, OpenSpec change, state field, receipt, grant,
 attempt, history record, task projection, or selected-route record.
+
+#### Scenario: An explicit run has an undeclared contract
+
+- **WHEN** command guidance receives an explicit run whose owner reports an
+  undeclared source/state/receipt/locator contract
+- **THEN** it preserves the selected target and presents the owner-issued
+  unsupported-contract action
+- **AND** it does not substitute another run or offer another route
 
 #### Scenario: Explicit change wins over resume
 
@@ -191,15 +207,15 @@ workflow contract
 - **THEN** guidance routes it through the existing structural-versioning path
 - **AND** it does not create a conversion route
 
-### Requirement: Commands expose the replacement protocol's unsupported-input boundary
+### Requirement: Commands expose the declared-current unsupported-input boundary
 
-When command guidance receives a v2 Page Authority source/state/receipt or
-evidence identity, it SHALL present the bounded unsupported-protocol/export
+When command guidance receives an undeclared source/state/receipt or evidence
+identity, it SHALL present the bounded unsupported-protocol/export
 action before route selection. It SHALL not infer the selected workflow, read
 historical evidence as current, offer compatibility, or create a conversion,
 adoption, or fallback path.
 
-#### Scenario: v2 input is not offered as a production route
+#### Scenario: Undeclared input is not offered as a production route
 
 - **WHEN** a human asks to resume or change a v2 run
 - **THEN** command guidance presents the protocol hard-stop and its owner
@@ -211,7 +227,7 @@ action
 The novice-facing request table SHALL describe presentation goals, needed
 clarification, expected result, meaningful human confirmation/cost boundary,
 and coarse timing. It SHALL not expose raw prompt text, compiled-input digests,
-provider grants, internal adapter names, v2 Page Authority terminology, or a
+provider grants, internal adapter names, undeclared-contract implementation terminology, or a
 fixed Image2 command sequence. Detailed lifecycle and command forms remain
 with current playbooks and CLI owners.
 

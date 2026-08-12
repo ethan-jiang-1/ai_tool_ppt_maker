@@ -160,7 +160,7 @@ provider prompt prose, review, authorization, and lifecycle state.
 An unknown, repeated, malformed, or workflow-specific restriction SHALL fail
 through the field-level source repair action before receipt creation. Parsing
 SHALL not infer a restriction from a rendered page, Style Master, prior request,
-or derived C5 artifact.
+or derived publication artifact.
 
 #### Scenario: An omitted restriction is retained as none
 
@@ -247,28 +247,38 @@ rewrite it, or create a conversion path.
 
 ### Requirement: Current parsed Page Source receipts are publishable per page
 
-When a current Page Image Workflow source has been parsed into a valid receipt,
-Content Parsing SHALL make each normalized page fact available to the one
-provider-free `image2 plan` publication for that receipt's exact source digest,
-workflow, ordered stable IDs, and normalized page fields. The published
-`page-source-receipt` SHALL retain its stable `slide_id`, source binding, and
-parser-owned normalized facts; it SHALL not become an editable source copy,
-provider input, authorization, review decision, or lifecycle selector.
+After a current Page Source validates, its parsed receipt SHALL publish the
+declared Page Source Receipt stage and exact declared `artifact_role`, with its
+existing stable identities, source bytes, Page Class, selected workflow,
+provenance, and source-owned restrictions. The receipt SHALL not use a
+code-only envelope, a `kind` substitute for serialization role, or an
+undeclared schema alias. `kind` retains only its established business/action meaning.
 
-Invalid source parsing SHALL prevent dependent publication. The parser SHALL
-not use a prior publication, a page filename, or a different receipt to fill a
-missing current page fact.
+#### Scenario: A parsed current source publishes its receipt
+
+- **WHEN** a current homogeneous Page Source validates
+- **THEN** its receipt identifies the declared Page Source Receipt stage and
+  declared role alongside existing current provenance
+- **AND** downstream current owners consume that one envelope
+
+#### Scenario: An undeclared receipt envelope is rejected
+
+- **WHEN** a source receipt has an undeclared stage/role or replaces role with
+  a `kind` value
+- **THEN** the owning validator rejects it before dependent layout, raw, or
+  provider work
+- **AND** it does not normalize the envelope to another contract
 
 #### Scenario: A parsed page is published from its exact receipt
 
-- **WHEN** a valid current source reaches provider-free `image2 plan`
-- **THEN** its independently published page-source receipt carries the same
-  stable ID, normalized workflow, source digest, and parsed facts as the
-  parser's current receipt
-- **AND** the publication does not create provider work or an alternate source
+- **WHEN** one current valid receipt contains a page
+- **THEN** the per-page publication carries the same declared receipt stage and
+  role, stable slide identity, source digest, and selected workflow
+- **AND** it does not publish from independently reparsed, stale, or
+  hand-assembled source data
 
 #### Scenario: Invalid source prevents a derived receipt publication
 
 - **WHEN** current source parsing fails before a valid receipt exists
 - **THEN** no per-page source-receipt publication is emitted for that candidate
-- **AND** the owner does not read a former publication or authorize provider work
+- **AND** the owner does not read a derived publication or authorize provider work

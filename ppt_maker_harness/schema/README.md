@@ -16,19 +16,15 @@ not copy this directory into a `deck_*` bundle or edit a bundle from it.
 - `META.yaml`: the required shape and writing rules for one stage definition.
 - `flow.yaml`: logical transformations, owners, producer status, and
   invalidation causes.
-- `recovery-route.yaml`: the authoritative C1-C7 recovery-route labels used
-  by planned producers.
 - `stages/`: exactly nineteen conceptual definitions, one per filename.
 - `serialization-contracts.yaml`: active unversioned selectors, shared
   contracts, and wire-schema-to-stage/role mappings used by code mirrors.
 
 The stage names are conceptual and unversioned. A current implementation may
 serialize multiple precise wire shapes for one stage; each maps to a declared
-stage reference and role in `serialization-contracts.yaml`. A planned C3-C5 stage names
-its planned owning change or capability and uses `producer_status: planned`; it
-does not claim an implementation module that does not exist. Every planned
-stage and flow producer also carries a `route_ref` that resolves in
-`recovery-route.yaml`.
+stage reference and role in `serialization-contracts.yaml`. Every stage and
+flow transformation names its current owner; this directory does not track
+delivery routes, future work, or implementation progress.
 
 ## Current Framed Composition Terms
 
@@ -54,18 +50,6 @@ still use the same literal spelling as a local header. These definitions are
 current-only: no legacy reader, converter, alias, or migration path is
 declared here.
 
-## Recovery Route Labels
-
-`C1` through `C7` are labels for the current Page Image recovery route. They
-are not lifecycle phases, workflow modules, CLI commands, schema names, or
-authorization states. [`recovery-route.yaml`](recovery-route.yaml) is the
-single authority for each label's work, execution kind, responsibility,
-boundary, and exit evidence.
-
-`planned` in `flow.yaml` means the matching route entry has not materialized
-that producer yet. It never means that an Agent may implement, submit, or
-authorize the later route entry merely because its schema is already named.
-
 ## Repair Guidance
 
 A field is constrained only when it declares `rule`. Every such field carries
@@ -82,9 +66,9 @@ Repair Guidance; those remain responsibilities of their existing runtime owner.
 
 [`tests/contracts/test_page_image_schema_definitions.mjs`](../../tests/contracts/test_page_image_schema_definitions.mjs)
 is the verification owner for this definition home. It checks the exact stage
-set, field Repair Guidance, C1-C7 route completeness, planned-producer
-references, and the declared `standard` Page Class defaults. Run it as a
-targeted test sweep after changing these YAML definitions.
+set, every current owner, field Repair Guidance, serialization declarations,
+and the declared `standard` Page Class defaults. Run it as a targeted test
+sweep after changing these YAML definitions.
 
-The test is C1 evidence only. It does not grant a source mutation, a provider
-submission, or a delivery action.
+The test does not grant a source mutation, a provider submission, or a delivery
+action.

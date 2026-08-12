@@ -9,7 +9,7 @@ field stability a compatibility promise.
 The current READY/NOT READY verdict, bounded live checks, stdout discipline,
 and direct-help behavior remain.
 
-## ADDED Requirements
+## MODIFIED Requirements
 
 ### Requirement: Environment check emits one declared current report
 

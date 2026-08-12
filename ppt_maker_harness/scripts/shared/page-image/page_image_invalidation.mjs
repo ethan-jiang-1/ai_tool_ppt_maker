@@ -2,6 +2,7 @@ import {
   validateAcceptedRawEvidenceForFinalization,
   validateRawWorkPlanForFinalization,
 } from "../image2/page_image_artifacts.mjs";
+import { hasCurrentPageImageSourceReceiptEnvelope } from "./page_image_source_receipt.mjs";
 
 export const PAGE_IMAGE_INVALIDATION_SCHEMA = "page-image-invalidation";
 export const PAGE_IMAGE_INVALIDATION_CHANGE_KINDS = Object.freeze(["source", "notes-only"]);
@@ -40,9 +41,7 @@ export class PageImageInvalidationError extends Error {
 }
 
 function requireReceipt(receipt, label) {
-  if (!receipt || typeof receipt !== "object" || Array.isArray(receipt) ||
-    receipt.schema !== "page-image-workflow-source" ||
-    receipt.pipeline !== "page-image-workflow" ||
+  if (!hasCurrentPageImageSourceReceiptEnvelope(receipt) ||
     !WORKFLOWS.has(receipt.workflow) || !SHA256_RE.test(receipt.source_sha256 || "") ||
     !Array.isArray(receipt.slides) || receipt.slides.length === 0) {
     throw new PageImageInvalidationError("page_image_invalidation_receipt_invalid", `${label} must be a current Page Image Workflow receipt`);

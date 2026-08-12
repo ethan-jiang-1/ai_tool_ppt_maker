@@ -334,7 +334,7 @@ ppt_flow state <runDir>, --json, and --check-gates SHALL remain observation-firs
 Closed current mutation forms, including gate-journal recovery and Page Image Workflow delivery decisions, retain their owning preconditions and exact arguments. They are mutually exclusive with observation modes and must validate current source/state identity before write. No unsupported controller identity or receipt is accepted by this command surface.
 
 #### Scenario: Plain state observes a repairable current record
-- **WHEN** ppt_flow state <runDir> --json sees a one-to-one repairable schema-5 defect
+- **WHEN** ppt_flow state <runDir> --json sees a one-to-one repairable declared-current defect
 - **THEN** it reports the owner action without changing state, history, metadata, or generated output
 
 #### Scenario: Plain state sees an unsupported protocol
@@ -382,12 +382,12 @@ Playbook CLI steps that invoke `ppt_flow.mjs` SHALL treat a non-zero exit as act
 - **AND** `readState` still returns the expected playbook fields
 
 ### Requirement: state.mjs SAFETY — heal before blaming the user
-`readState` SHALL retain tolerant YAML parsing and deterministic canonical repair for a usable current schema-5 record, but SHALL classify source marker, schema, exact run version, durable mode, and Controller identity before any repair write. Its closed purpose SHALL remain `observe|execute`; `state`, `status`, checks, and validation SHALL use `observe` and make no state/history/metadata/generated/provider write. An owner-authorized execution path MAY atomically canonicalize only a current-v5 record whose changed fields have one-to-one meaning, preserve the exact execution/evidence relationship, and are not fenced by a gate journal, reset, or transition.
+`readState` SHALL retain tolerant YAML parsing and deterministic canonical repair for a usable declared-current record, but SHALL classify source marker, exact run version, durable mode, and Controller identity before any repair write. Its closed purpose SHALL remain `observe|execute`; `state`, `status`, checks, and validation SHALL use `observe` and make no state/history/metadata/generated/provider write. An owner-authorized execution path MAY atomically canonicalize only a declared-current record whose changed fields have one-to-one meaning, preserve the exact execution/evidence relationship, and are not fenced by a gate journal, reset, or transition.
 
 A pre-current schema, topology-only execution binding, retired Controller/node identity, markerless/retired source, or impossible source/mode pair SHALL never be transformed into a current state, mode, Controller, or transition checkpoint. It SHALL return one bounded owner-issued typed next action with the raw state/history bytes intact. A current explicit run whose bytes cannot preserve its current execution/evidence SHALL similarly return the state owner's one bounded typed next action; the Controller SHALL carry that action without asking a person to hand-edit YAML or inventing a continuation from generated artifacts, metadata, history, or source preference.
 
 #### Scenario: Current state repairs through its owner
-- **WHEN** an owner-authorized execution reads a consistent schema-5 state with a one-to-one malformed status or formatting defect
+- **WHEN** an owner-authorized execution reads a consistent declared-current state with a one-to-one malformed status or formatting defect
 - **THEN** it preserves the execution/evidence bindings and writes the canonical repaired state
 - **AND** it reports the repair without treating it as human approval or a new route
 
@@ -406,10 +406,10 @@ A pre-current schema, topology-only execution binding, retired Controller/node i
 - **AND** it does not create a default execution, reuse generated evidence, or silently resume work
 
 ### Requirement: State YAML parse/stringify uses a maintained YAML library
-scripts/shared/state/state.mjs SHALL use the npm yaml package for _state/state.yaml I/O. Read uses tolerant parseDocument options needed to classify syntactic defects; write emits only canonical stringify output plus the existing # header. A successful parse does not authorize a write. Observation remains byte-preserving. An owner-authorized execute path may stringify a usable current schema-5 record only after its source/mode/Controller identity and one-to-one repair are verified and all fences permit the write. Pre-current, ambiguous, or evidence-unpreservable input returns one bounded owner-issued typed next action without writeback.
+scripts/shared/state/state.mjs SHALL use the npm yaml package for _state/state.yaml I/O. Read uses tolerant parseDocument options needed to classify syntactic defects; write emits only canonical stringify output plus the existing # header. A successful parse does not authorize a write. Observation remains byte-preserving. An owner-authorized execute path may stringify a usable declared-current record only after its source/mode/Controller identity and one-to-one repair are verified and all fences permit the write. Undeclared, ambiguous, or evidence-unpreservable input returns one bounded owner-issued typed next action without writeback.
 
 #### Scenario: Current canonicalization uses the YAML library
-- **WHEN** an owner-authorized current schema-5 record has a one-to-one formatting defect
+- **WHEN** an owner-authorized declared-current record has a one-to-one formatting defect
 - **THEN** the repaired output uses library stringify and retains its execution/evidence bindings
 
 #### Scenario: Tolerant parse does not migrate old state
@@ -430,7 +430,7 @@ state.mjs SHALL export the canonical _state/README.md body used by bundle scaffo
 ### Requirement: Node completion and branch decisions use typed records
 Evidence-backed conditions SHALL use records shaped as `{met:true, kind:"user"|"agent"|"cli", at:<ISO-8601>, note?:<string>}` under the controller node's current execution. Decisions SHALL use `{value:<non-empty string>, kind:"user"|"agent"|"cli", at:<ISO-8601>, note?:<string>}`. `evidence:<key>` SHALL accept any valid kind on the current node exit. `user_evidence:<key>` SHALL require `kind: user`. `decision_recorded` and `user_decision_recorded` SHALL validate the corresponding current-node decision. `node_evidence:<node>:<key>` and `node_decision:<node>:<value>` SHALL read only a declared required upstream node that is completed in the same execution; a skipped predecessor SHALL not supply branch evidence. The state API SHALL expose validating `setNodeEvidence` and `setNodeDecision` helpers; `setNodeDecision` SHALL resolve the exact declaration from the supplied canonical playbook index and reject values outside that node's `decisions` enum. Durable persistence remains governed by `writeState`. Free-form prose conditions SHALL NOT silently pass.
 
-An owner-authorized canonicalization MAY convert a scalar decision only in a current schema-5 record with a direct current execution/node binding, one-to-one value meaning, and no gate/reset/transition fence. It SHALL record `kind: agent`, report the repair, and never satisfy a user-only branch. A pre-current schema, retired Controller/node, topology-only binding, or unpreservable decision record SHALL hard-stop before scalar conversion, aliasing, or write.
+An owner-authorized canonicalization MAY convert a scalar decision only in a declared-current record with a direct current execution/node binding, one-to-one value meaning, and no gate/reset/transition fence. It SHALL record `kind: agent`, report the repair, and never satisfy a user-only branch. An undeclared Controller/node, topology-only binding, or unpreservable decision record SHALL hard-stop before scalar conversion, aliasing, or write.
 
 #### Scenario: Unrecorded user review blocks exit
 - **WHEN** a visual review node declares `user_evidence:user-reviewed-artifact`
@@ -457,7 +457,7 @@ An owner-authorized canonicalization MAY convert a scalar decision only in a cur
 - **AND** the node cannot complete through `decision_recorded`
 
 #### Scenario: Current scalar decision retains non-user provenance
-- **WHEN** an owner-authorized execution canonicalizes a current-v5 scalar decision with a one-to-one declared value
+- **WHEN** an owner-authorized execution canonicalizes a declared-current scalar decision with a one-to-one declared value
 - **THEN** it records `kind: agent` under the same current execution
 - **AND** it does not satisfy a user-authorized downstream branch
 
@@ -465,28 +465,28 @@ An owner-authorized canonicalization MAY convert a scalar decision only in a cur
 - **WHEN** a pre-current, retired, topology-only, or evidence-unpreservable record contains a scalar decision
 - **THEN** state hard-stops before conversion and preserves the original bytes during observation
 
-### Requirement: State schema is explicitly versioned and repairs only current records
-`state.yaml` for every supported actively executing run SHALL use schema version 5 while preserving whole-workflow timing, execution identities, controller working sets, stack semantics, typed records, atomic writes, and reserved system records. A supported state SHALL bind one exact current source/mode pair and its exact normalized run version. Read or execute MAY perform only lossless canonicalization of an already supported schema-5 record when every affected field has a one-to-one meaning and no gate, reset, or transition fence is active. It SHALL not infer a source, mode, controller, run version, execution binding, or review evidence from metadata, generated artifacts, invocation order, source preference, or directory topology.
+### Requirement: State uses one declared current shape
+`state.yaml` for every supported actively executing run SHALL use one declared current shape while preserving whole-workflow timing, execution identities, controller working sets, stack semantics, typed records, atomic writes, and reserved system records. A supported state SHALL bind one exact current source/mode pair and its exact normalized run version. Read or execute MAY perform only lossless canonicalization of an already supported record when every affected field has a one-to-one meaning and no gate, reset, or transition fence is active. It SHALL not infer a source, mode, controller, run version, execution binding, or review evidence from metadata, generated artifacts, invocation order, source preference, or directory topology.
 
-A pre-current, retired, identity-invalid, or evidence-unpreservable schema/state protocol is unsupported. State/status observation SHALL return a diagnostic carrying one bounded owner-issued typed next action without changing bytes, and execution SHALL fail before Controller entry, journal, staging, target publication, or provider work. It SHALL not map a historical checkpoint, receipt, or controller record into a current execution. A valid current v5 record shall never be re-inferred from source or derived artifacts. Starting a new top-level execution still requires the existing explicit replacement authorization when a current execution is incomplete and preserves reserved records.
+An undeclared, identity-invalid, or evidence-unpreservable state protocol is unsupported. State/status observation SHALL return a diagnostic carrying one bounded owner-issued typed next action without changing bytes, and execution SHALL fail before Controller entry, journal, staging, target publication, or provider work. It SHALL not map an undeclared checkpoint, receipt, or controller record into a current execution. A valid current record shall never be re-inferred from source or derived artifacts. Starting a new top-level execution still requires the existing explicit replacement authorization when a current execution is incomplete and preserves reserved records.
 
 #### Scenario: Current state remains durable
-- **WHEN** a schema-5 state has an exact supported source/mode pair and normalized active execution version
+- **WHEN** a declared-current state has an exact supported source/mode pair and normalized active execution version
 - **THEN** state retains its current execution, stack, decisions, waits, gates, reset/refinement evidence, and reserved records
 - **AND** canonical observation does not invent a second routing authority
 
-#### Scenario: Prior state protocol is encountered
+#### Scenario: Undeclared state protocol is encountered
 - **WHEN** state/status reads a schema or controller protocol outside the current supported contract
 - **THEN** it returns one bounded owner-issued typed next action without rewriting the state bytes
-- **AND** it does not create a mode record, execution, compatibility projection, or transition checkpoint
+- **AND** it does not create a mode record, execution, alternate projection, or transition checkpoint
 
-#### Scenario: Historical state rejection is byte-preserving
-- **WHEN** a schema-4-or-earlier state, a retired transition execution, or a topology-only execution binding is supplied to observe or execute
+#### Scenario: Unsupported state rejection is byte-preserving
+- **WHEN** an undeclared state, a retired transition execution, or a topology-only execution binding is supplied to observe or execute
 - **THEN** the state owner rejects it before `healState`, alias mapping, marker inference, or default-state creation
 - **AND** `state.yaml`, `history.jsonl`, gate journals, and version directories remain byte-identical
 
 #### Scenario: Source or mode is inconsistent
-- **WHEN** a schema-5 state has a missing, malformed, or mismatched source/mode fact
+- **WHEN** a declared-current state has a missing, malformed, or mismatched source/mode fact
 - **THEN** observation and execution fail before Controller, journal, staging, or target mutation
 - **AND** no metadata or generated artifact is used to repair the relationship
 
@@ -498,11 +498,35 @@ A pre-current, retired, identity-invalid, or evidence-unpreservable schema/state
 - **WHEN** a requested canonicalization encounters a gate, reset, or transition write fence
 - **THEN** state leaves the original bytes unchanged and returns the owning recovery action
 
+The production schema inventory SHALL declare the top-level current state
+contract and its owner. State readers and writers SHALL use that one declared
+shape and SHALL NOT emit, inspect, branch on, or repair a numeric
+`schema_version` marker. Existing state ownership, atomic compare-and-swap,
+direct-fact validation, typed evidence, and exact Work Version binding remain
+the runtime authority; the schema declaration is descriptive and does not load
+YAML during production startup.
+
+#### Scenario: A current state is written
+
+- **WHEN** the state owner serializes a supported current execution
+- **THEN** the output has the declared current top-level shape with no numeric
+  schema-generation field
+- **AND** atomic ownership and existing direct-fact validation still apply
+
+#### Scenario: An undeclared state shape reaches an owner
+
+- **WHEN** observation or execution receives a state outside the declared
+  current shape
+- **THEN** the owning validator hard-stops before any state, history, source,
+  generated-artifact, or provider mutation
+- **AND** it does not identify, convert, or resume the input as a declared
+  current state
+
 ### Requirement: Gate status writes and heals enforce the catalog
-Content and visual gate status SHALL be exactly pending, approved, or waived; setGate rejects all other values. An owner-authorized current schema-5 repair may normalize a one-to-one invalid gate scalar to pending while preserving a diagnostic note and all current execution/evidence bindings. Observation never performs that repair. A pre-current or ambiguous gate record cannot be normalized into current authority and returns one bounded owner-issued typed next action.
+Content and visual gate status SHALL be exactly pending, approved, or waived; setGate rejects all other values. An owner-authorized declared-current repair may normalize a one-to-one invalid gate scalar to pending while preserving a diagnostic note and all current execution/evidence bindings. Observation never performs that repair. An undeclared or ambiguous gate record cannot be normalized into current authority and returns one bounded owner-issued typed next action.
 
 #### Scenario: Invalid current gate blocks production
-- **WHEN** a current schema-5 record contains visual: yes with otherwise provable one-to-one meaning
+- **WHEN** a declared-current record contains visual: yes with otherwise provable one-to-one meaning
 - **THEN** the authorized owner may normalize it to pending
 - **AND** production remains blocked until a current explicit decision
 
@@ -814,7 +838,7 @@ the Controller SHALL not classify it as a retained historical lineage.
 ### Requirement: State owns one current Page Image Task Mandate reference
 
 For each current Page Image version, State SHALL be the durable owner of an
-optional, versioned Task Mandate record. A valid record SHALL bind only the
+optional, Work-Version-scoped Task Mandate record. A valid record SHALL bind only the
 current run version, selected workflow, active execution identity and start
 time, issuance time, the fixed `normal-page-image-production` scope, and a
 stable digest/reference used by the raw-plan lineage. It SHALL NOT persist raw
@@ -925,7 +949,7 @@ hard-stop before State mutation or provider work.
 - **AND** it does not reinterpret source evidence as target evidence or invoke
   a provider
 
-### Requirement: Style Master readiness is replacement-protocol scoped
+### Requirement: Style Master readiness is declared-workflow scoped
 
 The `style_master_accepted` Controller prerequisite SHALL consult only the
 current Style Master acceptance for the exact Page Image Workflow version,

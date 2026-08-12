@@ -10,7 +10,7 @@ shape.
 Existing owner validation, exact Work Version binding, atomicity, and
 byte-preserving unsupported-input behavior remain.
 
-## ADDED Requirements
+## MODIFIED Requirements
 
 ### Requirement: State uses one declared current shape
 

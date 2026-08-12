@@ -120,7 +120,8 @@ describe("Style Master scope", () => {
       initializeTargetPageImageState(fixture.deck, {
         runDir: fixture.runDir,
         sourceReceipt: {
-          schema: "page-image-workflow-source",
+          schema: "page-source-receipt",
+    artifact_role: "parsed-source",
           pipeline: "page-image-workflow",
           workflow: "framed",
           source_sha256: candidate.source_sha256,

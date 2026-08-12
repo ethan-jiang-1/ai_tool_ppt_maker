@@ -21,6 +21,7 @@ import { publishCurrentFinalSlideManifest } from "../shared/image2/page_image_fi
 import { canonicalJson, canonicalJsonSha256 } from "../shared/identity/canonical_json.mjs";
 import { sha256Bytes } from "../shared/identity/byte_hash.mjs";
 import { parsePageImageSource } from "../01-content/index.mjs";
+import { hasCurrentPageImageSourceReceiptEnvelope } from "../shared/page-image/page_image_source_receipt.mjs";
 import {
   createPageImageSourceResolver,
   loadPageImagePresentationPackage,
@@ -304,7 +305,7 @@ export function validateFramedRawContract(rawContract) {
 }
 
 function requireReceipt(receipt) {
-  if (!receipt || receipt.schema !== "page-image-workflow-source" || receipt.workflow !== FRAMED_IMAGE_WORKFLOW || !Array.isArray(receipt.slides) || !receipt.slides.length) {
+  if (!hasCurrentPageImageSourceReceiptEnvelope(receipt, { workflow: FRAMED_IMAGE_WORKFLOW }) || !Array.isArray(receipt.slides) || !receipt.slides.length) {
     throw new FramedImageWorkflowError("wrong_workflow_owner", "Framed workflow requires a current Page Image Workflow framed receipt");
   }
   return receipt;

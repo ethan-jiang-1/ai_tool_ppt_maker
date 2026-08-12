@@ -355,31 +355,39 @@ authorization, review acceptance, or progress evidence.
 - **AND** it does not create a page plan, grant, provider attempt, or review
   decision from the offer or its result
 
-### Requirement: Active Controller guidance rejects v2 Page Authority routes
+### Requirement: Active Controller guidance rejects undeclared workflow contracts
 
 Registered active playbooks, Controller manifests, resume cards, and task
-projection sources SHALL describe only the replacement Page Image Workflow.
-When they encounter v2 Page Authority source/state/evidence, they SHALL show
+projection sources SHALL describe only declared current Page Image Workflow facts.
+When they encounter undeclared source/state/evidence, they SHALL show
 the owner-issued `unsupported-protocol/export` hard-stop and preserve bytes.
-They SHALL not register, select, rewrite, resume, adopt, migrate, or route a
-v2 workflow.
+They SHALL not register, select, rewrite, resume, adopt, migrate, or route an
+undeclared workflow.
 
-#### Scenario: A v2 run cannot enter an active controller
+#### Scenario: An undeclared run cannot enter an active controller
 
-- **WHEN** a controller attempts to resolve a v2 source/state pair
+- **WHEN** a controller attempts to resolve an undeclared source/state pair
 - **THEN** it presents the `unsupported-protocol/export` action before
   selecting nodes
 - **AND** it does not create a compatibility controller or task projection
 
-### Requirement: Page Image task projections remain non-authoritative collaboration views
+### Requirement: Page Image task projections declare their current report contract
 
 For an exact active current Page Image Workflow Controller route, the optional
 `_state/page-production-task-projection.md` SHALL be rebuilt only from
 owner-issued inspection and typed handoffs. It may show bounded plan, evidence,
 review, manifest, delivery, and current-action references, but it SHALL not
 become a selector, source of authority, authorization, acceptance record, or
-provider progress evaluator. A v2 record is ineligible to create or refresh
-the view.
+provider progress evaluator. The projection SHALL use its declared current
+shared report contract, and an undeclared record is ineligible to create or
+refresh the view.
+
+#### Scenario: A task projection is rebuilt
+
+- **WHEN** an eligible current Controller route rebuilds its task projection
+- **THEN** the projection carries its declared current report contract and only
+  owner-issued facts
+- **AND** it does not add a versioned route marker or advance workflow state
 
 #### Scenario: Card edits cannot advance a current page checkpoint
 

@@ -4,6 +4,7 @@ import { basename, dirname, join, resolve } from "node:path";
 import { stringify } from "yaml";
 
 import { canonicalJsonSha256 } from "../../shared/identity/canonical_json.mjs";
+import { hasCurrentPageImageSourceReceiptEnvelope } from "../../shared/page-image/page_image_source_receipt.mjs";
 import { PAGE_IMAGE_WORKFLOW_PIPELINE, probeProductionMarker } from "../../shared/run-bundle/production_marker.mjs";
 import { nextVersionName, publishStructuralVersion } from "../../shared/run-bundle/bundle_layout.mjs";
 import {
@@ -42,8 +43,8 @@ function requireWorkflow(workflow) {
 }
 
 function targetReceiptFacts(receipt, sourceText, workflow, expectedOrder) {
-  if (!receipt || receipt.schema !== "page-image-workflow-source" || receipt.pipeline !== PAGE_IMAGE_WORKFLOW_PIPELINE ||
-    receipt.workflow !== workflow || receipt.source_sha256 !== sha256(sourceText) || !Array.isArray(receipt.slides) || receipt.slides.length === 0) {
+  if (!hasCurrentPageImageSourceReceiptEnvelope(receipt, { workflow }) ||
+    receipt.source_sha256 !== sha256(sourceText) || !Array.isArray(receipt.slides) || receipt.slides.length === 0) {
     throw new Error("target structural source receipt does not bind the candidate source");
   }
   const slideIds = receipt.slides.map((slide) => slide?.slide_id);

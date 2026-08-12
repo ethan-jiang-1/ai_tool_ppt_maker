@@ -7,16 +7,23 @@ import {
   normalizePageImageHeaderPolicy,
   normalizePageImageProviderContent,
 } from "../../../ppt_maker_harness/scripts/shared/page-image/page_image_core.mjs";
+import {
+  hasCurrentPageImageSourceReceiptEnvelope,
+} from "../../../ppt_maker_harness/scripts/shared/page-image/page_image_source_receipt.mjs";
 
 function visualSelection(workflow) {
   return {
     projection: { recipe: { id: "editorial-systems" } },
     provider_clauses: { recipe: "architectural editorial scene" },
     presentation: {
+      schema: "page-layout",
+      artifact_role: "resolved-presentation",
       workflow,
       page_class: "standard",
+      profile_id: "standard",
       subject_restrictions: "none",
       binding_sha256: "c".repeat(64),
+      provenance: { catalog: "catalog.yaml", defaults: "defaults.yaml", profile: "profile.yaml" },
     },
   };
 }
@@ -24,7 +31,8 @@ function visualSelection(workflow) {
 function sourceReceipt({ workflow = "framed" } = {}) {
   const selection = visualSelection(workflow);
   return {
-    schema: "page-image-workflow-source",
+    schema: "page-source-receipt",
+    artifact_role: "parsed-source",
     pipeline: "page-image-workflow",
     workflow,
     source_sha256: "a".repeat(64),
@@ -60,6 +68,14 @@ function coreInputs(receipt) {
 }
 
 describe("Page Image Core", () => {
+  it("accepts only the declared parsed-source receipt envelope", () => {
+    const receipt = sourceReceipt({ workflow: "pure" });
+    expect(hasCurrentPageImageSourceReceiptEnvelope(receipt, { workflow: "pure" })).toBe(true);
+    expect(hasCurrentPageImageSourceReceiptEnvelope({ ...receipt, artifact_role: "reviewable-page" })).toBe(false);
+    expect(hasCurrentPageImageSourceReceiptEnvelope({ ...receipt, schema: ["page-image-workflow", "source"].join("-") })).toBe(false);
+    expect(hasCurrentPageImageSourceReceiptEnvelope({ ...receipt, stage: "page-source-receipt" })).toBe(false);
+  });
+
   it("returns immutable shared semantic facts and canonical UTF-8 identities", () => {
     const receipt = sourceReceipt();
     const facts = createPageImageCoreFacts(coreInputs(receipt));
@@ -133,5 +149,10 @@ describe("Page Image Core", () => {
     const missingPresentation = coreInputs(sourceReceipt({ workflow: "pure" }));
     delete missingPresentation.visualSelections[0].selection.presentation;
     expect(() => createPageImageCoreFacts(missingPresentation)).toThrow(/presentation facts/);
+
+    const legacyPresentation = coreInputs(sourceReceipt({ workflow: "pure" }));
+    legacyPresentation.visualSelections[0].selection.presentation.stage = "page-layout";
+    legacyPresentation.sourceReceipt.slides[0].visual_language.presentation.stage = "page-layout";
+    expect(() => createPageImageCoreFacts(legacyPresentation)).toThrow(/presentation facts/);
   });
 });

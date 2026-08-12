@@ -50,11 +50,13 @@ import {
 import { PAGE_IMAGE_WORKFLOW_PIPELINE, PAGE_IMAGE_WORKFLOWS, isPageImageWorkflowSelectionPending, probeProductionMarker } from "../run-bundle/production_marker.mjs";
 import { PAGE_IMAGE_WORKFLOW_PRODUCTION_MODE, canonicalVersionKey, initialProductionModeRecord, inspectProductionMode, isProductionMode, isProductionModeRecord, normalizeRunVersion, pipelineFromSourceMarker, productionPolicyForMode } from "../run-bundle/production_mode.mjs";
 import { canonicalJsonSha256 } from "../identity/canonical_json.mjs";
+import { hasCurrentPageImageSourceReceiptEnvelope } from "../page-image/page_image_source_receipt.mjs";
 
 export const STATE_DIR = "_state";
 export const STATE_FILE = "state.yaml";
 export const HISTORY_FILE = "history.jsonl";
-export const STATE_SCHEMA_VERSION = 5;
+export const EXECUTION_LEASE_FILE = "current-execution-lease.json";
+export const EXECUTION_LEASE_SCHEMA = "pptmaker-current-execution-lease";
 export const NODE_STATUSES = Object.freeze(["pending", "in_progress", "completed", "skipped", "failed"]);
 export const GATE_STATUSES = Object.freeze(["pending", "approved", "waived"]);
 export const RESERVED_NODE_IDS = Object.freeze([]);
@@ -64,9 +66,9 @@ export const STATE_YAML_HEADER = `\
 # Schema authority: ppt_maker_harness/charter/NODE-SPEC.md
 # API: ppt_maker_harness/scripts/shared/state/state.mjs
 # CLI: node ppt_maker_harness/scripts/ppt_flow.mjs state <runDir> [--json|--check-gates]
-# Fields: schema_version, pipeline, production_mode.by_version, page_image_task_mandate.by_version, playbook, current_node, execution_id, nodes.*, gates.*, deck.*, playbook_stack
+# Fields: pipeline, production_mode.by_version, page_image_task_mandate.by_version, playbook, current_node, execution_id, nodes.*, gates.*, deck.*, playbook_stack
 # MD Controller source: ppt_maker_harness/playbook/*.md
-# Read boundary: observation validates current schema-5 authority and never rewrites, infers, or continues unsupported state
+# Read boundary: observation validates the declared current authority and never rewrites, infers, or continues unsupported state
 `;
 
 export const STATE_DIR_README = `\
@@ -82,7 +84,7 @@ export const STATE_DIR_README = `\
 
 **Schema 权威:** \`ppt_maker_harness/charter/NODE-SPEC.md\`。
 
-**不要手改:** 优先使用 \`scripts/shared/state/state.mjs\` / \`ppt_flow\`；读取只验证当前 schema-5 权威状态，不会重写、推断或继续不受支持的历史状态。
+**不要手改:** 优先使用 \`scripts/shared/state/state.mjs\` / \`ppt_flow\`；读取只验证当前声明的权威状态，不会重写、推断或继续不受支持的状态。
 `;
 
 const YAML_PARSE_OPTS = { strict: false, uniqueKeys: false, logLevel: "error" };
@@ -100,7 +102,6 @@ function sameExistingPath(left, right) {
 }
 
 const STATE_TOP_LEVEL_KEYS = new Set([
-  "schema_version",
   "pipeline",
   "production_mode",
   "page_image_raw_provider_authorization",
@@ -290,14 +291,15 @@ function assertCurrentPlaybookStack(state) {
   return state.playbook_stack;
 }
 
-/** Historical state is not promotable. Reads validate the durable schema-5
- * bytes; only an owning execution path may make a current repair. */
+/** Undeclared state is not promotable. Reads validate declared current bytes;
+ * only an owning execution path may make a current repair. */
 export function healState(raw) {
   return { state: isPlainObject(raw) ? deepClone(raw) : raw, dirty: false };
 }
 
 export function statePath(deckDir) { return join(deckDir, STATE_DIR, STATE_FILE); }
 export function historyPath(deckDir) { return join(deckDir, STATE_DIR, HISTORY_FILE); }
+export function executionLeasePath(deckDir) { return join(deckDir, STATE_DIR, EXECUTION_LEASE_FILE); }
 
 function replacementRequired(reason, pipeline = null) {
   return Object.freeze({
@@ -530,7 +532,6 @@ export function recordEffectiveStyleMasterSelection(deckDir, {
   delete next.durable_state_present;
   delete next._healed;
   delete next._heal_pending;
-  next.schema_version = STATE_SCHEMA_VERSION;
   ensureStyleMasterSelectionContainer(next)[canonicalVersionKey(exactVersion)] = structuredClone(selection);
   writeState(deckDir, next, { expectedStateSha: stateSha, updatedAt: selection.accepted_at });
   appendHistory(deckDir, {
@@ -781,18 +782,6 @@ function targetEvidenceRecord(state, runVersion) {
   return state?.page_image_target_evidence?.by_version?.[canonicalVersionKey(runVersion)] || null;
 }
 
-function cleanTargetLineageConflict(state, runVersion) {
-  const versionKey = canonicalVersionKey(runVersion);
-  const targets = [
-    ["production_mode", state?.production_mode?.by_version],
-    ["page_image_target_evidence", state?.page_image_target_evidence?.by_version],
-    ["page_image_style_master", state?.page_image_style_master?.by_version],
-    ["page_image_raw_provider_authorization", state?.page_image_raw_provider_authorization?.by_version],
-    ["page_image_progressive_handoff", state?.page_image_progressive_handoff?.by_version],
-  ];
-  return targets.find(([, records]) => isPlainObject(records) && Object.hasOwn(records, versionKey))?.[0] || null;
-}
-
 function cleanTargetFilesystemConflict(targetDir) {
   for (const [label, name] of [["generated", "_generated"], ["scratch", "_scratch"]]) {
     const directory = join(targetDir, name);
@@ -806,6 +795,36 @@ function cleanTargetFilesystemConflict(targetDir) {
     if (entries.length > 0) return `${label}:${entries[0]}`;
   }
   return null;
+}
+
+function currentExecutionLease(deckDir) {
+  const path = executionLeasePath(deckDir);
+  let record;
+  try {
+    record = JSON.parse(readFileSync(path, "utf8"));
+  } catch {
+    throw new Error("CLEAN_TARGET_STATE_OWNER_UNAVAILABLE");
+  }
+  if (!isPlainObject(record) || Object.keys(record).sort().join("\n") !== [
+    "active_run_version", "schema", "state_sha256",
+  ].join("\n") || record.schema !== EXECUTION_LEASE_SCHEMA ||
+    !SHA256_RE.test(record.state_sha256 || "") ||
+    (record.active_run_version !== null && !normalizeRunVersion(record.active_run_version))) {
+    throw new Error("CLEAN_TARGET_STATE_OWNER_UNAVAILABLE");
+  }
+  let stateBytes;
+  try {
+    stateBytes = readFileSync(statePath(deckDir));
+  } catch {
+    throw new Error("CLEAN_TARGET_STATE_OWNER_UNAVAILABLE");
+  }
+  if (sha256(stateBytes) !== record.state_sha256) {
+    throw new Error("CLEAN_TARGET_STATE_OWNER_UNAVAILABLE");
+  }
+  return Object.freeze({
+    active_run_version: record.active_run_version,
+    state_sha256: record.state_sha256,
+  });
 }
 
 /**
@@ -847,24 +866,13 @@ export function activateCleanPageImageTargetDraft(deckDir, {
   const filesystemConflict = cleanTargetFilesystemConflict(targetDir);
   if (filesystemConflict) throw new Error(`CLEAN_TARGET_FILESYSTEM_NOT_CLEAN:${filesystemConflict}`);
 
-  const execution = requireExactExecution(deckDir, { runVersion: sourceVersion }, "observe");
-  const stateSha = expectedStateSha ?? execution.state_sha256;
-  const state = execution.state;
-  if (Array.isArray(state.playbook_stack) && state.playbook_stack.length > 0) {
-    throw new Error("CLEAN_TARGET_SOURCE_EXECUTION_STACKED");
+  // The state owner consumes only this controller lease to prevent replacing a
+  // different active run. Predecessor state is never a successor input.
+  const lease = currentExecutionLease(deckDir);
+  if (lease.active_run_version && lease.active_run_version !== sourceVersion) {
+    throw new Error("CLEAN_TARGET_SOURCE_EXECUTION_REQUIRED");
   }
-  const continuationTarget = exactContinuationTargetVersion(state.continuation_target_version);
-  if (continuationTarget && continuationTarget !== sourceVersion) {
-    throw new Error("CLEAN_TARGET_CONTINUATION_CONFLICT");
-  }
-  if (state.pipeline !== PAGE_IMAGE_WORKFLOW_PIPELINE) throw new Error("CLEAN_TARGET_SOURCE_STATE_MISMATCH");
-
-  const sourceInspection = inspectProductionMode({ state, runVersion: sourceVersion, sourceMarker });
-  if (!sourceInspection.ok || sourceInspection.mode !== PAGE_IMAGE_WORKFLOW_PRODUCTION_MODE || sourceInspection.workflow !== targetPipeline.workflow) {
-    throw new Error("CLEAN_TARGET_SOURCE_STATE_MISMATCH");
-  }
-  const lineageConflict = cleanTargetLineageConflict(state, targetVersion);
-  if (lineageConflict) throw new Error(`CLEAN_TARGET_LINEAGE_CONFLICT:${lineageConflict}`);
+  const stateSha = expectedStateSha ?? lease.state_sha256;
 
   const index = buildPlaybookIndex(playbookDir);
   const draftRouteNodes = controllerDraftRouteNodes(index, "create-deck", targetPipeline.workflow);
@@ -873,31 +881,13 @@ export function activateCleanPageImageTargetDraft(deckDir, {
     throw new Error("CLEAN_TARGET_DRAFT_ROUTE_INVALID");
   }
 
-  const next = structuredClone(state);
-  delete next.durable_state_present;
-  delete next._healed;
-  delete next._heal_pending;
-  next.schema_version = STATE_SCHEMA_VERSION;
-  next.playbook = "";
-  next.current_node = "";
-  next.execution_id = "";
-  next.execution_started_at = "";
-  next.run_version = "";
-  next.nodes = preserveReservedNodes(next.nodes);
-  next.playbook_stack = [];
+  const next = createDefaultState();
   next.continuation_target_version = targetVersion;
   startPlaybook(next, "create-deck", { runVersion: targetVersion });
   next.current_node = draftEntryNode;
 
   const at = nowIso();
   writeState(deckDir, next, { expectedStateSha: stateSha, updatedAt: at });
-  appendHistory(deckDir, {
-    type: "page_image_clean_target_draft_activated",
-    source_version: sourceVersion,
-    target_version: targetVersion,
-    workflow: targetPipeline.workflow,
-    at,
-  });
   return Object.freeze({
     ok: true,
     source_version: sourceVersion,
@@ -980,7 +970,7 @@ function assertDirectRawLifecycleAvailable(state, runVersion) {
 }
 
 function targetSourceFacts(receipt) {
-  if (!receipt || receipt.schema !== "page-image-workflow-source" || receipt.pipeline !== "page-image-workflow" ||
+  if (!hasCurrentPageImageSourceReceiptEnvelope(receipt) ||
     !SHA256_RE.test(receipt.source_sha256 || "") || !["framed", "pure"].includes(receipt.workflow) ||
     !Array.isArray(receipt.slides) || receipt.slides.length === 0) {
     throw new Error("TARGET_SOURCE_RECEIPT_INVALID");
@@ -1189,7 +1179,6 @@ export function ensureCurrentPageImageTaskMandate(deckDir, { runVersion, runDir,
   delete next.durable_state_present;
   delete next._healed;
   delete next._heal_pending;
-  next.schema_version = STATE_SCHEMA_VERSION;
   ensureTaskMandateContainer(next)[canonicalVersionKey(context.exactVersion)] = record;
   writeState(deckDir, next, { expectedStateSha: expectedStateSha ?? context.stateSha, updatedAt: issuedAt });
   appendHistory(deckDir, {
@@ -1263,7 +1252,6 @@ export function initializeTargetPageImageState(deckDir, { runVersion, runDir, so
   delete next.durable_state_present;
   delete next._healed;
   delete next._heal_pending;
-  next.schema_version = STATE_SCHEMA_VERSION;
   if (!existingMode) {
     ensureProductionModeContainer(next);
     next.production_mode.by_version[versionKey] = initialProductionModeRecord(PAGE_IMAGE_WORKFLOW_PRODUCTION_MODE, source.workflow);
@@ -1317,7 +1305,6 @@ export function advanceTargetPageImageSourceEpoch(deckDir, {
   delete next.durable_state_present;
   delete next._healed;
   delete next._heal_pending;
-  next.schema_version = STATE_SCHEMA_VERSION;
   const sourceEpoch = previous.source_epoch + 1;
   next.production_mode.by_version[versionKey] = {
     mode: PAGE_IMAGE_WORKFLOW_PRODUCTION_MODE,
@@ -1450,7 +1437,6 @@ export function rebindTargetAcceptedRawEvidenceForLocalCompose(deckDir, args = {
   delete next.durable_state_present;
   delete next._healed;
   delete next._heal_pending;
-  next.schema_version = STATE_SCHEMA_VERSION;
   const record = next.page_image_target_evidence.by_version[versionKey];
   record.source_receipt_sha256 = facts.nextSource.source_receipt_sha256;
   record.accepted_raw_evidence_sha256 = facts.nextEvidence.sha256;
@@ -1538,7 +1524,6 @@ export function rebindTargetProgressiveRawEvidenceForLocalCompose(deckDir, {
   delete next.durable_state_present;
   delete next._healed;
   delete next._heal_pending;
-  next.schema_version = STATE_SCHEMA_VERSION;
   const targetRecord = next.page_image_target_evidence.by_version[versionKey];
   targetRecord.source_receipt_sha256 = facts.nextSource.source_receipt_sha256;
   targetRecord.provider_authorization_sha256 = null;
@@ -1641,7 +1626,6 @@ export function registerTargetPageImageStructuralPublication(deckDir, {
   delete next.durable_state_present;
   delete next._healed;
   delete next._heal_pending;
-  next.schema_version = STATE_SCHEMA_VERSION;
   ensureProductionModeContainer(next);
   ensureTargetEvidenceContainer(next);
   if (!existingMode) {
@@ -1771,7 +1755,6 @@ function mutateTargetEvidenceRecord(deckDir, { runVersion, runDir, expectedState
   delete next.durable_state_present;
   delete next._healed;
   delete next._heal_pending;
-  next.schema_version = STATE_SCHEMA_VERSION;
   const record = next.page_image_target_evidence.by_version[canonicalVersionKey(context.exactVersion)];
   mutate(record, context);
   if (!validTargetEvidenceRecord(record, context.exactVersion)) throw new Error("TARGET_STATE_RECORD_INVALID");
@@ -1815,7 +1798,6 @@ function mutateProgressiveHandoff(deckDir, {
   delete next.durable_state_present;
   delete next._healed;
   delete next._heal_pending;
-  next.schema_version = STATE_SCHEMA_VERSION;
   const handoffs = ensureProgressiveHandoffContainer(next);
   const versionKey = canonicalVersionKey(context.exactVersion);
   const previous = handoffs[versionKey] || null;
@@ -2127,7 +2109,6 @@ export function recordTargetProgressiveAuthorizeCliHandoff(deckDir, {
   delete next.durable_state_present;
   delete next._healed;
   delete next._heal_pending;
-  next.schema_version = STATE_SCHEMA_VERSION;
   if (!evidenceIsCurrent) {
     setNodeEvidence(next, expectedNodeId, PAGE_IMAGE_PROGRESSIVE_AUTHORIZE_CLI_EVIDENCE_KEY, {
       kind: "cli",
@@ -2371,7 +2352,6 @@ export function recordPageImageRawProviderAuthorization(deckDir, { runVersion, r
   delete next.durable_state_present;
   delete next._healed;
   delete next._heal_pending;
-  next.schema_version = STATE_SCHEMA_VERSION;
   if (!isPlainObject(next.page_image_raw_provider_authorization) || !isPlainObject(next.page_image_raw_provider_authorization.by_version)) {
     next.page_image_raw_provider_authorization = { by_version: {} };
   }
@@ -2444,9 +2424,6 @@ export function readState(deckDir, opts = {}) {
   }
   const parsed = parseStateYaml(raw);
   if (!parsed.ok || parsed.hadErrors) return replacementRequired("authoritative state is not safely parseable");
-  if (parsed.value.schema_version !== STATE_SCHEMA_VERSION) {
-    return replacementRequired(`unsupported state schema_version ${String(parsed.value.schema_version)}`);
-  }
   const version = selectedRunVersion(opts) || normalizeRunVersion(parsed.value.run_version) ||
     (!parsed.value.playbook ? exactContinuationTargetVersion(parsed.value.continuation_target_version) : null);
   let sourceMarker = null;
@@ -2682,7 +2659,6 @@ export function prepareStateWrite(state, { updatedAt = nowIso() } = {}) {
   const { _healed, ...persist } = state;
   delete persist._heal_pending;
   delete persist.durable_state_present;
-  persist.schema_version = STATE_SCHEMA_VERSION;
   persist.updated_at = updatedAt;
   assertCurrentPlaybookStack(persist);
   const bytes = Buffer.from(STATE_YAML_HEADER + stringifyStateYaml(persist), "utf8");
@@ -2696,6 +2672,30 @@ function readJournalSnapshot(deckDir) {
   let record;
   try { record = JSON.parse(bytes.toString("utf8")); } catch { throw new Error("CONFLICT: gate approval journal is invalid"); }
   return { path, bytes, record };
+}
+
+function executionLeaseRecord(state, stateSha) {
+  const activeRunVersion = state.playbook ? normalizeRunVersion(state.run_version) : null;
+  if (state.playbook && !activeRunVersion) throw new Error("STATE_CANDIDATE_INVALID: active playbook missing normalized run version");
+  return Buffer.from(`${JSON.stringify({
+    schema: EXECUTION_LEASE_SCHEMA,
+    active_run_version: activeRunVersion,
+    state_sha256: stateSha,
+  })}\n`, "utf8");
+}
+
+function writeExecutionLease(deckDir, state, stateSha) {
+  const path = executionLeasePath(deckDir);
+  const dir = dirname(path);
+  const bytes = executionLeaseRecord(state, stateSha);
+  const temp = join(dir, `.${EXECUTION_LEASE_FILE}.tmp-${process.pid}-${randomBytes(4).toString("hex")}`);
+  writeFileSync(temp, bytes);
+  try {
+    renameSync(temp, path);
+  } catch (error) {
+    rmSync(temp, { force: true });
+    throw error;
+  }
 }
 
 export function writeState(deckDir, state, opts = {}) {
@@ -2729,11 +2729,11 @@ export function writeState(deckDir, state, opts = {}) {
     const currentJournal = readJournalSnapshot(deckDir);
     if (Boolean(currentJournal.record) !== Boolean(journal.record) || (journal.bytes && !currentJournal.bytes?.equals(journal.bytes))) throw new Error("CONFLICT: gate approval journal changed before state commit");
     renameSync(temp, path);
+    writeExecutionLease(deckDir, prepared.persist, prepared.sha256);
   } catch (error) {
     rmSync(temp, { force: true });
     throw error;
   }
-  state.schema_version = STATE_SCHEMA_VERSION;
   state.updated_at = prepared.persist.updated_at;
   cleanStaleTemps(dir);
 }
@@ -2997,7 +2997,6 @@ export function startPlaybook(state, playbook, { replace = false, runVersion, ru
   if (state.playbook) requireExecutionRunVersion(state, { runVersion, runDir });
   const exactRunVersion = selectedRunVersion({ runVersion, runDir }) || normalizeRunVersion(state.run_version) || "v1";
   const now = nowIso();
-  state.schema_version = STATE_SCHEMA_VERSION;
   state.playbook = String(playbook);
   state.current_node = "";
   state.execution_id = newExecutionId();
@@ -3045,7 +3044,6 @@ export function resumePlaybook(state, selected = {}) {
 
 export function createDefaultState() {
   return {
-    schema_version: STATE_SCHEMA_VERSION,
     pipeline: PAGE_IMAGE_WORKFLOW_PIPELINE,
     production_mode: { by_version: {} },
     playbook: "",
@@ -3091,7 +3089,6 @@ export function validateState(state) {
   const errors = [];
   if (!isPlainObject(state)) return { valid: false, errors: ["state is null"] };
   if (state.corrupted) return { valid: false, errors: state.errors || ["corrupted"] };
-  if (state.schema_version !== STATE_SCHEMA_VERSION) errors.push(`unsupported schema_version ${state.schema_version}`);
   const nodes = isPlainObject(state.nodes) ? state.nodes : {};
   const gates = isPlainObject(state.gates) ? state.gates : {};
   if (!isPlainObject(state.nodes)) errors.push("missing nodes");

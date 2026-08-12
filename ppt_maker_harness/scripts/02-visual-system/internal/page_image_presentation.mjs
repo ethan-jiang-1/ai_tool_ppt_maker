@@ -16,8 +16,17 @@ import {
   pageImagePresentationAsset,
 } from "../../shared/run-bundle/bundle_layout.mjs";
 import { parsePureDeckVisualProfile } from "./pure_deck_visual_system.mjs";
+import {
+  PAGE_IMAGE_PRESENTATION_ARTIFACT_ROLE,
+  PAGE_IMAGE_PRESENTATION_SCHEMA,
+  hasCurrentPageImagePresentationEnvelope,
+} from "../../shared/page-image/page_image_presentation_envelope.mjs";
 
-export const PAGE_IMAGE_PRESENTATION_SCHEMA = "page-image-resolved-presentation";
+export {
+  PAGE_IMAGE_PRESENTATION_ARTIFACT_ROLE,
+  PAGE_IMAGE_PRESENTATION_SCHEMA,
+  hasCurrentPageImagePresentationEnvelope,
+};
 export const PAGE_IMAGE_PRESENTATION_FILES = Object.freeze([
   PAGE_CLASS_CATALOG_FILE,
   PAGE_IMAGE_DECK_DEFAULTS_FILE,
@@ -323,6 +332,7 @@ export function resolvePageImagePresentation({ package: presentationPackage, wor
   }
   const binding = {
     schema: PAGE_IMAGE_PRESENTATION_SCHEMA,
+    artifact_role: PAGE_IMAGE_PRESENTATION_ARTIFACT_ROLE,
     workflow,
     page_class: pageClass,
     profile_id: profileId,

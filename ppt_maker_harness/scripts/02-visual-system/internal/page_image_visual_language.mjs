@@ -23,7 +23,7 @@ const WORKFLOWS = Object.freeze(["framed", "pure"]);
 const SUBJECT_CLASSES = Object.freeze(["none", "amber-light-form"]);
 const LOWER_KEBAB_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const CHARACTER_GRAMMAR = "[a-z0-9 ,;:()./-]";
-const TOP_LEVEL_KEYS = Object.freeze(["schema", "revision", "recipes", "compositions", "motifs", "relationships"]);
+const TOP_LEVEL_KEYS = Object.freeze(["schema", "recipes", "compositions", "motifs", "relationships"]);
 const OPTIONAL_TOP_LEVEL_KEYS = Object.freeze(["relationships"]);
 const RECIPE_KEYS = Object.freeze(["provider_clause", "workflows", "composition_ids", "motif_ids", "identity_subject_classes"]);
 const COMPOSITION_KEYS = Object.freeze(["provider_clause", "workflows", "min_motifs", "max_motifs"]);
@@ -378,13 +378,11 @@ export function parsePageImageVisualLanguage(raw, { source = PAGE_IMAGE_VISUAL_L
   const issues = [...document.errors, ...document.warnings].map((problem) => issue("invalid_registry_yaml", problem.message.split("\n")[0], { source }));
   const root = exactMap(document.contents, TOP_LEVEL_KEYS, "registry", issues, { optionalKeys: OPTIONAL_TOP_LEVEL_KEYS });
   const schema = parseScalar(root.get("schema"), "registry.schema", issues);
-  const revision = parseInteger(root.get("revision"), "registry.revision", issues, { positive: true });
   if (schema !== PAGE_IMAGE_VISUAL_LANGUAGE_SCHEMA) {
     issues.push(issue("invalid_registry_schema", `registry.schema must equal ${PAGE_IMAGE_VISUAL_LANGUAGE_SCHEMA}`, { source, actual: schema, expected: PAGE_IMAGE_VISUAL_LANGUAGE_SCHEMA }));
   }
   const registry = {
     schema,
-    revision,
     visual_clause_digest: PAGE_IMAGE_VISUAL_CLAUSE_DIGEST,
     audit: { whole_registry_sha256: sha256(raw) },
     recipes: parseRecordMap(root.get("recipes"), "recipes", RECIPE_KEYS, issues, parseRecipeRecord),
@@ -419,7 +417,7 @@ function selectionIssue(code, message, actual) {
 /**
  * Resolve one source selection using only the trusted registry passed in by the
  * caller. Its semantic digest deliberately excludes unselected records and the
- * registry revision/audit digest.
+ * registry audit digest.
  */
 export function resolvePageImageVisualLanguageSelection(registry, context) {
   if (!registry || typeof registry !== "object") throw new TypeError("registry must be a parsed Page Image visual language registry");
@@ -515,7 +513,6 @@ export function resolvePageImageVisualLanguageSelection(registry, context) {
       ...(relationship ? { relationship: relationship.provider_clause } : {}),
     },
     audit: {
-      revision: registry.revision,
       whole_registry_sha256: registry.audit.whole_registry_sha256,
     },
   });

@@ -12,13 +12,20 @@ import {
   normalizePageImageProviderContent,
 } from "../../shared/page-image/page_image_core.mjs";
 import {
+  PAGE_IMAGE_WORKFLOW_SOURCE_RECEIPT_ARTIFACT_ROLE,
+  PAGE_IMAGE_WORKFLOW_SOURCE_RECEIPT_SCHEMA,
+} from "../../shared/page-image/page_image_source_receipt.mjs";
+import {
   IDENTITY_SCHEME_MNEMONIC,
   SlideDocumentError,
   parseSlideDocument,
   validateSlideDocument,
 } from "./slide_document.mjs";
 
-export const PAGE_IMAGE_WORKFLOW_SOURCE_RECEIPT_SCHEMA = "page-image-workflow-source";
+export {
+  PAGE_IMAGE_WORKFLOW_SOURCE_RECEIPT_ARTIFACT_ROLE,
+  PAGE_IMAGE_WORKFLOW_SOURCE_RECEIPT_SCHEMA,
+};
 export { PAGE_IMAGE_CLASSES };
 export const PROVIDER_CONTENT_ROLES = PAGE_IMAGE_CORE_CONTENT_ROLES;
 export const PROVIDER_CONTENT_COPY_POLICIES = PAGE_IMAGE_CORE_COPY_POLICIES;
@@ -842,6 +849,7 @@ export function parsePageImageSource(sourceText, { source = "slide-specification
   if (issues.length > 0) throw new PageImageSourceError(issues);
   return deepFreeze({
     schema: PAGE_IMAGE_WORKFLOW_SOURCE_RECEIPT_SCHEMA,
+    artifact_role: PAGE_IMAGE_WORKFLOW_SOURCE_RECEIPT_ARTIFACT_ROLE,
     pipeline: PAGE_IMAGE_WORKFLOW_PIPELINE,
     workflow,
     source_sha256: sha256(document.source_text),

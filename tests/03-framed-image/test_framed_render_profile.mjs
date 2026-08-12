@@ -7,7 +7,6 @@ import {
   createFramedHeaderOverlayRenderProfile,
   FRAMED_FONT_SELECTION_ALGORITHM,
   FRAMED_HEADER_OVERLAY_LAYOUT_COMPILER,
-  FRAMED_HEADER_OVERLAY_LAYOUT_COMPILER_COHERENCE_HISTORY,
   FRAMED_HEADER_OVERLAY_RENDER_PROFILE_SCHEMA,
 } from '../../ppt_maker_harness/scripts/03-framed-image/internal/framed_render_profile.mjs';
 import { framedRenderProfileFacts } from '../helpers/framed_presentation_profile.mjs';
@@ -74,7 +73,7 @@ describe('Framed header-overlay render profile', () => {
       preset.header_region.height -= 1;
       return { preset };
     }],
-    ['layout compiler', () => ({ layoutCompiler: { ...FRAMED_HEADER_OVERLAY_LAYOUT_COMPILER, version: '5' } })],
+    ['layout compiler', () => ({ layoutCompiler: { schema: 'different-framed-header-overlay-layout-compiler' } })],
     ['font render inventory', () => ({
       fontRenderInventory: {
         ...fontRenderInventory,
@@ -102,11 +101,8 @@ describe('Framed header-overlay render profile', () => {
     expect(() => profile({ preset: legacyGeometryPreset })).toThrow(/preset must contain only/);
   });
 
-  it('requires a new compiler identity when the canonical geometry fixture changes', () => {
+  it('binds its digest to the canonical geometry fixture', () => {
     const actualFixtureDigest = canonicalJsonSha256(compileFramedHeaderOverlayGeometry({ preset: framedRenderProfileFacts() }));
-    const current = FRAMED_HEADER_OVERLAY_LAYOUT_COMPILER_COHERENCE_HISTORY.at(-1);
-    expect(current).toEqual({ version: FRAMED_HEADER_OVERLAY_LAYOUT_COMPILER.version, fixture_sha256: actualFixtureDigest });
-    expect(new Set(FRAMED_HEADER_OVERLAY_LAYOUT_COMPILER_COHERENCE_HISTORY.map((entry) => entry.version)).size)
-      .toBe(FRAMED_HEADER_OVERLAY_LAYOUT_COMPILER_COHERENCE_HISTORY.length);
+    expect(actualFixtureDigest).toBe('c56efa75050d3c08acf7e962eb636da82a683fcd8ae3de02dc8f0a4870e4eabe');
   });
 });

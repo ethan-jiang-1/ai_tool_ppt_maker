@@ -1,17 +1,17 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join, relative } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import { parseDocument } from "yaml";
 import { describe, expect, it } from "vitest";
 
-import { evaluateC6CompositionConformance, evaluatePageDerivedPublicationConformance, evaluateProductionSchemaConformance } from "../../ppt_maker_harness/scripts/contracts/harness_architecture.mjs";
+import { evaluateFramedCompositionConformance, evaluatePageDerivedPublicationConformance, evaluateProductionSchemaConformance } from "../../ppt_maker_harness/scripts/contracts/harness_architecture.mjs";
 
 const ROOT = process.cwd();
 const HARNESS = join(ROOT, "ppt_maker_harness");
 const SCHEMA_HOME = join(HARNESS, "schema");
-const ACTIVE_ROOTS = [HARNESS, join(ROOT, "tests"), join(ROOT, "tests_e2e")];
+const ACTIVE_ROOTS = [HARNESS, join(ROOT, "tests"), join(ROOT, "tests_e2e"), join(ROOT, "openspec", "specs")];
 const TEXT_FILE = /\.(?:mjs|md|json|yaml)$/;
-const CONTRACT_VALUE = /^(?:page-image|pptmaker|image2-page|mnemonic|standard)(?:-|$)/;
-const VERSIONED_CONTRACT = /\b(?:page-image|pptmaker|image2-page|mnemonic|standard)[a-z0-9-]*-v[1-9][0-9]*\b/g;
+const CONTRACT_VALUE = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
+const VERSIONED_CONTRACT = /\b[a-z][a-z0-9-]*-(?:schema|protocol|compiler|manifest|report|revision|format)-v[1-9][0-9]*\b/g;
 const PAGE_IMAGE_PRESENTATION_CONTRACTS = [
   "pptmaker-page-image-class-catalog",
   "pptmaker-page-image-deck-defaults",
@@ -43,16 +43,265 @@ function sourceAnchorExists(anchor) {
   return !fragment || readFileSync(path, "utf8").includes(fragment);
 }
 
-function fieldAssignments(path, text) {
+function sourceText(path) {
+  return readFileSync(path, "utf8");
+}
+
+function sourcePathForOwner(owner) {
+  return owner.startsWith("scripts/") ? join(HARNESS, owner) : join(ROOT, owner);
+}
+
+function constantsIn(path, cache = new Map()) {
+  if (cache.has(path)) return cache.get(path);
+  const text = sourceText(path);
+  const constants = new Map();
+  // Cache before descending so repeated imports retain resolved constants and
+  // cyclic imports can only observe the partial map already in construction.
+  cache.set(path, constants);
+  for (const match of text.matchAll(/(?:export\s+)?const\s+([A-Z][A-Z0-9_]*)\s*=\s*["']([a-z][a-z0-9-]*)["']/g)) {
+    constants.set(match[1], match[2]);
+  }
+  for (const match of text.matchAll(/import\s*{([^}]+)}\s*from\s*["'](\.[^"']+)["']/g)) {
+    const imported = resolve(dirname(path), match[2]);
+    for (const part of match[1].split(",")) {
+      const [exported, local = exported] = part.trim().split(/\s+as\s+/);
+      const value = constantsIn(imported, cache).get(exported);
+      if (value) constants.set(local, value);
+    }
+  }
+  return constants;
+}
+
+function resolvedAssignments(text, field, constants) {
+  const values = [];
+  const pattern = new RegExp(`["']?${field}["']?\\s*:\\s*(?:["']([^"']+)["']|([A-Z][A-Z0-9_]*))`, "g");
+  for (const match of text.matchAll(pattern)) {
+    values.push({ value: match[1] || constants.get(match[2]) || null, offset: match.index });
+  }
+  return values;
+}
+
+function objectFields(text, start) {
   const fields = [];
-  const quoted = /["']?(schema|pipeline|mode|adapter|scheme)["']?\s*[:=]\s*["']([a-z][a-z0-9-]*)["']/g;
-  const yamlBare = /(?:^|\n)\s*(schema|pipeline|mode|adapter|scheme)\s*:\s*([a-z][a-z0-9-]*)\b/gm;
-  for (const pattern of [quoted, yamlBare]) {
-    for (const match of text.matchAll(pattern)) {
-      if (CONTRACT_VALUE.test(match[2])) fields.push({ field: match[1], value: match[2], location: relative(ROOT, path) });
+  let depth = 0;
+  let started = false;
+  let quote = null;
+  let escaped = false;
+  for (let index = start; index < text.length; index += 1) {
+    const char = text[index];
+    if (quote) {
+      if (escaped) escaped = false;
+      else if (char === "\\") escaped = true;
+      else if (char === quote) quote = null;
+      continue;
+    }
+    if (char === "\"" || char === "'") {
+      quote = char;
+      continue;
+    }
+    if (char === "{") {
+      if (!started) {
+        started = true;
+        depth = 1;
+      } else {
+        depth += 1;
+      }
+      continue;
+    }
+    if (char === "}") {
+      depth -= 1;
+      if (started && depth === 0) break;
+      continue;
+    }
+    if (started && depth === 1) {
+      const match = text.slice(index).match(/^\s*(?:\.\.\.\()?([a-z0-9_]+)(?:\s*:|\s*,)/);
+      if (match) {
+        fields.push(match[1]);
+        index += match[0].length - 1;
+      }
     }
   }
   return fields;
+}
+
+function directEnvelopeObservation(entry) {
+  const path = sourcePathForOwner(entry.producer);
+  const text = sourceText(path);
+  const constants = constantsIn(path);
+  const constructorAnchor = entry.anchors.find((anchor) => /#(?:parse|resolve)/.test(anchor));
+  const fragment = constructorAnchor?.split("#", 2)[1];
+  const start = fragment ? text.indexOf(fragment) : 0;
+  const region = text.slice(start < 0 ? 0 : start);
+  const matchingAssignment = (field, value) => {
+    const local = resolvedAssignments(region, field, constants).find((assignment) => assignment.value === value);
+    return local ? { ...local, absoluteOffset: (start < 0 ? 0 : start) + local.offset } :
+      resolvedAssignments(text, field, constants).find((assignment) => assignment.value === value);
+  };
+  const schemaAssignment = matchingAssignment("schema", entry.stage_ref);
+  const artifactRoleAssignment = matchingAssignment("artifact_role", entry.artifact_role);
+  if (!schemaAssignment?.value || !artifactRoleAssignment?.value) return null;
+  const schema = schemaAssignment.value;
+  const artifactRole = artifactRoleAssignment.value;
+  const schemaOffset = schemaAssignment.absoluteOffset ?? schemaAssignment.offset;
+  const bindingStart = entry.stage_ref === "page-layout" ? text.lastIndexOf("const binding = {", schemaOffset) : text.lastIndexOf("return deepFreeze({", schemaOffset);
+  const fields = entry.stage_ref === "page-layout"
+    ? [...objectFields(text, bindingStart), "workflow", "provenance", "binding_sha256"]
+    : objectFields(text, bindingStart);
+  return {
+    schema,
+    artifact_role: artifactRole,
+    form: entry.form,
+    fields,
+    location: relative(ROOT, path),
+  };
+}
+
+function derivedPublicationEnvelopeObservation(entry) {
+  const path = sourcePathForOwner(entry.producer);
+  const text = sourceText(path);
+  const fieldsFrom = (needle) => {
+    const start = text.indexOf(needle);
+    if (start < 0) return null;
+    const returnStart = text.indexOf("return {", start);
+    return returnStart < 0 ? null : objectFields(text, returnStart);
+  };
+  const detailRole = (stage) => {
+    const start = text.indexOf(`"${stage}": Object.freeze({`);
+    if (start < 0) return null;
+    const region = text.slice(start, text.indexOf("}),", start));
+    return region.match(/\brole:\s*["']([a-z][a-z0-9-]*)["']/)?.[1] || null;
+  };
+  let fields = null;
+  if (entry.form === "per-page-derived-publication") {
+    if (!new RegExp(`stage:\\s*["']${entry.stage_ref}["']`).test(text) || detailRole(entry.stage_ref) !== entry.artifact_role) return null;
+    fields = fieldsFrom("function artifactEnvelope");
+  } else if (entry.form === "framed-header-html-projection") {
+    if (detailRole(entry.stage_ref) !== entry.artifact_role) return null;
+    const start = text.indexOf("references.framed_header_html = {");
+    fields = start < 0 ? null : objectFields(text, start);
+  } else if (entry.form === "deck-derived-publication") {
+    const start = text.indexOf("function deckIndex");
+    if (start < 0) return null;
+    const region = text.slice(start, text.indexOf("function assertStagedTree", start));
+    const role = region.match(/artifact_role:\s*details\.role/) ? "deck-derived-index" : null;
+    if (role !== entry.artifact_role) return null;
+    fields = fieldsFrom("function deckIndex");
+  }
+  if (!fields) return null;
+  return {
+    schema: entry.stage_ref,
+    artifact_role: entry.artifact_role,
+    form: entry.form,
+    fields,
+    location: relative(ROOT, path),
+  };
+}
+
+function envelopeObservations(envelopes) {
+  return envelopes.map((entry) => {
+    const isDerivedPublication = ["per-page-derived-publication", "framed-header-html-projection", "deck-derived-publication"].includes(entry.form);
+    return isDerivedPublication ? derivedPublicationEnvelopeObservation(entry) : directEnvelopeObservation(entry);
+  }).filter(Boolean);
+}
+
+function pageDerivedDeclarations() {
+  return envelopeDeclarations(yaml(join(SCHEMA_HOME, "serialization-contracts.yaml")));
+}
+
+function contractFieldObservations() {
+  const assignments = [];
+  const constantsCache = new Map();
+  for (const root of ACTIVE_ROOTS) {
+    for (const path of walk(root)) {
+      const text = sourceText(path);
+      const location = relative(ROOT, path);
+      const testInput = location.startsWith("tests/") || location.startsWith("tests_e2e/");
+      const constants = path.endsWith(".mjs") ? constantsIn(path, constantsCache) : new Map();
+      for (const field of ["schema", "pipeline", "production_mode", "adapter", "scheme", "artifact_role"]) {
+        for (const assignment of resolvedAssignments(text, field, constants)) {
+          if (assignment.value === null) continue;
+          const parserStart = text.lastIndexOf("parseDocument(", assignment.offset);
+          const parserConfigured = field === "schema" && assignment.value === "core" &&
+            parserStart >= 0 && assignment.offset - parserStart < 500;
+          assignments.push({
+            field: parserConfigured ? "yaml.parseDocument.schema" : field,
+            value: assignment.value,
+            intent: testInput ? "test-input" : "current-contract",
+            ...(parserConfigured ? { semantic: "yaml-parser-core-schema" } : {}),
+            location,
+          });
+        }
+      }
+    }
+  }
+  return assignments;
+}
+
+function envelopeDeclarations(inventory) {
+  return (inventory.stage_artifact_envelopes || []).map((entry) => ({
+    ...entry,
+    location: "serialization-contracts.yaml",
+  }));
+}
+
+function stateShapes(inventory) {
+  const state = inventory.current_state_shape;
+  const lease = state?.execution_lease;
+  return [
+    state && {
+      name: state.name,
+      value: state.name,
+      owner: state.owner,
+      anchors: state.anchors,
+      required_fields: state.required_top_level_fields,
+      location: "serialization-contracts.yaml",
+    },
+    lease && {
+      name: lease.name,
+      value: lease.value,
+      owner: lease.owner,
+      anchors: lease.anchors,
+      required_fields: lease.required_fields,
+      location: "serialization-contracts.yaml",
+    },
+  ].filter(Boolean);
+}
+
+function semanticExclusions(inventory) {
+  return (inventory.semantic_exclusions || []).map((entry) => ({
+    ...entry,
+    location: "serialization-contracts.yaml",
+  }));
+}
+
+function numericMarkerObservations() {
+  const observations = [];
+  const prohibited = /\b(schema_version|protocol_version|compiler_version|manifest_version|report_version|format_version|revision)\s*[:=]\s*([0-9]+)/g;
+  const planGeneration = /\bplan_generation\s*[:=]/g;
+  for (const root of ACTIVE_ROOTS) {
+    for (const path of walk(root)) {
+      const text = sourceText(path);
+      const location = relative(ROOT, path);
+      for (const match of text.matchAll(planGeneration)) {
+        observations.push({
+          field: "plan_generation",
+          value: "style-master-plan-generation",
+          scope: "exact-work-version-workflow",
+          location,
+        });
+      }
+      for (const match of text.matchAll(prohibited)) {
+        observations.push({
+          field: match[1],
+          value: match[2],
+          number: Number(match[2]),
+          intent: location.startsWith("tests/") || location.startsWith("tests_e2e/") ? "expected-rejection" : "current-contract",
+          location,
+        });
+      }
+    }
+  }
+  return observations;
 }
 
 function currentSnapshot() {
@@ -64,13 +313,22 @@ function currentSnapshot() {
   const wireSchemas = (inventory.wire_schema_groups || []).flatMap((group) =>
     (group.values || []).map((value) => ({ value, stage_ref: group.stage_ref, role: group.role, location: "serialization-contracts.yaml" })));
   const sharedContracts = inventory.shared_contracts || [];
-  const anchors = sharedContracts.flatMap((entry) => entry.anchors || []).filter(sourceAnchorExists);
+  const envelopes = envelopeDeclarations(inventory);
+  const states = stateShapes(inventory);
+  const exclusions = semanticExclusions(inventory);
+  const anchors = [
+    ...sharedContracts.flatMap((entry) => entry.anchors || []),
+    ...envelopes.flatMap((entry) => entry.anchors || []),
+    ...states.flatMap((entry) => entry.anchors || []),
+    ...exclusions.flatMap((entry) => entry.anchors || []),
+  ].filter(sourceAnchorExists);
   const contractFields = [];
   const literalOccurrences = [];
+  contractFields.push(...contractFieldObservations());
+  const observedEnvelopes = envelopeObservations(envelopes);
   for (const root of ACTIVE_ROOTS) {
     for (const path of walk(root)) {
       const text = readFileSync(path, "utf8");
-      contractFields.push(...fieldAssignments(path, text));
       for (const match of text.matchAll(VERSIONED_CONTRACT)) literalOccurrences.push({ value: match[0], location: relative(ROOT, path) });
     }
   }
@@ -79,13 +337,18 @@ function currentSnapshot() {
     anchors,
     selectors,
     wire_schemas: wireSchemas,
+    stage_artifact_envelopes: envelopes,
     shared_contracts: sharedContracts,
+    state_shapes: states,
+    semantic_exclusions: exclusions,
     contract_fields: contractFields,
+    envelope_observations: observedEnvelopes,
     literal_occurrences: literalOccurrences,
+    numeric_marker_occurrences: numericMarkerObservations(),
   };
 }
 
-function c6Snapshot(workflow = "framed") {
+function framedCompositionSnapshot(workflow = "framed") {
   const header_region = { x: 40, y: 28, width: 920, height: 238 };
   const canvas = { css_width: 1000, css_height: 562.5, capture_width: 2000, capture_height: 1125 };
   const reserved_header = {
@@ -144,18 +407,51 @@ describe("production schema conformance", () => {
     expect(result.issues, result.issues.map((issue) => `${issue.code}: ${issue.path} ${issue.message}`).join("\n")).toEqual([]);
   });
 
-  it("detects an undeclared Page Image field and a version-suffixed literal", () => {
+  it("detects undeclared contract fields, numeric Harness markers, and version-suffixed literals", () => {
     const snapshot = currentSnapshot();
     snapshot.contract_fields.push({ field: "schema", value: "page-image-hidden-contract", location: "synthetic" });
     snapshot.literal_occurrences.push({ value: ["page-image-workflow", "v9"].join("-"), location: "synthetic" });
+    snapshot.numeric_marker_occurrences.push({ field: "schema_version", value: "9", number: 9, intent: "current-contract", location: "synthetic" });
     const result = evaluateProductionSchemaConformance(snapshot);
     expect(result.issues.map((issue) => issue.code)).toEqual(expect.arrayContaining([
       "contract-field-undeclared",
+      "numeric-harness-marker-undeclared",
       "version-suffixed-production-literal",
     ]));
   });
 
-  it("declares C4 presentation contracts only as materialized layout config", () => {
+  it("treats accepted-spec fields as current contract consumers", () => {
+    const snapshot = currentSnapshot();
+    snapshot.contract_fields.push({
+      field: "schema",
+      value: "undeclared-spec-contract",
+      intent: "current-contract",
+      location: "openspec/specs/production-schema-conformance/spec.md",
+    });
+    expect(evaluateProductionSchemaConformance(snapshot).issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        code: "contract-field-undeclared",
+        path: "openspec/specs/production-schema-conformance/spec.md",
+      }),
+    ]));
+  });
+
+  it("rejects missing anchors and invalid physical envelope forms", () => {
+    const snapshot = currentSnapshot();
+    snapshot.anchors = snapshot.anchors.filter((anchor) => !anchor.endsWith("#parsePageImageSource"));
+    snapshot.envelope_observations[0] = {
+      ...snapshot.envelope_observations[0],
+      form: "wrong-physical-form",
+    };
+    const codes = evaluateProductionSchemaConformance(snapshot).issues.map((issue) => issue.code);
+    expect(codes).toEqual(expect.arrayContaining([
+      "contract-anchor-missing",
+      "artifact-envelope-undeclared",
+      "artifact-envelope-unobserved",
+    ]));
+  });
+
+  it("declares presentation contracts only as materialized layout config", () => {
     const inventory = yaml(join(SCHEMA_HOME, "serialization-contracts.yaml"));
     const layoutConfig = inventory.wire_schema_groups.find((group) => group.stage_ref === "layout-config");
     const visualLanguage = inventory.wire_schema_groups.find((group) => group.stage_ref === "visual-language");
@@ -172,7 +468,7 @@ describe("production schema conformance", () => {
     }
   });
 
-  it("evaluates Framed and Pure C5 chains without becoming a runtime validator", () => {
+  it("evaluates Framed and Pure derived-publication chains without becoming a runtime validator", () => {
     const stages = [
       ["page-source-receipt", "parsed-source"],
       ["page-layout", "resolved-presentation"],
@@ -186,58 +482,58 @@ describe("production schema conformance", () => {
       artifacts: [
         ...stages,
         ...(framed ? [["framed-header-html", "local-header-overlay"]] : []),
-      ].map(([stage, role]) => ({
-        stage,
-        role,
+      ].map(([schema, artifact_role]) => ({
+        schema,
+        artifact_role,
         page: { slide_id },
         producer: "scripts/shared/image2/page_derived_data.mjs",
         upstream_bindings: { source_sha256: "a".repeat(64) },
         invalidated_by: { source_sha256: "a".repeat(64) },
       })),
     });
-    expect(evaluatePageDerivedPublicationConformance({ workflow: "framed", pages: [page("FrameGo", { framed: true })] }).issues).toEqual([]);
-    expect(evaluatePageDerivedPublicationConformance({ workflow: "pure", pages: [page("PureGo")] }).issues).toEqual([]);
+    expect(evaluatePageDerivedPublicationConformance({ workflow: "framed", pages: [page("FrameGo", { framed: true })], stage_artifact_envelopes: pageDerivedDeclarations() }).issues).toEqual([]);
+    expect(evaluatePageDerivedPublicationConformance({ workflow: "pure", pages: [page("PureGo")], stage_artifact_envelopes: pageDerivedDeclarations() }).issues).toEqual([]);
 
     const invalid = page("PureGo", { framed: true });
-    invalid.artifacts[0].stage = "undeclared-stage";
+    invalid.artifacts[0].schema = "undeclared-stage";
     delete invalid.artifacts[1].upstream_bindings;
     invalid.artifacts[2].page.slide_id = "OtherGo";
-    const codes = evaluatePageDerivedPublicationConformance({ workflow: "pure", pages: [invalid] }).issues.map((issue) => issue.code);
+    const codes = evaluatePageDerivedPublicationConformance({ workflow: "pure", pages: [invalid], stage_artifact_envelopes: pageDerivedDeclarations() }).issues.map((issue) => issue.code);
     expect(codes).toEqual(expect.arrayContaining([
-      "page-derived-stage-undeclared",
+      "page-derived-schema-undeclared",
       "page-derived-provenance-missing",
       "page-derived-identity-mixed",
       "page-derived-framed-artifact-on-pure",
     ]));
   });
 
-  it("checks C6 composition ownership from synthetic data without provider or runtime access", () => {
-    expect(evaluateC6CompositionConformance(c6Snapshot()).issues).toEqual([]);
-    expect(evaluateC6CompositionConformance(c6Snapshot("pure")).issues).toEqual([]);
+  it("checks Framed composition ownership from synthetic data without provider or runtime access", () => {
+    expect(evaluateFramedCompositionConformance(framedCompositionSnapshot()).issues).toEqual([]);
+    expect(evaluateFramedCompositionConformance(framedCompositionSnapshot("pure")).issues).toEqual([]);
 
-    const invalidSource = c6Snapshot();
+    const invalidSource = framedCompositionSnapshot();
     invalidSource.source_receipt.subject_restrictions = "no-robot";
-    expect(evaluateC6CompositionConformance(invalidSource).issues.map((issue) => issue.code))
-      .toContain("c6-source-restriction-invalid");
+    expect(evaluateFramedCompositionConformance(invalidSource).issues.map((issue) => issue.code))
+      .toContain("framed-composition-source-restriction-invalid");
 
-    const malformedComposition = c6Snapshot();
+    const malformedComposition = framedCompositionSnapshot();
     malformedComposition.presentation.protected_composition.body_safe.width = 0.9;
-    expect(evaluateC6CompositionConformance(malformedComposition).issues.map((issue) => issue.code))
-      .toContain("c6-protected-composition-invalid");
+    expect(evaluateFramedCompositionConformance(malformedComposition).issues.map((issue) => issue.code))
+      .toContain("framed-composition-protected-composition-invalid");
 
-    const localHeaderLeak = c6Snapshot();
+    const localHeaderLeak = framedCompositionSnapshot();
     localHeaderLeak.provider_request.local_header = { title: "Shared spelling" };
-    expect(evaluateC6CompositionConformance(localHeaderLeak).issues.map((issue) => issue.code))
-      .toContain("c6-framed-request-local-header");
+    expect(evaluateFramedCompositionConformance(localHeaderLeak).issues.map((issue) => issue.code))
+      .toContain("framed-composition-request-local-header");
 
-    const legacyGeometry = c6Snapshot();
+    const legacyGeometry = framedCompositionSnapshot();
     legacyGeometry.presentation.profile.protected_geometry = [];
-    expect(evaluateC6CompositionConformance(legacyGeometry).issues.map((issue) => issue.code))
-      .toContain("c6-legacy-geometry");
+    expect(evaluateFramedCompositionConformance(legacyGeometry).issues.map((issue) => issue.code))
+      .toContain("framed-composition-legacy-geometry");
 
-    const pureLeak = c6Snapshot("pure");
-    pureLeak.provider_request.protected_composition = c6Snapshot().presentation.protected_composition;
-    expect(evaluateC6CompositionConformance(pureLeak).issues.map((issue) => issue.code))
-      .toContain("c6-pure-framed-binding");
+    const pureLeak = framedCompositionSnapshot("pure");
+    pureLeak.provider_request.protected_composition = framedCompositionSnapshot().presentation.protected_composition;
+    expect(evaluateFramedCompositionConformance(pureLeak).issues.map((issue) => issue.code))
+      .toContain("pure-framed-composition-binding");
   });
 });

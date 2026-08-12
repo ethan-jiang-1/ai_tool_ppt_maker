@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
 
 import { canonicalJson, canonicalJsonSha256 } from "../../contracts/canonical_json.mjs";
+import { hasCurrentPageImagePresentationEnvelope } from "./page_image_presentation_envelope.mjs";
+import { hasCurrentPageImageSourceReceiptEnvelope } from "./page_image_source_receipt.mjs";
 
 export const PAGE_IMAGE_CORE_FACTS_SCHEMA = "page-image-core-facts";
 export const PAGE_IMAGE_CORE_SLIDE_FACTS_SCHEMA = "page-image-core-slide-facts";
@@ -158,8 +160,10 @@ function normalizeVisualSelections(sourceReceipt, visualSelections) {
       throw new PageImageCoreError("page_image_core_visual_workflow_mismatch", "selected visual facts do not bind the source workflow", { slide_id: sourceSlide.slide_id });
     }
     const presentation = entry.selection.presentation;
-    if (!isPlainObject(presentation) || presentation.workflow !== sourceReceipt.workflow ||
-      presentation.page_class !== sourceSlide.page_class || !SHA256_RE.test(presentation.binding_sha256 || "")) {
+    if (!hasCurrentPageImagePresentationEnvelope(presentation, {
+      workflow: sourceReceipt.workflow,
+      pageClass: sourceSlide.page_class,
+    })) {
       throw new PageImageCoreError("page_image_core_presentation_mismatch", "selected presentation facts must bind the source workflow, class, and canonical projection", { slide_id: sourceSlide.slide_id });
     }
     if (!isPlainObject(sourceSlide.visual_language) || canonicalJson(entry.selection) !== canonicalJson(sourceSlide.visual_language)) {
@@ -170,8 +174,7 @@ function normalizeVisualSelections(sourceReceipt, visualSelections) {
 }
 
 function requireCurrentReceipt(sourceReceipt, headerRenderingPolicy) {
-  if (!isPlainObject(sourceReceipt) || sourceReceipt.schema !== "page-image-workflow-source" ||
-    sourceReceipt.pipeline !== "page-image-workflow" || !WORKFLOWS.has(sourceReceipt.workflow) ||
+  if (!hasCurrentPageImageSourceReceiptEnvelope(sourceReceipt) || !WORKFLOWS.has(sourceReceipt.workflow) ||
     !SHA256_RE.test(sourceReceipt.source_sha256 || "") || !Array.isArray(sourceReceipt.slides) || sourceReceipt.slides.length === 0) {
     throw new PageImageCoreError("page_image_core_source_receipt_invalid", "Page Image Core requires a current normalized source receipt");
   }

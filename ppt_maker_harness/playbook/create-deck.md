@@ -136,7 +136,7 @@ production_modes: [image2-page-workflow]
 production_workflows: [framed, pure]
 draft_route: true
 requires: [configure-target-page-image-visual-system]
-produces: [narrative-page-grouping-candidate, narrative-page-plan, page-image-workflow-source, page-image-workflow-source-receipt, stable-slide-ids]
+produces: [narrative-page-grouping-candidate, narrative-page-plan, page-source-receipt, stable-slide-ids]
 entry: [visual_preset_seeded]
 exit: [slide_specs_exists, slide_specs_valid]
 ```

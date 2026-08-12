@@ -83,7 +83,8 @@ const NATIVE_PROVIDER_PNG = (() => {
 
 function receipt(source = "a") {
   return {
-    schema: "page-image-workflow-source", pipeline: "page-image-workflow", workflow: "pure", source_sha256: digest(source),
+    schema: "page-source-receipt",
+    artifact_role: "parsed-source", pipeline: "page-image-workflow", workflow: "pure", source_sha256: digest(source),
     slides: [{ slide_id: "DeckGo", position: 1, subject_restrictions: "none", display: { title: "Visible pure text" } }],
   };
 }

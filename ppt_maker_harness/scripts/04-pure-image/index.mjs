@@ -19,6 +19,7 @@ import {
   PAGE_IMAGE_NATIVE_RAW_PNG,
 } from "../shared/image2/page_image_media_contract.mjs";
 import { parsePageImageSource } from "../01-content/index.mjs";
+import { hasCurrentPageImageSourceReceiptEnvelope } from "../shared/page-image/page_image_source_receipt.mjs";
 import {
   createPageImageSourceResolver,
   loadPageImagePresentationPackage,
@@ -240,7 +241,7 @@ export function validatePureRawContract(rawContract) {
 }
 
 function requireReceipt(receipt) {
-  if (!receipt || receipt.schema !== "page-image-workflow-source" || receipt.workflow !== PURE_IMAGE_WORKFLOW || !Array.isArray(receipt.slides) || !receipt.slides.length) {
+  if (!hasCurrentPageImageSourceReceiptEnvelope(receipt, { workflow: PURE_IMAGE_WORKFLOW }) || !Array.isArray(receipt.slides) || !receipt.slides.length) {
     throw new PureImageWorkflowError("wrong_workflow_owner", "Pure workflow requires a current Page Image Workflow pure receipt");
   }
   return receipt;
