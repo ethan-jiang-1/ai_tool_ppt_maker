@@ -1,6 +1,6 @@
 # Progressive Plan: Schema-First Page Image Recovery
 
-> Type: progressive coordination plan | Updated: 2026-08-12 | Status: active (C1-C5 archived; C6 is proposal-ready)
+> Type: progressive coordination plan | Updated: 2026-08-12 | Status: active (C1-C6 archived; C7 is the next production operation)
 >
 > **This is the only route document for Page Image recovery.** Three earlier
 > plans were closed on 2026-08-11 as CLS-025/026/027; everything from them that
@@ -560,7 +560,7 @@ purely a human judgment — the rest are evidence plus a short confirmation.
 | 3 | A deck's argument and constraints exist as Source Data, and a page list derives from them carrying provenance. |
 | 4 | One page resolves to exactly one workflow projection; the resolved view shows inherited values and their origin; editing an unselected profile invalidates nothing. |
 | 5 | For one page, a human reads source → receipt → layout → render model → generation spec → provider bytes on disk, without running anything. |
-| 6 | Either a verified provider primitive with a transport change, or a written statement that Framed protection is bounded best effort — plus three probe runs against the synthetic fixture. |
+| 6 | A written statement that Framed protection is bounded best effort, or a separately verified native primitive with a transport change. Any provider trial is limited to the explicitly authorized disposable samples; its result remains bounded empirical evidence. |
 
 If a checkpoint is not ready, the rule from `CONTEXT.md` applies: name the
 missing fact and prepare the smallest safe next action. Do not proceed into the
@@ -579,7 +579,7 @@ unreviewable or unsafe to land partially.
 | **C3** Upstream gap | `story-outline`, `design-constraints`, pagination | Archived 2026-08-11 at `openspec/changes/archive/2026-08-11-close-upstream-narrative-gap/`; completion commit `ec8ec8b`. |
 | **C4** Page Class + layout config | Parser, Core, resolver, both adapters, invalidation | Archived 2026-08-11 at `openspec/changes/archive/2026-08-11-land-page-class-and-layout-config/`; completion commit `1aa1994`. |
 | **C5** Per-page derived data on disk | `image2 plan` writer, path layout | Archived 2026-08-12 at [`publish-per-page-derived-data`](../../openspec/changes/archive/2026-08-12-publish-per-page-derived-data/); six delta specs synced and completion commit `fcd9652`. It remains provider-free and inspectable before any spend. |
-| **C6** Framed hardening | `subject_restrictions` propagation, normalized geometry, body-safe region | [`harden-framed-provider-protected-composition`](../../openspec/changes/harden-framed-provider-protected-composition/) is proposal-ready and strict-valid. It carries external provider risk but makes no paid call, native transport claim, or v3 repair without a separate Work Request. |
+| **C6** Framed hardening | `subject_restrictions` propagation, normalized composition, body-safe region | Archived 2026-08-12 at [`harden-framed-provider-protected-composition`](../../openspec/changes/archive/2026-08-12-harden-framed-provider-protected-composition/). It establishes bounded best-effort provider guidance, not a native guarantee; no paid call, native transport claim, production-bundle read, or v3 repair occurred. Completion commit: `693921e`. |
 | **C7** v3 repair | Production data path only | Not Harness maintenance. Runs under the Task Mandate, not OpenSpec. |
 
 C1-C5 are complete. C6-C7 absorb the remaining earlier-plan phases with their
@@ -862,12 +862,12 @@ six delta specs are synced to main specs and completion commit is `fcd9652`.
 
 ### C6 — `harden-framed-provider-protected-composition`
 
-**Goal.** Make the Framed protection promise honest — either backed by a real
-provider primitive, or explicitly labelled as bounded best effort.
+**Goal.** Make the Framed protection promise honest by establishing explicit,
+bounded best-effort guidance and preserving the existing human review decision.
 
-**In scope.** `subject_restrictions` propagation, normalized protected geometry
-with explicit canvas semantics, a body-safe region, and the paid capability
-probe.
+**In scope.** `subject_restrictions` propagation, normalized protected
+composition with explicit canvas semantics, a body-safe region, request and
+review binding, and deterministic verification.
 
 **Out of scope.** Everything C1–C5 own. The v3 repair itself (C7).
 
@@ -885,9 +885,20 @@ Both are current and were re-aligned on 2026-08-11.
 `protected_geometry` with no canvas or unit semantics at
 `03-framed-image/index.mjs:821`; no body-safe region anywhere.
 
-**Exit evidence.** Either a verified native primitive with a transport change,
-or a written statement that Framed protection is bounded best effort — plus
-three probe runs against the synthetic fixture, never against v3.
+**Status: archived 2026-08-12.** C6 replaced `protected_geometry` with the
+profile-owned CSS-pixel `header_region` and resolver-derived normalized
+`protected_composition`; it binds Core-retained `subject_restrictions` only to
+the Framed raw/request lineage, publishes the two guides as review context, and
+keeps one Complete Page Review decision. The request remains full-canvas opaque
+shared transport with no native region, mask, crop, or reserved-area field.
+The implementation makes the bounded-best-effort statement explicit; it ran no
+real provider, paid probe, or production-bundle operation. The five delta specs
+were synced to main specs before archive; completion commit: `693921e`.
+
+**Follow-up boundary.** A synthetic paid probe or provider-native primitive is
+not C6 work. It requires an explicit human Work Request and a separately
+proposed OpenSpec change; it can never make an already-generated v3 page
+acceptable.
 
 ---
 
@@ -1222,20 +1233,18 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done with evidence
 Full specification: [framed-provider-protected-composition.md](framed-provider-protected-composition.md).
 Probe fixture and rubric: [framed-provider-capability-discovery-research.md](framed-provider-capability-discovery-research.md).
 
-- [x] Propose [`harden-framed-provider-protected-composition`](../../openspec/changes/harden-framed-provider-protected-composition/) with four delta specs, design, and tracked implementation tasks; strict OpenSpec validation passed on 2026-08-12
-- [ ] Obtain an explicit work request for the paid probe — the Task Mandate alignment landed, the request has not
-- [ ] Run the probe against the **synthetic fixture**, capped at three samples — never against v3
-- [ ] Record the answer: native primitive, or bounded best effort
-- [ ] Write the proposal, shaped by that answer
-- [ ] Fix `subject_restrictions` dropped at `page_image_core.mjs:183` — clears `it.todo` #1
-- [ ] Fix bare `protected_geometry` at `03-framed-image/index.mjs:821` — normalized geometry with explicit canvas and unit semantics; clears `it.todo` #2
-- [ ] Add the body-safe region — clears `it.todo` #3
-- [ ] If a native primitive exists, land the separate transport change it needs
-- [ ] Archive the change
-- [ ] **Checkpoint 6** — the provider promise is honest: verified primitive, or a written bounded-best-effort statement
-- [ ] Close `framed-provider-protected-composition.md` and `framed-provider-capability-discovery-research.md` as CLS-NNN
+- [x] Propose and strict-validate `harden-framed-provider-protected-composition`
+- [x] Retain `subject_restrictions` in Core and bind it only to the Framed raw/request lineage
+- [x] Replace bare `protected_geometry` with CSS-pixel `header_region` and exact normalized `protected_composition`, including the full-width body-safe region
+- [x] Remove Framed header-literal provider context and former geometry readers/writers without a compatibility path
+- [x] Bind composition drift to the existing raw-rebuild and Complete Page Review path; keep guide rectangles as review context only
+- [x] Verify C6 with focused suites, mock public-CLI coverage, `npm test`, strict OpenSpec validation, the layout self-check, and `git diff --check`
+- [x] Record the bounded-best-effort provider boundary: no native region/mask/crop field, no real provider or paid probe, no v3 repair, no production-bundle read or migration
+- [x] Sync five delta specs to main specs, archive the change, and commit `693921e`
+- [x] **Checkpoint 6** — the provider promise is explicitly bounded best effort; only Complete Page Review can accept a provider page
+- [x] Record that any paid synthetic probe or native-primitive transport work requires its own explicit Work Request and follow-up OpenSpec change
 
-> Evidence: _(archived change path; three probe results; the three `it.todo` cases now passing)_
+> Evidence: [`evidence.md`](../../openspec/changes/archive/2026-08-12-harden-framed-provider-protected-composition/evidence.md); archived change path above; all 19 implementation tasks complete. The prepared probe research remains historical preparation only, not execution evidence.
 
 ### C7 — v3 repair (Task Mandate, not OpenSpec)
 
@@ -1253,6 +1262,19 @@ only — this is not Harness maintenance.
 - [ ] Update the `deck_dark_factory_current` memory entry
 
 > Evidence: _(successor version number; the review decision record; the delivery receipt)_
+
+### Post-route provider constraint trial
+
+[`validate-framed-provider-constraint`](../../openspec/changes/archive/2026-08-12-validate-framed-provider-constraint/)
+was archived on 2026-08-12 after the explicit Work Request authorized two
+disposable, non-production Framed samples. `BodyMap` and `BodyRun` used one
+exact two-item grant and no page was resubmitted. Both samples placed provider
+body content and key subjects in the reserved header; both local headers stayed
+legible in the composite, but Complete Page Review correctly decided `repair`.
+No native region, mask, crop, or reserved-area transport field or provider
+contract was verified. The conclusion remains bounded to these two requests and
+does not authorize a transport extension or alter C7. Evidence lives in the
+archived change.
 
 ### Cleanup must not be forgotten
 
@@ -1274,7 +1296,7 @@ contract surfaces:
 
 ### Route closeout
 
-- [ ] All six OpenSpec changes archived
+- [x] All six route OpenSpec changes archived; the separate post-route provider constraint trial is also archived
 - [ ] `VERSION` bump judged against `openspec/config.yaml` `rules: version:` and confirmed with the owner
 - [ ] `VERSION_LOG.md`, `ppt_maker_harness/README.md`, `package.json` updated in step
 - [ ] This plan closed: `git mv` to `_backlog/_done/_closed_plans/`, assigned CLS-NNN, three index files updated per `_backlog/plans/README.md`
