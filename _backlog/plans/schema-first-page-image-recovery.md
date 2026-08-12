@@ -1,6 +1,6 @@
 # Progressive Plan: Schema-First Page Image Recovery
 
-> Type: progressive coordination plan | Updated: 2026-08-13 | Status: complete (C1-C7 and the Pre-C7 convergence checkpoint are complete; this route is ready for Backlog archival)
+> Type: progressive coordination plan | Updated: 2026-08-13 | Status: active (C1-C6 and the Pre-C7 convergence checkpoint are complete; C7 remains open for a bounded production repair after post-delivery visual review)
 >
 > **This is the only route document for Page Image recovery.** Three earlier
 > plans were closed on 2026-08-11 as CLS-025/026/027; everything from them that
@@ -571,8 +571,8 @@ it before editing Harness source.
 | Order | Name | Kind | Status and boundary |
 | --- | --- | --- | --- |
 | 1 | `converge-active-schema-authority` | OpenSpec change | **Done.** Archived at `openspec/changes/archive/2026-08-12-converge-active-schema-authority/`; all 20 tasks passed their named verification and the completion was committed as `f3dc282`. |
-| 2 | C7 — reconstruct and repair Dark Factory through a current Work Version | Production operation | **Done.** `deck_dark_factory_current` remains byte-preserved and unavailable as a current protocol source. The separately initialized, Harness-bound `deck_dark_factory_reconstructed/3_versions/v1` completed the `framed` lifecycle through accepted Complete Page Review, final media, notes, and delivery. |
-| 3 | Close this route | Backlog bookkeeping | **Ready.** Archive this plan and its companion decision/research records through the normal Backlog procedure; no Harness source change is implied. |
+| 2 | C7 — reconstruct and repair Dark Factory through a current Work Version | Production operation | **In progress.** `deck_dark_factory_current` remains byte-preserved and unavailable as a current protocol source. The separately initialized, Harness-bound `deck_dark_factory_reconstructed/3_versions/v1` has a complete prior receipt chain, but post-delivery visual review found provider-rendered supporting text in `DarkGo`'s exclusive `reserved_header`; that chain is not acceptable for intended delivery. Preserve it as evidence and repair the current source/configuration before any fresh plan, grant, generation, review, and delivery. |
+| 3 | Close this route | Backlog bookkeeping | Pending the repaired C7 delivery and visual acceptance. No Harness source change is implied unless a genuine current capability gap is proven. |
 
 **Known remaining OpenSpec change count: zero.** There is no planned C8 or
 unnamed post-C7 cleanup change. If work outside C7 is later proven necessary,
@@ -615,7 +615,7 @@ does not rewrite what those labels mean.
 | **C5** Per-page derived data on disk | `image2 plan` writer, path layout | Archived 2026-08-12 at [`publish-per-page-derived-data`](../../openspec/changes/archive/2026-08-12-publish-per-page-derived-data/); six delta specs synced and completion commit `fcd9652`. It remains provider-free and inspectable before any spend. |
 | **C6** Framed hardening | `subject_restrictions` propagation, normalized composition, body-safe region | Archived 2026-08-12 at [`harden-framed-provider-protected-composition`](../../openspec/changes/archive/2026-08-12-harden-framed-provider-protected-composition/). It establishes bounded best-effort provider guidance, not a native guarantee; no paid call, native transport claim, production-bundle read, or v3 repair occurred. Completion commit: `693921e`. |
 | **Pre-C7** Active contract convergence | Three bounded groups from the [readiness audit](schema-first-active-contract-convergence-research.md): retire the Harness version axis, close schema/owner/test proof, and retire route scaffolding from permanent schema authority | Archived 2026-08-12 at [`converge-active-schema-authority`](../../openspec/changes/archive/2026-08-12-converge-active-schema-authority/); all 20 tasks completed and commit `f3dc282` records the result. This is an unnumbered readiness checkpoint, so C1-C7 retain their original labels and responsibilities. |
-| **C7** v3 repair | Production data path only | **Done.** The historical Bundle remains byte-preserved and unavailable as a current protocol source. The current reconstruction Bundle completed receipt-bound Framed delivery under the Task Mandate, not OpenSpec. |
+| **C7** v3 repair | Production data path only | **In progress.** The historical Bundle remains byte-preserved and unavailable as a current protocol source. The reconstruction Bundle's prior receipt-bound Framed delivery is retained as evidence but is not acceptable for intended delivery after the `DarkGo` header-reservation finding. |
 
 C1-C6 are complete. The unnumbered convergence checkpoint strengthens their
 shared exit proof; it does not reopen or repudiate them. C7 then resumes with
@@ -988,7 +988,7 @@ controller playbook — not through a proposal.
 `PlatGo`). No accepted raw evidence, no final manifest, no delivery receipt —
 so it cannot proceed. The correct decision is `repair`, not `proceed`.
 
-**Completed reconstruction.** On 2026-08-12 the old Bundle's locator was
+**Current reconstruction.** On 2026-08-12 the old Bundle's locator was
 rejected as `locator_contract_invalid`, so its source, state, generated output,
 and evidence cannot be read, converted, or used as current authority. It remains
 byte-preserved. The authorized recovery initialized
@@ -996,8 +996,23 @@ byte-preserved. The authorized recovery initialized
 Harness binding and the explicit `framed` workflow. It contains no copied
 historical source, override, state, authorization, review, raw media, final
 manifest, or delivery evidence. The reconstruction then authored and validated
-new current source, completed receipt-bound planning and review, and delivered
-the new deck without copying any historical production fact.
+new current source and completed a receipt-bound planning, review, and delivery
+chain without copying any historical production fact. That chain remains intact
+as production evidence, but its later visual finding means it is not an
+acceptable intended delivery.
+
+**Post-delivery visual correction.** The formal `proceed` was too narrow:
+`DarkGo` still contains provider-rendered callout/supporting text on the right
+side of `reserved_header`. A legible local title on the left does not satisfy
+the Framed policy: the whole `reserved_header` is exclusive to the deterministic
+local overlay. `LessMore` and `RoadWay` remain visually compliant in this
+specific respect. Do not delete, rewrite, retry, or reclassify the previous
+raw plan, grant, requests, review, accepted evidence, final media, or delivery
+receipt. They are valid lineage evidence but are non-acceptable for the intended
+delivery. C7 now requires a material source/configuration repair for `DarkGo`,
+then a fresh `image2 plan`, exact new grant, fresh raw generation, Complete Page
+Review, and delivery review. The earlier three-submission authorization does
+not cover that successor work.
 
 **Hard rules.** Never hand-edit `_generated/`, state, receipts, or review
 records. Never carry a prior authorization forward. Inspect both the provider

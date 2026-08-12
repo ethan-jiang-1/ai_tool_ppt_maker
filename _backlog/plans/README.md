@@ -17,10 +17,19 @@
 
 ## 活跃列表
 
-目前没有活跃 plan。已完成的 schema-first Page Image recovery 路线及其 C6、
-Pre-C7 配套研究均已归档；未来的新工作先进入正常 Backlog triage，再建立独立 plan。
+| Plan | 说明 |
+|---|---|
+| [schema-first-page-image-recovery.md](schema-first-page-image-recovery.md) | **总控路线（重新开放）。** C1-C6 与 Pre-C7 收敛已完成；C7 的当前三页 delivery 链在事后视觉复核中发现 `DarkGo` 的 provider 文本进入专属 `reserved_header`，因此不能作为预期交付。旧 evidence 保留，C7 继续以一次实质 source/configuration repair、fresh plan/grant/review/delivery 收尾。 |
 
-**Next available plan ID: CLS-033**（移入 `_closed_plans/` 时分配；CLS-001…032 已用）
+### 当前阅读边界
+
+先读 `schema-first-page-image-recovery.md` 的 C7 节。历史
+`deck_dark_factory_current` 仍是只保留、不可恢复的历史 Bundle；当前且唯一的
+生产目标是 `deck_dark_factory_reconstructed/3_versions/v1`。C7 是 production
+operation，不新增 C8，也不打开新的 Harness change，除非后续证明确有 Harness
+能力缺口。
+
+**Next available plan ID: CLS-032**（移入 `_closed_plans/` 时分配；CLS-001…031 已用）
 
 ---
 
