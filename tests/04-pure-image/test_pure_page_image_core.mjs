@@ -220,6 +220,13 @@ describe("Pure Page Image Core adapter", () => {
       const serialized = JSON.stringify(contract);
       expect(contract.page_presentation.binding_sha256).toBe(coreSlide.page_presentation_sha256);
       expect(JSON.parse(request.compiled_provider_input.utf8).page_presentation).toEqual(contract.page_presentation);
+      const providerInput = JSON.parse(request.compiled_provider_input.utf8);
+      expect(providerInput.schema).toBe("page-image-pure-provider-input");
+      expect(providerInput).not.toHaveProperty("protected_composition");
+      expect(providerInput).not.toHaveProperty("reserved_header");
+      expect(providerInput).not.toHaveProperty("body_safe");
+      expect(providerInput.instruction).not.toContain("reserved_header");
+      expect(providerInput.instruction).not.toContain("body_safe");
       expect(JSON.parse(request.compiled_provider_input.utf8)).not.toHaveProperty("subject_restrictions");
       expect(serialized).not.toContain("local_header");
       expect(serialized).not.toContain("protected_composition");

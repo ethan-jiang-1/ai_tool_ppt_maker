@@ -38,10 +38,12 @@ Framed has one selected-profile CSS-pixel `header_region`, with exactly `x`,
 `y`, `width`, and `height`. It contains every permitted deterministic local
 header field and leaves positive canvas height below it. The resolver derives
 the only provider-facing composition in `normalized-canvas`: `reserved_header`
-is the normalized region, and `body_safe` is the full-width rectangle directly
-below it. This is provider best-effort guidance and Complete Page Review
-context, never a native provider region/mask claim or an automated acceptance
-check.
+is exclusively owned by the deterministic local kicker/title/subtitle overlay,
+and `body_safe` is the full-width rectangle directly below it. Provider
+typography, labels, readable body content, and key subjects belong in
+`body_safe`, not `reserved_header`. This is provider best-effort guidance and
+Complete Page Review context, never a native provider region/mask claim or an
+automated acceptance check.
 
 Local header literals remain exclusively in Framed's deterministic renderer.
 The Framed request has no `local_header`, header-derived context, or former

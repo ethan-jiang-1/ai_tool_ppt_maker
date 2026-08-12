@@ -21,6 +21,7 @@ const renderControls = vi.hoisted(() => ({
   header_region_drift: false,
 }));
 const framedResolverControls = vi.hoisted(() => ({ null_provider_clauses: false }));
+const framedProviderInputControls = vi.hoisted(() => ({ weakened_reservation: false }));
 
 vi.mock("../../ppt_maker_harness/scripts/02-visual-system/index.mjs", async (importOriginal) => {
   const actual = await importOriginal();
@@ -99,6 +100,23 @@ vi.mock("../../ppt_maker_harness/scripts/03-framed-image/internal/framed_render_
           frames.map((frame) => [frame.slide_id, Buffer.from(frame.verified_raw.bytes)]),
         )),
       });
+    },
+  };
+});
+
+vi.mock("../../ppt_maker_harness/scripts/03-framed-image/internal/framed_provider_input_contract.mjs", async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    validateFramedProviderInputContract(...args) {
+      if (framedProviderInputControls.weakened_reservation) {
+        return Object.freeze({
+          ok: false,
+          code: "framed_provider_input_contract_invalid",
+          message: "Framed compiled provider input does not retain the exclusive header reservation contract",
+        });
+      }
+      return actual.validateFramedProviderInputContract(...args);
     },
   };
 });
@@ -325,6 +343,7 @@ describe("Framed proof-before-materialization lifecycle", () => {
       header_region_drift: false,
     });
     framedResolverControls.null_provider_clauses = false;
+    framedProviderInputControls.weakened_reservation = false;
   });
 
   it("does not write or submit when the current source is invalid", async () => {
@@ -368,6 +387,24 @@ describe("Framed proof-before-materialization lifecycle", () => {
       expectNoMaterialization(fixture, stateBefore);
       expect(renderControls.proof_calls).toBe(0);
       expect(renderControls.browser_launches).toBe(0);
+    } finally {
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
+  });
+
+  it("stops a weakened Framed header reservation before proof, publication, or provider work", async () => {
+    const fixture = await createFixture();
+    try {
+      const stateBefore = readFileSync(join(fixture.deck, "_state", "state.yaml"));
+      framedProviderInputControls.weakened_reservation = true;
+
+      await expect(buildFramedTargetRawPlan(fixture.runDir)).rejects.toMatchObject({
+        code: "framed_provider_input_contract_invalid",
+      });
+      expectNoMaterialization(fixture, stateBefore);
+      expect(renderControls.proof_calls).toBe(0);
+      expect(renderControls.browser_launches).toBe(0);
+      await expectNoProviderSubmit(fixture.runDir, fixture.image);
     } finally {
       rmSync(fixture.root, { recursive: true, force: true });
     }

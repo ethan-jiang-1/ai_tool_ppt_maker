@@ -396,7 +396,7 @@ entry: []
 exit: [user_decision_recorded]
 ```
 **Step 1 — CLI**: Only when owner inspection requests complete review, run `ppt_flow image2 review <run-dir> --plan-hash <sha256>` and present full-plan current Framed evidence.
-**Step 2 — GATE**: Record `proceed` or `repair` against the complete raw review. Small debt and zero debt arrive here without a synthetic partial Pilot decision.
+**Step 2 — GATE**: Record `proceed` or `repair` against the complete raw review. For Framed, provider-generated typography, labels, readable body content, or key subjects visibly inside `reserved_header` (or obscuring the local overlay in the composite) require `repair`, not `proceed`. Small debt and zero debt arrive here without a synthetic partial Pilot decision.
 
 ### publish-target-framed-final-manifest
 ```yaml

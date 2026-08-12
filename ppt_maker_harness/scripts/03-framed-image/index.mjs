@@ -6,6 +6,10 @@ import {
 } from "./internal/framed_render_contract.mjs";
 import { currentFramedHeaderOverlayRenderProfile } from "./internal/framed_render_profile.mjs";
 import {
+  FRAMED_EXCLUSIVE_HEADER_RESERVATION_INSTRUCTION,
+  validateFramedProviderInputContract,
+} from "./internal/framed_provider_input_contract.mjs";
+import {
   createAcceptedRawEvidence,
   createRawWorkPlan,
   validateAcceptedRawEvidenceForFinalization,
@@ -865,7 +869,7 @@ function compileFramedProviderInput({ slideId, rawContract, generationProfile } 
   const utf8 = canonicalJson({
     schema: "page-image-framed-provider-input",
     slide_id: slideId,
-    instruction: "Render one complete premium keynote provider page. Render every provider-rendered content item as readable integrated page typography. Keep the full provider canvas continuous. Place readable provider body text and key subjects in the normalized body-safe region; reserve the normalized header region for the deterministic local overlay.",
+    instruction: FRAMED_EXCLUSIVE_HEADER_RESERVATION_INSTRUCTION,
     provider_rendered_content: rawContract.provider_rendered_content,
     subject_restrictions: rawContract.framed.subject_restrictions,
     protected_composition: rawContract.framed.protected_composition,
@@ -878,11 +882,20 @@ function compileFramedProviderInput({ slideId, rawContract, generationProfile } 
     },
     generation_profile: generationProfile,
   });
-  return Object.freeze({
+  const compiledProviderInput = Object.freeze({
     schema: TARGET_COMPILED_PROVIDER_INPUT_SCHEMA,
     utf8,
     sha256: sha256Bytes(Buffer.from(utf8, "utf8")),
   });
+  const validation = validateFramedProviderInputContract({
+    rawContract,
+    generationProfile,
+    compiledProviderInput,
+  });
+  if (!validation.ok) {
+    throw new FramedImageWorkflowError(validation.code, validation.message);
+  }
+  return compiledProviderInput;
 }
 
 /** Compile a selected Framed current raw-plan candidate without artifact writes. */
