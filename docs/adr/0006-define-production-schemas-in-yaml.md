@@ -6,7 +6,7 @@ name those schemas become mirrors annotated with the definition they reference.
 A schema present in code but absent from that directory is a defect a
 regression test catches.
 
-Status: Proposed
+Status: Accepted
 
 ## Why
 

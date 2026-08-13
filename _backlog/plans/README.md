@@ -17,9 +17,9 @@
 
 ## 活跃列表
 
-- [keel-harness-term-alignment-and-residue-audit/](keel-harness-term-alignment-and-residue-audit/) — Keel 架构体检：术语对齐 + 残留清理（子目录，含 `plan.md` 及 authority-map / term-drift / residue-list 三份交付物；结论落地走 openspec change）
+当前没有活跃 plan。
 
-**Next available plan ID: CLS-033**（移入 `_closed_plans/` 时分配；CLS-001…032 已用）
+**Next available plan ID: CLS-034**（移入 `_closed_plans/` 时分配；CLS-001…033 已用）
 
 ---
 

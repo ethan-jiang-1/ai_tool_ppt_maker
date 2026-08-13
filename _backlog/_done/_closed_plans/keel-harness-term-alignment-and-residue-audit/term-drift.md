@@ -16,17 +16,16 @@
 - B：`charter/AGENT_CONTRACT.md` 实为 11 个 section，无数值编号的 "rules"
 - canonical：文件本身（sections）。"11" 是旧枚举版本的残留
 
-## 3. Style Master 三种 surface casing + CONSTITUTION 陈旧树
+## 3. Style Master 三种 surface casing + Run Bundle source roles
 
 - casing：`glossary.md:19-24` "Style Master"；CLI/spec "style-master"；`style_master.jpg`；`page_image_style_master.by_version`
-- 陈旧树：`CONSTITUTION.md:115-117` 仍列 `2_backbone/visual-style/style-master-prompt.md`、`page-image-visual-language.yaml`；权威布局是 `1_upstream_raw_material/style-master-iterations/`（`glossary.md:19-21`、`run-bundle-layout/spec.md:73`）
-- canonical：Style Master + 新布局
+- `style-master-prompt.md` 与 `page-image-visual-language.yaml` 是 `2_backbone/visual-style/` 的 current sources；`style-master-iterations/` 是独立的历史/accepted selection surface。
+- canonical：Style Master 的 history、intent 与 visual-language sources 各有明确角色；C2 已将三者完整列入 Constitution、glossary 和 layout specification。
 
 ## 4. `page-image-visual-language.yaml` vs `pure-deck-visual-system.yaml`
 
-- A：`CONSTITUTION.md:117` 旧文件名
-- B（现）：`glossary.md:24`、`run-bundle-layout/spec.md:194-196`、`visual-config/spec.md:68-69` → `pure-deck-visual-system.yaml`
-- canonical：后者（spec + glossary），CONSTITUTION 文件名已退休
+- `page-image-visual-language.yaml` 是 shared Page Image visual-language source；`pure-deck-visual-system.yaml` 是 Pure-only presentation profile source。
+- canonical：两者并存且职责不同；C2 已将此 distinction 写入 Constitution、glossary 和 layout specification。
 
 ## 5. "HTML Production"（仍当活概念）vs "HTML deck rendering 已退休"
 
@@ -78,11 +77,11 @@
 
 ## 修复优先级（ranked）
 
-1. **Phase N vs method module（#1）** —— 同一文件并存 + 代码双强制，最该先退 `lifecycle_phase`/"Phase" 或记映射
-2. **`project-versioning/` spec 空目录** —— 要么补 spec 要么删目录
-3. **CONTEXT.md 是术语权威却零引用 + 自相矛盾**（HTML/Image Production 两处 stale，#5/#6）—— 接线 + 调和
-4. **CONSTITUTION 陈旧树（#3/#4）** —— style-master-prompt / page-image-visual-language 已退休文件名
-5. **`schema/` 在两份清单里缺失（#8）**
-6. **"11 条铁律" 标签（#2）**
-7. **两个 init creator（#13）**
-8. **playbook "intent routing appendix"（#9）**
+1. **C1 已完成**：`lifecycle_phase` / "Phase N" 已退休，收敛为 `method_module`。
+2. **已排除**：`project-versioning/spec.md` 的不存在是 `test_harness_directory_layout.mjs` 明确断言的无 release-version surface，不是缺失 capability。
+3. **C2 已完成**：`CONTEXT.md` 已接入入口链，HTML/Image Production 定义已调和。
+4. **C2 已完成**：Constitution tree 已列出 Style Master history、intent 与 visual-language sources 的不同角色。
+5. **C2 已完成**：`schema/` 已补入 active Harness source maps。
+6. **C2 已完成**：旧 "11 条铁律" 标签已移除。
+7. **C2 已完成**：public init 入口与 layout owner 的 lower-level interface 已区分。
+8. **C2 已完成**：`playbook/` 已统一定义为 MD Controller home。

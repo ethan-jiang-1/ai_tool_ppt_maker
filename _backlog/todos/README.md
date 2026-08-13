@@ -1,6 +1,6 @@
 # Active Todos — 活跃 todo + 依赖链 + 执行顺序
 
-> 最后更新: 2026-07-17 | `_backlog/todos/` — 活跃 todo 在此，做完移入 [`../_done/_done_todos/`](../_done/_done_todos/)。
+> 最后更新: 2026-08-13 | `_backlog/todos/` — 活跃 todo 在此，做完移入 [`../_done/_done_todos/`](../_done/_done_todos/)。
 >
 > **本文件是所有活跃工作的中枢。** todo 没有编号，文件名即标识（`todo-<name>.md`）。完成后文件名不变，位置即状态。
 
@@ -20,9 +20,8 @@
 | # | 文件 | 优先级 | 简述 | 阻塞 / 备注 |
 |---|------|--------|------|-------------|
 | 1 | `todo-model-aligned-prompt-tension.md` | 中 | prompt 松紧度随模型能力「水涨船高」：结构硬约束要守住，表现指令别过度束缚强模型 | 等 HTML-first 落地后做 prompt 松紧度审计 |
-| 2 | `todo-deck-ai-sdlc-keynote-v5-production.md` | 高 | deck_ai_sdlc_keynote v5 生产：V1 内容 + pure + 图字双主；全量重生成/验收 + 框架 BUG-040/042 后续 | 全量重生成进行中 |
 
-_原 `todo-dual-render-pipeline.md` 已升级为 [`../plans/html-first-progressive-rendering.md`](../plans/html-first-progressive-rendering.md)。_
+_原 `todo-dual-render-pipeline.md` 已归档为 [`../_done/_closed_plans/html-first-progressive-rendering.md`](../_done/_closed_plans/html-first-progressive-rendering.md)。_
 
 ---
 
@@ -40,7 +39,7 @@ _当前没有 todo 间依赖链。HTML-first 渐进式渲染的 change 拆分与
 
 | 顺序 | 项 | 为什么 |
 |------|-----|--------|
-| — | — | 当前无活跃 todo；下一步见 [`../plans/html-first-progressive-rendering.md`](../plans/html-first-progressive-rendering.md) 的 OpenSpec 落地顺序 |
+| 1 | `todo-model-aligned-prompt-tension.md` | 其审计依赖的 HTML-first 工作已归档，后续在实际 prompt surface 上重新确认范围和证据后再启动 |
 
 ---
 

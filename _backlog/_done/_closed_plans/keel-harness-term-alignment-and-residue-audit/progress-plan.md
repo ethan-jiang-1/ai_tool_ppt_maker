@@ -43,12 +43,8 @@
 - [x] C1 apply + archive（focused tests、`npm test`、`openspec validate --all --strict`、`git diff --check` 均通过）
 - [x] C2 propose（`align-harness-terminology-and-authority` 的 proposal/specs/design/tasks 已完成并通过 strict validation）
 - [x] C2 apply + archive（已归档至 `openspec/changes/archive/2026-08-13-align-harness-terminology-and-authority/`；focused docs-consistency test、`npm test`、`openspec validate align-harness-terminology-and-authority --strict`、`openspec validate --all --strict`、`git diff --check` 均通过，主规范已同步）
-- [ ] H 逐项确认 + 执行
+- [x] H 逐项确认 + 执行（归档旧 deck todo、修正两个 suspended 目录名、删除 `.DS_Store`/`.env.saved`/`skills-lock.json`，并刷新 `.env.example`、两个 `_backlog` README 与 ADR 0005–0007 状态）
 
 ## 下一步
 
-术语和权威对齐工作（C1、C2）已经完成；没有 active OpenSpec change。接下来仅剩 H housekeeping，按 `residue-list.md` 的确认顺序推进：
-
-1. 确认旧 deck todo 是归档还是继续维护。
-2. 确认 `_suspeded_plans/` 与 sibling `_suspened_bugs/` 是更名，还是保留历史路径并补索引。
-3. 以上决定明确后，删除三个零引用的 gitignored 残留，并刷新 `.env.example`、两个 `_backlog` README 与 ADR 0005–0007 的状态。
+术语和权威对齐与计划内 housekeeping（C1、C2、H）均已完成；没有 active OpenSpec change。本目录已按 `_backlog` 规则归档为已关闭 plan。`project-versioning/` 空目录经 `test_harness_directory_layout.mjs` 明确断言为没有 Harness-owned release-version surface 的证据，不是待清理项。
