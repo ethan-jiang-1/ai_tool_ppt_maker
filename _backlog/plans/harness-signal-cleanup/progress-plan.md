@@ -2,7 +2,7 @@
 
 > Type: program control sheet | Updated: 2026-08-13
 > Program status: `active`
-> Current gate: review Change 1 artifacts, then enter the OpenSpec apply workflow
+> Current gate: Change 1 implementation is complete; archive it through OpenSpec before the next cleanup change
 
 This file tracks program-level execution and evidence. It is not a second source
 of truth for behavior: each OpenSpec change owns its WHY/WHAT/HOW/tasks, current
@@ -154,7 +154,7 @@ openspec validate --all --strict --no-interactive
 
 ## 1. `converge-active-harness-authority`
 
-Status: `active`
+Status: `active`; implementation and archive complete, awaiting ordinary commit and push.
 
 Lifecycle:
 
@@ -165,31 +165,31 @@ Lifecycle:
 - [x] `design`
 - [x] `tasks`
 - [x] `artifact-validation`
-- [ ] `apply`
-- [ ] `focused-verification`
-- [ ] `baseline-and-residue`
-- [ ] `archive`
+- [x] `apply`
+- [x] `focused-verification`
+- [x] `baseline-and-residue`
+- [x] `archive`
 - [ ] `commit`
 - [ ] `push-and-reconcile`
 
 Change-specific closure:
 
-- [ ] Make the config capability registry bijective with current main specs.
-- [ ] Replace all nonexistent implementation paths with current public owner
+- [x] Make the config capability registry bijective with current main specs.
+- [x] Replace all nonexistent implementation paths with current public owner
   paths, without exposing private internals as new authority.
-- [ ] Remove retired lifecycle numbering, render aliases, Chain aliases, and
+- [x] Remove retired lifecycle numbering, render aliases, Chain aliases, and
   stale Stage 1-5 routing from active OpenSpec context.
-- [ ] Replace `Frozen Identifier` compatibility framing with exact current
+- [x] Replace `Frozen Identifier` compatibility framing with exact current
   schema-contract language.
-- [ ] Fill the `slide-identity-and-ordering` purpose and correct stale source
+- [x] Fill the `slide-identity-and-ordering` purpose and correct stale source
   ownership comments/README labels.
-- [ ] Add guards for registry/spec mismatch and nonexistent literal authority
+- [x] Add guards for registry/spec mismatch and nonexistent literal authority
   paths, including missing-capability, extra-capability, and stale-path negative
   controls.
-- [ ] Prove every literal authority path exists and every current spec is
+- [x] Prove every literal authority path exists and every current spec is
   represented exactly once.
 - [x] Record active path: `openspec/changes/converge-active-harness-authority/`
-- [ ] Record archive path: `-`
+- [x] Record archive path: `openspec/changes/archive/2026-08-13-converge-active-harness-authority/`
 - [ ] Record closure SHA: `-`
 
 ## 2. `retire-historical-protocol-surfaces`
@@ -435,3 +435,8 @@ OpenSpec artifacts and commits hold the detail.
 | 2026-08-13 | Investigation | Baseline and cleanup program completed | `71e1f85` | Codex |
 | 2026-08-13 | Progress control | Checklist created; no OpenSpec change started | `progress-plan.md` | Codex |
 | 2026-08-13 | Change 1 | Proposal, delta, design, and tasks strictly validated; implementation not started | `openspec/changes/converge-active-harness-authority/` | Codex |
+| 2026-08-13 | Change 1 | Tasks 1.1-5.1 implemented and checked: bounded registry/evaluator, active-authority convergence, targeted terminology cleanup, and focused planted-negative verification | `openspec/changes/converge-active-harness-authority/tasks.md`; focused tests: 11/11 documentation coherence and 20/20 architecture | Codex |
+| 2026-08-13 | Change 1 | Scoped active-surface residue audit completed; replaced the remaining active `Phase 0 adapter` label in `environment-check`; retained only current guard patterns, prohibition assertions, Change 2 tombstones, or ordinary presentation-domain examples | excluded `openspec/changes/archive/`, this change rationale, `deck_*`, `dpt_*`, and `_generated/`; targeted searches recorded no unresolved active authority conflict | Codex |
+| 2026-08-13 | Change 1 | Baseline verification passed without provider work or production-data changes | `npm test` passed; `npm run test:sweep`: 68 files/552 tests; `openspec validate converge-active-harness-authority --strict --no-interactive` passed; `openspec validate --all --strict --no-interactive`: 28/28; `git diff --check` passed | Codex |
+| 2026-08-13 | Change 1 | Final implementation diff reviewed against proposal, delta, design, and Change 1 closure checklist; all 15 OpenSpec tasks are complete | authority map uses the existing coherence checkpoint and manifest admission; no CLI/state/provider/run-bundle surface added; archive, commit, and push remain intentionally pending | Codex |
+| 2026-08-13 | Change 1 | Archived after synchronizing the `harness-charter` delta to its main spec; no active OpenSpec changes remain | `openspec/changes/archive/2026-08-13-converge-active-harness-authority/`; post-archive `openspec validate --all --strict --no-interactive`: 27/27 | Codex |

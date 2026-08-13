@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
-import { dirname, isAbsolute, join, normalize, resolve } from "node:path";
+import { dirname, isAbsolute, join, normalize, relative, resolve } from "node:path";
+import { parseDocument } from "yaml";
 import { EXECUTABLE_INVENTORY, normalizeExecutablePath } from "./executable_inventory.mjs";
 import { validateDocumentedCommands } from "./harness_document_command_audit.mjs";
 
@@ -103,6 +104,153 @@ function walk(dir, output = []) {
 
 function lineAt(text, offset) { return text.slice(0, offset).split("\n").length; }
 function issue(file, line, rule, message, hint) { return { file, line, rule, message, hint }; }
+
+const CAPABILITY_REGISTRY_START = "<!-- harness-capability-registry:start -->";
+const CAPABILITY_REGISTRY_END = "<!-- harness-capability-registry:end -->";
+const CAPABILITY_ID = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
+const ROOT_ENTRY_DOCUMENTS = new Set([
+  "ppt_maker_harness/AGENTS.md",
+  "ppt_maker_harness/BOOTSTRAP.md",
+  "ppt_maker_harness/COMMANDS.md",
+  "ppt_maker_harness/README.md",
+]);
+
+function plainObject(value) {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value) && Object.getPrototypeOf(value) === Object.prototype;
+}
+
+function normalizedAuthorityPath(value) {
+  return typeof value === "string" ? value.replaceAll("\\", "/").replace(/^\.\//, "").replace(/\/+/g, "/") : "";
+}
+
+function registryMarkerCount(text, marker) {
+  return text.split(marker).length - 1;
+}
+
+/**
+ * Parse the one machine-readable navigation projection embedded in the
+ * OpenSpec context. It only interprets supplied text and creates no state.
+ */
+export function parseHarnessCapabilityRegistryContext(text, { file = "openspec/config.yaml" } = {}) {
+  const source = typeof text === "string" ? text : "";
+  const startCount = registryMarkerCount(source, CAPABILITY_REGISTRY_START);
+  const endCount = registryMarkerCount(source, CAPABILITY_REGISTRY_END);
+  const start = source.indexOf(CAPABILITY_REGISTRY_START);
+  const end = source.indexOf(CAPABILITY_REGISTRY_END);
+  if (startCount !== 1 || endCount !== 1 || start < 0 || end < 0 || end < start) {
+    return { registry: null, issues: [issue(file, 1, "authority-registry-marker", "expected exactly one ordered capability-registry marker pair", "repair the bounded capability registry in openspec/config.yaml and rerun coherence")] };
+  }
+  const bodyStart = start + CAPABILITY_REGISTRY_START.length;
+  const body = source.slice(bodyStart, end).trim();
+  const document = parseDocument(body);
+  if (document.errors.length > 0) {
+    return { registry: null, issues: [issue(file, lineAt(source, bodyStart), "authority-registry-yaml", "capability registry YAML is unreadable", "repair the bounded capability registry in openspec/config.yaml and rerun coherence")] };
+  }
+  return { registry: document.toJS({ mapAsMap: false }), issues: [] };
+}
+
+function registryShapeIssues(registry) {
+  const issues = [];
+  if (!plainObject(registry) || Object.keys(registry).length !== 1 || !Object.hasOwn(registry || {}, "capabilities") || !Array.isArray(registry.capabilities)) {
+    return [issue("openspec/config.yaml", 1, "authority-registry-shape", "capability registry must be one mapping containing only capabilities", "repair the bounded capability registry in openspec/config.yaml and rerun coherence")];
+  }
+  const seen = new Set();
+  for (const [index, entry] of registry.capabilities.entries()) {
+    const location = `openspec/config.yaml#capabilities[${index}]`;
+    const keys = plainObject(entry) ? Object.keys(entry).sort() : [];
+    const allowedKeys = ["id", "owner_paths", "scope", "spec"];
+    const requiredKeys = ["id", "scope", "spec"];
+    if (!plainObject(entry) || keys.some((key) => !allowedKeys.includes(key)) || requiredKeys.some((key) => !keys.includes(key)) ||
+      (keys.includes("owner_paths") && (!Array.isArray(entry.owner_paths) || entry.owner_paths.some((path) => typeof path !== "string")))) {
+      issues.push(issue(location, 1, "authority-registry-shape", "capability registry record has an invalid closed shape", "repair the named capability record in openspec/config.yaml and rerun coherence"));
+      continue;
+    }
+    if (typeof entry.id !== "string" || !CAPABILITY_ID.test(entry.id) || typeof entry.spec !== "string" || !entry.spec || typeof entry.scope !== "string" || !entry.scope.trim()) {
+      issues.push(issue(location, 1, "authority-registry-shape", "capability registry record requires lower-kebab id, spec, and non-empty scope", "repair the named capability record in openspec/config.yaml and rerun coherence"));
+      continue;
+    }
+    if (seen.has(entry.id)) issues.push(issue(location, 1, "authority-registry-duplicate-id", `capability ${entry.id} appears more than once`, "remove the duplicate capability record and rerun coherence"));
+    seen.add(entry.id);
+  }
+  return issues;
+}
+
+function ownerPathProblem(path) {
+  if (!path || path !== normalizedAuthorityPath(path) || path.startsWith("/") || path.split("/").some((part) => part === "..") || /[*?\[\]]/.test(path)) return "forbidden";
+  const parts = path.split("/");
+  if (parts.some((part) => /^(?:deck_|dpt_)/.test(part)) || parts.includes("_generated") || path.startsWith("openspec/changes/archive/") || path.startsWith("openspec/specs/") || path.startsWith("tests/") || path.startsWith("tests_e2e/") || parts.includes("internal")) return "forbidden";
+  return null;
+}
+
+function admittedNonScriptOwner(path) {
+  if (ROOT_ENTRY_DOCUMENTS.has(path)) return true;
+  if (/^ppt_maker_harness\/(?:charter|playbook|workflow|reference)\/.+\.md$/.test(path)) return true;
+  return /^ppt_maker_harness\/schema\/.+\.(?:md|ya?ml)$/.test(path);
+}
+
+/**
+ * Evaluate a pre-discovered authority snapshot. This pure seam does not parse
+ * files, inspect directories, or mutate repository state.
+ */
+export function evaluateHarnessAuthorityMap(snapshot = {}) {
+  const shapeIssues = registryShapeIssues(snapshot.registry);
+  if (shapeIssues.length > 0) return { ok: false, issues: shapeIssues };
+
+  const registry = snapshot.registry;
+  const expectedCapabilities = Array.isArray(snapshot.capabilities) ? snapshot.capabilities : null;
+  if (!expectedCapabilities || expectedCapabilities.some((id) => typeof id !== "string" || !CAPABILITY_ID.test(id))) {
+    return { ok: false, issues: [issue("openspec/specs", 1, "authority-capability-source", "discovered main-spec capability set is invalid", "repair the immediate main-spec directory set and rerun coherence")] };
+  }
+
+  const issues = [];
+  const expected = new Set(expectedCapabilities);
+  const actual = new Set(registry.capabilities.map((entry) => entry.id));
+  for (const id of [...expected].filter((id) => !actual.has(id)).sort()) {
+    issues.push(issue("openspec/config.yaml", 1, "authority-capability-missing", `missing capability ${id}`, "add the named current main-spec capability to the registry and rerun coherence"));
+  }
+  for (const id of [...actual].filter((id) => !expected.has(id)).sort()) {
+    issues.push(issue("openspec/config.yaml", 1, "authority-capability-extra", `unbacked capability ${id}`, "remove the unbacked capability from the registry and rerun coherence"));
+  }
+  for (const entry of registry.capabilities) {
+    const expectedSpec = `openspec/specs/${entry.id}/spec.md`;
+    if (entry.spec !== expectedSpec) issues.push(issue("openspec/config.yaml", 1, "authority-registry-spec", `${entry.id} must cite ${expectedSpec}`, "repair the named capability spec path and rerun coherence"));
+  }
+  if (issues.length > 0) return { ok: false, issues };
+
+  const repositoryFiles = new Set((Array.isArray(snapshot.repositoryFiles) ? snapshot.repositoryFiles : []).map(normalizedAuthorityPath));
+  const repositoryDirectories = new Set((Array.isArray(snapshot.repositoryDirectories) ? snapshot.repositoryDirectories : []).map(normalizedAuthorityPath));
+  const registeredScripts = new Set((Array.isArray(snapshot.registeredScriptSurfaces) ? snapshot.registeredScriptSurfaces : []).map(normalizedAuthorityPath));
+  for (const entry of registry.capabilities) {
+    const ownerPaths = entry.owner_paths || [];
+    const seenOwnerPaths = new Set();
+    for (const rawPath of ownerPaths) {
+      const path = normalizedAuthorityPath(rawPath);
+      if (seenOwnerPaths.has(path)) {
+        issues.push(issue("openspec/config.yaml", 1, "authority-owner-duplicate", `duplicate owner path ${path}`, "remove the duplicate owner path and rerun coherence"));
+        continue;
+      }
+      seenOwnerPaths.add(path);
+      if (ownerPathProblem(rawPath)) {
+        issues.push(issue("openspec/config.yaml", 1, "authority-owner-forbidden", `forbidden owner path ${rawPath}`, "replace the named owner path with an admitted public surface or omit it and rerun coherence"));
+        continue;
+      }
+      if (repositoryDirectories.has(path)) {
+        issues.push(issue("openspec/config.yaml", 1, "authority-owner-directory", `owner path ${path} is a directory`, "cite one admitted public file or omit the owner path and rerun coherence"));
+        continue;
+      }
+      if (!repositoryFiles.has(path)) {
+        issues.push(issue("openspec/config.yaml", 1, "authority-owner-missing", `owner path ${path} does not exist`, "repair or remove the named owner path and rerun coherence"));
+        continue;
+      }
+      if (/\.(?:mjs|js)$/.test(path)) {
+        if (!registeredScripts.has(path)) issues.push(issue("openspec/config.yaml", 1, "authority-owner-script-unregistered", `script owner ${path} is not a registered public interface or executable`, "register the true public script surface or omit the owner path and rerun coherence"));
+        continue;
+      }
+      if (!admittedNonScriptOwner(path)) issues.push(issue("openspec/config.yaml", 1, "authority-owner-unadmitted", `existing owner path ${path} is not in a published Harness source home`, "cite an admitted public owner file or omit the owner path and rerun coherence"));
+    }
+  }
+  return { ok: issues.length === 0, issues };
+}
 
 export function validateExceptionMap(exceptions = DOC_EXCEPTIONS, linkExceptions = LINK_EXCEPTIONS) {
   const issues = [];
@@ -292,20 +440,87 @@ export function validateDiagnosticAuthorityPointers({ root = "." } = {}) {
   return issues;
 }
 
+function relativeFilesUnder(root, directory) {
+  const absolute = join(root, directory);
+  if (!existsSync(absolute)) return [];
+  return walk(absolute)
+    .filter((path) => statSync(path).isFile())
+    .map((path) => normalizedAuthorityPath(relative(root, path)));
+}
+
+function relativeDirectoriesUnder(root, directory, output = []) {
+  const absolute = join(root, directory);
+  if (!existsSync(absolute) || !statSync(absolute).isDirectory()) return output;
+  output.push(normalizedAuthorityPath(relative(root, absolute)));
+  for (const entry of readdirSync(absolute, { withFileTypes: true })) {
+    if (entry.isDirectory()) relativeDirectoriesUnder(root, join(directory, entry.name), output);
+  }
+  return output;
+}
+
+function immediateMainSpecCapabilities(root) {
+  const specsRoot = join(root, "openspec/specs");
+  if (!existsSync(specsRoot)) return [];
+  return readdirSync(specsRoot, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && existsSync(join(specsRoot, entry.name, "spec.md")))
+    .map((entry) => entry.name)
+    .sort();
+}
+
+function manifestScriptSurfaces(root) {
+  const manifestPath = join(root, "tests/contracts/source-test-ownership.json");
+  try {
+    const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+    if (manifest?.schema !== "pptmaker-source-test-ownership" || !Array.isArray(manifest.owners)) return [];
+    return manifest.owners.flatMap((owner) => [
+      ...(Array.isArray(owner.interfaces) ? owner.interfaces : []),
+      ...(Array.isArray(owner.executables) ? owner.executables : []),
+    ]).filter((path) => typeof path === "string")
+      .map((path) => normalizedAuthorityPath(`ppt_maker_harness/scripts/${path}`));
+  } catch {
+    return [];
+  }
+}
+
+/** Read only direct repository authority facts for the existing coherence check. */
+export function evaluateRepositoryHarnessAuthorityMap({ root = ".", configText = undefined } = {}) {
+  const configPath = join(root, "openspec/config.yaml");
+  if (configText === undefined && !existsSync(configPath)) {
+    return { ok: false, issues: [issue("openspec/config.yaml", 1, "authority-registry-missing", "repository-maintenance context is missing", "restore openspec/config.yaml and rerun coherence")] };
+  }
+  let document;
+  try {
+    document = parseDocument(configText === undefined ? readFileSync(configPath, "utf8") : configText);
+  } catch {
+    return { ok: false, issues: [issue("openspec/config.yaml", 1, "authority-config-yaml", "OpenSpec config is unreadable", "repair openspec/config.yaml and rerun coherence")] };
+  }
+  if (document.errors.length > 0) return { ok: false, issues: [issue("openspec/config.yaml", 1, "authority-config-yaml", "OpenSpec config is unreadable", "repair openspec/config.yaml and rerun coherence")] };
+  const config = document.toJS({ mapAsMap: false });
+  const parsed = parseHarnessCapabilityRegistryContext(config?.context, { file: "openspec/config.yaml" });
+  if (parsed.issues.length > 0) return { ok: false, issues: parsed.issues };
+  const sourceFiles = relativeFilesUnder(root, "ppt_maker_harness");
+  return evaluateHarnessAuthorityMap({
+    registry: parsed.registry,
+    capabilities: immediateMainSpecCapabilities(root),
+    repositoryFiles: sourceFiles,
+    repositoryDirectories: relativeDirectoriesUnder(root, "ppt_maker_harness"),
+    registeredScriptSurfaces: manifestScriptSurfaces(root),
+  });
+}
+
 export function scanHarnessCoherence({ root = "ppt_maker_harness", exceptions = DOC_EXCEPTIONS, linkExceptions = LINK_EXCEPTIONS } = {}) {
   const issues = [
     ...validateExceptionMap(exceptions, linkExceptions),
     ...validateDiagnosticAuthorityPointers(),
     ...validateTerminologyAuthorityPointers(),
+    ...evaluateRepositoryHarnessAuthorityMap().issues,
   ];
   const markdown = walk(root).filter((file) => file.endsWith(".md"));
   const scriptsDir = join(root, "scripts");
-  const activeSurfaceFiles = {};
   for (const file of markdown) {
     const normalized = normalize(file).split("\\").join("/");
     if (exceptions[normalized]) continue;
     const text = readFileSync(file, "utf8");
-    activeSurfaceFiles[normalized] = text;
     issues.push(...scanMarkdownLinks(file, text, linkExceptions));
     issues.push(...scanSemanticDrift(file, text));
     issues.push(...validatePseudocodeMarkers(file, text));
@@ -318,13 +533,7 @@ export function scanHarnessCoherence({ root = "ppt_maker_harness", exceptions = 
   for (const file of Object.keys(CURRENT_CONTRACT_FILES).filter((file) => file.startsWith("openspec/specs/"))) {
     if (!existsSync(file)) continue;
     const text = readFileSync(file, "utf8");
-    activeSurfaceFiles[file] = text;
     issues.push(...scanSemanticDrift(file, text));
-  }
-  if (existsSync("openspec/specs")) {
-    for (const file of walk("openspec/specs").filter((path) => path.endsWith(".md"))) {
-      activeSurfaceFiles[normalize(file).split("\\").join("/")] = readFileSync(file, "utf8");
-    }
   }
   return issues;
 }

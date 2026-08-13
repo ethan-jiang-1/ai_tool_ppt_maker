@@ -26,7 +26,7 @@ contract; only `05-delivery` writes final projection, PPTX, or notes.
 
 ## Boundaries
 
-- Root commands import Phase interfaces, never private Phase modules.
+- Root commands import foundation method-module interfaces, never private module internals.
 - `03-framed-image` and `04-pure-image` never import each other; target
   iteration may use only public sibling interfaces.
 - Delivery consumes the Page Image final manifest without workflow-semantic

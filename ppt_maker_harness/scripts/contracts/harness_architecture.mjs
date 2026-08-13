@@ -2,7 +2,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, posix, relative, resolve } from "node:path";
 import { EXECUTABLE_INVENTORY, normalizeExecutablePath } from "./executable_inventory.mjs";
 
-export const ACTIVE_PHASES = Object.freeze([
+export const ACTIVE_FOUNDATION_METHOD_MODULES = Object.freeze([
   "00-setup",
   "01-content",
   "02-visual-system",
@@ -26,7 +26,7 @@ export const TARGET_ITERATION_INTERFACES = Object.freeze([
 export const HUMAN_NAVIGATION_INTERFACE = "shared/image2/page_image_human_artifact_reference.mjs";
 export const PAGE_DERIVED_DATA_INTERFACE = "shared/image2/page_derived_data.mjs";
 
-export const PHASE_ADJACENCY = Object.freeze({
+export const FOUNDATION_METHOD_MODULE_ADJACENCY = Object.freeze({
   "00-setup": Object.freeze([]),
   "01-content": Object.freeze([]),
   "02-visual-system": Object.freeze([]),
@@ -109,13 +109,13 @@ const TARGET_METHOD_MODULES = Object.freeze([
   "05-delivery",
   "06-iteration",
 ]);
-const SHARED_PUBLIC_PHASE_INTERFACE_IMPORTS = new Map();
+const SHARED_PUBLIC_FOUNDATION_METHOD_MODULE_INTERFACE_IMPORTS = new Map();
 const DIRECT_ENTRY_EXCEPTIONS = new Set([
   "shared/cli/cli_bootstrap.mjs",
   "shared/cli/cli_error.mjs",
 ]);
 const REQUIRED_MANIFEST_INTERFACES = Object.freeze([
-  ...ACTIVE_PHASES.map((phase) => `${phase}/index.mjs`),
+  ...ACTIVE_FOUNDATION_METHOD_MODULES.map((module) => `${module}/index.mjs`),
   ...TARGET_WORKFLOW_INTERFACES,
   ...TARGET_DELIVERY_INTERFACES,
   ...TARGET_ITERATION_INTERFACES,
@@ -123,6 +123,7 @@ const REQUIRED_MANIFEST_INTERFACES = Object.freeze([
   "contracts/canonical_json.mjs",
   "contracts/executable_inventory.mjs",
   "contracts/harness_architecture.mjs",
+  "contracts/harness_coherence.mjs",
   "contracts/harness_document_command_audit.mjs",
 ]);
 
@@ -130,9 +131,9 @@ function normalized(value) {
   return String(value).replaceAll("\\", "/").replace(/^\.\//, "").replace(/\/+/g, "/");
 }
 
-function phaseOf(path) {
+function foundationMethodModuleOf(path) {
   const first = normalized(path).split("/")[0];
-  return ACTIVE_PHASES.includes(first) ? first : null;
+  return ACTIVE_FOUNDATION_METHOD_MODULES.includes(first) ? first : null;
 }
 
 function targetWorkflowAdapterOf(path) {
@@ -538,21 +539,21 @@ export function hasDirectEntryIndicator(source) {
 
 function validateImportEdge(files, importer, target, issues) {
   if (!target || !files.has(target)) return;
-  const fromPhase = phaseOf(importer);
-  const toPhase = phaseOf(target);
+  const fromFoundationMethodModule = foundationMethodModuleOf(importer);
+  const toFoundationMethodModule = foundationMethodModuleOf(target);
   const fromTargetWorkflowAdapter = targetWorkflowAdapterOf(importer);
   const toTargetWorkflowAdapter = targetWorkflowAdapterOf(target);
   const fromTargetMethodModule = targetMethodModuleOf(importer);
   const toTargetMethodModule = targetMethodModuleOf(target);
   if (importer === "ppt_flow.mjs") {
-    if (toPhase && target !== `${toPhase}/index.mjs`) addIssue(issues, "root-private-import", importer, `root imports private Phase path ${target}`);
+    if (toFoundationMethodModule && target !== `${toFoundationMethodModule}/index.mjs`) addIssue(issues, "root-private-import", importer, `root imports private foundation method-module path ${target}`);
     if (target.startsWith("shared/") && !PUBLIC_SHARED_INTERFACES.includes(target)) addIssue(issues, "root-private-shared-import", importer, `root imports private shared path ${target}`);
     return;
   }
   if (importer.startsWith("shared/")) {
-    const allowedPhaseInterfaces = SHARED_PUBLIC_PHASE_INTERFACE_IMPORTS.get(importer);
-    if (toPhase && !allowedPhaseInterfaces?.has(target)) addIssue(issues, "shared-phase-import", importer, `shared imports Phase path ${target}`);
-    if (target.startsWith("shared/") && !PUBLIC_SHARED_INTERFACES.includes(target) && phaseOf(target) !== fromPhase) {
+    const allowedFoundationMethodModuleInterfaces = SHARED_PUBLIC_FOUNDATION_METHOD_MODULE_INTERFACE_IMPORTS.get(importer);
+    if (toFoundationMethodModule && !allowedFoundationMethodModuleInterfaces?.has(target)) addIssue(issues, "shared-foundation-method-module-import", importer, `shared imports foundation method-module path ${target}`);
+    if (target.startsWith("shared/") && !PUBLIC_SHARED_INTERFACES.includes(target) && foundationMethodModuleOf(target) !== fromFoundationMethodModule) {
       const fromCategory = importer.split("/")[1];
       const toCategory = target.split("/")[1];
       if (fromCategory !== toCategory) addIssue(issues, "shared-private-cross-category", importer, `cross-category shared import targets private path ${target}`);
@@ -560,13 +561,13 @@ function validateImportEdge(files, importer, target, issues) {
     return;
   }
   if (importer.startsWith("contracts/")) {
-    if (toPhase || target.startsWith("shared/")) addIssue(issues, "contract-back-edge", importer, `contract imports production path ${target}`);
+    if (toFoundationMethodModule || target.startsWith("shared/")) addIssue(issues, "contract-back-edge", importer, `contract imports production path ${target}`);
     return;
   }
-  if (fromPhase && toPhase && fromPhase !== toPhase) {
-    const processAdapterPublicEdge = CROSS_OWNER_PROCESS_ADAPTERS.includes(importer) && target === `${toPhase}/index.mjs`;
-    if (!processAdapterPublicEdge && !PHASE_ADJACENCY[fromPhase].includes(toPhase)) addIssue(issues, "phase-adjacency", importer, `${fromPhase} may not import ${toPhase}`);
-    if (target !== `${toPhase}/index.mjs`) addIssue(issues, "foreign-phase-private-import", importer, `foreign Phase import must target ${toPhase}/index.mjs`);
+  if (fromFoundationMethodModule && toFoundationMethodModule && fromFoundationMethodModule !== toFoundationMethodModule) {
+    const processAdapterPublicEdge = CROSS_OWNER_PROCESS_ADAPTERS.includes(importer) && target === `${toFoundationMethodModule}/index.mjs`;
+    if (!processAdapterPublicEdge && !FOUNDATION_METHOD_MODULE_ADJACENCY[fromFoundationMethodModule].includes(toFoundationMethodModule)) addIssue(issues, "foundation-method-module-adjacency", importer, `${fromFoundationMethodModule} may not import ${toFoundationMethodModule}`);
+    if (target !== `${toFoundationMethodModule}/index.mjs`) addIssue(issues, "foreign-foundation-method-module-private-import", importer, `foreign foundation method-module import must target ${toFoundationMethodModule}/index.mjs`);
   }
   if (fromTargetWorkflowAdapter && toTargetWorkflowAdapter && fromTargetWorkflowAdapter !== toTargetWorkflowAdapter) {
     addIssue(issues, "sibling-workflow-import", importer, `${fromTargetWorkflowAdapter} may not import ${toTargetWorkflowAdapter}`);
@@ -577,11 +578,11 @@ function validateImportEdge(files, importer, target, issues) {
   if (fromTargetMethodModule === "06-iteration" && toTargetMethodModule && fromTargetMethodModule !== toTargetMethodModule && target !== `${toTargetMethodModule}/index.mjs`) {
     addIssue(issues, "iteration-private-sibling-import", importer, `06-iteration may import only the public index of ${toTargetMethodModule}`);
   }
-  if (fromPhase && target.startsWith("shared/") && !PUBLIC_SHARED_INTERFACES.includes(target)) {
-    addIssue(issues, "phase-private-shared-import", importer, `Phase imports private shared path ${target}`);
+  if (fromFoundationMethodModule && target.startsWith("shared/") && !PUBLIC_SHARED_INTERFACES.includes(target)) {
+    addIssue(issues, "foundation-method-module-private-shared-import", importer, `foundation method module imports private shared path ${target}`);
   }
-  if (fromPhase && importer.endsWith("/index.mjs") && target !== "shared/run-bundle/bundle_layout.mjs" && EXECUTABLE_INVENTORY.includes(target)) {
-    addIssue(issues, "interface-cli-import", importer, `Phase interface imports direct executable ${target}`);
+  if (fromFoundationMethodModule && importer.endsWith("/index.mjs") && target !== "shared/run-bundle/bundle_layout.mjs" && EXECUTABLE_INVENTORY.includes(target)) {
+    addIssue(issues, "interface-cli-import", importer, `foundation method-module interface imports direct executable ${target}`);
   }
 }
 
@@ -717,7 +718,7 @@ export function validateArchitectureSnapshot({ files: inputFiles, manifest = nul
   for (const entry of rootEntries) if (!ROOT_WHITELIST.has(entry)) addIssue(issues, "root-whitelist", entry, "unexpected scripts-root entry");
   for (const name of FORBIDDEN_GENERIC_ROOTS) if (rootEntries.has(name)) addIssue(issues, "generic-root", name, "forbidden generic scripts root");
   if ([...scriptFiles].some(([path]) => path === "lib" || path.startsWith("lib/"))) addIssue(issues, "retired-lib", "lib", "scripts/lib is forbidden");
-  for (const phase of ACTIVE_PHASES) if (!scriptFiles.has(`${phase}/index.mjs`)) addIssue(issues, "missing-phase-interface", `${phase}/index.mjs`, "active Phase interface is missing");
+  for (const module of ACTIVE_FOUNDATION_METHOD_MODULES) if (!scriptFiles.has(`${module}/index.mjs`)) addIssue(issues, "missing-foundation-method-module-interface", `${module}/index.mjs`, "active foundation method-module interface is missing");
   for (const path of TARGET_WORKFLOW_INTERFACES) if (!scriptFiles.has(path)) addIssue(issues, "missing-workflow-interface", path, "target workflow interface is missing");
   for (const path of TARGET_DELIVERY_INTERFACES) if (!scriptFiles.has(path)) addIssue(issues, "missing-delivery-interface", path, "target delivery interface is missing");
   for (const path of TARGET_ITERATION_INTERFACES) if (!scriptFiles.has(path)) addIssue(issues, "missing-iteration-interface", path, "target iteration interface is missing");
@@ -749,7 +750,7 @@ function walk(root, current = root, output = {}) {
 }
 
 /** Public diagnostic seam used by ownership/CI checks; it is read-only and
- * recursively discovers nested Phase/test owners. */
+ * recursively discovers nested method-module/test owners. */
 export function discoverRecursiveFiles(root) {
   return walk(resolve(root));
 }

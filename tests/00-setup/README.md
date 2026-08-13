@@ -1,3 +1,3 @@
-# Phase 0 tests
+# 00-setup method-module tests
 
-Phase 0 interface and environment readiness tests live here.
+The 00-setup interface and environment readiness tests live here.

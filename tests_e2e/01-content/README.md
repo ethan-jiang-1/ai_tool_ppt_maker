@@ -1,3 +1,3 @@
-# Phase 1 E2E
+# 01-content method-module E2E
 
-No separately owned Phase 1 journey currently exists.
+No separately owned 01-content journey currently exists.

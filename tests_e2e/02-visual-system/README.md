@@ -1,3 +1,3 @@
-# Phase 2 E2E
+# 02-visual-system method-module E2E
 
-No separately owned Phase 2 journey currently exists.
+No separately owned 02-visual-system journey currently exists.

@@ -1,3 +1,3 @@
-# Phase 2 tests
+# 02-visual-system method-module tests
 
-Phase 2 visual-system interface and pure geometry tests live here.
+The 02-visual-system visual-system interface and pure geometry tests live here.

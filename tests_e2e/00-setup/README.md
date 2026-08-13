@@ -1,3 +1,3 @@
-# Phase 0 E2E
+# 00-setup method-module E2E
 
-No separately owned Phase 0 journey currently exists.
+No separately owned 00-setup journey currently exists.

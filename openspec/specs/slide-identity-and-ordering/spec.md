@@ -1,7 +1,9 @@
 # slide-identity-and-ordering Specification
 
 ## Purpose
-TBD - created by archiving change add-stable-slide-identity-and-order-editing. Update Purpose after archive.
+Define current slide identity, selectors, ordering projections, and exact
+structural publication for Page Image source without treating a position or
+filename projection as a second identity or workflow route.
 ## Requirements
 ### Requirement: Slide identity is stable while position is derived
 Every slide block SHALL have a non-empty `slide_id` that represents page identity independently of

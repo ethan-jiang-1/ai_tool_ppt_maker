@@ -107,6 +107,7 @@
         "contracts/cli_return_audit.mjs",
         "contracts/executable_inventory.mjs",
         "contracts/harness_architecture.mjs",
+        "contracts/harness_coherence.mjs",
         "contracts/harness_document_command_audit.mjs"
       ],
       "executables": [

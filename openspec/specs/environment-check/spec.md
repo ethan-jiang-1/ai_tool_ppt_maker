@@ -1,6 +1,6 @@
 ## Purpose
 
-Define the pre-flight environment check at `scripts/00-setup/env-check.mjs`: a zero-dependency Phase 0 adapter for supported Node `22.x|24.x|26.x`, base local Framed-runtime readiness, and operation-scoped Page Image Workflow raw-generation readiness. It emits an actionable structured readiness report without requiring `npm install` to start.
+Define the pre-flight environment check at `scripts/00-setup/env-check.mjs`: a zero-dependency 00-setup method-module interface for supported Node `22.x|24.x|26.x`, base local Framed-runtime readiness, and operation-scoped Page Image Workflow raw-generation readiness. It emits an actionable structured readiness report without requiring `npm install` to start.
 ## Requirements
 
 ### Requirement: Environment checks are owned by the Harness root

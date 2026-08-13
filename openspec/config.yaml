@@ -91,80 +91,166 @@ context: |-
   ## Capability 注册表
 
   Capability 是 proposal → delta specs → main specs 的稳定归属边界。名称使用 kebab-case，
-  表达长期责任，不使用文件名、实现手段或一次性 change 名。优先复用已有 capability；
-  只有现有 capability 都不拥有新行为时才新增。
+  表达长期责任，不使用文件名、实现手段或一次性 change 名。main spec 是规范行为权威；以下
+  registry 只提供导航，`scope` 不替代任何 requirement、Controller、CLI 或 schema。
 
-  ### 项目宪法与目录
-
-  | Capability | 稳定责任 | 主要权威 |
-  |------------|----------|----------|
-  | `harness-charter` | Charter、入口面、Agent 行为与 Harness-wide 一致性 | `charter/*.md`, `BOOTSTRAP.md` |
-  | `harness-directory-layout` | `ppt_maker_harness/` soft-bundle 目录布局 | `ppt_maker_harness/` |
-  | `harness-script-layout` | Harness 脚本的 executable ownership 与 import boundary | `scripts/`, `scripts/contracts/` |
-  | `run-bundle-layout` | `deck_*` 目录本体论、角色与结构梯度 | `bundle_layout.mjs`, `reference/glossary.md` |
-  | `run-bundle-management` | init、check、new-version 与 layout 执法 | `bundle_layout.mjs` |
-  | `bootstrap-env-guidance` | BOOTSTRAP 环境修复与首次凭据指导 | `BOOTSTRAP.md`, `env-check.mjs` |
-  | `environment-check` | Node/npm/凭据/字体/Harness 内图像能力检查 | `env-check.mjs` |
-
-  ### 生产管线
-
-  | Capability | 稳定责任 | 主要权威 |
-  |------------|----------|----------|
-  | `content-parsing` | Stage 1：Markdown → slide plan / prompts / source validation | `scripts/03-html-production/stage1_build_inputs.mjs` |
-  | `image-generation` | Stage 2：Harness 内 Node 图像生成与 contact sheet | `scripts/05-iteration/legacy-image2/stage2_generate_images.mjs`, `scripts/05-iteration/legacy-image2/make_contact_sheet.mjs`, `scripts/05-iteration/legacy-image2/internal/image_api_client.mjs` |
-  | `header-lock` | Stage 3：确定性 kicker/title/subtitle 叠加 | `scripts/05-iteration/legacy-image2/stage3_lock_headers.mjs` |
-  | `pptx-assembly` | Stage 4：最终图片 → PPTX | `scripts/03-html-production/stage4_build_pptx.mjs` |
-  | `notes-injection` | Stage 5：Speaker notes 注入与 receipt | `scripts/03-html-production/stage5_inject_notes.mjs` |
-
-  ### 编排与视觉能力
-
-  | Capability | 稳定责任 | 主要权威 |
-  |------------|----------|----------|
-  | `pipeline-orchestration` | Stage 编排、preview/build 与 refresh paths | `scripts/03-html-production/unified_pipeline.mjs` |
-  | `visual-config` | Stage 1/3 共享视觉配置 | `scripts/02-visual-system/index.mjs` |
-  | `style-master-generation` | Style master 生成与视觉约束注入 | `scripts/05-iteration/legacy-image2/generate_style_master.mjs` |
-  | `visual-asset-management` | Asset manifest、路径解析与资产指纹 | `scripts/02-visual-system/index.mjs` |
-  | `lessons-management` | `_lessons/` CLI 操作面（list/add/check/search） | `scripts/shared/run-bundle/lessons.mjs` |
-
-  ### 交互与执行协议
-
-  | Capability | 稳定责任 | 主要权威 |
-  |------------|----------|----------|
-  | `commands-reference` | 自然语言意图到 playbook / 命令 / 所有权路径的路由 | `COMMANDS.md`, `scripts/06-iteration/change-classifier.md` |
-  | `cli-surface` | Registered direct CLI 的输出、诊断与 delegation 契约 | `scripts/shared/cli/cli_error.mjs`, `scripts/ppt_flow.mjs` |
-  | `node-specification` | Node、State Schema、Gate condition 与 CLI consumer 协议 | `charter/NODE-SPEC.md`, `scripts/shared/state/state.mjs` |
-  | `playbook-execution` | MD Controller、Entry/Exit Gate 与执行状态 | `playbook/*.md`, `scripts/shared/state/md_controller_reader.mjs`, `scripts/shared/state/state.mjs` |
+  <!-- harness-capability-registry:start -->
+  capabilities:
+    - id: bootstrap-env-guidance
+      spec: openspec/specs/bootstrap-env-guidance/spec.md
+      scope: Bootstrap startup and environment remediation guidance
+      owner_paths:
+        - ppt_maker_harness/BOOTSTRAP.md
+        - ppt_maker_harness/scripts/00-setup/env-check.mjs
+    - id: cli-surface
+      spec: openspec/specs/cli-surface/spec.md
+      scope: registered direct CLI output and diagnostic boundary
+      owner_paths:
+        - ppt_maker_harness/scripts/ppt_flow.mjs
+        - ppt_maker_harness/scripts/shared/cli/cli_error.mjs
+    - id: commands-reference
+      spec: openspec/specs/commands-reference/spec.md
+      scope: human request discovery and owner-aware handoff
+      owner_paths:
+        - ppt_maker_harness/COMMANDS.md
+    - id: content-parsing
+      spec: openspec/specs/content-parsing/spec.md
+      scope: current Page Image source parsing and receipt inputs
+      owner_paths:
+        - ppt_maker_harness/scripts/01-content/index.mjs
+    - id: environment-check
+      spec: openspec/specs/environment-check/spec.md
+      scope: local Harness readiness checks
+      owner_paths:
+        - ppt_maker_harness/scripts/00-setup/env-check.mjs
+    - id: harness-charter
+      spec: openspec/specs/harness-charter/spec.md
+      scope: active guidance and Harness-wide ownership boundaries
+      owner_paths:
+        - ppt_maker_harness/charter/AGENT_CONTRACT.md
+        - ppt_maker_harness/BOOTSTRAP.md
+    - id: harness-directory-layout
+      spec: openspec/specs/harness-directory-layout/spec.md
+      scope: Harness source map and ownership topology
+      owner_paths:
+        - ppt_maker_harness/README.md
+    - id: harness-script-layout
+      spec: openspec/specs/harness-script-layout/spec.md
+      scope: script seams, imports, and architecture verification
+      owner_paths:
+        - ppt_maker_harness/scripts/contracts/harness_architecture.mjs
+    - id: html-render-runtime
+      spec: openspec/specs/html-render-runtime/spec.md
+      scope: retained private Framed header-overlay runtime boundary
+      owner_paths:
+        - ppt_maker_harness/workflow/03-framed-image/README.md
+    - id: html-slide-rendering
+      spec: openspec/specs/html-slide-rendering/spec.md
+      scope: retired capability record with no current route
+    - id: image-generation
+      spec: openspec/specs/image-generation/spec.md
+      scope: receipt-bound Page Image raw generation and review
+      owner_paths:
+        - ppt_maker_harness/scripts/03-framed-image/index.mjs
+        - ppt_maker_harness/scripts/04-pure-image/index.mjs
+    - id: image-production
+      spec: openspec/specs/image-production/spec.md
+      scope: active whole-page Page Image production family
+      owner_paths:
+        - ppt_maker_harness/AGENTS.md
+    - id: lessons-management
+      spec: openspec/specs/lessons-management/spec.md
+      scope: run-bundle local lessons command surface
+      owner_paths:
+        - ppt_maker_harness/scripts/shared/run-bundle/lessons.mjs
+    - id: narrative-authoring
+      spec: openspec/specs/narrative-authoring/spec.md
+      scope: deck-level narrative sources and page planning
+      owner_paths:
+        - ppt_maker_harness/scripts/01-content/index.mjs
+    - id: node-specification
+      spec: openspec/specs/node-specification/spec.md
+      scope: Controller node and state contract
+      owner_paths:
+        - ppt_maker_harness/charter/NODE-SPEC.md
+        - ppt_maker_harness/scripts/shared/state/state.mjs
+    - id: notes-injection
+      spec: openspec/specs/notes-injection/spec.md
+      scope: receipt-bound speaker-note delivery
+      owner_paths:
+        - ppt_maker_harness/scripts/05-delivery/index.mjs
+    - id: pipeline-orchestration
+      spec: openspec/specs/pipeline-orchestration/spec.md
+      scope: public Page Image operation routing
+      owner_paths:
+        - ppt_maker_harness/scripts/ppt_flow.mjs
+    - id: playbook-execution
+      spec: openspec/specs/playbook-execution/spec.md
+      scope: MD Controller playbooks and execution state
+      owner_paths:
+        - ppt_maker_harness/playbook/create-deck.md
+        - ppt_maker_harness/scripts/shared/state/md_controller_reader.mjs
+    - id: pptx-assembly
+      spec: openspec/specs/pptx-assembly/spec.md
+      scope: final-manifest PPTX assembly
+      owner_paths:
+        - ppt_maker_harness/scripts/05-delivery/index.mjs
+    - id: production-schema-conformance
+      spec: openspec/specs/production-schema-conformance/spec.md
+      scope: current production serialization contract
+      owner_paths:
+        - ppt_maker_harness/schema/serialization-contracts.yaml
+    - id: run-bundle-layout
+      spec: openspec/specs/run-bundle-layout/spec.md
+      scope: run-bundle directory ontology and paths
+      owner_paths:
+        - ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs
+    - id: run-bundle-management
+      spec: openspec/specs/run-bundle-management/spec.md
+      scope: run-bundle creation, validation, and binding
+      owner_paths:
+        - ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs
+    - id: slide-identity-and-ordering
+      spec: openspec/specs/slide-identity-and-ordering/spec.md
+      scope: stable slide identity and derived order
+      owner_paths:
+        - ppt_maker_harness/scripts/01-content/index.mjs
+    - id: style-master-generation
+      spec: openspec/specs/style-master-generation/spec.md
+      scope: visual-style primitives and raw profiles
+      owner_paths:
+        - ppt_maker_harness/scripts/02-visual-system/index.mjs
+    - id: visual-asset-management
+      spec: openspec/specs/visual-asset-management/spec.md
+      scope: reference registry paths and fingerprints
+      owner_paths:
+        - ppt_maker_harness/scripts/02-visual-system/index.mjs
+    - id: visual-config
+      spec: openspec/specs/visual-config/spec.md
+      scope: visual-language and Framed header policy inputs
+      owner_paths:
+        - ppt_maker_harness/schema/stages/visual-language.yaml
+    - id: workflow-inspection
+      spec: openspec/specs/workflow-inspection/spec.md
+      scope: read-only current workflow observation
+      owner_paths:
+        - ppt_maker_harness/scripts/shared/workflow/inspect_workflow.mjs
+  <!-- harness-capability-registry:end -->
 
   ## Workflow 术语与生产语义
 
-  | 层级 | 含义 |
-  |------|------|
-  | Lifecycle Phase | `0 → 1/2 → 2.7 → 3 → 4` 的端到端进程 |
-  | Method Module | `workflow/00-setup` 到 `workflow/06-iteration` 的方法论目录 |
-  | Pipeline Stage | Stage 1–5 的确定性生产步骤 |
-  | Playbook Node | MD Controller 中的执行节点 |
+  `page-image-workflow` 是唯一当前 production pipeline；版本在 provider work 前选择
+  `production.workflow: framed|pure`。Method Module 目录和 MD Controller guidance 负责
+  方法与流程导航，不创建第二个 pipeline 或 workflow value。Gate、receipt、review、delivery
+  的具体条件仍由对应 main spec、Controller 与 runtime owner 定义。
 
-  四者不得混称。RENDER MODE 只有 `full-page` 和 `body+header-lock`；旧别名
-  `image_direct` / `normal` 仅可用于兼容输入，不用于新 spec 和文档。
-
-  Production Stage 2 要求 content/visual gate 为 `approved` 或 `waived`；preview/pilot 可在
-  gate pending 时运行，但不得因此自动 waive，正式 build 前仍须 review / approval。
-
-  Run-bundle production 的正式编辑路径：
-
-  | 路径 | 所有权 / 失效范围 | 逻辑执行 |
-  |------|-------------------|----------|
-  | Header Text & Style Refresh（formerly Chain A） | `body+header-lock` header 与 Stage-3-owned 样式 | Stage 1 → 3 → 4 → 5 |
-  | Generated Image Rebuild（formerly Chain B） | Full-page header、body/数据/画面/prompt、mode/safe-zone | Stage 1 → 强制所选 Stage 2 → review → 3/4/5 |
-  | Notes-Only Refresh（formerly Chain C） | Speaker notes | Stage 5 |
-  | Structural Versioning Path（formerly Structural） | 增/删/重排 slide | `--new-version` 后再选受影响页 refresh path |
-
-  Structural Versioning Path 是外层版本流程，不是第四条并列 refresh path。`_generated/`
-  永远通过源文件和负责它的 capability 重建，不手工编辑。
+  编辑按实际 owner 和失效范围进入 `Header Text & Style Refresh`、`Generated Image Rebuild`、
+  `Notes-Only Refresh` 或 `Structural Versioning Path`。结构变更先经过 preview 和 exact plan
+  hash；`_generated/` 永远经由拥有它的 source 和 capability 重建，不手工编辑。
 
   ## Agent 入口与 OpenSpec 开发循环
 
-  做具体 PPT：`BOOTSTRAP.md` → `charter/AGENT_CONTRACT.md` → 按当前 Phase 读 `AGENTS.md`。
+  做具体 PPT：`BOOTSTRAP.md` → `charter/AGENT_CONTRACT.md` → 适用的 current Controller guidance。
   已有 deck 先读 `_state` / status，聊天上下文不是进度真相；视觉 Gate 前必须展示真实产物。
 
   PPT Maker Harness maintenance：proposal → specs → design → tasks → apply → validate → archive。
@@ -224,7 +310,7 @@ rules:
       MODIFIED requirement 必须保留完整更新后的 requirement 和全部仍有效场景；REMOVED 必须写明
       Reason 与 Migration。Delta 必须足以在 archive 时安全同步到 main specs，不依赖聊天补全。
     - >-
-      目录、render mode、source/derived 等领域术语必须使用本 context 的 canonical 含义；
+      目录、source/derived 等领域术语必须使用本 context 的 canonical 含义；
       harness-directory-layout 与 run-bundle-layout 不得混称。
     - >-
       Gate-sensitive requirement 必须区分可自动修复的 guide、可被 reasoned waiver 继续的

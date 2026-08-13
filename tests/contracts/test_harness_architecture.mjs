@@ -3,14 +3,14 @@ import { join, relative } from "node:path";
 import { describe, expect, it } from "vitest";
 import { EXECUTABLE_INVENTORY } from "../../ppt_maker_harness/scripts/contracts/executable_inventory.mjs";
 import {
-  ACTIVE_PHASES,
+  ACTIVE_FOUNDATION_METHOD_MODULES,
   HUMAN_NAVIGATION_INTERFACE,
   PAGE_DERIVED_DATA_INTERFACE,
   PAGE_IMAGE_CORE_INTERFACE,
   PAGE_IMAGE_CORE_SEAM_CONSUMERS,
   PAGE_IMAGE_PROVIDER_INPUT_COMPILER_ADAPTERS,
   PAGE_IMAGE_PROVIDER_INPUT_COMPILER_SCHEMA_BY_ADAPTER,
-  PHASE_ADJACENCY,
+  FOUNDATION_METHOD_MODULE_ADJACENCY,
   PUBLIC_SHARED_INTERFACES,
   TARGET_DELIVERY_INTERFACES,
   TARGET_ITERATION_INTERFACES,
@@ -26,6 +26,7 @@ const REQUIRED_CONTRACTS = [
   "contracts/canonical_json.mjs",
   "contracts/executable_inventory.mjs",
   "contracts/harness_architecture.mjs",
+  "contracts/harness_coherence.mjs",
   "contracts/harness_document_command_audit.mjs",
 ];
 
@@ -41,7 +42,7 @@ function canonicalSnapshot() {
     "README.md": "target tree",
   };
   const interfaces = [
-    ...ACTIVE_PHASES.map((phase) => `${phase}/index.mjs`),
+    ...ACTIVE_FOUNDATION_METHOD_MODULES.map((module) => `${module}/index.mjs`),
     ...TARGET_WORKFLOW_INTERFACES,
     ...TARGET_DELIVERY_INTERFACES,
     ...TARGET_ITERATION_INTERFACES,
@@ -109,8 +110,8 @@ describe("Harness architecture contract", () => {
     expect(result.detectedExecutables).toEqual([...EXECUTABLE_INVENTORY].sort());
   });
 
-  it("pins active phases and rejects retired numbered owners", () => {
-    expect(PHASE_ADJACENCY).toEqual({
+  it("pins active foundation method modules and rejects retired numbered owners", () => {
+    expect(FOUNDATION_METHOD_MODULE_ADJACENCY).toEqual({
       "00-setup": [],
       "01-content": [],
       "02-visual-system": [],
@@ -138,7 +139,7 @@ describe("Harness architecture contract", () => {
     ]);
   });
 
-  it("rejects forbidden Phase, shared, core, and cross-adapter private edges", () => {
+  it("rejects forbidden foundation method-module, shared, core, and cross-adapter private edges", () => {
     const cases = [
       ["03-framed-image/index.mjs", `import "../shared/image2/private.mjs";`, "target-private-shared-import"],
     ];

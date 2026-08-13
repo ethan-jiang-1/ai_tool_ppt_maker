@@ -93,11 +93,19 @@ the project's declared `yaml` dependency parses the bounded body rather than a
 hand-written Markdown-table parser. The outer OpenSpec config shape remains
 unchanged.
 
-The schema is deliberately small. `scope` is navigational and cannot restate a
-detailed contract. `spec` must equal the path derived from `id`.
-`owner_paths` may be empty when the main spec is the only useful public route;
-it must not be padded with a private implementation merely to populate the
-field.
+The exact markers are `<!-- harness-capability-registry:start -->` and
+`<!-- harness-capability-registry:end -->`. Their body is one YAML mapping with
+only the `capabilities` sequence. Each record has exactly `id`, `spec`, and
+`scope`, with an optional `owner_paths` sequence; each field has its ordinary
+scalar/list YAML type and owner paths are unique literals. This makes malformed
+markers, extra YAML keys, duplicate owner claims, and accidental Markdown
+tables root errors instead of parser-dependent behavior.
+
+The schema is deliberately small. `scope` is a non-empty navigational summary
+and cannot restate a detailed contract. `spec` must equal the path derived from
+`id`. `owner_paths` may be absent or empty when the main spec is the only useful
+public route; it must not be padded with a private implementation merely to
+populate the field.
 
 Alternative considered: add a new top-level key to OpenSpec config. Rejected
 because the OpenSpec config schema owns top-level keys. Alternative: preserve
@@ -123,10 +131,17 @@ Validation order is:
 Path checks reject absolute/traversal/glob paths, directories, archive paths,
 `deck_*`/`dpt_*`, `_generated/`, and `internal/` implementation paths. A script
 `.mjs` owner must also appear in the existing source/test ownership manifest as
-an interface or executable. Other active document/schema owner files must exist
-and remain inside the declared repository source boundary. The implementation
-will register the already-imported `harness_coherence.mjs` contract seam in the
-existing ownership manifest instead of creating a second allowlist.
+an interface or executable. A non-script owner is admissible only when it is
+one of the existing Harness-root entry documents (`AGENTS.md`, `BOOTSTRAP.md`,
+`COMMANDS.md`, or `README.md`), a Markdown document below the declared
+`charter/`, `playbook/`, `workflow/`, or `reference/` homes, or a Markdown/YAML
+definition file below the declared `schema/` home. Those are the existing
+Harness source-map categories in the directory-layout contract, not a new
+capability-by-capability owner list; `openspec/specs/`, tests, arbitrary source
+files, and unclassified directories do not become substitute owner surfaces by
+existing on disk. The implementation will register the already-imported
+`harness_coherence.mjs` contract seam in the existing ownership manifest and
+its required architecture inventory instead of creating a second allowlist.
 
 The old unused `activeSurfaceFiles` accumulation is removed. Semantic retirement
 rules remain scoped to the surfaces they actually check; Change 1 does not
@@ -175,9 +190,11 @@ meaning. No broad search-and-replace is allowed.
 ### 6. Verify the checker itself at unit and integration levels
 
 Focused unit tests call the pure evaluator with valid synthetic data and planted
-missing, extra, duplicate, malformed, forbidden, and stale-path variants. They
-assert the specific root code, no mutation, and a passing rerun with the exact
-original input.
+missing, extra, duplicate, malformed, forbidden, unadmitted-existing, and
+stale-path variants. They assert the specific root code, no mutation, and a
+passing rerun with the exact original input. Repository-adapter coverage also
+proves that malformed or repeated registry markers fail before YAML-derived
+claims are evaluated.
 
 The existing documentation-coherence integration test exercises the repository
 adapter against the real checked-in config, current specs, filesystem, and
@@ -196,8 +213,8 @@ regression boundary; no provider-bearing test is needed.
   normal OpenSpec change that edits the capability.
 - [Strict path validation could reject a legitimate new owner] -> The nearest
   action is to register a true public script surface through the existing
-  ownership manifest or omit a nonessential owner path. No broad exception is
-  added.
+  ownership manifest, place a non-script fact in an existing published source
+  home, or omit a nonessential owner path. No broad exception is added.
 - [A config edit can temporarily make OpenSpec context unreadable] -> Apply the
   bounded registry and evaluator/tests in one change, validate the config with
   OpenSpec, and use an ordinary forward correction if a published error is

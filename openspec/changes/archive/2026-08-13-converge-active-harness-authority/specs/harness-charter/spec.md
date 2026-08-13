@@ -14,11 +14,26 @@ bounded capability registry as a navigation projection. That registry SHALL
 enumerate exactly once every immediate `openspec/specs/<capability>/spec.md`
 capability and no other capability. Each entry SHALL identify its corresponding
 main spec as normative behavior authority, state only a bounded routing
-responsibility, and MAY cite current public owner surfaces. Every cited surface
-SHALL be one literal repository-relative path to an existing active file; it
-SHALL NOT be a glob, private `internal/` module, archived change, production
-`deck_*`/`dpt_*` data, generated artifact, or substitute for the main spec.
-The context SHALL NOT copy another capability's detailed schema or contract.
+responsibility, and MAY cite current public owner surfaces. The marker-bounded
+registry payload SHALL be one YAML mapping containing only its `capabilities`
+sequence. Each capability record SHALL contain exactly `id`, `spec`, and
+`scope`, with optional `owner_paths`; its `id` SHALL be lower-kebab case, its
+`spec` SHALL equal `openspec/specs/<id>/spec.md`, and its owner paths SHALL be
+unique literal strings.
+
+Every cited surface SHALL be one literal repository-relative path to an
+existing active file. A cited script SHALL be admitted by the existing
+source/test ownership manifest as a registered interface or executable. A
+cited non-script file SHALL be one of `ppt_maker_harness/AGENTS.md`,
+`ppt_maker_harness/BOOTSTRAP.md`, `ppt_maker_harness/COMMANDS.md`, or
+`ppt_maker_harness/README.md`; a Markdown document under the declared
+`charter/`, `playbook/`, `workflow/`, or `reference/` source home; or a
+Markdown/YAML definition file under the declared `schema/` home. This
+source-root classification SHALL NOT become a capability-specific owner
+allowlist. A cited surface SHALL NOT be a glob, private `internal/` module,
+archived change, main-spec substitute, test, production `deck_*`/`dpt_*` data,
+generated artifact, or an unclassified source file. The context SHALL NOT copy
+another capability's detailed schema or contract.
 
 Active guidance SHALL distinguish the `page-image-workflow` pipeline, the
 version-level `production.workflow: framed|pure` selection, and
@@ -56,10 +71,11 @@ fallback registry, or competing pass/fail projection.
 - **AND** it identifies the direct mismatch and tells the Agent to repair the
   registry or owning main-spec source, then rerun the same checkpoint
 
-#### Scenario: Capability projection cites a stale owner path
+#### Scenario: Capability projection cites a stale or unadmitted owner path
 
 - **WHEN** a registry entry cites a missing path, glob, private implementation,
-  archive record, production-data path, or generated artifact
+  archive record, main-spec substitute, test, production-data path, generated
+  artifact, unadmitted script, or existing but unclassified source file
 - **THEN** the existing coherence checkpoint rejects that literal owner claim
 - **AND** it does not search for an alternative implementation or silently
   treat a nearby file as authority

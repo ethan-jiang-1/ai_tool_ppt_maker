@@ -1,3 +1,3 @@
-# Phase 1 tests
+# 01-content method-module tests
 
-Phase 1 content and identity interface tests live here.
+The 01-content content and identity interface tests live here.

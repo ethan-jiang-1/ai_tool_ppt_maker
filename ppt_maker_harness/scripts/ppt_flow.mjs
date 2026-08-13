@@ -12,9 +12,9 @@
  * Uses commander for CLI. Delegates to:
  *   - bundle_layout.mjs         — directory SSOT, init, check, create_version
  *   - env-check.mjs             — environment health check (subprocess)
- *   - lib/state.mjs             — state / gates (state command)
+ *   - shared/state/state.mjs    — state / gates (state command)
  *
- * Hard failures: JSON envelope on last non-empty stderr line (lib/cli_error.mjs).
+ * Hard failures: JSON envelope on last non-empty stderr line (shared/cli/cli_error.mjs).
  */
 
 import "./shared/cli/cli_bootstrap.mjs?entry=ppt_flow.mjs";
