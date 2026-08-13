@@ -24,6 +24,72 @@ export const LINK_EXCEPTIONS = Object.freeze([
   }),
 ]);
 
+const TERMINOLOGY_AUTHORITY_REQUIREMENTS = Object.freeze([
+  Object.freeze({
+    file: "AGENTS.md",
+    required: ["CONTEXT.md", "openspec/specs/<capability>/spec.md", "MD Controllers", "schema/"],
+    forbidden: ["自然语言意图路由（附录）"],
+  }),
+  Object.freeze({
+    file: "CONTEXT.md",
+    required: ["Normative Harness Specification", "openspec/specs/", "Workflow Meanings", "NN_slideID"],
+    forbidden: ["**HTML Production**", "reviewed visual-slot asset"],
+  }),
+  Object.freeze({
+    file: "ppt_maker_harness/AGENTS.md",
+    required: ["`page-image-workflow` names the pipeline", "version-level selection", "../openspec/specs/", "../CONTEXT.md"],
+    forbidden: [],
+  }),
+  Object.freeze({
+    file: "ppt_maker_harness/BOOTSTRAP.md",
+    required: ["`ppt_flow init`", "`bundle_layout.mjs --init`", "Reserved Header Region", "Provider Avoidance Constraint", "不证明 Provider compliance"],
+    forbidden: [],
+  }),
+  Object.freeze({
+    file: "ppt_maker_harness/COMMANDS.md",
+    required: ["Intent Route Catalog", "MD Controllers", "controller manifest"],
+    forbidden: ["[discovery catalog]"],
+  }),
+  Object.freeze({
+    file: "ppt_maker_harness/charter/AGENT_CONTRACT.md",
+    required: ["Intent Route Catalog", "MD Controllers", "controller manifest"],
+    forbidden: [],
+  }),
+  Object.freeze({
+    file: "ppt_maker_harness/charter/CONSTITUTION.md",
+    required: ["page-image-style-master-iterations", "style-master-prompt.md", "page-image-visual-language.yaml", "pure-deck-visual-system.yaml", "ppt_flow.mjs init", "lower-level"],
+    forbidden: [],
+  }),
+  Object.freeze({
+    file: "ppt_maker_harness/reference/glossary.md",
+    required: ["production schema definitions", "page-image-style-master-iterations", "style-master-prompt.md", "page-image-visual-language.yaml", "page-image-presentation/", "NN_slideID", "not a second workflow value"],
+    forbidden: ["1_upstream_raw_material/style-master-iterations/"],
+  }),
+]);
+
+export function validateTerminologyAuthorityPointers({ root = ".", readFile = readFileSync } = {}) {
+  const issues = [];
+  for (const requirement of TERMINOLOGY_AUTHORITY_REQUIREMENTS) {
+    const path = join(root, requirement.file);
+    if (!existsSync(path)) {
+      issues.push(issue(requirement.file, 1, "terminology-authority", "required active guidance is missing", "restore the current ownership guidance"));
+      continue;
+    }
+    const text = readFile(path, "utf8");
+    for (const needle of requirement.required) {
+      if (!text.includes(needle)) {
+        issues.push(issue(requirement.file, 1, "terminology-authority", `missing current guidance: ${needle}`, "restore the owning capability's terminology"));
+      }
+    }
+    for (const needle of requirement.forbidden) {
+      if (text.includes(needle)) {
+        issues.push(issue(requirement.file, 1, "terminology-authority", `stale active guidance: ${needle}`, "replace the retired prose without renaming machine contracts"));
+      }
+    }
+  }
+  return issues;
+}
+
 
 function walk(dir, output = []) {
   for (const name of readdirSync(dir)) {
@@ -227,7 +293,11 @@ export function validateDiagnosticAuthorityPointers({ root = "." } = {}) {
 }
 
 export function scanHarnessCoherence({ root = "ppt_maker_harness", exceptions = DOC_EXCEPTIONS, linkExceptions = LINK_EXCEPTIONS } = {}) {
-  const issues = [...validateExceptionMap(exceptions, linkExceptions), ...validateDiagnosticAuthorityPointers()];
+  const issues = [
+    ...validateExceptionMap(exceptions, linkExceptions),
+    ...validateDiagnosticAuthorityPointers(),
+    ...validateTerminologyAuthorityPointers(),
+  ];
   const markdown = walk(root).filter((file) => file.endsWith(".md"));
   const scriptsDir = join(root, "scripts");
   const activeSurfaceFiles = {};

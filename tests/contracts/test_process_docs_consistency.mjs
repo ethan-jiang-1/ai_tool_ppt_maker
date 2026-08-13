@@ -8,6 +8,7 @@ import {
   validateDiagnosticAuthorityPointers,
   validateExceptionMap,
   validatePseudocodeMarkers,
+  validateTerminologyAuthorityPointers,
 } from "../../ppt_maker_harness/scripts/contracts/harness_coherence.mjs";
 import { validateDocumentedCommands } from "../../ppt_maker_harness/scripts/contracts/harness_document_command_audit.mjs";
 
@@ -47,6 +48,23 @@ describe("Harness documentation coherence", () => {
     const cliSpec = readFileSync("openspec/specs/cli-surface/spec.md", "utf8");
     expect(cliSpec).toMatch(/fixed 12-command unified entry\s+point/);
     expect(validateDiagnosticAuthorityPointers()).toEqual([]);
+  });
+
+  it("keeps terminology and authority claims scoped to their active owners", () => {
+    expect(validateTerminologyAuthorityPointers()).toEqual([]);
+    const root = process.cwd();
+    const context = readFileSync("CONTEXT.md", "utf8");
+    const bootstrap = readFileSync("ppt_maker_harness/BOOTSTRAP.md", "utf8");
+    expect(context).not.toContain("**HTML Production**");
+    expect(context).not.toContain("reviewed visual-slot asset");
+    expect(bootstrap).toContain("Reserved Header Region");
+    expect(bootstrap).toContain("Provider Avoidance Constraint");
+    expect(validateTerminologyAuthorityPointers({
+      root,
+      readFile: (path, encoding) => path.endsWith("CONTEXT.md")
+        ? `${readFileSync(path, encoding)}\n**HTML Production**`
+        : readFileSync(path, encoding),
+    }).some((item) => item.rule === "terminology-authority")).toBe(true);
   });
 
   it("keeps current guidance and main specifications free of retired protocol prose", () => {

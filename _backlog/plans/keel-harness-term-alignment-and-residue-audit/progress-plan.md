@@ -41,6 +41,14 @@
 
 - [x] C1 propose（已归档至 `openspec/changes/archive/2026-08-13-retire-lifecycle-phase-numbering/`，主规范已同步）
 - [x] C1 apply + archive（focused tests、`npm test`、`openspec validate --all --strict`、`git diff --check` 均通过）
-- [ ] C2 propose
-- [ ] C2 apply
+- [x] C2 propose（`align-harness-terminology-and-authority` 的 proposal/specs/design/tasks 已完成并通过 strict validation）
+- [x] C2 apply + archive（已归档至 `openspec/changes/archive/2026-08-13-align-harness-terminology-and-authority/`；focused docs-consistency test、`npm test`、`openspec validate align-harness-terminology-and-authority --strict`、`openspec validate --all --strict`、`git diff --check` 均通过，主规范已同步）
 - [ ] H 逐项确认 + 执行
+
+## 下一步
+
+术语和权威对齐工作（C1、C2）已经完成；没有 active OpenSpec change。接下来仅剩 H housekeeping，按 `residue-list.md` 的确认顺序推进：
+
+1. 确认旧 deck todo 是归档还是继续维护。
+2. 确认 `_suspeded_plans/` 与 sibling `_suspened_bugs/` 是更名，还是保留历史路径并补索引。
+3. 以上决定明确后，删除三个零引用的 gitignored 残留，并刷新 `.env.example`、两个 `_backlog` README 与 ADR 0005–0007 的状态。

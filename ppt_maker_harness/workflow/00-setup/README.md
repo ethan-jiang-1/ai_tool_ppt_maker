@@ -51,8 +51,8 @@ agent_action: navigate
 | 文件 | 内容 |
 |------|------|
 | `CONSTITUTION.md` | 结构宪法——run bundle 目录结构权威声明 (SSOT: bundle_layout.mjs) |
-| `WORKFLOW.md` | 流程宪法——5 Phase + 刷新/结构路径 + Gate |
-| `AGENT_CONTRACT.md` | 行为宪法——11 条铁律 |
+| `WORKFLOW.md` | 流程宪法——method graph、刷新/结构路径与 Gate |
+| `AGENT_CONTRACT.md` | 行为宪法——Agent Contract |
 
 ## 核心原则
 

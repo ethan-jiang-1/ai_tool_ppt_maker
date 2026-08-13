@@ -104,6 +104,9 @@ deck_{NAME}/
 │   └── *.md | *.yaml                 ← one lesson per file (e.g. image2-proven.yaml)
 │
 ├── 1_upstream_raw_material/          ← 上游 UPSTREAM · raw material · shared · append-mostly · no versions
+│   └── page-image-style-master-iterations/
+│       ├── plans/<plan-sha256>/       ← immutable Style Master candidate history
+│       └── scopes/vN/{framed,pure}/head.json ← one mutable current-plan pointer per scope
 │
 ├── 2_backbone/                       ← 中游 BACKBONE · 主干/default source-of-truth · shared · stable
 │   ├── core-metaphor.md
@@ -112,9 +115,11 @@ deck_{NAME}/
 │   ├── story-outline.md
 │   ├── manuscript/
 │   └── visual-style/
-│       ├── style-master-prompt.md
+│       ├── style-master-prompt.md      ← current Style Master intent source
 │       ├── style_master.jpg
-│       └── page-image-visual-language.yaml
+│       ├── page-image-visual-language.yaml ← current shared Page Image visual-language source
+│       └── page-image-presentation/
+│           └── pure-deck-visual-system.yaml ← Pure-only source; version override mirrors this relative path
 │
 └── 3_versions/                       ← 下游 DOWNSTREAM · 微调+生产 · versions live here
     ├── v1/                               ← --run-dir (one design iteration = downstream delta)
@@ -148,6 +153,16 @@ deck_{NAME}/
 ```
 
 ## 初始化
+
+Deck Author 的支持 public entry 是：
+
+```
+node ppt_maker_harness/scripts/ppt_flow.mjs init deck_<name> \
+  --deck-type keynote --style dark-executive
+```
+
+`bundle_layout.mjs --init` 是 layout owner 维持同一初始化契约的 lower-level
+interface，不是另一条 public startup route：
 
 ```
 node ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs --init deck_<name> \

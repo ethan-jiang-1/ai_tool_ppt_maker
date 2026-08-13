@@ -1,6 +1,20 @@
 # AI PPT Production
 
-This context names the durable concepts used to author, version, render, and assemble an AI-generated presentation without confusing page identity with current order.
+This terminology reference names the durable concepts used to author, version,
+render, and assemble an AI-generated presentation without confusing page
+identity with current order. It does not define behavior: `openspec/specs/` is
+the Normative Harness Specification, while the owning Charter, MD Controller,
+CLI, and run-bundle source remain their respective sources of record.
+
+## Authority Navigation
+
+| Need | Current authority |
+| --- | --- |
+| Intended Harness behavior | `openspec/specs/<capability>/spec.md`, plus the active delta for that capability |
+| Canonical terminology | This reference |
+| Agent process and decisions | The applicable `playbook/` MD Controller and controller manifest |
+| Deterministic command/state behavior | The owning CLI and its capability specification |
+| Run-bundle paths and layout | `bundle_layout.mjs` and `run-bundle-layout` |
 
 ## Language
 
@@ -33,7 +47,11 @@ The source and verification area used to evolve a PPT Maker Harness, including i
 _Avoid_: Harness Root alone, a Deck workspace
 
 **Normative Harness Specification**:
-The active contract that states intended Harness behavior within the Harness Maintenance Domain. Harness guidance, implementation, and tests conform to it; a contradiction is resolved explicitly rather than silently choosing one source.
+The active `openspec/specs/<capability>/spec.md` contract that states intended
+Harness behavior within the Harness Maintenance Domain. Harness guidance,
+implementation, and tests conform to it; a contradiction is resolved explicitly
+rather than silently choosing one source. An active change delta adds only its
+declared capability changes.
 _Avoid_: An advisory document, an implementation-only rule
 
 **Harness Binding**:
@@ -57,8 +75,12 @@ A presentation work with one audience, objective, and narrative continuity acros
 _Avoid_: Project, PPT file
 
 **Slide Identity**:
-The durable identity of one conceptual page across title edits, reordering, and work versions; it is expressed by `slide_id`.
-_Avoid_: Page number, heading number, filename
+The durable identity of one conceptual page across title edits, reordering, and
+work versions; it is expressed by `slide_id`. A final filename projects it as
+`NN_slideID`: the zero-padded current Position plus the exact formal identity
+literal. That projection is not a second identity field, selector, or schema
+conversion.
+_Avoid_: Page number, heading number, filename as identity
 
 **Position**:
 The mutable 1-based place of a slide in the current work version, derived from slide-block order.
@@ -76,13 +98,11 @@ _Avoid_: Git commit, Harness release
 A rendered representation of one Slide Identity for a specific render engine and artifact kind under a particular content fingerprint.
 _Avoid_: Slide, page position
 
-**HTML Production**:
-The production family that composes final pages locally from structured HTML source. It is parallel to Image Production; it is not a prerequisite for every Deck.
-_Avoid_: The only production path
-
 **Image Production**:
-The production family that uses an image model to create either a whole-page page composition or a reviewed visual-slot asset. A local Framed header overlay does not turn whole-page Image Production into visual-slot production or HTML Production.
-_Avoid_: Refinement as the umbrella name, a synonym for provider authorization, or a required post-HTML phase
+The current whole-page Page Image Workflow capability family. The Provider
+creates the page composition, while Framed's deterministic local header overlay
+remains part of that same workflow rather than a second production family.
+_Avoid_: A visual-slot branch, refinement as an umbrella name, or a synonym for provider authorization
 
 ### Deck Narrative
 
@@ -192,8 +212,11 @@ _Avoid_: Header Profile, a per-class style menu, a per-slide typography override
 
 **Reserved Header Region**:
 The normalized spatial region owned exclusively by Framed's deterministic local
-header renderer, declared by the Header Overlay Preset. Provider compliance
-with it is requested separately and then human-reviewed.
+header renderer, declared by the Header Overlay Preset. It is represented by
+existing profile and serialization fields such as `header_region`,
+`protected_composition`, `reserved_header`, and `body_safe`; these literal
+contracts are not terminology aliases. Provider compliance with the derived
+avoidance instruction is requested separately and then human-reviewed.
 _Avoid_: Provider Avoidance Constraint, Protected Zone, per-slide header styling
 
 **Provider Avoidance Constraint**:
@@ -241,6 +264,12 @@ _Avoid_: Implicit paraphrase, provider-authored facts, a blanket rewrite permiss
 **Page Image Workflow**:
 The Harness-owned route that uses Image2 knowledge to compile canonical content, visual direction, and composition constraints into auditable rendering inputs for a complete page. Pure compiles one full-page provider input; Framed coordinates a provider page input with a local header-renderer input, using Presentation-Adaptable Copy only when the source explicitly grants it.
 _Avoid_: A content author, a free-form prompt, a per-slide authority choice
+
+**Workflow Meanings**:
+`page-image-workflow` is the pipeline literal. `production.workflow: framed|pure`
+is the single selected workflow for one Work Version. Method modules and MD
+Controller guidance describe how the Agent proceeds; neither introduces another
+protocol or version-level workflow value.
 
 **Compiled Provider Input**:
 The exact provider request bytes produced by a Page Image Workflow and bound into authorization and evidence lineage. For Framed it is distinct from the local header-renderer input and carries the provider-facing content and avoidance/controller facts selected for that page.

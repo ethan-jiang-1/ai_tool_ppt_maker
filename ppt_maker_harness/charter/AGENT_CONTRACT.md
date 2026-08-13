@@ -110,9 +110,11 @@ PPT Maker Harness capability.
 
 ## Intent Discovery Handoff
 
-`playbook/intent-routes.json` is a closed discovery catalog, not a parser,
-dispatcher, Controller, or authorization record. The Agent interprets the
-user's words and uses the catalog only to check the first safe handoff.
+`playbook/` is the home of MD Controllers and their normative controller manifest.
+`playbook/intent-routes.json` is the closed Intent Route Catalog, not
+a parser, dispatcher, Controller, or authorization record. The Agent interprets
+the user's words and uses the catalog only to check the first safe handoff before
+following the applicable Controller.
 
 For a known exact run, keep this precedence:
 

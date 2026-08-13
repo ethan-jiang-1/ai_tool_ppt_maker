@@ -34,9 +34,11 @@ decisions.
 
 ## Agent Routing Reference
 
-The [discovery catalog](playbook/intent-routes.json) is static validation
-for the first safe handoff, not an execution mechanism. Interpret the user's
-language conversationally, then follow these existing owners:
+The [Intent Route Catalog](playbook/intent-routes.json) is a closed, static
+first-safe-handoff catalog, not an execution mechanism. `playbook/` is the home
+of MD Controllers and their normative controller manifest. Interpret the user's
+language conversationally, use the catalog only for discovery, then follow these
+existing Controller and capability owners:
 
 - For a known exact run, an explicit change enters the current
   [change classifier](scripts/06-iteration/change-classifier.md). Otherwise,
