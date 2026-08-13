@@ -1,8 +1,8 @@
 # Harness Signal Cleanup - Progress Plan
 
 > Type: program control sheet | Updated: 2026-08-13
-> Program status: `ready`
-> Current gate: start Change 1 only after a fresh branch/SHA admission check
+> Program status: `active`
+> Current gate: review Change 1 artifacts, then enter the OpenSpec apply workflow
 
 This file tracks program-level execution and evidence. It is not a second source
 of truth for behavior: each OpenSpec change owns its WHY/WHAT/HOW/tasks, current
@@ -85,7 +85,7 @@ unsettled authority surface.
 | Order | Work item | Status | Depends on | Evidence path | Closure commit |
 | --- | --- | --- | --- | --- | --- |
 | 0 | Investigation and baseline | `done` | - | this plan package | `71e1f85` |
-| 1 | `converge-active-harness-authority` | `ready` | 0 | - | - |
+| 1 | `converge-active-harness-authority` | `active` | 0 | `openspec/changes/converge-active-harness-authority/` | - |
 | 2 | `retire-historical-protocol-surfaces` | `not-started` | 1 | - | - |
 | 3 | `remove-competing-agent-routing-surfaces` | `not-started` | 2 | - | - |
 | 4 | `close-controller-metadata-schema` | `not-started` | 3 | - | - |
@@ -154,17 +154,17 @@ openspec validate --all --strict --no-interactive
 
 ## 1. `converge-active-harness-authority`
 
-Status: `ready`
+Status: `active`
 
 Lifecycle:
 
-- [ ] `admission`
-- [ ] `scaffold`
-- [ ] `proposal`
-- [ ] `specs`
-- [ ] `design`
-- [ ] `tasks`
-- [ ] `artifact-validation`
+- [x] `admission`
+- [x] `scaffold`
+- [x] `proposal`
+- [x] `specs`
+- [x] `design`
+- [x] `tasks`
+- [x] `artifact-validation`
 - [ ] `apply`
 - [ ] `focused-verification`
 - [ ] `baseline-and-residue`
@@ -188,7 +188,7 @@ Change-specific closure:
   controls.
 - [ ] Prove every literal authority path exists and every current spec is
   represented exactly once.
-- [ ] Record active path: `-`
+- [x] Record active path: `openspec/changes/converge-active-harness-authority/`
 - [ ] Record archive path: `-`
 - [ ] Record closure SHA: `-`
 
@@ -434,3 +434,4 @@ OpenSpec artifacts and commits hold the detail.
 | --- | --- | --- | --- | --- |
 | 2026-08-13 | Investigation | Baseline and cleanup program completed | `71e1f85` | Codex |
 | 2026-08-13 | Progress control | Checklist created; no OpenSpec change started | `progress-plan.md` | Codex |
+| 2026-08-13 | Change 1 | Proposal, delta, design, and tasks strictly validated; implementation not started | `openspec/changes/converge-active-harness-authority/` | Codex |
