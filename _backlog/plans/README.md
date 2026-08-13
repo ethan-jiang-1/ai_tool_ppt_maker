@@ -17,7 +17,7 @@
 
 ## 活跃列表
 
-当前没有活跃 plan。
+- [`harness-signal-cleanup/`](harness-signal-cleanup/) — Keel 架构/腐化审计：收敛当前权威、删除历史协议与竞争 Agent surface、补可证伪守卫；实施走分批 OpenSpec change。
 
 **Next available plan ID: CLS-034**（移入 `_closed_plans/` 时分配；CLS-001…033 已用）
 
