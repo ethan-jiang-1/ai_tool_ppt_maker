@@ -2,7 +2,7 @@
 
 > Type: program control sheet | Updated: 2026-08-13
 > Program status: `active`
-> Current gate: Change 1 implementation is complete; archive it through OpenSpec before the next cleanup change
+> Current gate: push and reconcile Change 1 normally, then admit Change 2
 
 This file tracks program-level execution and evidence. It is not a second source
 of truth for behavior: each OpenSpec change owns its WHY/WHAT/HOW/tasks, current
@@ -154,7 +154,7 @@ openspec validate --all --strict --no-interactive
 
 ## 1. `converge-active-harness-authority`
 
-Status: `active`; implementation and archive complete, awaiting ordinary commit and push.
+Status: `active`; implementation, archive, and ordinary commit complete, awaiting push reconciliation.
 
 Lifecycle:
 
@@ -169,7 +169,7 @@ Lifecycle:
 - [x] `focused-verification`
 - [x] `baseline-and-residue`
 - [x] `archive`
-- [ ] `commit`
+- [x] `commit`
 - [ ] `push-and-reconcile`
 
 Change-specific closure:
@@ -190,7 +190,7 @@ Change-specific closure:
   represented exactly once.
 - [x] Record active path: `openspec/changes/converge-active-harness-authority/`
 - [x] Record archive path: `openspec/changes/archive/2026-08-13-converge-active-harness-authority/`
-- [ ] Record closure SHA: `-`
+- [x] Record closure SHA: `640727a`
 
 ## 2. `retire-historical-protocol-surfaces`
 
@@ -440,3 +440,4 @@ OpenSpec artifacts and commits hold the detail.
 | 2026-08-13 | Change 1 | Baseline verification passed without provider work or production-data changes | `npm test` passed; `npm run test:sweep`: 68 files/552 tests; `openspec validate converge-active-harness-authority --strict --no-interactive` passed; `openspec validate --all --strict --no-interactive`: 28/28; `git diff --check` passed | Codex |
 | 2026-08-13 | Change 1 | Final implementation diff reviewed against proposal, delta, design, and Change 1 closure checklist; all 15 OpenSpec tasks are complete | authority map uses the existing coherence checkpoint and manifest admission; no CLI/state/provider/run-bundle surface added; archive, commit, and push remain intentionally pending | Codex |
 | 2026-08-13 | Change 1 | Archived after synchronizing the `harness-charter` delta to its main spec; no active OpenSpec changes remain | `openspec/changes/archive/2026-08-13-converge-active-harness-authority/`; post-archive `openspec validate --all --strict --no-interactive`: 27/27 | Codex |
+| 2026-08-13 | Change 1 | Ordinary implementation/archive commit created after exact-path staged-diff review | `640727a` (`refactor(harness): converge active authority`) | Codex |
