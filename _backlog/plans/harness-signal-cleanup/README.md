@@ -35,6 +35,8 @@ Out of scope:
 
 ## Documents
 
+- [progress-plan.md](progress-plan.md) - operational checklist, dependencies,
+  OpenSpec gates, and local/remote closure evidence
 - [findings.md](findings.md) - grounded contradictions, residue, and unknowns
 - [program.md](program.md) - ordered OpenSpec-ready cleanup batches
 - [deletion-matrix.md](deletion-matrix.md) - delete/absorb/decide/retain disposition
