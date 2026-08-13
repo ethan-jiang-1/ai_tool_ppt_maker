@@ -84,7 +84,7 @@ When a current initialized run begins a playbook execution, _state/state.yaml SH
 
 ### Requirement: probe-image-channels playbook runs doctor channel体检
 
-`probe-image-channels.md` SHALL remain the shared Phase-0 / `00-setup` Image2
+`probe-image-channels.md` SHALL remain the shared `00-setup` Image2
 environment-diagnostic controller. It SHALL orchestrate intake, offline
 presence/resolver-count inspection, disclosure of expected provider
 submissions, human confirmation, `ppt_flow doctor --probe-vendors` with
@@ -175,15 +175,27 @@ When an agent (or playbook step) creates a disposable backup or draft of version
 
 ### Requirement: Registered playbooks pass machine validation
 
-Every active controller/shared node SHALL pass the canonical node-specification validator. A checked-in
-normative manifest SHALL bind the expected controller/shared-node inventory, globally unique IDs, exact order,
-pipeline ownership, lifecycle/module values, includes/requires, conditions, decisions, selected-workflow
-`draft_route_nodes`, and existing Phase-4 ownership rules. A node MAY declare `draft_route: true` only when the
-manifest places it in the exact create-deck workflow's unbound source-to-first-raw route. Validation SHALL reject
-missing, extra, duplicated, sibling-workflow, post-raw, or non-create-deck draft-route entries and SHALL not rely
-on a stale hard-coded count alone. The optional key SHALL be either absent or the literal Boolean `true`;
-explicit `false`, strings, numbers, null, and duplicate YAML keys SHALL be rejected rather than normalized into
-a second representation of non-routability.
+Every active controller/shared node SHALL pass the canonical node-specification
+validator. The validator SHALL bind the expected controller/shared-node
+inventory, globally unique IDs, exact order, pipeline ownership, valid
+`method_module` values, includes/requires, conditions, decisions,
+selected-workflow `draft_route_nodes`, and existing target-module ownership
+rules. Its checked-in normative manifest SHALL bind the controller/shared-node
+inventory, exact controller-node order, supported-pipeline declarations, and
+selected-workflow `draft_route_nodes`. A node MAY declare `draft_route: true`
+only when the manifest places it in the exact create-deck workflow's unbound
+source-to-first-raw route. Validation SHALL reject missing, extra, duplicated,
+sibling-workflow, post-raw, or non-create-deck draft-route entries and SHALL
+not rely on a stale hard-coded count alone. The optional key SHALL be either
+absent or the literal Boolean `true`; explicit `false`, strings, numbers, null,
+and duplicate YAML keys SHALL be rejected rather than normalized into a second
+representation of non-routability.
+
+`method_module` SHALL be the only bound lifecycle-location declaration. The
+validator SHALL NOT require, normalize, derive a lifecycle decision from, or
+emit a lifecycle-specific diagnostic for numeric `lifecycle_phase` or legacy
+`phase` metadata. This requirement does not determine the reader's general
+handling of otherwise unconsumed node-frontmatter keys.
 
 #### Scenario: Draft-route projection matches playbooks
 
@@ -196,6 +208,15 @@ a second representation of non-routability.
 - **WHEN** a node declares `draft_route` as false, a string, number, null, or duplicate key
 - **THEN** canonical node parsing fails before Controller indexing or draft routing
 - **AND** absence remains the only representation of a node that is not draft-routable
+
+#### Scenario: Method module is the only lifecycle binding
+
+- **WHEN** a registered node declares a valid `method_module` and omits
+  `lifecycle_phase`
+- **THEN** the canonical validator accepts its lifecycle location subject to the
+  existing module, adapter, and workflow ownership checks
+- **AND** it produces no numeric lifecycle-derived field or phase-specific
+  diagnostic
 
 ### Requirement: Structural verification is identity-aware
 

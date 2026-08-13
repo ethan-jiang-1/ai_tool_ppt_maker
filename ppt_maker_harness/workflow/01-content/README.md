@@ -7,7 +7,7 @@ feeds_into:
   - workflow/01-content/00-the-problem-why-slide-count-fails.md
 ---
 
-# Phase 1: Page Image Content
+# 01-content: Page Image Content
 
 Turn the brief into an ordered, reviewable Page Image source before any raw
 generation. First record the shared `2_backbone/story-outline.md` and focused

@@ -7,7 +7,7 @@ summary: 深紫、cyan 与 magenta 高对比系统；适合融资 pitch 与产�
 depends_on:
 - workflow/02-visual-system/README.md
 feeds_into:
-- AGENTS.md (Phase 2)
+- AGENTS.md (02-visual-system)
 agent_action: recommend
 ---
 

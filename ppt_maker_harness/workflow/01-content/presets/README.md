@@ -7,7 +7,7 @@ summary: 内容设计预设文件的总索引。Agent 在 BOOTSTRAP Step 3 使�
 depends_on:
 - BOOTSTRAP.md
 feeds_into:
-- AGENTS.md (Phase 1)
+- AGENTS.md (01-content)
 agent_action: navigate
 ---
 
@@ -42,7 +42,7 @@ agent_action: navigate
    ↓
 6. 从隐喻推导公式（参考 formula-catalog.md）
    ↓
-7. 用户确认后 → 进入 AGENTS.md Phase 1 填充 deck brief
+7. 用户确认后 → 进入 AGENTS.md 01-content 填充 deck brief
 ```
 
 ## 关键原则

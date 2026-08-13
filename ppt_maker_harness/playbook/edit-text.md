@@ -10,7 +10,6 @@ includes: [classify-change]
 ### refresh-target-framed-text
 ```yaml
 node: refresh-target-framed-text
-lifecycle_phase: 5
 method_module: 06-iteration
 production_modes: [image2-page-workflow]
 production_workflows: [framed]
@@ -24,7 +23,6 @@ exit: [slide_specs_valid]
 ### refresh-target-pure-text
 ```yaml
 node: refresh-target-pure-text
-lifecycle_phase: 5
 method_module: 06-iteration
 production_modes: [image2-page-workflow]
 production_workflows: [pure]
@@ -38,7 +36,6 @@ exit: [slide_specs_valid]
 ### review-target-text-delivery
 ```yaml
 node: review-target-text-delivery
-lifecycle_phase: 5
 method_module: 06-iteration
 production_modes: [image2-page-workflow]
 production_workflows: [framed, pure]

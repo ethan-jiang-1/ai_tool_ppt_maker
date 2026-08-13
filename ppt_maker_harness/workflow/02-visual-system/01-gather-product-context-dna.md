@@ -104,7 +104,7 @@ agent_action: ask_questions
 | 硬件 / 未来感 / 需要材质光影 | 3D render |
 | 复杂 deck，不同 block 需要不同表达 | Mixed（如 diagram 主体 + 摄影锚点） |
 
-**两条铁律**：**Medium before color**（先定画风再配色，不是反过来）；**Don't ask the user to confirm what they can't see**（让用户在画风之间做选择题，不是在色板之间——他们看色板时分不出"素描 vs 矢量图解"）。medium 决策的完整方法见 `02-design-the-visual-system.md` 的 Dimension 0，Phase 2 的执行次序见 `AGENTS.md` §2.1a。
+**两条铁律**：**Medium before color**（先定画风再配色，不是反过来）；**Don't ask the user to confirm what they can't see**（让用户在画风之间做选择题，不是在色板之间——他们看色板时分不出"素描 vs 矢量图解"）。medium 决策的完整方法见 `02-design-the-visual-system.md` 的 Dimension 0，`02-visual-system` 的执行次序见 `AGENTS.md` §2.1a。
 
 ### Pillar C: Audience Expectations（听众预期）
 

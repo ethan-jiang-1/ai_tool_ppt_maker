@@ -3,7 +3,7 @@ title: "00 — Project Setup：项目初始化完整指南"
 stage: workflow/00-setup
 position: entry
 type: overview
-summary: "项目初始化完整指南——run bundle 概念、Node.js 环境、工具选择、命名约定。Agent 在 Phase 0 创建 run bundle 时参考。"
+summary: "项目初始化完整指南——run bundle 概念、Node.js 环境、工具选择、命名约定。Agent 在 00-setup 创建 run bundle 时参考。"
 depends_on: []
 feeds_into:
 - workflow/00-setup/00-run-bundle-concept.md
@@ -13,7 +13,7 @@ agent_action: navigate
 # 00 — Project Setup：项目初始化完整指南
 
 > **先读这个。** 3 分钟。
-> Agent 在 Phase 0 创建 run bundle 时参考本目录. 涵盖文件系统、Node.js 环境、工具选择、命名约定.
+> Agent 在 00-setup 创建 run bundle 时参考本目录. 涵盖文件系统、Node.js 环境、工具选择、命名约定.
 
 ## 这是什么
 

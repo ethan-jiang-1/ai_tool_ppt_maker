@@ -30,6 +30,8 @@ describe("Harness documentation coherence", () => {
   it("rejects broken links, stale commands, and broad exceptions", () => {
     expect(scanMarkdownLinks("/tmp/a/doc.md", "[bad](missing.md)")).toHaveLength(1);
     expect(scanSemanticDrift("doc.md", "Stage 2 uses image2-ppt skill")).toHaveLength(1);
+    expect(scanSemanticDrift("doc.md", "phase: 04").some((item) => item.rule === "hierarchy-ambiguity")).toBe(false);
+    expect(scanSemanticDrift("doc.md", "目录 = Stage").some((item) => item.rule === "hierarchy-ambiguity")).toBe(true);
     expect(validateExceptionMap({ "ppt_maker_harness/workflow/": "broad" })).toHaveLength(1);
     const commands = extractNodeCommands("doc.md", "```bash\nnode ppt_maker_harness/scripts/ppt_flow.mjs validate x --unexpected\n```");
     expect(validateDocumentedCommands(commands, "ppt_maker_harness/scripts").some((item) => item.rule === "unsupported-flag")).toBe(true);

@@ -24,7 +24,6 @@ import {
   PAGE_IMAGE_WORKFLOWS,
 } from "../run-bundle/production_marker.mjs";
 
-export const LIFECYCLE_PHASES = Object.freeze(["0", "1", "2", "3", "4", "5"]);
 export const METHOD_MODULES = Object.freeze([
   "00-setup",
   "01-content",
@@ -145,9 +144,7 @@ function parseSteps(body, startLine) {
 function normalizeNode(raw, meta) {
   return {
     id: raw?.node == null ? "" : String(raw.node),
-    lifecyclePhase: raw?.lifecycle_phase == null ? "" : String(raw.lifecycle_phase),
     methodModule: raw?.method_module == null ? "" : String(raw.method_module),
-    unsupportedPhase: raw?.phase,
     requires: asStringArray(raw?.requires),
     entry: asStringArray(raw?.entry),
     exit: asStringArray(raw?.exit),
@@ -390,17 +387,11 @@ function validateNodeShape(node, errors) {
   if (RESERVED_NODE_IDS.includes(node.id)) {
     addError(errors, node, "reserved-id", `${node.id} is reserved for system evidence`);
   }
-  if (node.unsupportedPhase != null) {
-    addError(errors, node, "unsupported-phase", "replace phase with lifecycle_phase and method_module");
-  }
   if (Object.hasOwn(node.raw || {}, "draft_route") && node.raw.draft_route !== true) {
     addError(errors, node, "draft-route", "draft_route may only be the literal Boolean true when present");
   }
   if (node.draftRoute && node.playbook !== "create-deck") {
     addError(errors, node, "draft-route", "draft_route is limited to create-deck nodes");
-  }
-  if (!LIFECYCLE_PHASES.includes(node.lifecyclePhase)) {
-    addError(errors, node, "lifecycle-phase", `invalid lifecycle_phase ${JSON.stringify(node.lifecyclePhase)}`);
   }
   if (!METHOD_MODULES.includes(node.methodModule)) {
     addError(errors, node, "method-module", `invalid method_module ${JSON.stringify(node.methodModule)}`);
@@ -408,15 +399,6 @@ function validateNodeShape(node, errors) {
   const targetStageFour = TARGET_STAGE_FOUR_MODULES.has(node.methodModule);
   const targetWorkflow = TARGET_WORKFLOW_MODULES[node.methodModule] || null;
   const targetModeOnly = hasExactSet(node.productionModes, [PAGE_IMAGE_WORKFLOW_PRODUCTION_MODE]);
-  if (node.lifecyclePhase === "4" && !targetStageFour) {
-    addError(errors, node, "phase4-ownership", "lifecycle 4 must be owned by target 03/04/05 module");
-  }
-  if (targetStageFour && node.lifecyclePhase !== "4") {
-    addError(errors, node, "target-lifecycle", `${node.methodModule} must use lifecycle_phase 4`);
-  }
-  if (node.methodModule === "06-iteration" && node.lifecyclePhase !== "5") {
-    addError(errors, node, "target-lifecycle", "06-iteration must use lifecycle_phase 5");
-  }
   if (targetStageFour && node.adapter !== "page-image-workflow") addError(errors, node, "image-production-adapter", "target 03/04/05 nodes require adapter: page-image-workflow");
   if (!targetStageFour && node.adapter != null) addError(errors, node, "image-production-adapter", "only target Page Image production nodes may declare an adapter");
   if (targetStageFour && (!targetModeOnly || node.playbook !== "create-deck")) {

@@ -1,6 +1,5 @@
 ---
 node: classify-change
-lifecycle_phase: "5"
 method_module: 06-iteration
 production_modes: [image2-page-workflow]
 production_workflows: [framed, pure]

@@ -20,7 +20,6 @@ Resolve every position/spoken selector to the current stable ID. New IDs are Age
 ### preview-target-structural-version
 ```yaml
 node: preview-target-structural-version
-lifecycle_phase: 5
 method_module: 06-iteration
 production_modes: [image2-page-workflow]
 production_workflows: [framed, pure]
@@ -36,7 +35,6 @@ exit: [user_decision_recorded]
 ### apply-target-structural-version
 ```yaml
 node: apply-target-structural-version
-lifecycle_phase: 5
 method_module: 06-iteration
 production_modes: [image2-page-workflow]
 production_workflows: [framed, pure]
@@ -50,7 +48,6 @@ exit: [evidence:target-structural-published]
 ### review-target-structural-route
 ```yaml
 node: review-target-structural-route
-lifecycle_phase: 5
 method_module: 06-iteration
 production_modes: [image2-page-workflow]
 production_workflows: [framed, pure]

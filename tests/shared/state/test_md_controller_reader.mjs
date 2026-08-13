@@ -83,8 +83,8 @@ describe("MD Controller reader characterization", () => {
       for (const id of ids) {
         const node = index.nodesById.get(id);
         expect(node, `${playbook}/${id}`).toBeDefined();
-        expect(node.lifecyclePhase).toMatch(/^(0|1|2|3|4|5)$/);
         expect(METHOD_MODULES).toContain(node.methodModule);
+        expect(Object.keys(node)).not.toContain(["lifecycle", "Phase"].join(""));
         expect(node.steps.length).toBeGreaterThan(0);
       }
     }
@@ -104,7 +104,7 @@ describe("MD Controller reader characterization", () => {
     const index = buildPlaybookIndex(PLAYBOOK_DIR);
     const pageImage = index.nodesById.get("generate-target-framed-pilot");
     const createDeck = index.controllers.get("create-deck");
-    expect(pageImage).toMatchObject({ lifecyclePhase: "4", methodModule: "03-framed-image", adapter: "page-image-workflow", productionModes: ["image2-page-workflow"] });
+    expect(pageImage).toMatchObject({ methodModule: "03-framed-image", adapter: "page-image-workflow", productionModes: ["image2-page-workflow"] });
     expect(nodeAppliesToMode(pageImage, createDeck.supportedProductionModes, "image2-page-workflow")).toBe(true);
     expect(nodeAppliesToMode(pageImage, createDeck.supportedProductionModes, "unsupported-mode")).toBe(false);
   });
@@ -240,21 +240,47 @@ describe("MD Controller reader characterization", () => {
     expect(mismatched.pending_nodes).toEqual(unresolved);
   });
 
-  it("rejects undeclared decisions, reserved ids, impossible ordering, and dependency cycles", () => {
+  it("accepts legacy phase as an unconsumed node key while rejecting other invalid controller declarations", () => {
     const dir = fixtureDir("invalid");
     try {
-      writeFileSync(join(dir, "bad.md"), `---\nplaybook: bad\nincludes: []\n---\n\n\`\`\`yaml\nnode: header-review\nlifecycle_phase: 4\nmethod_module: 05-iteration\nrequires: [later]\nentry: [node_status:header-review:completed]\nexit: [user_decision_recorded]\ndecisions: [yes]\n\`\`\`\n\n**Step 1 — GATE**: choose\n\n\`\`\`yaml\nnode: later\nphase: 04\nrequires: [header-review]\nentry: [node_decision:header-review:no]\nexit: []\n\`\`\`\n\n## Step 1 — MD\nlater\n`);
-      writeFileSync(join(dir, "duplicate.md"), `---\nplaybook: duplicate\nincludes: []\n---\n\n\`\`\`yaml\nnode: later\nlifecycle_phase: 4\nmethod_module: 05-iteration\nrequires: []\nentry: []\nexit: []\n\`\`\`\n\n**Step 1 — MD**: duplicate\n`);
+      writeFileSync(join(dir, "bad.md"), `---\nplaybook: bad\nincludes: []\n---\n\n\`\`\`yaml\nnode: header-review\nphase: 04\nmethod_module: 05-delivery\nrequires: [later]\nentry: [node_status:header-review:completed]\nexit: [user_decision_recorded]\ndecisions: [yes]\n\`\`\`\n\n**Step 1 — GATE**: choose\n\n\`\`\`yaml\nnode: later\nmethod_module: invalid-module\nrequires: [header-review]\nentry: [node_decision:header-review:no]\nexit: []\n\`\`\`\n\n## Step 1 — MD\nlater\n`);
+      writeFileSync(join(dir, "duplicate.md"), `---\nplaybook: duplicate\nincludes: []\n---\n\n\`\`\`yaml\nnode: later\nmethod_module: 05-delivery\nrequires: []\nentry: []\nexit: []\n\`\`\`\n\n**Step 1 — MD**: duplicate\n`);
       const result = validatePlaybookIndex(buildPlaybookIndex(dir));
       expect(result.valid).toBe(false);
       expect(result.errors.some((error) => error.rule === "requires-order")).toBe(true);
       expect(result.errors.some((error) => error.rule === "dependency-cycle")).toBe(true);
       expect(result.errors.some((error) => error.rule === "decision-value")).toBe(true);
       expect(result.errors.some((error) => error.rule === "self-entry")).toBe(true);
-      expect(result.errors.some((error) => error.rule === "unsupported-phase")).toBe(true);
-      expect(result.errors.some((error) => error.rule === "phase4-ownership")).toBe(true);
+      expect(result.errors.some((error) => error.rule === "method-module")).toBe(true);
+      expect(result.errors.some((error) => error.rule.includes("phase") || error.rule.includes("lifecycle"))).toBe(false);
+      expect(Object.keys(buildPlaybookIndex(dir).nodesById.get("header-review"))).not.toContain(["lifecycle", "Phase"].join(""));
       expect(result.errors.some((error) => error.rule === "duplicate-id")).toBe(true);
       expect(result.errors.some((error) => error.rule === "steps")).toBe(true);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("accepts legacy phase without a lifecycle projection or diagnostic", () => {
+    const dir = fixtureDir("legacy-phase");
+    try {
+      writeFileSync(join(dir, "legacy-phase.md"), `---\nnode: legacy-phase\nphase: 04\nmethod_module: 00-setup\nrequires: []\nentry: []\nexit: []\n---\n\n**Step 1 — MD**: read\n`);
+      const index = buildPlaybookIndex(dir);
+      expect(validatePlaybookIndex(index)).toMatchObject({ valid: true, errors: [] });
+      expect(index.nodesById.get("legacy-phase")).toMatchObject({ methodModule: "00-setup" });
+      expect(Object.keys(index.nodesById.get("legacy-phase"))).not.toContain(["lifecycle", "Phase"].join(""));
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("preserves target module adapter and workflow ownership checks", () => {
+    const dir = fixtureDir("target-ownership");
+    try {
+      writeFileSync(join(dir, "ownership.md"), `---\nplaybook: ownership\nsupported_pipelines: [page-image-workflow]\nincludes: []\n---\n\n\`\`\`yaml\nnode: target-without-owner-contract\nmethod_module: 03-framed-image\nproduction_modes: [image2-page-workflow]\nproduction_workflows: [pure]\nrequires: []\nentry: []\nexit: []\n\`\`\`\n\n**Step 1 — MD**: route\n`);
+      const result = validatePlaybookIndex(buildPlaybookIndex(dir));
+      expect(result.errors.some((error) => error.rule === "image-production-adapter")).toBe(true);
+      expect(result.errors.some((error) => error.rule === "production-workflows")).toBe(true);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -271,7 +297,6 @@ describe("MD Controller reader characterization", () => {
       "",
       "```yaml",
       "node: select-target-page-image-workflow",
-      "lifecycle_phase: 1",
       "method_module: 01-content",
       "production_modes: [image2-page-workflow]",
       "draft_route: true",
@@ -325,7 +350,6 @@ describe("MD Controller reader characterization", () => {
       "",
       "```yaml",
       "node: select-target-page-image-workflow",
-      "lifecycle_phase: 1",
       "method_module: 01-content",
       "production_modes: [image2-page-workflow]",
       `draft_route: ${value}`,

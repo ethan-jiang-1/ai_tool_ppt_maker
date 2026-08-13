@@ -146,7 +146,7 @@ export function scanSemanticDrift(file, text = readFileSync(file, "utf8")) {
     offset += line.length + 1;
   }
   const semanticRules = [
-    ["hierarchy-ambiguity", /(?:三个宏观 Phase|5 个 Phase|六个 Phase|目录\s*=\s*(?:阶段|Stage)|(?:^|\s)phase:\s*0?4\b)/i, "ambiguous lifecycle/module hierarchy", "use Lifecycle Phase, Method Module, Pipeline Stage, and Playbook Node explicitly"],
+    ["hierarchy-ambiguity", /(?:三个宏观 Phase|5 个 Phase|六个 Phase|目录\s*=\s*(?:阶段|Stage))/i, "ambiguous lifecycle/module hierarchy", "use Lifecycle Phase, Method Module, Pipeline Stage, and Playbook Node explicitly"],
   ];
   for (const [rule, regex, message, hint] of semanticRules) {
     for (const match of text.matchAll(new RegExp(regex.source, `${regex.flags}g`))) issues.push(issue(file, lineAt(text, match.index), rule, message, hint));

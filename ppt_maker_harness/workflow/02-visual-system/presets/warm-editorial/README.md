@@ -7,7 +7,7 @@ summary: 奶油底、炭黑、rust 与 sage；适合品牌故事、人文与编�
 depends_on:
 - workflow/02-visual-system/README.md
 feeds_into:
-- AGENTS.md (Phase 2)
+- AGENTS.md (02-visual-system)
 agent_action: recommend
 ---
 

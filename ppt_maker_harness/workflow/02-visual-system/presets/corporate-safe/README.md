@@ -7,7 +7,7 @@ summary: 白底、企业蓝与灰阶；适合金融、政府、法律与正式�
 depends_on:
 - workflow/02-visual-system/README.md
 feeds_into:
-- AGENTS.md (Phase 2)
+- AGENTS.md (02-visual-system)
 agent_action: recommend
 ---
 

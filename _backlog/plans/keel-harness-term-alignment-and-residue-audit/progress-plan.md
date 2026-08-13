@@ -39,8 +39,8 @@
 
 ## 状态
 
-- [x] C1 propose（`openspec/changes/retire-lifecycle-phase-numbering/`，`openspec validate --strict` 通过）
-- [ ] C1 apply
+- [x] C1 propose（已归档至 `openspec/changes/archive/2026-08-13-retire-lifecycle-phase-numbering/`，主规范已同步）
+- [x] C1 apply + archive（focused tests、`npm test`、`openspec validate --all --strict`、`git diff --check` 均通过）
 - [ ] C2 propose
 - [ ] C2 apply
 - [ ] H 逐项确认 + 执行
