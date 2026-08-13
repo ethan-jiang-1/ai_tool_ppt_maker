@@ -11,7 +11,8 @@
 _done/
 ├── README.md              # 本文件（状态总览 + 查阅指南）
 ├── _fixed_bugs/           # 已修复 Bug（编号权威源）
-├── _suspened_bugs/        # 悬挂 Bug（暂未确认修复）
+├── _suspended_bugs/       # 悬挂 Bug（暂未确认修复）
+├── _suspended_plans/      # 暂停 Plan（保留历史决策）
 ├── _done_todos/           # 已完成 TODO（DONE-NNN）
 └── _closed_plans/         # 已完成 Plan（CLS-NNN）
 ```
@@ -25,11 +26,12 @@ _done/
 | 归档目录 | 数量 | Next ID |
 |---------|------|---------|
 | `_fixed_bugs/` | 62 | BUG-067 |
-| `_suspened_bugs/` | 2 | — |
-| `_done_todos/` | 1 | DONE-002 |
-| `_closed_plans/` | 32 | CLS-033 |
+| `_suspended_bugs/` | 2 | — |
+| `_suspended_plans/` | 2 | — |
+| `_done_todos/` | 2 | DONE-003 |
+| `_closed_plans/` | 33 | CLS-034 |
 
-_（已修复 bug：BUG-001…037、040…063、065、066；BUG-038、039 悬挂。已关闭 plan：CLS-001…032。每次搬迁按 `../README.md` 的 ritual 更新对应计数与 Next ID。）_
+_（已修复 bug：BUG-001…037、040…063、065、066；BUG-038、039 悬挂。已关闭 plan：CLS-001…033。每次搬迁按 `../README.md` 的 ritual 更新对应计数与 Next ID。）_
 
 ---
 

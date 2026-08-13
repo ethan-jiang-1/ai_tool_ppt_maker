@@ -14,10 +14,11 @@ AI 驱动的 PPT 生成系统. Agent 是编排器——读方法论文档 → �
 ai_tool_ppt_maker/
 ├── ppt_maker_harness/        ← 方法论知识库 (soft bundle, 只读)
 │   ├── BOOTSTRAP.md           ← Agent 三步启动入口
-│   ├── charter/               ← 宪法 / 铁律 / 流程摘要
+│   ├── charter/               ← 宪法 / Agent Contract / 流程摘要
 │   ├── workflow/              ← 00-setup … 06-iteration 方法论
 │   ├── scripts/               ← 生产管线 (.mjs)
-│   ├── playbook/              ← 自然语言意图路由（附录）
+│   ├── playbook/              ← MD Controllers 与 controller manifest
+│   ├── schema/                ← 生产 schema 定义的唯一权威目录
 │   └── reference/             ← glossary / anti-patterns / quick-start
 ├── tests/                     ← 测试文件 (.mjs)
 ├── tests_e2e/                 ← 端到端测试
@@ -69,9 +70,14 @@ Agent 探索/理解 Harness 时只看上面 4 个源码目录。**做具体 deck
 
 ## 从哪里开始
 
-如果是做 PPT → 读 `ppt_maker_harness/BOOTSTRAP.md` → `ppt_maker_harness/charter/AGENT_CONTRACT.md`
-如果是改代码 → 看 `openspec/specs/` 和 `_backlog/`
-如果是修 bug → 看 `_backlog/bugs/`
+术语先查 [`CONTEXT.md`](CONTEXT.md)：它定义 canonical 名称，但不替代任何
+Controller、CLI 或 run-bundle source of record。Harness 的预期行为以
+`openspec/specs/<capability>/spec.md` 为规范；修改行为前先读对应 main spec，再读
+active change 的 delta。
+
+如果是做 PPT → 读 `ppt_maker_harness/BOOTSTRAP.md` → `ppt_maker_harness/charter/AGENT_CONTRACT.md` → 当前 MD Controller guidance
+如果是改代码 → 先找对应 `openspec/specs/` capability；`_backlog/` 仅在用户指定时读取
+如果是修 bug → 用户指定后再看 `_backlog/bugs/`
 
 ## CLI / MD 诊断维护路由
 

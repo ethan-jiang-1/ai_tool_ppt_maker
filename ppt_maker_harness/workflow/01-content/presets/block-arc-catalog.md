@@ -239,6 +239,6 @@ agent_action: pattern_match
 
 **错误 3：在 Vision->Roadmap 的 Destination 中讲 problem。** Destination Block 应该是 aspirational。如果你在 Destination 中花了 2 张 slide 讲当前的困境——那些属于 Current State Block。Destination 讲"我们要去哪里"，Current State 讲"我们现在在哪里"。混在一起让观众既没有感受到 aspiration 也没有感受到 honesty。
 
-**错误 4：在开始生产之前没有确定弧线。** 弧线决定了 deck 的顶层结构。如果你改了弧线（从 Problem->Solution 变成 Opportunity->Urgency），Block 序列完全不同。在生产了 10 张 slide 后再改弧线 = 重新设计 80% 的 deck。**在 Phase 1 确认弧线，Phase 2 确认 slide 内容，弧线确定后再进入生产。**
+**错误 4：在开始生产之前没有确定弧线。** 弧线决定了 deck 的顶层结构。如果你改了弧线（从 Problem->Solution 变成 Opportunity->Urgency），Block 序列完全不同。在生产了 10 张 slide 后再改弧线 = 重新设计 80% 的 deck。**在 `01-content` 确认弧线，`02-visual-system` 确认 slide 内容，弧线确定后再进入生产。**
 
 ---

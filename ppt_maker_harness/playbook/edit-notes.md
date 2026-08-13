@@ -10,7 +10,6 @@ includes: [classify-change]
 ### refresh-target-speaker-notes
 ```yaml
 node: refresh-target-speaker-notes
-lifecycle_phase: 5
 method_module: 06-iteration
 production_modes: [image2-page-workflow]
 production_workflows: [framed, pure]
@@ -24,7 +23,6 @@ exit: [speaker_notes_injected]
 ### verify-target-speaker-notes
 ```yaml
 node: verify-target-speaker-notes
-lifecycle_phase: 5
 method_module: 06-iteration
 production_modes: [image2-page-workflow]
 production_workflows: [framed, pure]

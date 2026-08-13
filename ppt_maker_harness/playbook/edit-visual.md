@@ -10,7 +10,6 @@ includes: [classify-change]
 ### refresh-target-framed-visual
 ```yaml
 node: refresh-target-framed-visual
-lifecycle_phase: 5
 method_module: 06-iteration
 production_modes: [image2-page-workflow]
 production_workflows: [framed]
@@ -26,7 +25,6 @@ presentation package at its named source and rerun this checkpoint.
 ### refresh-target-pure-visual
 ```yaml
 node: refresh-target-pure-visual
-lifecycle_phase: 5
 method_module: 06-iteration
 production_modes: [image2-page-workflow]
 production_workflows: [pure]
@@ -42,7 +40,6 @@ presentation package at its named source and rerun this checkpoint.
 ### review-target-visual-delivery
 ```yaml
 node: review-target-visual-delivery
-lifecycle_phase: 5
 method_module: 06-iteration
 production_modes: [image2-page-workflow]
 production_workflows: [framed, pure]

@@ -1,6 +1,6 @@
 # Unify Page Image Core And Header Rendering Policy
 
-Status: Proposed
+Status: Accepted
 
 Pure and Framed share one Page Image Core: the provider composes a full-canvas
 page and renders its provider-rendered content. `framed` remains a version-level

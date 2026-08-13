@@ -17,10 +17,9 @@
 
 ## 活跃列表
 
-目前没有活跃 plan。schema-first Page Image recovery 路线及其 C6、Pre-C7
-配套研究均已归档；未来的新工作先进入正常 Backlog triage，再建立独立 plan。
+当前没有活跃 plan。
 
-**Next available plan ID: CLS-033**（移入 `_closed_plans/` 时分配；CLS-001…032 已用）
+**Next available plan ID: CLS-034**（移入 `_closed_plans/` 时分配；CLS-001…033 已用）
 
 ---
 

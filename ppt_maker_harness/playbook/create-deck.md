@@ -19,7 +19,6 @@ existing owners retain those decisions.
 ### checkpoint-intake
 ```yaml
 node: checkpoint-intake
-lifecycle_phase: 0
 method_module: 00-setup
 requires: []
 produces: [deck-intake]
@@ -39,7 +38,6 @@ or approval inputs.
 ### author-target-narrative-sources
 ```yaml
 node: author-target-narrative-sources
-lifecycle_phase: 1
 method_module: 01-content
 production_modes: [image2-page-workflow]
 draft_route: true
@@ -99,7 +97,6 @@ never expand or submit a card reference.
 ### select-target-page-image-workflow
 ```yaml
 node: select-target-page-image-workflow
-lifecycle_phase: 1
 method_module: 01-content
 production_modes: [image2-page-workflow]
 draft_route: true
@@ -115,7 +112,6 @@ exit: [user_decision_recorded]
 ### configure-target-page-image-visual-system
 ```yaml
 node: configure-target-page-image-visual-system
-lifecycle_phase: 2
 method_module: 02-visual-system
 production_modes: [image2-page-workflow]
 production_workflows: [framed, pure]
@@ -130,7 +126,6 @@ exit: [visual_preset_seeded]
 ### author-target-page-image-content
 ```yaml
 node: author-target-page-image-content
-lifecycle_phase: 1
 method_module: 01-content
 production_modes: [image2-page-workflow]
 production_workflows: [framed, pure]
@@ -148,7 +143,6 @@ exit: [slide_specs_exists, slide_specs_valid]
 ### inspect-target-framed-style-master
 ```yaml
 node: inspect-target-framed-style-master
-lifecycle_phase: 2
 method_module: 02-visual-system
 production_modes: [image2-page-workflow]
 production_workflows: [framed]
@@ -163,7 +157,6 @@ exit: [evidence:target-framed-style-master-inspected]
 ### plan-target-framed-style-master
 ```yaml
 node: plan-target-framed-style-master
-lifecycle_phase: 2
 method_module: 02-visual-system
 production_modes: [image2-page-workflow]
 production_workflows: [framed]
@@ -179,7 +172,6 @@ exit: [evidence:target-framed-style-master-plan-current]
 ### authorize-target-framed-style-master
 ```yaml
 node: authorize-target-framed-style-master
-lifecycle_phase: 2
 method_module: 02-visual-system
 production_modes: [image2-page-workflow]
 production_workflows: [framed]
@@ -197,7 +189,6 @@ exit: [user_decision_recorded]
 ### generate-target-framed-style-master
 ```yaml
 node: generate-target-framed-style-master
-lifecycle_phase: 2
 method_module: 02-visual-system
 production_modes: [image2-page-workflow]
 production_workflows: [framed]
@@ -212,7 +203,6 @@ exit: [evidence:target-framed-style-master-progress]
 ### abandon-target-framed-style-master
 ```yaml
 node: abandon-target-framed-style-master
-lifecycle_phase: 2
 method_module: 02-visual-system
 production_modes: [image2-page-workflow]
 production_workflows: [framed]
@@ -228,7 +218,6 @@ exit: [evidence:target-framed-style-master-abandoned]
 ### review-target-framed-style-master
 ```yaml
 node: review-target-framed-style-master
-lifecycle_phase: 2
 method_module: 02-visual-system
 production_modes: [image2-page-workflow]
 production_workflows: [framed]
@@ -245,7 +234,6 @@ exit: [user_decision_recorded]
 ### promote-target-framed-style-master
 ```yaml
 node: promote-target-framed-style-master
-lifecycle_phase: 2
 method_module: 02-visual-system
 production_modes: [image2-page-workflow]
 production_workflows: [framed]
@@ -260,7 +248,6 @@ exit: [style_master_accepted]
 ### plan-target-framed-progressive-raw
 ```yaml
 node: plan-target-framed-progressive-raw
-lifecycle_phase: 4
 method_module: 03-framed-image
 adapter: page-image-workflow
 production_modes: [image2-page-workflow]
@@ -276,7 +263,6 @@ exit: [evidence:target-framed-progressive-raw-plan-current]
 ### recommend-target-framed-pilot
 ```yaml
 node: recommend-target-framed-pilot
-lifecycle_phase: 4
 method_module: 03-framed-image
 adapter: page-image-workflow
 production_modes: [image2-page-workflow]
@@ -292,7 +278,6 @@ exit: [evidence:target-framed-pilot-projection-current]
 ### authorize-target-framed-pilot
 ```yaml
 node: authorize-target-framed-pilot
-lifecycle_phase: 4
 method_module: 03-framed-image
 adapter: page-image-workflow
 production_modes: [image2-page-workflow]
@@ -307,7 +292,6 @@ exit: [evidence:exact-batch-grant-recorded]
 ### generate-target-framed-pilot
 ```yaml
 node: generate-target-framed-pilot
-lifecycle_phase: 4
 method_module: 03-framed-image
 adapter: page-image-workflow
 production_modes: [image2-page-workflow]
@@ -322,7 +306,6 @@ exit: [evidence:target-framed-pilot-item-progress]
 ### review-target-framed-pilot
 ```yaml
 node: review-target-framed-pilot
-lifecycle_phase: 4
 method_module: 03-framed-image
 adapter: page-image-workflow
 production_modes: [image2-page-workflow]
@@ -339,7 +322,6 @@ exit: [user_decision_recorded]
 ### plan-target-framed-expansion
 ```yaml
 node: plan-target-framed-expansion
-lifecycle_phase: 4
 method_module: 03-framed-image
 adapter: page-image-workflow
 production_modes: [image2-page-workflow]
@@ -354,7 +336,6 @@ exit: [evidence:target-framed-expansion-projection-current]
 ### authorize-target-framed-expansion
 ```yaml
 node: authorize-target-framed-expansion
-lifecycle_phase: 4
 method_module: 03-framed-image
 adapter: page-image-workflow
 production_modes: [image2-page-workflow]
@@ -369,7 +350,6 @@ exit: [evidence:exact-batch-grant-recorded]
 ### generate-target-framed-expansion
 ```yaml
 node: generate-target-framed-expansion
-lifecycle_phase: 4
 method_module: 03-framed-image
 adapter: page-image-workflow
 production_modes: [image2-page-workflow]
@@ -384,7 +364,6 @@ exit: [evidence:target-framed-expansion-item-progress]
 ### review-target-framed-raw
 ```yaml
 node: review-target-framed-raw
-lifecycle_phase: 4
 method_module: 03-framed-image
 adapter: page-image-workflow
 production_modes: [image2-page-workflow]
@@ -401,7 +380,6 @@ exit: [user_decision_recorded]
 ### publish-target-framed-final-manifest
 ```yaml
 node: publish-target-framed-final-manifest
-lifecycle_phase: 4
 method_module: 03-framed-image
 adapter: page-image-workflow
 production_modes: [image2-page-workflow]
@@ -416,7 +394,6 @@ exit: [evidence:target-framed-final-manifest-current]
 ### inspect-target-pure-style-master
 ```yaml
 node: inspect-target-pure-style-master
-lifecycle_phase: 2
 method_module: 02-visual-system
 production_modes: [image2-page-workflow]
 production_workflows: [pure]
@@ -431,7 +408,6 @@ exit: [evidence:target-pure-style-master-inspected]
 ### plan-target-pure-style-master
 ```yaml
 node: plan-target-pure-style-master
-lifecycle_phase: 2
 method_module: 02-visual-system
 production_modes: [image2-page-workflow]
 production_workflows: [pure]
@@ -447,7 +423,6 @@ exit: [evidence:target-pure-style-master-plan-current]
 ### authorize-target-pure-style-master
 ```yaml
 node: authorize-target-pure-style-master
-lifecycle_phase: 2
 method_module: 02-visual-system
 production_modes: [image2-page-workflow]
 production_workflows: [pure]
@@ -465,7 +440,6 @@ exit: [user_decision_recorded]
 ### generate-target-pure-style-master
 ```yaml
 node: generate-target-pure-style-master
-lifecycle_phase: 2
 method_module: 02-visual-system
 production_modes: [image2-page-workflow]
 production_workflows: [pure]
@@ -480,7 +454,6 @@ exit: [evidence:target-pure-style-master-progress]
 ### abandon-target-pure-style-master
 ```yaml
 node: abandon-target-pure-style-master
-lifecycle_phase: 2
 method_module: 02-visual-system
 production_modes: [image2-page-workflow]
 production_workflows: [pure]
@@ -496,7 +469,6 @@ exit: [evidence:target-pure-style-master-abandoned]
 ### review-target-pure-style-master
 ```yaml
 node: review-target-pure-style-master
-lifecycle_phase: 2
 method_module: 02-visual-system
 production_modes: [image2-page-workflow]
 production_workflows: [pure]
@@ -513,7 +485,6 @@ exit: [user_decision_recorded]
 ### promote-target-pure-style-master
 ```yaml
 node: promote-target-pure-style-master
-lifecycle_phase: 2
 method_module: 02-visual-system
 production_modes: [image2-page-workflow]
 production_workflows: [pure]
@@ -528,7 +499,6 @@ exit: [style_master_accepted]
 ### plan-target-pure-progressive-raw
 ```yaml
 node: plan-target-pure-progressive-raw
-lifecycle_phase: 4
 method_module: 04-pure-image
 adapter: page-image-workflow
 production_modes: [image2-page-workflow]
@@ -544,7 +514,6 @@ exit: [evidence:target-pure-progressive-raw-plan-current]
 ### recommend-target-pure-pilot
 ```yaml
 node: recommend-target-pure-pilot
-lifecycle_phase: 4
 method_module: 04-pure-image
 adapter: page-image-workflow
 production_modes: [image2-page-workflow]
@@ -560,7 +529,6 @@ exit: [evidence:target-pure-pilot-projection-current]
 ### authorize-target-pure-pilot
 ```yaml
 node: authorize-target-pure-pilot
-lifecycle_phase: 4
 method_module: 04-pure-image
 adapter: page-image-workflow
 production_modes: [image2-page-workflow]
@@ -575,7 +543,6 @@ exit: [evidence:exact-batch-grant-recorded]
 ### generate-target-pure-pilot
 ```yaml
 node: generate-target-pure-pilot
-lifecycle_phase: 4
 method_module: 04-pure-image
 adapter: page-image-workflow
 production_modes: [image2-page-workflow]
@@ -590,7 +557,6 @@ exit: [evidence:target-pure-pilot-item-progress]
 ### review-target-pure-pilot
 ```yaml
 node: review-target-pure-pilot
-lifecycle_phase: 4
 method_module: 04-pure-image
 adapter: page-image-workflow
 production_modes: [image2-page-workflow]
@@ -607,7 +573,6 @@ exit: [user_decision_recorded]
 ### plan-target-pure-expansion
 ```yaml
 node: plan-target-pure-expansion
-lifecycle_phase: 4
 method_module: 04-pure-image
 adapter: page-image-workflow
 production_modes: [image2-page-workflow]
@@ -622,7 +587,6 @@ exit: [evidence:target-pure-expansion-projection-current]
 ### authorize-target-pure-expansion
 ```yaml
 node: authorize-target-pure-expansion
-lifecycle_phase: 4
 method_module: 04-pure-image
 adapter: page-image-workflow
 production_modes: [image2-page-workflow]
@@ -637,7 +601,6 @@ exit: [evidence:exact-batch-grant-recorded]
 ### generate-target-pure-expansion
 ```yaml
 node: generate-target-pure-expansion
-lifecycle_phase: 4
 method_module: 04-pure-image
 adapter: page-image-workflow
 production_modes: [image2-page-workflow]
@@ -652,7 +615,6 @@ exit: [evidence:target-pure-expansion-item-progress]
 ### review-target-pure-raw
 ```yaml
 node: review-target-pure-raw
-lifecycle_phase: 4
 method_module: 04-pure-image
 adapter: page-image-workflow
 production_modes: [image2-page-workflow]
@@ -669,7 +631,6 @@ exit: [user_decision_recorded]
 ### publish-target-pure-final-manifest
 ```yaml
 node: publish-target-pure-final-manifest
-lifecycle_phase: 4
 method_module: 04-pure-image
 adapter: page-image-workflow
 production_modes: [image2-page-workflow]
@@ -684,7 +645,6 @@ exit: [evidence:target-pure-final-manifest-current]
 ### deliver-target-page-image
 ```yaml
 node: deliver-target-page-image
-lifecycle_phase: 4
 method_module: 05-delivery
 adapter: page-image-workflow
 production_modes: [image2-page-workflow]
@@ -699,7 +659,6 @@ exit: [pptx_generated, speaker_notes_injected]
 ### review-target-page-image-delivery
 ```yaml
 node: review-target-page-image-delivery
-lifecycle_phase: 4
 method_module: 05-delivery
 adapter: page-image-workflow
 production_modes: [image2-page-workflow]
@@ -716,7 +675,6 @@ exit: [user_decision_recorded]
 ### complete-target-page-image-iteration
 ```yaml
 node: complete-target-page-image-iteration
-lifecycle_phase: 5
 method_module: 06-iteration
 production_modes: [image2-page-workflow]
 production_workflows: [framed, pure]

@@ -19,7 +19,6 @@ function controllerNode(id, { workflow = null, draftRoute = false } = {}) {
   return [
     "```yaml",
     `node: ${id}`,
-    "lifecycle_phase: 1",
     "method_module: 01-content",
     "production_modes: [image2-page-workflow]",
     ...(workflow ? [`production_workflows: [${workflow}]`] : []),

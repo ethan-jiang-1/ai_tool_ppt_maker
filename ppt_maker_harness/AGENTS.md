@@ -6,6 +6,10 @@ version workflow: `framed` or `pure`. Every target slide inherits that workflow;
 there is no slide-level authority choice. Any other source/state pair is an
 current-protocol-invalid hard-stop and remains byte-preserving.
 
+Here, `page-image-workflow` names the pipeline and `framed|pure` names the
+version-level selection. Method modules and MD Controllers provide operating
+guidance; they do not introduce another protocol or workflow value.
+
 ## Current workflow
 
 1. Read `RUN_BUNDLE.md`, `deck-guide.md`, and the exact current source/state pair.
@@ -23,11 +27,12 @@ current-protocol-invalid hard-stop and remains byte-preserving.
 
 ## Boundaries
 
-- Markdown controllers own workflow decisions; JavaScript owns source/state
-  validation and producer diagnostics.
+- `playbook/` MD Controllers and their controller manifest own process decisions;
+  JavaScript owns source/state validation and producer diagnostics.
 - A current final manifest, PPTX receipt, and notes receipt must all derive
   from Page Image evidence.
 - `ppt_flow init` creates a current authoring draft, never a Framed, Pure, or mixed
   default. `doctor` is scoped to the requested Page Image operation.
-- PPT Maker Harness maintenance changes follow OpenSpec. Run-bundle work does not edit
-  Harness source.
+- PPT Maker Harness maintenance follows the normative `../openspec/specs/` contracts;
+  `../CONTEXT.md` is the terminology reference. Run-bundle work does not edit Harness
+  source.

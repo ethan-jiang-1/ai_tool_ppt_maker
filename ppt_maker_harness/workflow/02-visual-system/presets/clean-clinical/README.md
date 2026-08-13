@@ -7,7 +7,7 @@ summary: 白底、石板灰文字与青绿数据强调；适合医疗、咨询�
 depends_on:
 - workflow/02-visual-system/README.md
 feeds_into:
-- AGENTS.md (Phase 2)
+- AGENTS.md (02-visual-system)
 agent_action: recommend
 ---
 

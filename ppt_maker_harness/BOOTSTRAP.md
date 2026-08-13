@@ -15,7 +15,12 @@ node ppt_maker_harness/scripts/ppt_flow.mjs doctor
 node ppt_maker_harness/scripts/ppt_flow.mjs init deck_NAME --deck-type keynote --style dark-executive
 ```
 
-`doctor` 报告离线本地 runtime；它不是“source 与 provider 均已准备好”的合并结论。init 后先取得用户的内容和必要选择，再交给当前 `create-deck` Controller/owner action；不要提前复制一段固定的 production command sequence。
+`ppt_flow init` 是创建 Run Bundle 的支持 public entry。`bundle_layout.mjs --init`
+只属于 layout owner，维护相同初始化契约，不是供 Deck Author 在两个 initializer
+之间选择的第二条启动路径。`doctor` 报告离线本地 runtime；它不是“source 与 provider
+均已准备好”的合并结论。init 后先取得用户的内容和必要选择，再交给当前
+`create-deck` Controller/owner action；不要提前复制一段固定的 production command
+sequence。
 
 当前 owner 明确选中 raw-generation 操作后，normal readiness 才绑定到 exact run：
 
@@ -29,7 +34,7 @@ node ppt_maker_harness/scripts/ppt_flow.mjs doctor --run-dir <run-dir> --operati
 
 新 source 的唯一 pipeline 是 `page-image-workflow`。`init` 创建当前 authoring draft；人必须先在 `production.workflow` 明确记录一次 `framed` 或 `pure`，source 才能进入 provider-work route。state 在 receipt 绑定后记录 `image2-page-workflow` 和同一 workflow；`project-metadata.yaml` 只是非权威镜像。不得从 deck type、任一 slide 或已有 artifact 推断 workflow。
 
-- `framed`: Provider 生成连续全画布以及 source-owned body、labels、metrics、callouts 和 supporting copy；固定 `standard` Header Rendering Policy 只在本地透明叠加 kicker、title、subtitle。选中的 profile 以一个 CSS-pixel `header_region` 推导 `normalized-canvas` 的 `protected_composition`：`reserved_header` 与其下方全宽的 `body_safe`。这些是 provider 的有限避让提示和 Complete Page Review 指引；本地 header literal 与其派生上下文绝不写入 provider input。`SUBJECT RESTRICTIONS` 是 source-owned 的闭集事实，Framed 将其绑定进 raw/request lineage。
+- `framed`: Provider 生成连续全画布以及 source-owned body、labels、metrics、callouts 和 supporting copy；固定 `standard` Header Rendering Policy 只在本地透明叠加 kicker、title、subtitle。选中的 profile 的 CSS-pixel `header_region` 定义 local-header-renderer-owned 的 Reserved Header Region，并推导 `normalized-canvas` 的 `protected_composition`：`reserved_header` 与其下方全宽的 `body_safe`。派生给 Provider 的 Provider Avoidance Constraint 只是有限避让提示和 Complete Page Review 指引，不证明 Provider compliance，也不创建 blank band；上述 machine fields 保持其既有序列化契约。本地 header literal 与其派生上下文绝不写入 provider input。`SUBJECT RESTRICTIONS` 是 source-owned 的闭集事实，Framed 将其绑定进 raw/request lineage。
 - `pure`: `04-pure-image` 让 Provider 生成包括 header 在内的所有最终像素。
 
 一次选择覆盖整个 `vN`，绝不在 slide 上选择 authority。只写 closed `VISUAL BRIEF`、registered identity 与 Page Image source fields。不得写 retired source-only fields、slide-owned markup/CSS 或 provider 指令。init 只创建 source/control/state scaffolding；不会创建 style master、raw/final evidence、PPTX、notes 或 provider attempt。

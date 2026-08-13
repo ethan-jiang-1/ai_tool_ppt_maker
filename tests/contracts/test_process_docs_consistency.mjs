@@ -8,6 +8,7 @@ import {
   validateDiagnosticAuthorityPointers,
   validateExceptionMap,
   validatePseudocodeMarkers,
+  validateTerminologyAuthorityPointers,
 } from "../../ppt_maker_harness/scripts/contracts/harness_coherence.mjs";
 import { validateDocumentedCommands } from "../../ppt_maker_harness/scripts/contracts/harness_document_command_audit.mjs";
 
@@ -30,6 +31,8 @@ describe("Harness documentation coherence", () => {
   it("rejects broken links, stale commands, and broad exceptions", () => {
     expect(scanMarkdownLinks("/tmp/a/doc.md", "[bad](missing.md)")).toHaveLength(1);
     expect(scanSemanticDrift("doc.md", "Stage 2 uses image2-ppt skill")).toHaveLength(1);
+    expect(scanSemanticDrift("doc.md", "phase: 04").some((item) => item.rule === "hierarchy-ambiguity")).toBe(false);
+    expect(scanSemanticDrift("doc.md", "目录 = Stage").some((item) => item.rule === "hierarchy-ambiguity")).toBe(true);
     expect(validateExceptionMap({ "ppt_maker_harness/workflow/": "broad" })).toHaveLength(1);
     const commands = extractNodeCommands("doc.md", "```bash\nnode ppt_maker_harness/scripts/ppt_flow.mjs validate x --unexpected\n```");
     expect(validateDocumentedCommands(commands, "ppt_maker_harness/scripts").some((item) => item.rule === "unsupported-flag")).toBe(true);
@@ -45,6 +48,23 @@ describe("Harness documentation coherence", () => {
     const cliSpec = readFileSync("openspec/specs/cli-surface/spec.md", "utf8");
     expect(cliSpec).toMatch(/fixed 12-command unified entry\s+point/);
     expect(validateDiagnosticAuthorityPointers()).toEqual([]);
+  });
+
+  it("keeps terminology and authority claims scoped to their active owners", () => {
+    expect(validateTerminologyAuthorityPointers()).toEqual([]);
+    const root = process.cwd();
+    const context = readFileSync("CONTEXT.md", "utf8");
+    const bootstrap = readFileSync("ppt_maker_harness/BOOTSTRAP.md", "utf8");
+    expect(context).not.toContain("**HTML Production**");
+    expect(context).not.toContain("reviewed visual-slot asset");
+    expect(bootstrap).toContain("Reserved Header Region");
+    expect(bootstrap).toContain("Provider Avoidance Constraint");
+    expect(validateTerminologyAuthorityPointers({
+      root,
+      readFile: (path, encoding) => path.endsWith("CONTEXT.md")
+        ? `${readFileSync(path, encoding)}\n**HTML Production**`
+        : readFileSync(path, encoding),
+    }).some((item) => item.rule === "terminology-authority")).toBe(true);
   });
 
   it("keeps current guidance and main specifications free of retired protocol prose", () => {

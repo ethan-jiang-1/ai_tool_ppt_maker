@@ -1,6 +1,6 @@
 # Image2 Live Probe Reference
 
-This Phase-0 reference checks the health of resolved Image2 channels. It does
+This `00-setup` reference checks the health of resolved Image2 channels. It does
 not choose a workflow, change a source, create authorization, or approve a
 production operation.
 

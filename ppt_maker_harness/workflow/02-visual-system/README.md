@@ -5,7 +5,7 @@ position: entry
 type: overview
 ---
 
-# Phase 2: Page Image Visual System
+# 02-visual-system: Page Image Visual System
 
 The visual system supplies the registered visual language, reference registry,
 and Framed Header Rendering Policy inputs used by Page Image. It does not define a

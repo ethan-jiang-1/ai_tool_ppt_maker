@@ -7,7 +7,7 @@ summary: 深海军蓝、青蓝与电光蓝；适合战略 keynote、高管与深
 depends_on:
 - workflow/02-visual-system/README.md
 feeds_into:
-- AGENTS.md (Phase 2)
+- AGENTS.md (02-visual-system)
 agent_action: recommend
 ---
 

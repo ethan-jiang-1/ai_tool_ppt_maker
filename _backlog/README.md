@@ -9,7 +9,7 @@
 
 ## 这个仓库是什么
 
-`ai_tool_ppt_maker` 是一个 AI 驱动的 PPT 生成工具，基于 Node.js + Python 双栈开发。核心能力：接收用户输入（主题/大纲/文档），自动生成结构化、设计精良的 PowerPoint 演示文稿。
+`ai_tool_ppt_maker` 是一个 AI 驱动的 PPT 生成系统，基于 Node.js ESM。核心能力：接收用户输入（主题/大纲/文档），自动生成结构化、设计精良的 PowerPoint 演示文稿。
 
 ## 目录结构
 
@@ -22,7 +22,8 @@ _backlog/
 │   ├── _fixed_bugs/                   #   已修复 Bug（编号权威源）
 │   ├── _done_todos/                   #   已完成 TODO（DONE-NNN）
 │   ├── _closed_plans/                 #   已完成 Plan（CLS-NNN）
-│   └── _suspened_bugs/                #   悬挂 Bug（暂未确认修复）
+│   ├── _suspended_bugs/               #   悬挂 Bug（暂未确认修复）
+│   └── _suspended_plans/              #   暂停 Plan（保留历史决策）
 │
 ├── bugs/                              # 🐛 活跃 bug → 修完移入 _done/_fixed_bugs/
 ├── todos/                            # 📋 活跃 todo → 做完移入 _done/_done_todos/

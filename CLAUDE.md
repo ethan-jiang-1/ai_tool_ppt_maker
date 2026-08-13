@@ -8,8 +8,11 @@
 
 1. Read [AGENTS.md](AGENTS.md) — repo 级 agent 指引
 2. Read [ppt_maker_harness/BOOTSTRAP.md](ppt_maker_harness/BOOTSTRAP.md) — 三步启动
-3. Read [ppt_maker_harness/charter/AGENT_CONTRACT.md](ppt_maker_harness/charter/AGENT_CONTRACT.md) — 11 条铁律
-4. 按 Phase 读 [ppt_maker_harness/AGENTS.md](ppt_maker_harness/AGENTS.md)
+3. Read [ppt_maker_harness/charter/AGENT_CONTRACT.md](ppt_maker_harness/charter/AGENT_CONTRACT.md) — Agent Contract
+4. 按当前 method module / MD Controller guidance 读 [ppt_maker_harness/AGENTS.md](ppt_maker_harness/AGENTS.md)
+
+Harness maintenance 的预期行为以 [openspec/specs/](openspec/specs/) 为准；
+[CONTEXT.md](CONTEXT.md) 仅提供 canonical terminology。
 
 ## 技术栈
 

@@ -20,15 +20,17 @@ ppt_maker_harness/
 └── schema/     authoritative Page Image production definitions
 ```
 
-`deck_*` and `dpt_*` are production data, not Harness source. A run bundle is
-created by `bundle_layout.mjs`; `_generated/` is always rebuildable derived data.
+`deck_*` and `dpt_*` are production data, not Harness source. The supported
+public Run Bundle creation command is `ppt_flow init`; `bundle_layout.mjs --init`
+is its layout owner's lower-level interface, not a second startup route.
+`_generated/` is always rebuildable derived data.
 
-## Current Lifecycle
+## Current Method Graph
 
 ```text
-0 setup and operation-scoped readiness
-1 Page Image source and stable slide identity
-2 visual language, references, Provider Content Schema, and Header Rendering Policy
+00-setup: operation-scoped readiness
+01-content: Page Image source and stable slide identity
+02-visual-system: visual language, references, Provider Content Schema, and Header Rendering Policy
 03 Framed workflow semantics and transparent header overlay
 04 Pure workflow semantics and raw-to-final publication
 05 shared final projection, PPTX assembly, notes, and delivery review
@@ -54,14 +56,16 @@ authorization only when it submits a nonzero provider batch.
 Structural preview and apply preserve stable IDs, bind an exact plan hash, and
 report `needs_render` as debt rather than permission. A partial,
 hybrid, or mismatched source/state pair is a byte-preserving
-`repair-current-protocol-identity` hard-stop, not a current lifecycle branch.
+`repair-current-protocol-identity` hard-stop, not a current workflow branch.
 
 ## Where To Start
 
 1. Read [`BOOTSTRAP.md`](BOOTSTRAP.md) and [`charter/AGENT_CONTRACT.md`](charter/AGENT_CONTRACT.md).
 2. Run `node ppt_maker_harness/scripts/ppt_flow.mjs doctor`.
 3. For a deck, locate its `RUN_BUNDLE.md`, then read its `deck-guide.md`.
-4. For PPT Maker Harness maintenance, read the active OpenSpec change and its task list.
+4. For PPT Maker Harness maintenance, read the owning `openspec/specs/` capability,
+   its active delta, and then the active change task list. `../CONTEXT.md` is the
+   terminology reference, not a second behavior specification.
 
 Git is optional and user-owned. Visible `vN` plus Structural Versioning Path is
 the deck version authority; do not inspect or mutate Git without explicit,
