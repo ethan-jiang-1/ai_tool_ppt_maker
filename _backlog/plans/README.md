@@ -17,8 +17,7 @@
 
 ## 活跃列表
 
-目前没有活跃 plan。schema-first Page Image recovery 路线及其 C6、Pre-C7
-配套研究均已归档；未来的新工作先进入正常 Backlog triage，再建立独立 plan。
+- [keel-harness-term-alignment-and-residue-audit/](keel-harness-term-alignment-and-residue-audit/) — Keel 架构体检：术语对齐 + 残留清理（子目录，含 `plan.md` 及 authority-map / term-drift / residue-list 三份交付物；结论落地走 openspec change）
 
 **Next available plan ID: CLS-033**（移入 `_closed_plans/` 时分配；CLS-001…032 已用）
 
