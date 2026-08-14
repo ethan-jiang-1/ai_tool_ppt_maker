@@ -16,7 +16,7 @@ production:
 **VISUAL BRIEF**:
 ```yaml
 recipe: editorial-systems
-composition: centered-constellation
+composition: minimal
 motifs: []
 negative_constraints: [no-logo, no-watermark]
 ```
@@ -53,7 +53,7 @@ items:
 **VISUAL BRIEF**:
 ```yaml
 recipe: editorial-systems
-composition: left-to-right-flow
+composition: timeline
 motifs: [layered-pathways]
 negative_constraints: [no-logo, no-watermark]
 ```
@@ -87,7 +87,7 @@ items:
 **VISUAL BRIEF**:
 ```yaml
 recipe: editorial-systems
-composition: left-to-right-flow
+composition: two-column
 motifs: [connected-nodes]
 negative_constraints: [no-logo, no-watermark]
 ```
@@ -122,7 +122,7 @@ items:
 **VISUAL BRIEF**:
 ```yaml
 recipe: collaborative-work
-composition: centered-constellation
+composition: hub-spoke
 motifs: [connected-nodes]
 negative_constraints: [no-logo, no-watermark]
 ```
@@ -161,7 +161,7 @@ items:
 **VISUAL BRIEF**:
 ```yaml
 recipe: collaborative-work
-composition: field-of-work
+composition: two-column
 motifs: [shared-work-surface, connected-nodes]
 negative_constraints: [no-logo, no-watermark]
 ```
@@ -237,7 +237,7 @@ items:
 **VISUAL BRIEF**:
 ```yaml
 recipe: editorial-systems
-composition: left-to-right-flow
+composition: two-column
 motifs: [soft-grid]
 negative_constraints: [no-logo, no-watermark]
 ```
@@ -354,7 +354,7 @@ items:
 **VISUAL BRIEF**:
 ```yaml
 recipe: editorial-systems
-composition: left-to-right-flow
+composition: chain
 motifs: [connected-nodes, layered-pathways]
 negative_constraints: [no-logo, no-watermark]
 ```
@@ -390,7 +390,7 @@ items:
 **VISUAL BRIEF**:
 ```yaml
 recipe: editorial-systems
-composition: centered-constellation
+composition: funnel
 motifs: [layered-pathways]
 negative_constraints: [no-logo, no-watermark]
 ```
@@ -428,7 +428,7 @@ items:
 **VISUAL BRIEF**:
 ```yaml
 recipe: collaborative-work
-composition: field-of-work
+composition: stack
 motifs: [connected-nodes, soft-grid]
 negative_constraints: [no-logo, no-watermark]
 ```
@@ -463,7 +463,7 @@ items:
 **VISUAL BRIEF**:
 ```yaml
 recipe: editorial-systems
-composition: centered-constellation
+composition: stack
 motifs: [layered-pathways, connected-nodes]
 negative_constraints: [no-logo, no-watermark]
 ```
@@ -537,7 +537,7 @@ items:
 **VISUAL BRIEF**:
 ```yaml
 recipe: editorial-systems
-composition: left-to-right-flow
+composition: three-column
 motifs: [connected-nodes, soft-grid]
 negative_constraints: [no-logo, no-watermark]
 ```
@@ -576,7 +576,7 @@ items:
 **VISUAL BRIEF**:
 ```yaml
 recipe: editorial-systems
-composition: centered-constellation
+composition: minimal
 motifs: [layered-pathways]
 negative_constraints: [no-logo, no-watermark]
 ```
@@ -611,7 +611,7 @@ items:
 **VISUAL BRIEF**:
 ```yaml
 recipe: editorial-systems
-composition: left-to-right-flow
+composition: parallel-chains
 motifs: [connected-nodes, layered-pathways]
 negative_constraints: [no-logo, no-watermark]
 ```
@@ -686,7 +686,7 @@ items:
 **VISUAL BRIEF**:
 ```yaml
 recipe: editorial-systems
-composition: centered-constellation
+composition: stack
 motifs: [layered-pathways, connected-nodes, soft-grid]
 negative_constraints: [no-logo, no-watermark]
 ```
@@ -724,7 +724,7 @@ items:
 **VISUAL BRIEF**:
 ```yaml
 recipe: collaborative-work
-composition: centered-constellation
+composition: hub-spoke
 motifs: [connected-nodes, shared-work-surface]
 negative_constraints: [no-logo, no-watermark]
 ```
@@ -801,7 +801,7 @@ items:
 **VISUAL BRIEF**:
 ```yaml
 recipe: editorial-systems
-composition: centered-constellation
+composition: three-column
 motifs: [layered-pathways, connected-nodes]
 negative_constraints: [no-logo, no-watermark]
 ```
@@ -839,7 +839,7 @@ items:
 **VISUAL BRIEF**:
 ```yaml
 recipe: editorial-systems
-composition: centered-constellation
+composition: three-column
 motifs: [soft-grid]
 negative_constraints: [no-logo, no-watermark]
 ```
@@ -877,7 +877,7 @@ items:
 **VISUAL BRIEF**:
 ```yaml
 recipe: editorial-systems
-composition: left-to-right-flow
+composition: confluence
 motifs: [layered-pathways, connected-nodes]
 negative_constraints: [no-logo, no-watermark]
 ```
@@ -913,7 +913,7 @@ items:
 **VISUAL BRIEF**:
 ```yaml
 recipe: editorial-systems
-composition: centered-constellation
+composition: minimal
 motifs: []
 negative_constraints: [no-logo, no-watermark]
 ```

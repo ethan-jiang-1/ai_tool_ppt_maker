@@ -1,20 +1,25 @@
 schema: pptmaker-page-image-visual-language
 recipes:
   editorial-systems:
-    provider_clause: warm editorial sketch on cream paper, sepia ink, amber accents, quiet depth, fine cross-hatched shading, generous negative space
+    provider_clause: sparse decorative sketch accents on cream paper, sepia ink, amber highlights, generous negative space, small marginal marks, fine cross-hatching
     workflows: [framed, pure]
-    composition_ids: [centered-constellation, left-to-right-flow, field-of-work]
+    composition_ids: [minimal, centered-constellation, left-to-right-flow, timeline, two-column, three-column, chain, funnel, stack, parallel-chains, confluence]
     motif_ids: [connected-nodes, layered-pathways, soft-grid]
     identity_subject_classes: [none, amber-light-form]
   collaborative-work:
-    provider_clause: warm amber light form within a calm shared work setting, soft perspective, quiet collaborative posture
+    provider_clause: sparse decorative sketch of shared work, amber light accents, generous negative space, subtle marginal marks
     workflows: [framed, pure]
-    composition_ids: [field-of-work, centered-constellation]
+    composition_ids: [field-of-work, hub-spoke, two-column, stack, centered-constellation]
     motif_ids: [shared-work-surface, connected-nodes, soft-grid]
     identity_subject_classes: [none, amber-light-form]
 compositions:
+  minimal:
+    provider_clause: centered focal accent with generous negative space, unmarked surface
+    workflows: [framed, pure]
+    min_motifs: 0
+    max_motifs: 1
   centered-constellation:
-    provider_clause: centered focal form with balanced negative space, unmarked surface
+    provider_clause: centered focal accent with balanced negative space, unmarked surface
     workflows: [framed, pure]
     min_motifs: 0
     max_motifs: 3
@@ -24,31 +29,76 @@ compositions:
     min_motifs: 1
     max_motifs: 3
   field-of-work:
-    provider_clause: grounded work surface with calm depth and soft perspective, unmarked
+    provider_clause: subtle grounded surface accent, calm depth, unmarked
+    workflows: [framed, pure]
+    min_motifs: 1
+    max_motifs: 3
+  timeline:
+    provider_clause: clear left to right progression of three sparse stages, open unmarked field
+    workflows: [framed, pure]
+    min_motifs: 1
+    max_motifs: 3
+  two-column:
+    provider_clause: two balanced side by side panels separated by open space, unmarked
+    workflows: [framed, pure]
+    min_motifs: 0
+    max_motifs: 3
+  three-column:
+    provider_clause: three balanced side by side panels, clear left to right order
+    workflows: [framed, pure]
+    min_motifs: 0
+    max_motifs: 3
+  hub-spoke:
+    provider_clause: one central focal accent with sparse radiating connections, generous negative space
+    workflows: [framed, pure]
+    min_motifs: 1
+    max_motifs: 3
+  chain:
+    provider_clause: horizontal sequence of sparse linked nodes, clear left to right order
+    workflows: [framed, pure]
+    min_motifs: 1
+    max_motifs: 3
+  funnel:
+    provider_clause: wide opening narrowing to a small focal point, clear downward flow
+    workflows: [framed, pure]
+    min_motifs: 0
+    max_motifs: 2
+  stack:
+    provider_clause: horizontal bands stacked vertically, clear downward order
+    workflows: [framed, pure]
+    min_motifs: 1
+    max_motifs: 3
+  parallel-chains:
+    provider_clause: two parallel horizontal sequences with matched spacing
+    workflows: [framed, pure]
+    min_motifs: 1
+    max_motifs: 3
+  confluence:
+    provider_clause: two sparse streams flowing inward to merge at one focal point
     workflows: [framed, pure]
     min_motifs: 1
     max_motifs: 3
 motifs:
   connected-nodes:
-    provider_clause: luminous connected nodes with measured spacing, abstract visual element
+    provider_clause: luminous connected nodes with measured spacing, abstract decorative element
     workflows: [framed, pure]
     recipe_ids: [editorial-systems, collaborative-work]
-    composition_ids: [centered-constellation, left-to-right-flow, field-of-work]
+    composition_ids: [minimal, centered-constellation, left-to-right-flow, field-of-work, timeline, two-column, three-column, hub-spoke, chain, funnel, stack, parallel-chains, confluence]
   layered-pathways:
-    provider_clause: layered pathways with gentle directional energy, abstract visual element
+    provider_clause: layered pathways with gentle directional energy, abstract decorative element
     workflows: [framed, pure]
     recipe_ids: [editorial-systems]
-    composition_ids: [centered-constellation, left-to-right-flow]
+    composition_ids: [minimal, centered-constellation, left-to-right-flow, field-of-work, timeline, two-column, three-column, hub-spoke, chain, funnel, stack, parallel-chains, confluence]
   soft-grid:
-    provider_clause: subtle structural grid with restrained glow, abstract visual element
+    provider_clause: subtle structural grid with restrained glow, abstract decorative element
     workflows: [framed, pure]
     recipe_ids: [editorial-systems, collaborative-work]
-    composition_ids: [centered-constellation, left-to-right-flow, field-of-work]
+    composition_ids: [minimal, centered-constellation, left-to-right-flow, field-of-work, timeline, two-column, three-column, hub-spoke, chain, funnel, stack, parallel-chains, confluence]
   shared-work-surface:
-    provider_clause: shared work surface with quiet collaborative posture, abstract visual element
+    provider_clause: shared work surface with quiet collaborative posture, abstract decorative element
     workflows: [framed, pure]
     recipe_ids: [collaborative-work]
-    composition_ids: [field-of-work, centered-constellation]
+    composition_ids: [minimal, centered-constellation, left-to-right-flow, field-of-work, timeline, two-column, three-column, hub-spoke, chain, funnel, stack, parallel-chains, confluence]
 relationships:
   layer-stack:
     provider_clause: nested translucent planes rising from broad base to focused apex

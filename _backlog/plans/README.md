@@ -18,6 +18,7 @@
 ## 活跃列表
 
 - [identity-role-clause-provider-input.md](identity-role-clause-provider-input.md) — Harness provider-facing identity contract 丢失 exact role_clause；已 review，待 OpenSpec proposal。
+- [deck-configurable-design-system-provider-prompt.md](deck-configurable-design-system-provider-prompt.md) — 复现 V1 画面效果需 deck 可配置的设计系统 prompt 注入每页 provider input；待 review。
 
 **Next available plan ID: CLS-035**（移入 `_closed_plans/` 时分配；CLS-001…034 已用）
 
