@@ -1,11 +1,11 @@
 # Harness Signal Cleanup - Progress Plan
 
 > Type: program control sheet | Updated: 2026-08-14
-> Program status: `done`; independent successor: `archived` by owner waiver
+> Program status: `done`; independent successor: `done` with archive waiver
 > Fixed OpenSpec change count: `3`
-> Overall: cleanup `3 done / 0 active / 0 queued`; successor archived, live acceptance waived
-> Current gate: ordinary commit, normal push, and reconciliation
-> Next checkbox: commit the archived real-provider acceptance lane
+> Overall: cleanup `3 done / 0 active / 0 queued`; successor archived, committed, pushed, and reconciled; live acceptance waived
+> Current gate: none
+> Next checkbox: none
 
 This is the one program-level progress view. OpenSpec artifacts remain the
 authority for each change's WHY, WHAT, HOW, and implementation tasks; current
@@ -18,7 +18,7 @@ main specs remain the accepted behavior authority.
 - [x] **Change 3 of 3** - `converge-agent-control-surfaces` - `done` (`21/21` tasks)
 - [x] **Program closure** - final evidence and Git reconciliation complete;
   this was not another OpenSpec change
-- [x] **Independent successor** - `add-real-provider-e2e-acceptance` - `archived`
+- [x] **Independent successor** - `add-real-provider-e2e-acceptance` - `done`
   by explicit project-owner waiver; implementation and provider-free
   verification are complete, while live acceptance is not claimed as passed
 
@@ -29,7 +29,7 @@ main specs remain the accepted behavior authority.
 | Ready | 0 |
 | Remaining after the ready change | 0 |
 | Additional unplanned changes | 0 |
-| Independent successors | 1 archived (live acceptance waived) |
+| Independent successors | 1 done (live acceptance waived) |
 
 The count is fixed at three. The former routing cleanup, Controller metadata
 cleanup, and singleton `production_mode` decision are nested workstreams inside
@@ -463,8 +463,9 @@ The project owner approved one successor after the post-closure coverage audit:
 - [x] Archive under the explicit owner waiver; preserve the recorded incomplete
   live-acceptance evidence. Archive path:
   `openspec/changes/archive/2026-08-14-add-real-provider-e2e-acceptance/`
-- [ ] Commit, normally push, and reconcile the archived successor under the
-  explicit owner waiver.
+- [x] Commit, normally push, and reconcile the archived successor under the
+  explicit owner waiver. Implementation closure commit: `8a91b64`; its local,
+  tracking, and remote `master` SHA reconciled before this ledger update.
 
 Its OpenSpec artifacts own scope and tasks:
 `openspec/changes/add-real-provider-e2e-acceptance/`. It reuses the existing
@@ -509,3 +510,4 @@ contract, production-data scope, or compatibility work.
 | 2026-08-14 | Independent successor / 4.3 | Later authorized selected run ended with an uncertain external outcome | the OS-temporary fixture was cleaned, but the npm parent exited `1` without a redacted terminal outcome in the runner transcript; it is not successful-result evidence or a classified provider failure, and no retry or reconciliation followed |
 | 2026-08-14 | Independent successor / closure | Project owner approved archive without a passed corrected live acceptance | 4.3 is dispositioned as an explicit waiver, not a success claim; retain the opt-in test and all bounded failure evidence, then archive/commit/push/reconcile normally |
 | 2026-08-14 | Independent successor / archive | Archived with explicit project-owner waiver | `openspec/changes/archive/2026-08-14-add-real-provider-e2e-acceptance/`; no delta specs existed, so no main-spec sync was required or performed |
+| 2026-08-14 | Independent successor / closure | Implementation archive commit pushed and reconciled | `8a91b64a3988a4c96e94e748a759a0911cf822f6`; local, tracking, and remote `master` matched before this ledger update |
