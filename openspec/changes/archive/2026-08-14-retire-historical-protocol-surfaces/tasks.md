@@ -155,11 +155,11 @@
   Archive only after the archive sync assessment observes every delta as already
   synchronized; do not reapply the retired capability. Repeat strict all-spec
   validation and `git diff --check` after archive.
-- [ ] 5.5 Update `_backlog/plans/harness-signal-cleanup/progress-plan.md` at
+- [x] 5.5 Update `_backlog/plans/harness-signal-cleanup/progress-plan.md` at
   each verified lifecycle milestone with active/archive path, test evidence,
   and closure SHA. Stage only exact intended paths, inspect the staged diff,
   make ordinary coherent commit(s), fetch/recheck the remote parent, and
   fast-forward push without rebase, reset, force push, or broad staging.
-- [ ] 5.6 Reconcile and record exact `HEAD`, local `master`, `origin/master`,
+- [x] 5.6 Reconcile and record exact `HEAD`, local `master`, `origin/master`,
   and remote `master` SHAs after push. Mark Change 2 `done` only when all four
   match and no cleanup-related worktree residue remains.

@@ -3,9 +3,9 @@
 > Type: program control sheet | Updated: 2026-08-14
 > Program status: `active`
 > Fixed OpenSpec change count: `3`
-> Overall: `1 done / 1 active / 1 queued`
-> Current gate: Change 2 closure, `20/22` implementation tasks complete
-> Next checkbox: Change 2 / Gate 2E / task `5.5`
+> Overall: `2 done / 0 active / 1 queued`
+> Current gate: Change 3 admission
+> Next checkbox: Change 3 / admission
 
 This is the one program-level progress view. OpenSpec artifacts remain the
 authority for each change's WHY, WHAT, HOW, and implementation tasks; current
@@ -14,7 +14,7 @@ main specs remain the accepted behavior authority.
 ## At A Glance
 
 - [x] **Change 1 of 3** - `converge-active-harness-authority` - `done`
-- [ ] **Change 2 of 3** - `retire-historical-protocol-surfaces` - `active` (`20/22` tasks)
+- [x] **Change 2 of 3** - `retire-historical-protocol-surfaces` - `done` (`22/22` tasks)
 - [ ] **Change 3 of 3** - `converge-agent-control-surfaces` - `queued`
 - [ ] **Program closure** - final evidence and Git reconciliation; this is not
   another OpenSpec change
@@ -41,7 +41,7 @@ updated plan explaining why Change 3 cannot safely contain the work.
 [x] Change 1 - repair the active authority map
                  |
                  v
-[ ] Change 2 - retire historical protocol surfaces       <- closure: 20/22
+[x] Change 2 - retire historical protocol surfaces       <- done: 22/22
                  |
                  v
 [ ] Change 3 - converge remaining Agent control surfaces
@@ -151,7 +151,7 @@ Outcome:
 
 ## Change 2 Of 3 - `retire-historical-protocol-surfaces`
 
-Status: `archived`; repository closure progress: `20/22`.
+Status: `done`; archived, committed, pushed, and reconciled (`22/22`).
 
 Archived task authority:
 `openspec/changes/archive/2026-08-14-retire-historical-protocol-surfaces/tasks.md`
@@ -165,12 +165,12 @@ Lifecycle:
 - [x] `design`
 - [x] `tasks`
 - [x] `artifact-validation`
-- [x] `apply` - `20/22`
+- [x] `apply` - `22/22`
 - [x] `focused-verification`
 - [x] `baseline-and-residue`
 - [x] `archive`
-- [ ] `commit`
-- [ ] `push-and-reconcile`
+- [x] `commit`
+- [x] `push-and-reconcile`
 
 ### Gate 2A - One Invalid-Protocol Contract (`4/4`)
 
@@ -205,7 +205,7 @@ Lifecycle:
 - [x] `4.2` Permit only owner-rooted structural Work Version `vN` usage.
 - [x] `4.3` Add exact planted negative controls and zero-mutation/provider proof.
 
-### Gate 2E - Verify And Close (`4/6`)
+### Gate 2E - Verify And Close (`6/6`)
 
 - [x] `5.1` Run focused workflow, CLI, state, delivery, structure, docs, and
   architecture tests.
@@ -214,8 +214,8 @@ Lifecycle:
 - [x] `5.3` Run scoped active-surface residue searches and inspect every
   remaining structural-version or execution-mismatch occurrence.
 - [x] `5.4` Pass full tests, sweep, strict validation, archive, and revalidate.
-- [ ] `5.5` Update evidence, stage exact paths, commit, fetch, and normally push.
-- [ ] `5.6` Reconcile `HEAD`, local, tracking, and remote master SHAs.
+- [x] `5.5` Update evidence, stage exact paths, commit, fetch, and normally push.
+- [x] `5.6` Reconcile `HEAD`, local, tracking, and remote master SHAs.
 
 Evidence:
 
@@ -282,7 +282,9 @@ Evidence:
   in main specs, including the absent retired capability, before the move.
 - [x] Archive path recorded:
   `openspec/changes/archive/2026-08-14-retire-historical-protocol-surfaces/`
-- [ ] Closure commit recorded: `-`
+- [x] Closure implementation commit recorded: `ac7be51`
+- [x] Post-push reconciliation for that closure commit:
+  `HEAD = master = origin/master = remote master = ac7be51aac1adf5bddfefb2683bcb1dfc2453370`
 
 ## Change 3 Of 3 - `converge-agent-control-surfaces`
 
@@ -411,4 +413,5 @@ Status: `blocked` until all three changes are `done`.
 | 2026-08-13 | Change 2 | Proposal, deltas, design, and tasks strictly validated | `openspec/changes/retire-historical-protocol-surfaces/` |
 | 2026-08-14 | Change 2 | Tasks 1.1, 1.2, and 1.4 implemented; focused workflow/CLI/state tests passed | `tasks.md` progress `3/22` |
 | 2026-08-14 | Change 2 | Full verification, sync assessment, and archive completed | archive `2026-08-14-retire-historical-protocol-surfaces`; `20/22` |
+| 2026-08-14 | Change 2 | Ordinary commit, fast-forward push, and four-SHA reconciliation completed | closure `ac7be51`; `22/22` |
 | 2026-08-14 | Program control | Remaining work consolidated into fixed Change 3; total change count fixed at three | this file + `program.md` |
