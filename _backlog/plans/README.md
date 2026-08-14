@@ -1,6 +1,6 @@
 # Active Plans — 活跃 plan/分析文档列表
 
-> 最后更新: 2026-08-14 | `_backlog/plans/` — 活跃 plan 在此，完成移入 [`../_done/_closed_plans/`](../_done/_closed_plans/)。
+> 最后更新: 2026-08-15 | `_backlog/plans/` — 活跃 plan 在此，完成移入 [`../_done/_closed_plans/`](../_done/_closed_plans/)。
 >
 > **plan 没有编号，文件名即标识。完成后文件名不变，位置即状态。**
 
@@ -17,7 +17,7 @@
 
 ## 活跃列表
 
-- [identity-role-clause-provider-input.md](identity-role-clause-provider-input.md) — identity subject 的 role_clause 正文未进 provider prompt，导致重复视觉主体（amber-agent）跨页不一致；待 review 决定落地方式。
+- [identity-role-clause-provider-input.md](identity-role-clause-provider-input.md) — Harness provider-facing identity contract 丢失 exact role_clause；已 review，待 OpenSpec proposal。
 
 **Next available plan ID: CLS-035**（移入 `_closed_plans/` 时分配；CLS-001…034 已用）
 
