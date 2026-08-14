@@ -10,8 +10,9 @@ exact source, its matching state SHALL declare
 positive `source_epoch`. `hybrid`, a per-slide policy, an omitted workflow, a
 missing/malformed identity record, or an undeclared source/state pair SHALL
 produce the existing owner-issued failure before state, receipt, raw, or
-provider work. The locator remains a Harness-binding schema, not a production
-protocol.
+provider work. Root and standalone initialization SHALL not accept a singleton
+production-mode selector or emit a production-mode state/mirror record. The
+locator remains a Harness-binding schema, not a production protocol.
 
 #### Scenario: Init seeds one current topology
 
@@ -35,3 +36,11 @@ protocol.
   matching identity record
 - **THEN** validation accepts their one selected workflow under existing rules
 - **AND** it does not accept an alternate mode or contract pair
+
+#### Scenario: Initialization cannot select a retired mode
+
+- **WHEN** root or standalone initialization receives a `--mode` selector
+- **THEN** it returns a bounded usage failure before creating a Bundle or state
+  record
+- **AND** it does not map the selector to a pipeline, workflow, or
+  project-metadata mirror

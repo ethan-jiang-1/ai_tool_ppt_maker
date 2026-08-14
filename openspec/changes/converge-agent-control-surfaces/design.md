@@ -113,6 +113,17 @@ workflow and source epoch, not a fixed mode or policy object. Shared code
 derives the one Page Image pipeline and adapter from the current source contract
 rather than re-encoding them in Controller metadata or state.
 
+The direct pre-install environment checker does not need a second production
+selector: its existing `--operation` forms already select the fixed current
+Page Image readiness profile. Remove the singleton `--mode` argument and
+internal default from direct environment checking, root `init`/`doctor`
+delegation, and the standalone bundle-layout initializer rather than renaming
+them. A supplied `--mode` is an unsupported argument; it is neither mapped nor
+retained as a compatibility input. Fresh initialization emits neither a state
+mode record nor a project-metadata mode mirror. Style Master, Controller,
+inspection, and direct CLI consumers all read the same source marker plus
+state-owned identity record, each within its existing ownership boundary.
+
 Fresh authoring state remains intentionally unbound: it has the current
 pipeline draft but no identity record until a human selects a source workflow
 and the State owner accepts it. A new structural target likewise has no target
@@ -141,12 +152,13 @@ existing Task Mandate.
 repository verification; runtime owners retain runtime validation.
 
 Extend the existing provider-free evaluator with a named Change-3 control
-surface inventory. It enumerates only the current Harness source, unit tests,
-E2E tests, main specs, and OpenSpec configuration. It reports the exact file
-and residue category for a retired prompt/route surface, metadata key, or mode
-dialect. Its exceptions remain shrink-only and structurally grounded; active
-change artifacts, archives, Backlog material, Run Bundles, research inputs, and
-generated outputs remain out of scope.
+surface inventory. It enumerates only `ppt_maker_harness/`, `tests/`,
+`tests_e2e/`, root `AGENTS.md` and `CONTEXT.md`, accepted main specs, and
+OpenSpec configuration. It reports the exact file and residue category for a
+retired prompt/route surface, metadata key, or mode dialect. Its exceptions
+remain shrink-only and structurally grounded; active change artifacts, archives,
+Backlog material, Run Bundles, research inputs, and generated outputs remain
+out of scope.
 
 The negative controls use supplied synthetic or temporary roots: plant an
 orphan catalog/prompt file, a stale Controller field, and an old state record;
@@ -159,7 +171,7 @@ seam rather than adding a startup gate, checker chain, or recovery controller.
 | Layer | Required evidence |
 | --- | --- |
 | Unit | Identity evaluator/state writer-reader behavior; strict Controller grammar; deleted-reader absence and planted invalid metadata/state controls. |
-| Integration | Current init, workflow selection, structural target, status/state projection, and direct CLI hard-stop preserve selected workflow plus epoch without a mode field. |
+| Integration | Current init, workflow selection, structural target, Style Master, direct `env-check`, status/state projection, and CLI hard-stop preserve selected workflow plus epoch without a mode field. |
 | E2E | Existing mocked lifecycle/inactive-state suite proves the clean current identity still fences writes and never triggers provider work on invalid input. |
 | Repository | Reachability/residue scan, strict OpenSpec validation, `npm test`, `npm run test:sweep`, and `git diff --check`. |
 

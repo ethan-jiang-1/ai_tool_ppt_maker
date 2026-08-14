@@ -1,4 +1,4 @@
-## MODIFIED Requirements
+## ADDED Requirements
 
 ### Requirement: Direct intent entry reaches existing Controller boundaries only
 
@@ -25,6 +25,8 @@ execution state, or replace a current Controller route before that handoff.
   playbook
 - **AND** it does not use a route registry or resume card to infer a direct
   owner mutation
+
+## MODIFIED Requirements
 
 ### Requirement: Registered playbooks pass machine validation
 
@@ -86,3 +88,13 @@ draft routing, or diagnostic projection.
 - **THEN** the canonical validator accepts its lifecycle location subject to the
   existing module, adapter, and workflow ownership checks
 - **AND** it produces no lifecycle-derived field or mode-specific diagnostic
+
+## REMOVED Requirements
+
+### Requirement: Intent Route Catalog enters existing Controller boundaries only
+
+**Reason**: The catalog has no live production consumer and duplicates the
+direct command-guidance to Controller handoff.
+
+**Migration**: None. Current command guidance hands intent directly to the
+applicable existing Controller or CLI owner.

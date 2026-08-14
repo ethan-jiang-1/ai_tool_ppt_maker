@@ -57,6 +57,8 @@ None.
   Controllers and CLI without a parallel catalog.
 - `harness-charter`: active Agent guidance names only current control owners and
   the source/state production-identity boundary.
+- `environment-check`: direct pre-install readiness selects its fixed current
+  Page Image checks by operation, not a retired singleton mode flag.
 - `node-specification`: Controller parsing has closed metadata grammars and
   State persists the minimal version identity fence.
 - `playbook-execution`: Controller metadata and entry routing have one
@@ -65,6 +67,10 @@ None.
   guards reject removed control surfaces and stale state grammar.
 - `run-bundle-management`: new current run state is seeded and validated using
   the production-identity record rather than a singleton mode.
+- `slide-identity-and-ordering`: mnemonic identity guidance no longer carries
+  a retired production-mode distinction.
+- `style-master-generation`: Style Master binds the current source and
+  production-identity record rather than a retired state marker.
 - `workflow-inspection`: read-only inspection resolves the current source/state
   identity record without recreating a mode or using duplicate prose authority.
 

@@ -36,42 +36,59 @@
 
 ## 3. Cut Over To Production Identity
 
-- [ ] 3.1 Replace the fixed-value production-mode evaluator and persisted
-  `production_mode.by_version` shape with the current
-  `production_identity.by_version` `{workflow, source_epoch}` contract. Ensure
-  source frontmatter remains the pipeline/workflow authority and State remains
-  the identity writer. (node-specification, run-bundle-management,
-  workflow-inspection)
-- [ ] 3.2 Update every State transition, CAS/replay check, Controller
-  eligibility path, and source-epoch invalidation path to consume the identity
-  record; preserve the fresh-draft and clean-target absence rules.
-  (node-specification, playbook-execution, workflow-inspection)
-- [ ] 3.3 Update run-bundle initialization, structural publication, direct CLI
-  status/state projections, and current hard-stop diagnostics to expose the
-  selected workflow plus epoch without a fixed mode or compatibility reader.
-  (cli-surface, run-bundle-management, workflow-inspection)
-- [ ] 3.4 Update schema inventory/anchors, Node Spec, Charter, command guidance,
-  context, and active docs to name only the current production-identity model.
-  (production-schema-conformance, node-specification, harness-charter,
-  commands-reference)
+- [ ] 3.1 Replace the fixed-value production-mode module and persisted
+  `production_mode.by_version` parser/validator with the current
+  `production_identity.by_version` `{workflow, source_epoch}` evaluator.
+  Remove the project-metadata mode mirror at the same ownership boundary.
+  Prove the exact record shape and source-workflow agreement without a mode
+  policy return. (node-specification, run-bundle-management)
+- [ ] 3.2 Update State creation, mutation, CAS/replay, and source-epoch
+  invalidation writers to own only the identity record. Preserve the
+  intentionally absent record for a fresh authoring draft and clean structural
+  target. (node-specification, run-bundle-management)
+- [ ] 3.3 Update Controller eligibility, structural publication, narrative
+  planning, Style Master, and workflow inspection readers to consume the source
+  marker plus identity record. A missing, malformed, source-disagreeing, or
+  retired-mode record must retain the owner-issued non-writing hard-stop.
+  (node-specification, playbook-execution, workflow-inspection,
+  style-master-generation)
+- [ ] 3.4 Update direct CLI status/state projections and diagnostics to expose
+  selected workflow plus epoch through `production_identity` only. Retire the
+  pre-install `env-check`, root `init`/`doctor` delegation, and standalone
+  initializer `--mode` parser/default/help contracts so operations select the
+  fixed Page Image readiness profile without a mode flag.
+  (cli-surface, environment-check, run-bundle-management)
+- [ ] 3.5 Update schema inventory/anchors, Node Spec, Charter, COMMANDS,
+  Bootstrap, root Agent guidance, Context, and active Harness docs to name only
+  the current production-identity model; update mnemonic identity prose at the
+  same time. (production-schema-conformance, node-specification,
+  harness-charter, commands-reference, slide-identity-and-ordering)
 
 ## 4. Prove The Clean Break
 
-- [ ] 4.1 Update unit and integration fixtures for current production identity;
-  plant missing, malformed, source-disagreeing, and retired-mode state records
-  and prove each short-circuits before state mutation or provider work.
-  (node-specification, cli-surface, workflow-inspection)
-- [ ] 4.2 Update the mocked end-to-end lifecycle/inactive-write coverage to
+- [ ] 4.1 Update evaluator and State unit fixtures for current production
+  identity; plant missing, malformed, source-disagreeing, and retired-mode
+  records and prove each short-circuits before state mutation or provider work.
+  (node-specification, run-bundle-management)
+- [ ] 4.2 Update focused Controller, Style Master, workflow-inspection,
+  CLI/status, and direct environment-check integration coverage. Prove current
+  source/identity propagation, absent fresh-draft identity, removed direct and
+  initialization `--mode`, and no wrong-owner fallback. (cli-surface,
+  environment-check, playbook-execution, run-bundle-management,
+  style-master-generation, workflow-inspection)
+- [ ] 4.3 Update the mocked end-to-end lifecycle/inactive-write coverage to
   prove the new current identity fences the exact run and preserves the
   no-provider/no-wrong-owner behavior on failure. (node-specification,
   workflow-inspection)
-- [ ] 4.3 Extend the provider-free active-surface evaluator with the fixed
-  Change-3 roots and planted catalog/prompt/metadata/mode residue controls;
-  prove exact categories, excluded historical roots, zero mutation, and zero
-  provider access. (production-schema-conformance)
-- [ ] 4.4 Run scoped residue and reachability searches over active source,
-  tests, main specs, and config; inspect every remaining control term and leave
-  only explicit current ownership or bounded negative-control text.
+- [ ] 4.4 Extend the provider-free active-surface evaluator with the fixed
+  Change-3 roots (`ppt_maker_harness/`, tests, root Agent/Context guidance,
+  accepted main specs, and OpenSpec config) and planted
+  catalog/prompt/metadata/mode residue controls; prove exact categories,
+  excluded historical roots, zero mutation, and zero provider access.
+  (production-schema-conformance)
+- [ ] 4.5 Run scoped residue and reachability searches over each declared active
+  root; inspect every remaining control term and leave only explicit current
+  ownership or bounded negative-control text.
   (harness-charter, production-schema-conformance)
 
 ## 5. Verify And Close
