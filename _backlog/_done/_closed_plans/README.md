@@ -1,6 +1,6 @@
 # Closed Plans Index — 已完成 plan 归档
 
-> 最后更新: 2026-08-13 | `_backlog/_done/_closed_plans/` — 已完成 plan 的归档目录。
+> 最后更新: 2026-08-14 | `_backlog/_done/_closed_plans/` — 已完成 plan 的归档目录。
 > 接收来自 [`../../plans/`](../../plans/) 的 plan。`_` 前缀 = coding agent 默认忽略。
 >
 > **plan 完成后文件名不变，位置即状态。** 移入时分配 `CLS-NNN` 序号（Closed），按完成时间递增。
@@ -52,7 +52,8 @@ plan 完成后从 `_backlog/plans/` 通过 `git mv` 移入本目录：
 | [CLS-031](schema-first-clean-cutover-decisions.md) | 2026-08-13 | `schema-first-clean-cutover-decisions.md` | schema-first clean-cutover 决策规则；C2 与 Pre-C7 完成后随总路线关闭，保留为历史决策。 |
 | [CLS-032](schema-first-page-image-recovery.md) | 2026-08-13 | `schema-first-page-image-recovery.md` | 总控路线：C1-C6、Pre-C7 收敛及 C7 reconstruction 均完成。C7 的初始 delivery 因 `DarkGo` header-reservation 视觉问题被保留为非交付 evidence；source epoch 3 修复后通过新的三页 review 与 delivery review。 |
 | [CLS-033](keel-harness-term-alignment-and-residue-audit/) | 2026-08-13 | `keel-harness-term-alignment-and-residue-audit/` | Keel 架构体检：C1 生命周期编号退休、C2 术语与权威对齐、H 残留清理均完成；审计记录保留为历史证据。 |
+| [CLS-034](harness-signal-cleanup/) | 2026-08-14 | `harness-signal-cleanup/` | 三项 Harness signal cleanup change 已完成、归档、推送并核对；独立 real-provider E2E acceptance 以 owner waiver 归档，不宣称 live acceptance 通过。 |
 
-**Next available plan ID: CLS-034**
+**Next available plan ID: CLS-035**
 
 > 已完成计划保留历史决策；当前工作只从 `_backlog/plans/` 重新进入。

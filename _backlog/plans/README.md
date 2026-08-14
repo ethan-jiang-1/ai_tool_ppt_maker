@@ -1,6 +1,6 @@
 # Active Plans — 活跃 plan/分析文档列表
 
-> 最后更新: 2026-08-13 | `_backlog/plans/` — 活跃 plan 在此，完成移入 [`../_done/_closed_plans/`](../_done/_closed_plans/)。
+> 最后更新: 2026-08-14 | `_backlog/plans/` — 活跃 plan 在此，完成移入 [`../_done/_closed_plans/`](../_done/_closed_plans/)。
 >
 > **plan 没有编号，文件名即标识。完成后文件名不变，位置即状态。**
 
@@ -17,9 +17,9 @@
 
 ## 活跃列表
 
-- [`harness-signal-cleanup/`](harness-signal-cleanup/) — Keel 架构/腐化审计：收敛当前权威、删除历史协议与竞争 Agent surface、补可证伪守卫；实施走分批 OpenSpec change。
+暂无活跃 plan。
 
-**Next available plan ID: CLS-034**（移入 `_closed_plans/` 时分配；CLS-001…033 已用）
+**Next available plan ID: CLS-035**（移入 `_closed_plans/` 时分配；CLS-001…034 已用）
 
 ---
 
