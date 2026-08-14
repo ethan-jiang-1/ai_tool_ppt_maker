@@ -18,7 +18,7 @@ execution_started_at: 2026-08-14T14:43:36.789Z
 run_version: v8
 continuation_target_version: v8
 started_at: 2026-08-14T14:43:36.789Z
-updated_at: 2026-08-14T14:52:38.903Z
+updated_at: 2026-08-14T19:58:55.077Z
 nodes:
   checkpoint-intake:
     status: completed
@@ -83,8 +83,8 @@ page_image_progressive_handoff:
       source_epoch: 1
       source_receipt_sha256: 78ccd71a30f9914da12765a69ca74e2fac7c0ffc0f0b13ccc55652b71d5f57f6
       workflow: pure
-      raw_work_plan_sha256: 535fc0700a913bf4d4e77c2f054c508d08f5c00a845d7f175d616253d6afd61a
-      partial_pilot_decision_sha256: null
+      raw_work_plan_sha256: 51e3722ef6c9611ed27e5984d1870c1cf9800d3f62935b26c64694c5899ca8da
+      partial_pilot_decision_sha256: 1bb4ff3b15edf9691c3c91930f9789b0e672b10f0514183590c62d5450145824
       complete_raw_review_sha256: null
       accepted_raw_evidence_sha256: null
       final_manifest_sha256: null

@@ -6,7 +6,10 @@ import { createCanvas } from "@napi-rs/canvas";
 import { createAcceptedRawEvidence } from "../../ppt_maker_harness/scripts/shared/image2/page_image_artifacts.mjs";
 import { resolveContentAddressName } from "../../ppt_maker_harness/scripts/shared/image2/content_address_store.mjs";
 
-const pureResolverControls = vi.hoisted(() => ({ null_provider_clauses: false }));
+const pureResolverControls = vi.hoisted(() => ({
+  null_provider_clauses: false,
+  tamper_identity_clause: false,
+}));
 
 vi.mock("../../ppt_maker_harness/scripts/02-visual-system/index.mjs", async (importOriginal) => {
   const actual = await importOriginal();
@@ -14,21 +17,36 @@ vi.mock("../../ppt_maker_harness/scripts/02-visual-system/index.mjs", async (imp
     ...actual,
     createPageImageSourceResolver(...args) {
       const resolver = actual.createPageImageSourceResolver(...args);
-      if (!pureResolverControls.null_provider_clauses) return resolver;
       return Object.freeze({
         resolveSelection(context) {
-          return Object.freeze({ ...resolver.resolveSelection(context), provider_clauses: null });
+          const selection = resolver.resolveSelection(context);
+          const identityReference = pureResolverControls.tamper_identity_clause && selection.identity_reference
+            ? Object.freeze({
+              ...selection.identity_reference,
+              provider_reference: Object.freeze({
+                ...selection.identity_reference.provider_reference,
+                role_clause: "tampered identity clause",
+              }),
+            })
+            : selection.identity_reference;
+          return Object.freeze({
+            ...selection,
+            ...(pureResolverControls.null_provider_clauses ? { provider_clauses: null } : {}),
+            identity_reference: identityReference,
+          });
         },
       });
     },
   };
 });
 import { canonicalJson, canonicalJsonSha256 } from "../../ppt_maker_harness/scripts/shared/identity/canonical_json.mjs";
+import { sha256Bytes } from "../../ppt_maker_harness/scripts/shared/identity/byte_hash.mjs";
 import { prepareFramedProgressivePilotReview } from "../../ppt_maker_harness/scripts/03-framed-image/index.mjs";
 import {
   classifyPureRefresh,
   createPureRawWorkPlan,
   publishPureFinalSlideManifest,
+  readPureTargetStoredPlanContext,
   authorizePureTargetRawPlan,
   authorizePureProgressiveRawBatch,
   acceptPureProgressivePilot,
@@ -50,8 +68,9 @@ import {
   validatePureRawContract,
 } from "../../ppt_maker_harness/scripts/04-pure-image/index.mjs";
 import { initBundle } from "../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
-import { pageImageWorkflowPaths } from "../../ppt_maker_harness/scripts/shared/run-bundle/page_image_paths.mjs";
+import { pageImageDerivedPagePaths, pageImageWorkflowPaths } from "../../ppt_maker_harness/scripts/shared/run-bundle/page_image_paths.mjs";
 import { readState } from "../../ppt_maker_harness/scripts/shared/state/state.mjs";
+import { targetPageImageSubmitFactory } from "../../ppt_maker_harness/scripts/ppt_flow.mjs";
 import {
   readProgressiveAcceptedRawWork,
 } from "../../ppt_maker_harness/scripts/shared/image2/page_image_progressive_raw_owner.mjs";
@@ -59,6 +78,11 @@ import {
   readProgressiveRawPlanDirectRecords,
 } from "../../ppt_maker_harness/scripts/shared/image2/page_image_progressive_store.mjs";
 import { acceptLocalStyleMasterFixture } from "../helpers/accepted_style_master.mjs";
+import {
+  TEST_IDENTITY_REFERENCE,
+  allowTestIdentitySubjectClass,
+  writeTestIdentityReference,
+} from "../helpers/page_image_identity_reference_fixture.mjs";
 
 const digest = (letter) => letter.repeat(64);
 
@@ -92,6 +116,7 @@ function receipt(source = "a") {
 describe("Pure target workflow", () => {
   beforeEach(() => {
     pureResolverControls.null_provider_clauses = false;
+    pureResolverControls.tamper_identity_clause = false;
   });
 
   it("rejects a Framed receipt before creating target work", () => {
@@ -257,6 +282,285 @@ negative_constraints:
       expect(readFileSync(join(deck, "_state", "state.yaml"))).toEqual(stateBefore);
       expect(existsSync(paths.target_source_receipt)).toBe(false);
       expect(existsSync(paths.target_raw_plan)).toBe(false);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("compiles a semantic Pure identity and rejects malformed raw identity facts", async () => {
+    const root = mkdtempSync(join(tmpdir(), "pure-identity-provider-input-"));
+    const deck = join(root, "deck_pure_identity_provider_input");
+    const runDir = join(deck, "3_versions", "v1");
+    const image = createCanvas(2000, 1125);
+    image.getContext("2d").fillRect(0, 0, 2000, 1125);
+    const source = `---
+identity:
+  scheme: mnemonic
+production:
+  pipeline: page-image-workflow
+  workflow: pure
+---
+
+## Slide 01: \`DeckGo\`
+
+**TITLE**: Identity-bearing Pure page
+**VISUAL IDENTITY**: ${TEST_IDENTITY_REFERENCE.profile}/${TEST_IDENTITY_REFERENCE.role}
+**IDENTITY SUBJECT COUNT**: one
+**SUBJECT RESTRICTIONS**: none
+**VISUAL BRIEF**:
+\`\`\`yaml
+recipe: editorial-systems
+composition: centered-constellation
+motifs: []
+negative_constraints:
+  - no-logo
+\`\`\`
+
+## Slide 02: \`FlowGo\`
+
+**TITLE**: Identity-free Pure control
+**IDENTITY SUBJECT COUNT**: none
+**SUBJECT RESTRICTIONS**: none
+**VISUAL BRIEF**:
+\`\`\`yaml
+recipe: editorial-systems
+composition: centered-constellation
+motifs: []
+negative_constraints:
+  - no-logo
+\`\`\`
+`;
+    try {
+      initBundle(deck, null, "keynote", "dark-executive");
+      allowTestIdentitySubjectClass(deck);
+      const reference = writeTestIdentityReference(deck);
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+      writeFileSync(join(runDir, "slide-specifications.md"), source);
+      await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir));
+
+      const plan = buildPureTargetRawPlan(runDir);
+      const identityRequest = plan.provider_requests_by_slide.DeckGo;
+      const identityContract = identityRequest.raw_contract;
+      const identityInput = JSON.parse(identityRequest.compiled_provider_input.utf8);
+      const noIdentityInput = JSON.parse(plan.provider_requests_by_slide.FlowGo.compiled_provider_input.utf8);
+      const expectedProviderIdentity = {
+        profile: TEST_IDENTITY_REFERENCE.profile,
+        role: TEST_IDENTITY_REFERENCE.role,
+        subject_class: TEST_IDENTITY_REFERENCE.subject_class,
+        identity_subject_count: "one",
+        subject_restrictions: "none",
+        role_clause: reference.role_clause,
+      };
+
+      expect(identityContract.visual_identity).toEqual({
+        profile: TEST_IDENTITY_REFERENCE.profile,
+        role: TEST_IDENTITY_REFERENCE.role,
+        reference_sha256: reference.reference_sha256,
+        role_clause_sha256: reference.role_clause_sha256,
+        subject_class: TEST_IDENTITY_REFERENCE.subject_class,
+        identity_subject_count: "one",
+        subject_restrictions: "none",
+      });
+      expect(identityContract.visual_identity_role_clause).toBe(reference.role_clause);
+      expect(identityInput.visual.identity).toEqual(expectedProviderIdentity);
+      expect(identityInput.visual.identity).not.toHaveProperty("reference_sha256");
+      expect(identityInput.visual.identity).not.toHaveProperty("role_clause_sha256");
+      expect(identityInput.visual.identity).not.toHaveProperty("path");
+      expect(noIdentityInput.visual.identity).toBeNull();
+
+      const paths = pageImageWorkflowPaths(runDir);
+      const legacyInputUtf8 = canonicalJson({
+        ...identityInput,
+        visual: { ...identityInput.visual, identity: identityContract.visual_identity },
+      });
+      const legacyBindings = Object.fromEntries(plan.raw_work_plan.items.map((item) => [
+        item.slide_id,
+        item.slide_id === "DeckGo"
+          ? { ...item.provider_input_binding, compiled_provider_input_sha256: sha256Bytes(Buffer.from(legacyInputUtf8, "utf8")) }
+          : item.provider_input_binding,
+      ]));
+      const legacyPlan = createPureRawWorkPlan({
+        receipt: plan.receipt,
+        provider_profile_sha256: plan.raw_work_plan.provider_profile_sha256,
+        authorization_scope_sha256: plan.raw_work_plan.authorization_scope_sha256,
+        raw_contracts_by_slide: Object.fromEntries(plan.raw_work_plan.items.map((item) => [item.slide_id, item.raw_contract_sha256])),
+        provider_input_bindings_by_slide: legacyBindings,
+      });
+      const historicalEvidence = createAcceptedRawEvidence({
+        plan: legacyPlan,
+        provider_authorization_sha256: "c".repeat(64),
+        raw_review_sha256: "d".repeat(64),
+        raw_bytes_by_slide: { DeckGo: NATIVE_PROVIDER_PNG, FlowGo: NATIVE_PROVIDER_PNG },
+      });
+      const historicalBefore = structuredClone(historicalEvidence);
+      expect(classifyPureRefresh({
+        previousReceipt: plan.receipt,
+        nextReceipt: plan.receipt,
+        rawWorkPlan: legacyPlan,
+        nextRawWorkPlan: plan.raw_work_plan,
+        acceptedRawEvidence: historicalEvidence,
+      })).toMatchObject({ kind: "rebuild_raw", reason: "compiled_provider_input_drift" });
+      expect(historicalEvidence).toEqual(historicalBefore);
+
+      const currentPlanBytes = readFileSync(paths.target_raw_plan);
+      const stateBeforeLegacyPreflight = readFileSync(join(deck, "_state", "state.yaml"));
+      writeFileSync(paths.target_raw_plan, JSON.stringify(legacyPlan));
+      const readLegacy = (() => {
+        try {
+          readPureTargetStoredPlanContext(runDir);
+        } catch (error) {
+          return error;
+        }
+        throw new Error("expected retained projection-only plan to be stale");
+      })();
+      expect(readLegacy).toMatchObject({ code: "target_raw_plan_stale" });
+      const authorizeLegacy = (() => {
+        try {
+          authorizePureTargetRawPlan(runDir, { planHash: legacyPlan.sha256 });
+        } catch (error) {
+          return error;
+        }
+        throw new Error("expected authorization to reject the retained projection-only plan");
+      })();
+      expect(authorizeLegacy).toMatchObject({ code: "target_raw_plan_stale" });
+      let staleSubmitCalls = 0;
+      await expect(generatePureTargetRawPlan(runDir, {
+        planHash: legacyPlan.sha256,
+        submit: async () => {
+          staleSubmitCalls += 1;
+          return NATIVE_PROVIDER_PNG;
+        },
+      })).rejects.toMatchObject({ code: "target_raw_plan_stale" });
+      expect(staleSubmitCalls).toBe(0);
+      expect(readFileSync(join(deck, "_state", "state.yaml"))).toEqual(stateBeforeLegacyPreflight);
+      writeFileSync(paths.target_raw_plan, currentPlanBytes);
+
+      const progressive = buildPureProgressiveTargetRawPlan(runDir);
+      const progressiveIdentityRequest = progressive.provider_requests_by_slide.DeckGo;
+      const derivedIdentity = JSON.parse(readFileSync(pageImageDerivedPagePaths(runDir, "DeckGo").image2_request, "utf8"));
+      const inspection = JSON.parse(readFileSync(paths.target_provider_request_inspection, "utf8"));
+      expect(derivedIdentity.payload).toMatchObject({
+        canonical_utf8: progressiveIdentityRequest.compiled_provider_input.utf8,
+        request_digest: progressiveIdentityRequest.compiled_provider_input.sha256,
+      });
+      expect(progressiveIdentityRequest.compiled_provider_input).toEqual(identityRequest.compiled_provider_input);
+      expect(JSON.parse(inspection.items.find((item) => item.slide_id === "DeckGo").prompt)).toEqual(progressiveIdentityRequest);
+
+      const registry = readFileSync(reference.registry_path, "utf8");
+      writeFileSync(reference.registry_path, registry.replace(reference.role_clause, "one drifted light-form waits quietly"));
+      const providerBodies = [];
+      const submit = targetPageImageSubmitFactory(plan, {
+        credentialResolver: () => ({ base_url: "https://image.example", api_key: "test-key" }),
+        fetchImpl: async (_url, options) => {
+          providerBodies.push(JSON.parse(options.body));
+          return {
+            ok: true,
+            status: 200,
+            text: async () => JSON.stringify({ data: [{ b64_json: NATIVE_PROVIDER_PNG.toString("base64") }] }),
+          };
+        },
+      });
+      await submit({
+        request: identityRequest,
+        item: { slide_id: "DeckGo" },
+        provider_idempotency_key: `page-image-workflow-${"a".repeat(64)}`,
+      });
+      await submit({
+        request: plan.provider_requests_by_slide.FlowGo,
+        item: { slide_id: "FlowGo" },
+        provider_idempotency_key: `page-image-workflow-${"b".repeat(64)}`,
+      });
+
+      const [identityBody, noIdentityBody] = providerBodies;
+      expect(identityBody.prompt).toBe(identityRequest.compiled_provider_input.utf8);
+      expect(identityBody.prompt).not.toContain("one drifted light-form waits quietly");
+      expect(JSON.parse(identityBody.prompt).visual.identity).toEqual(expectedProviderIdentity);
+      expect(identityBody.images).toEqual([
+        `data:image/png;base64,${plan.style_master_reference.bytes.toString("base64")}`,
+        `data:image/png;base64,${readFileSync(reference.reference_path).toString("base64")}`,
+      ]);
+      expect(noIdentityBody.prompt).toBe(plan.provider_requests_by_slide.FlowGo.compiled_provider_input.utf8);
+      expect(JSON.parse(noIdentityBody.prompt).visual.identity).toBeNull();
+      expect(noIdentityBody.images).toEqual([
+        `data:image/png;base64,${plan.style_master_reference.bytes.toString("base64")}`,
+      ]);
+
+      const invalidContracts = [
+        (candidate) => { candidate.visual_identity_role_clause = null; },
+        (candidate) => { candidate.visual_identity = null; },
+        (candidate) => { delete candidate.visual_identity.role; },
+        (candidate) => { candidate.visual_identity.unexpected = "extra"; },
+        (candidate) => { candidate.visual_identity.profile = "UpperCase"; },
+        (candidate) => { candidate.visual_identity.reference_sha256 = "A".repeat(64); },
+        (candidate) => { candidate.visual_identity.identity_subject_count = "none"; },
+        (candidate) => { candidate.visual_identity.subject_restrictions = "unsupported"; },
+        (candidate) => { candidate.visual_identity_role_clause = "tampered identity clause"; },
+      ];
+      for (const mutate of invalidContracts) {
+        const candidate = structuredClone(identityContract);
+        mutate(candidate);
+        expect(validatePureRawContract(candidate)).toMatchObject({
+          ok: false,
+          code: "pure_raw_contract_invalid",
+        });
+      }
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("hard-stops a tampered Pure identity before publication and recovers at the same checkpoint", async () => {
+    const root = mkdtempSync(join(tmpdir(), "pure-identity-hard-stop-"));
+    const deck = join(root, "deck_pure_identity_hard_stop");
+    const runDir = join(deck, "3_versions", "v1");
+    const image = createCanvas(2000, 1125);
+    image.getContext("2d").fillRect(0, 0, 2000, 1125);
+    const source = `---
+identity:
+  scheme: mnemonic
+production:
+  pipeline: page-image-workflow
+  workflow: pure
+---
+
+## Slide 01: \`DeckGo\`
+
+**TITLE**: Reject tampered identity
+**VISUAL IDENTITY**: ${TEST_IDENTITY_REFERENCE.profile}/${TEST_IDENTITY_REFERENCE.role}
+**IDENTITY SUBJECT COUNT**: one
+**SUBJECT RESTRICTIONS**: none
+**VISUAL BRIEF**:
+\`\`\`yaml
+recipe: editorial-systems
+composition: centered-constellation
+motifs: []
+negative_constraints:
+  - no-logo
+\`\`\`
+`;
+    try {
+      initBundle(deck, null, "keynote", "dark-executive");
+      allowTestIdentitySubjectClass(deck);
+      writeTestIdentityReference(deck);
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+      writeFileSync(join(runDir, "slide-specifications.md"), source);
+      await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir));
+      const paths = pageImageWorkflowPaths(runDir);
+      const stateBefore = readFileSync(join(deck, "_state", "state.yaml"));
+
+      pureResolverControls.tamper_identity_clause = true;
+      expect(() => buildPureTargetRawPlan(runDir)).toThrow(expect.objectContaining({
+        code: "pure_raw_contract_invalid",
+      }));
+      expect(readFileSync(join(deck, "_state", "state.yaml"))).toEqual(stateBefore);
+      expect(existsSync(paths.target_source_receipt)).toBe(false);
+      expect(existsSync(paths.target_raw_plan)).toBe(false);
+
+      pureResolverControls.tamper_identity_clause = false;
+      expect(buildPureTargetRawPlan(runDir).raw_work_plan).toMatchObject({
+        workflow: "pure",
+        ordered_slide_ids: ["DeckGo"],
+      });
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

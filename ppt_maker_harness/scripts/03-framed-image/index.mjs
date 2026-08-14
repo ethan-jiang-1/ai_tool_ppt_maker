@@ -7,6 +7,7 @@ import {
 import { currentFramedHeaderOverlayRenderProfile } from "./internal/framed_render_profile.mjs";
 import {
   FRAMED_EXCLUSIVE_HEADER_RESERVATION_INSTRUCTION,
+  buildFramedProviderIdentity,
   validateFramedProviderInputContract,
 } from "./internal/framed_provider_input_contract.mjs";
 import {
@@ -207,12 +208,39 @@ const FRAMED_RAW_CONTRACT_FRAME_KEYS = Object.freeze([
 ]);
 const FRAMED_HEADER_POLICY_KEYS = Object.freeze(["local_header"]);
 const FRAMED_HEADER_FIELDS = Object.freeze(["kicker", "title", "subtitle"]);
+const IDENTITY_PROJECTION_KEYS = Object.freeze([
+  "profile",
+  "role",
+  "reference_sha256",
+  "role_clause_sha256",
+  "subject_class",
+  "identity_subject_count",
+  "subject_restrictions",
+]);
 const SUBJECT_RESTRICTIONS = new Set(["none", "no-generic-metal-robot", "no-identity-subject"]);
+const LOWER_KEBAB_ID_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const SHA256_RE = /^[0-9a-f]{64}$/;
 
 function hasExactKeys(value, keys) {
   return Boolean(value && typeof value === "object" && !Array.isArray(value)) &&
     Object.keys(value).length === keys.length && keys.every((key) => Object.hasOwn(value, key));
+}
+
+function hasValidIdentityFacts(rawContract) {
+  const projection = rawContract.visual_identity;
+  const roleClause = rawContract.visual_identity_role_clause;
+  if ((projection === null) !== (roleClause === null)) return false;
+  if (projection === null) return true;
+  return hasExactKeys(projection, IDENTITY_PROJECTION_KEYS) &&
+    typeof roleClause === "string" && roleClause.length > 0 &&
+    LOWER_KEBAB_ID_RE.test(projection.profile || "") &&
+    LOWER_KEBAB_ID_RE.test(projection.role || "") &&
+    LOWER_KEBAB_ID_RE.test(projection.subject_class || "") &&
+    SHA256_RE.test(projection.reference_sha256 || "") &&
+    SHA256_RE.test(projection.role_clause_sha256 || "") &&
+    projection.identity_subject_count === "one" &&
+    SUBJECT_RESTRICTIONS.has(projection.subject_restrictions) &&
+    sha256Bytes(Buffer.from(roleClause, "utf8")) === projection.role_clause_sha256;
 }
 
 function isNormalizedRectangle(value) {
@@ -246,9 +274,8 @@ function validateFramedRawContractAgainstProfile(rawContract, renderProfile) {
       !rawContract.visual_language || typeof rawContract.visual_language !== "object" || Array.isArray(rawContract.visual_language) ||
       !isPageImageProviderClausesShape(rawContract.provider_clauses) ||
       !isPageImageProviderClausesBoundToVisualLanguage(rawContract.visual_language, rawContract.provider_clauses) ||
-      (rawContract.visual_identity_role_clause !== null && typeof rawContract.visual_identity_role_clause !== "string") ||
       (rawContract.visual_scene !== null && typeof rawContract.visual_scene !== "string") ||
-      (rawContract.visual_identity !== null && (!rawContract.visual_identity || typeof rawContract.visual_identity !== "object" || Array.isArray(rawContract.visual_identity))) ||
+      !hasValidIdentityFacts(rawContract) ||
       !hasExactKeys(rawContract.page_image_core, FRAMED_RAW_CONTRACT_CORE_KEYS) ||
       rawContract.page_image_core.schema !== "page-image-core-slide-facts" ||
       !SHA256_RE.test(rawContract.page_image_core.canonical_semantic_sha256 || "") ||
@@ -879,7 +906,7 @@ function compileFramedProviderInput({ slideId, rawContract, generationProfile } 
       composition: rawContract.provider_clauses.composition,
       motifs: rawContract.provider_clauses.motifs,
       relationship: rawContract.provider_clauses.relationship || null,
-      identity: rawContract.visual_identity,
+      identity: buildFramedProviderIdentity(rawContract),
     },
     generation_profile: generationProfile,
   });

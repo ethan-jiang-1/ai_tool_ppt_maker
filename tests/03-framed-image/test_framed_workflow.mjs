@@ -1,9 +1,37 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createCanvas, loadImage } from "@napi-rs/canvas";
+
+const framedResolverControls = vi.hoisted(() => ({ tamper_identity_clause: false }));
+
+vi.mock("../../ppt_maker_harness/scripts/02-visual-system/index.mjs", async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    createPageImageSourceResolver(...args) {
+      const resolver = actual.createPageImageSourceResolver(...args);
+      return Object.freeze({
+        resolveSelection(context) {
+          const selection = resolver.resolveSelection(context);
+          if (!framedResolverControls.tamper_identity_clause || !selection.identity_reference) return selection;
+          return Object.freeze({
+            ...selection,
+            identity_reference: Object.freeze({
+              ...selection.identity_reference,
+              provider_reference: Object.freeze({
+                ...selection.identity_reference.provider_reference,
+                role_clause: "tampered identity clause",
+              }),
+            }),
+          });
+        },
+      });
+    },
+  };
+});
 import {
   createAcceptedRawEvidence,
   createRawWorkPlan,
@@ -60,6 +88,11 @@ import {
   readProgressiveRawPlanDirectRecords,
 } from "../../ppt_maker_harness/scripts/shared/image2/page_image_progressive_store.mjs";
 import { acceptLocalStyleMasterFixture } from "../helpers/accepted_style_master.mjs";
+import {
+  TEST_IDENTITY_REFERENCE,
+  allowTestIdentitySubjectClass,
+  writeTestIdentityReference,
+} from "../helpers/page_image_identity_reference_fixture.mjs";
 
 const digest = (letter) => letter.repeat(64);
 const STANDARD_PRESENTATION_PROFILE = STANDARD_FRAMED_PRESENTATION_PROFILE;
@@ -102,6 +135,8 @@ function framedSource({
   visualYaml = DEFAULT_VISUAL_BRIEF,
   note = "Framed source-owned note.",
   subjectRestrictions = null,
+  identity = null,
+  identitySubjectCount = null,
 } = {}) {
   return `---
 identity:
@@ -116,7 +151,10 @@ production:
 **KICKER**: ${kicker}
 **TITLE**: ${title}
 **SUBTITLE**: ${subtitle}
-${subjectRestrictions ? `**SUBJECT RESTRICTIONS**: ${subjectRestrictions}
+${identity ? `**VISUAL IDENTITY**: ${identity.profile}/${identity.role}
+**IDENTITY SUBJECT COUNT**: ${identitySubjectCount || "one"}
+` : identitySubjectCount ? `**IDENTITY SUBJECT COUNT**: ${identitySubjectCount}
+` : ""}${subjectRestrictions ? `**SUBJECT RESTRICTIONS**: ${subjectRestrictions}
 ` : ""}**SLIDE BODY**:
 \`\`\`yaml
 ${bodyYaml}
@@ -153,6 +191,10 @@ const receipt = {
 };
 
 describe("Framed target workflow", () => {
+
+  beforeEach(() => {
+    framedResolverControls.tamper_identity_clause = false;
+  });
 
   it("compiles resolved visual and provider-content facts into the Framed raw contract", async () => {
     const root = mkdtempSync(join(tmpdir(), "framed-scene-contract-"));
@@ -198,6 +240,266 @@ relationship: layer-stack`,
       expect(contract.visual_scene).toBeNull();
       expect(contract.visual_identity_role_clause).toBeNull();
       expect(contract.framed).not.toHaveProperty("text_free");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("compiles a semantic Framed identity and rejects malformed raw or compiled identity facts", async () => {
+    const root = mkdtempSync(join(tmpdir(), "framed-identity-provider-input-"));
+    const deck = join(root, "deck_framed_identity_provider_input");
+    const runDir = join(deck, "3_versions", "v1");
+    const image = createCanvas(2000, 1125);
+    image.getContext("2d").fillRect(0, 0, 2000, 1125);
+    const source = `${framedSource({
+      title: "Identity-bearing Framed page",
+      identity: TEST_IDENTITY_REFERENCE,
+      subjectRestrictions: "none",
+    })}
+## Slide 02: \`FlowGo\`
+
+**TITLE**: Identity-free Framed control
+**IDENTITY SUBJECT COUNT**: none
+**SUBJECT RESTRICTIONS**: none
+**SLIDE BODY**:
+\`\`\`yaml
+${DEFAULT_PROVIDER_BODY}
+\`\`\`
+**VISUAL BRIEF**:
+\`\`\`yaml
+${DEFAULT_VISUAL_BRIEF}
+\`\`\`
+`;
+    try {
+      initBundle(deck, null, "keynote", "dark-executive");
+      allowTestIdentitySubjectClass(deck);
+      const reference = writeTestIdentityReference(deck);
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+      writeFileSync(join(runDir, "slide-specifications.md"), source);
+      await acceptLocalStyleMasterFixture(resolveFramedStyleMasterScope(runDir));
+
+      const plan = await buildFramedTargetRawPlan(runDir);
+      const identityRequest = plan.provider_requests_by_slide.DeckGo;
+      const identityContract = identityRequest.raw_contract;
+      const identityInput = JSON.parse(identityRequest.compiled_provider_input.utf8);
+      const noIdentityInput = JSON.parse(plan.provider_requests_by_slide.FlowGo.compiled_provider_input.utf8);
+      const expectedProviderIdentity = {
+        profile: TEST_IDENTITY_REFERENCE.profile,
+        role: TEST_IDENTITY_REFERENCE.role,
+        subject_class: TEST_IDENTITY_REFERENCE.subject_class,
+        identity_subject_count: "one",
+        subject_restrictions: "none",
+        role_clause: reference.role_clause,
+      };
+
+      expect(identityContract.visual_identity).toEqual({
+        profile: TEST_IDENTITY_REFERENCE.profile,
+        role: TEST_IDENTITY_REFERENCE.role,
+        reference_sha256: reference.reference_sha256,
+        role_clause_sha256: reference.role_clause_sha256,
+        subject_class: TEST_IDENTITY_REFERENCE.subject_class,
+        identity_subject_count: "one",
+        subject_restrictions: "none",
+      });
+      expect(identityContract.visual_identity_role_clause).toBe(reference.role_clause);
+      expect(identityInput.visual.identity).toEqual(expectedProviderIdentity);
+      expect(identityInput.visual.identity).not.toHaveProperty("reference_sha256");
+      expect(identityInput.visual.identity).not.toHaveProperty("role_clause_sha256");
+      expect(identityInput.visual.identity).not.toHaveProperty("path");
+      expect(noIdentityInput.visual.identity).toBeNull();
+
+      const paths = pageImageWorkflowPaths(runDir);
+      const legacyInputUtf8 = canonicalJson({
+        ...identityInput,
+        visual: { ...identityInput.visual, identity: identityContract.visual_identity },
+      });
+      const legacyBindings = Object.fromEntries(plan.raw_work_plan.items.map((item) => [
+        item.slide_id,
+        item.slide_id === "DeckGo"
+          ? { ...item.provider_input_binding, compiled_provider_input_sha256: sha256Bytes(Buffer.from(legacyInputUtf8, "utf8")) }
+          : item.provider_input_binding,
+      ]));
+      const legacyPlan = createFramedRawWorkPlan({
+        receipt: plan.receipt,
+        provider_profile_sha256: plan.raw_work_plan.provider_profile_sha256,
+        authorization_scope_sha256: plan.raw_work_plan.authorization_scope_sha256,
+        raw_contracts_by_slide: Object.fromEntries(plan.raw_work_plan.items.map((item) => [item.slide_id, item.raw_contract_sha256])),
+        provider_input_bindings_by_slide: legacyBindings,
+      });
+      const historicalEvidence = createAcceptedRawEvidence({
+        plan: legacyPlan,
+        provider_authorization_sha256: "c".repeat(64),
+        raw_review_sha256: "d".repeat(64),
+        raw_bytes_by_slide: { DeckGo: NATIVE_PROVIDER_PNG, FlowGo: NATIVE_PROVIDER_PNG },
+      });
+      const historicalBefore = structuredClone(historicalEvidence);
+      expect(classifyFramedRefresh({
+        previousReceipt: plan.receipt,
+        nextReceipt: plan.receipt,
+        rawWorkPlan: legacyPlan,
+        nextRawWorkPlan: plan.raw_work_plan,
+        acceptedRawEvidence: historicalEvidence,
+      })).toMatchObject({ kind: "rebuild_raw", reason: "compiled_provider_input_drift" });
+      expect(historicalEvidence).toEqual(historicalBefore);
+
+      const currentPlanBytes = readFileSync(paths.target_raw_plan);
+      const stateBeforeLegacyPreflight = readFileSync(join(deck, "_state", "state.yaml"));
+      writeFileSync(paths.target_raw_plan, JSON.stringify(legacyPlan));
+      const readLegacy = (() => {
+        try {
+          readFramedTargetStoredPlanContext(runDir);
+        } catch (error) {
+          return error;
+        }
+        throw new Error("expected retained projection-only plan to be stale");
+      })();
+      expect(readLegacy).toMatchObject({ code: "target_raw_plan_stale" });
+      await expect(authorizeFramedTargetRawPlan(runDir, { planHash: legacyPlan.sha256 }))
+        .rejects.toMatchObject({ code: "target_raw_plan_stale" });
+      let staleSubmitCalls = 0;
+      await expect(generateFramedTargetRawPlan(runDir, {
+        planHash: legacyPlan.sha256,
+        submit: async () => {
+          staleSubmitCalls += 1;
+          return NATIVE_PROVIDER_PNG;
+        },
+      })).rejects.toMatchObject({ code: "target_raw_plan_stale" });
+      expect(staleSubmitCalls).toBe(0);
+      expect(readFileSync(join(deck, "_state", "state.yaml"))).toEqual(stateBeforeLegacyPreflight);
+      writeFileSync(paths.target_raw_plan, currentPlanBytes);
+
+      const progressive = await buildFramedProgressiveTargetRawPlan(runDir);
+      const progressiveIdentityRequest = progressive.provider_requests_by_slide.DeckGo;
+      const derivedIdentity = JSON.parse(readFileSync(pageImageDerivedPagePaths(runDir, "DeckGo").image2_request, "utf8"));
+      const inspection = JSON.parse(readFileSync(paths.target_provider_request_inspection, "utf8"));
+      expect(derivedIdentity.payload).toMatchObject({
+        canonical_utf8: progressiveIdentityRequest.compiled_provider_input.utf8,
+        request_digest: progressiveIdentityRequest.compiled_provider_input.sha256,
+      });
+      expect(progressiveIdentityRequest.compiled_provider_input).toEqual(identityRequest.compiled_provider_input);
+      expect(JSON.parse(inspection.items.find((item) => item.slide_id === "DeckGo").prompt)).toEqual(progressiveIdentityRequest);
+
+      const registry = readFileSync(reference.registry_path, "utf8");
+      writeFileSync(reference.registry_path, registry.replace(reference.role_clause, "one drifted light-form waits quietly"));
+      const providerBodies = [];
+      const submit = targetPageImageSubmitFactory(plan, {
+        credentialResolver: () => ({ base_url: "https://image.example", api_key: "test-key" }),
+        fetchImpl: async (_url, options) => {
+          providerBodies.push(JSON.parse(options.body));
+          return {
+            ok: true,
+            status: 200,
+            text: async () => JSON.stringify({ data: [{ b64_json: NATIVE_PROVIDER_PNG.toString("base64") }] }),
+          };
+        },
+      });
+      await submit({
+        request: identityRequest,
+        item: { slide_id: "DeckGo" },
+        provider_idempotency_key: `page-image-workflow-${"a".repeat(64)}`,
+      });
+      await submit({
+        request: plan.provider_requests_by_slide.FlowGo,
+        item: { slide_id: "FlowGo" },
+        provider_idempotency_key: `page-image-workflow-${"b".repeat(64)}`,
+      });
+
+      const [identityBody, noIdentityBody] = providerBodies;
+      expect(identityBody.prompt).toBe(identityRequest.compiled_provider_input.utf8);
+      expect(identityBody.prompt).not.toContain("one drifted light-form waits quietly");
+      expect(JSON.parse(identityBody.prompt).visual.identity).toEqual(expectedProviderIdentity);
+      expect(identityBody.images).toEqual([
+        `data:image/png;base64,${plan.style_master_reference.bytes.toString("base64")}`,
+        `data:image/png;base64,${readFileSync(reference.reference_path).toString("base64")}`,
+      ]);
+      expect(noIdentityBody.prompt).toBe(plan.provider_requests_by_slide.FlowGo.compiled_provider_input.utf8);
+      expect(JSON.parse(noIdentityBody.prompt).visual.identity).toBeNull();
+      expect(noIdentityBody.images).toEqual([
+        `data:image/png;base64,${plan.style_master_reference.bytes.toString("base64")}`,
+      ]);
+
+      const invalidContracts = [
+        (candidate) => { candidate.visual_identity_role_clause = null; },
+        (candidate) => { candidate.visual_identity = null; },
+        (candidate) => { delete candidate.visual_identity.role; },
+        (candidate) => { candidate.visual_identity.unexpected = "extra"; },
+        (candidate) => { candidate.visual_identity.subject_class = "UpperCase"; },
+        (candidate) => { candidate.visual_identity.role_clause_sha256 = "A".repeat(64); },
+        (candidate) => { candidate.visual_identity.identity_subject_count = "none"; },
+        (candidate) => { candidate.visual_identity.subject_restrictions = "unsupported"; },
+        (candidate) => { candidate.visual_identity_role_clause = "tampered identity clause"; },
+      ];
+      for (const mutate of invalidContracts) {
+        const candidate = structuredClone(identityContract);
+        mutate(candidate);
+        expect(validateFramedRawContract(candidate)).toMatchObject({
+          ok: false,
+          code: "framed_raw_contract_invalid",
+        });
+      }
+
+      const withLineage = structuredClone(identityInput);
+      withLineage.visual.identity.reference_sha256 = reference.reference_sha256;
+      const lineageUtf8 = canonicalJson(withLineage);
+      expect(validateFramedProviderInputContract({
+        rawContract: identityContract,
+        generationProfile: identityRequest.generation_profile,
+        compiledProviderInput: {
+          schema: identityRequest.compiled_provider_input.schema,
+          utf8: lineageUtf8,
+          sha256: sha256Bytes(Buffer.from(lineageUtf8, "utf8")),
+        },
+      })).toMatchObject({ ok: false, code: "framed_provider_input_contract_invalid" });
+
+      const withoutClause = structuredClone(identityInput);
+      delete withoutClause.visual.identity.role_clause;
+      const withoutClauseUtf8 = canonicalJson(withoutClause);
+      expect(validateFramedProviderInputContract({
+        rawContract: identityContract,
+        generationProfile: identityRequest.generation_profile,
+        compiledProviderInput: {
+          schema: identityRequest.compiled_provider_input.schema,
+          utf8: withoutClauseUtf8,
+          sha256: sha256Bytes(Buffer.from(withoutClauseUtf8, "utf8")),
+        },
+      })).toMatchObject({ ok: false, code: "framed_provider_input_contract_invalid" });
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("hard-stops a tampered Framed identity before publication and recovers at the same checkpoint", async () => {
+    const root = mkdtempSync(join(tmpdir(), "framed-identity-hard-stop-"));
+    const deck = join(root, "deck_framed_identity_hard_stop");
+    const runDir = join(deck, "3_versions", "v1");
+    const image = createCanvas(2000, 1125);
+    image.getContext("2d").fillRect(0, 0, 2000, 1125);
+    try {
+      initBundle(deck, null, "keynote", "dark-executive");
+      allowTestIdentitySubjectClass(deck);
+      writeTestIdentityReference(deck);
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+      writeFileSync(join(runDir, "slide-specifications.md"), framedSource({
+        title: "Reject tampered Framed identity",
+        identity: TEST_IDENTITY_REFERENCE,
+        subjectRestrictions: "none",
+      }));
+      await acceptLocalStyleMasterFixture(resolveFramedStyleMasterScope(runDir));
+      const paths = pageImageWorkflowPaths(runDir);
+      const stateBefore = readFileSync(join(deck, "_state", "state.yaml"));
+
+      framedResolverControls.tamper_identity_clause = true;
+      await expect(buildFramedTargetRawPlan(runDir)).rejects.toMatchObject({
+        code: "framed_raw_contract_invalid",
+      });
+      expect(readFileSync(join(deck, "_state", "state.yaml"))).toEqual(stateBefore);
+      expect(existsSync(paths.target_source_receipt)).toBe(false);
+      expect(existsSync(paths.target_raw_plan)).toBe(false);
+
+      framedResolverControls.tamper_identity_clause = false;
+      await expect(buildFramedTargetRawPlan(runDir)).resolves.toMatchObject({
+        raw_work_plan: { workflow: "framed", ordered_slide_ids: ["DeckGo"] },
+      });
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

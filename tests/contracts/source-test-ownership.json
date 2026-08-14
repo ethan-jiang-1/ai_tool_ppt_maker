@@ -43,6 +43,7 @@
       ],
       "executables": [],
       "unit_integration": [
+        "tests/02-visual-system/test_page_image_reference_material.mjs",
         "tests/02-visual-system/test_page_image_visual_language_relationships.mjs",
         "tests/02-visual-system/test_pure_deck_visual_system.mjs"
       ],

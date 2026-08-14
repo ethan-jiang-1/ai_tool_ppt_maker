@@ -300,3 +300,37 @@ OpenSpec proposal 只有同时满足以下条件才可进入实施：
 - Pure / Framed identity-present、no-identity 与 negative tests 对称完整；
 - transport 继续提交 exact adapter bytes，不补写正文；
 - `v8` 的旧 pilot 失效、新 plan、重新授权和重建路径被明确记录。
+
+---
+
+## 实施状态与 v8 交接（2026-08-15）
+
+这份清单把 **Harness 修复** 与 **v8 deck 生产** 明确分开。Harness change
+已经完成并归档；v8 的后续由新的 deck Agent 依据当前 State 接手，不是本
+Harness change 的未完成项。
+
+### Harness / OpenSpec：已完成
+
+- [x] 完成并 review 方案 B：provider-facing identity 只保留六个语义字段，包含 exact `role_clause`，不暴露 SHA 或物理路径。
+- [x] Visual Asset resolver contract tests 覆盖正常解析和非法 profile/role/path/bytes/clause/compatibility 的 fail-closed 行为；无需改变 registry schema 或 resolver output shape。
+- [x] Pure adapter 在 raw-plan 发布前校验 identity/clause null pairing、七字段 lineage projection、合法值和 UTF-8 clause digest，并编译六字段 provider identity。
+- [x] Framed adapter 实现同等 raw validation；其 exact compiled-input validator 复用语义 identity 构造并拒绝 clause 缺失、SHA/path 回流、额外字段和非 canonical bytes。
+- [x] 覆盖 Pure / Framed 的 identity-present、no-identity、tamper、stored projection-only plan、transport、invalidation 和架构边界测试。
+- [x] 通过 `npm test`、串行 `test:sweep`（69 files / 571 tests）、严格 OpenSpec validation 和 `git diff --check`。
+- [x] 同步 `image-generation` 与 `visual-asset-management` main specs，并归档为 `2026-08-15-restore-identity-role-clause-provider-input`。
+
+### v8 deck：不属于 Harness change，交给新的 Deck Agent
+
+- [x] 依据修复后的 compiler 发布 fresh Pure plan；旧 plan/grant/evidence 未被复用。
+- [x] 重新生成并人类 `proceed` 了 4 页 Pilot：`InfoRev`、`NewPart`、`DeerVal`、`FramAut`。
+- [x] 当前 Expansion scope 和其 exact grant 已由 owner 记录。
+- [ ] 当前 State 有 25 页中的 12 页 materialized、13 页 unsubmitted；新的 Deck Agent 必须从 `ppt_flow state <run-dir> --json` 的 owner action 继续，不能根据本清单或旧 artifact 猜下一步。
+- [ ] 完成 Expansion 的剩余逐页 generation，并在每次生成后刷新 owner inspection。
+- [ ] 准备并完成全部 25 页的 Complete Page Review；人类决定 `proceed` 或 `repair`，不能由合同测试或本 Pilot 代替。
+- [ ] 在 accepted raw evidence 后，由各自 owner 发布 final manifest、delivery media、PPTX、notes 和 delivery review。
+- [ ] 若 identity 的实际视觉稳定性仍不够，作为独立的 v8 visual-source change 处理；不得回头扩大本 Harness change 或手改 `_generated/`。
+
+### 交接边界
+
+- [x] Harness source、OpenSpec main specs 和测试的变更已经完成；没有待实现的 Harness code item。
+- [ ] 新 Deck Agent 只对 `deck_ai_sdlc_keynote/3_versions/v8` 的当前 State 与后续 visual review 负责，不应修改 Harness 来追逐单个 deck 的视觉结果。

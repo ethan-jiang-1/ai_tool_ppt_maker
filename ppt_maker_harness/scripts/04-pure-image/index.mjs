@@ -186,11 +186,52 @@ const PURE_RAW_CONTRACT_CORE_KEYS = Object.freeze(["schema", "canonical_semantic
 const PURE_PAGE_PRESENTATION_KEYS = Object.freeze(["page_class", "profile_id", "binding_sha256", "provenance", "profile"]);
 const PURE_PROVIDER_RENDERED_CONTENT_KEYS = Object.freeze(["header", "items"]);
 const PURE_HEADER_KEYS = Object.freeze(["kicker", "title", "subtitle"]);
+const IDENTITY_PROJECTION_KEYS = Object.freeze([
+  "profile",
+  "role",
+  "reference_sha256",
+  "role_clause_sha256",
+  "subject_class",
+  "identity_subject_count",
+  "subject_restrictions",
+]);
+const SUBJECT_RESTRICTIONS = new Set(["none", "no-generic-metal-robot", "no-identity-subject"]);
+const LOWER_KEBAB_ID_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const SHA256_RE = /^[0-9a-f]{64}$/;
 
 function hasExactKeys(value, keys) {
   return Boolean(value && typeof value === "object" && !Array.isArray(value)) &&
     Object.keys(value).length === keys.length && keys.every((key) => Object.hasOwn(value, key));
+}
+
+function hasValidIdentityFacts(rawContract) {
+  const projection = rawContract.visual_identity;
+  const roleClause = rawContract.visual_identity_role_clause;
+  if ((projection === null) !== (roleClause === null)) return false;
+  if (projection === null) return true;
+  return hasExactKeys(projection, IDENTITY_PROJECTION_KEYS) &&
+    typeof roleClause === "string" && roleClause.length > 0 &&
+    LOWER_KEBAB_ID_RE.test(projection.profile || "") &&
+    LOWER_KEBAB_ID_RE.test(projection.role || "") &&
+    LOWER_KEBAB_ID_RE.test(projection.subject_class || "") &&
+    SHA256_RE.test(projection.reference_sha256 || "") &&
+    SHA256_RE.test(projection.role_clause_sha256 || "") &&
+    projection.identity_subject_count === "one" &&
+    SUBJECT_RESTRICTIONS.has(projection.subject_restrictions) &&
+    sha256Bytes(Buffer.from(roleClause, "utf8")) === projection.role_clause_sha256;
+}
+
+function buildPureProviderIdentity(rawContract) {
+  const projection = rawContract.visual_identity;
+  if (projection === null) return null;
+  return Object.freeze({
+    profile: projection.profile,
+    role: projection.role,
+    subject_class: projection.subject_class,
+    identity_subject_count: projection.identity_subject_count,
+    subject_restrictions: projection.subject_restrictions,
+    role_clause: rawContract.visual_identity_role_clause,
+  });
 }
 
 /** Validate one Pure raw contract before it can bind a request or plan. */
@@ -203,9 +244,8 @@ export function validatePureRawContract(rawContract) {
       !rawContract.visual_language || typeof rawContract.visual_language !== "object" || Array.isArray(rawContract.visual_language) ||
       !isPageImageProviderClausesShape(rawContract.provider_clauses) ||
       !isPageImageProviderClausesBoundToVisualLanguage(rawContract.visual_language, rawContract.provider_clauses) ||
-      (rawContract.visual_identity_role_clause !== null && typeof rawContract.visual_identity_role_clause !== "string") ||
       (rawContract.visual_scene !== null && typeof rawContract.visual_scene !== "string") ||
-      (rawContract.visual_identity !== null && (!rawContract.visual_identity || typeof rawContract.visual_identity !== "object" || Array.isArray(rawContract.visual_identity))) ||
+      !hasValidIdentityFacts(rawContract) ||
       !hasExactKeys(rawContract.page_presentation, PURE_PAGE_PRESENTATION_KEYS) ||
       !SHA256_RE.test(rawContract.page_presentation.binding_sha256 || "") ||
       !rawContract.page_presentation.profile || typeof rawContract.page_presentation.profile !== "object" || Array.isArray(rawContract.page_presentation.profile) ||
@@ -683,7 +723,7 @@ function compilePureProviderInput({ slideId, rawContract, generationProfile } = 
       composition: rawContract.provider_clauses.composition,
       motifs: rawContract.provider_clauses.motifs,
       relationship: rawContract.provider_clauses.relationship || null,
-      identity: rawContract.visual_identity,
+      identity: buildPureProviderIdentity(rawContract),
     },
     page_presentation: rawContract.page_presentation,
     generation_profile: generationProfile,

@@ -36,6 +36,26 @@ function sameCanonical(left, right) {
   return canonicalJson(left) === canonicalJson(right);
 }
 
+export function buildFramedProviderIdentity(rawContract) {
+  if (!rawContract || typeof rawContract !== "object" || Array.isArray(rawContract)) {
+    throw new TypeError("Framed provider identity requires one raw contract");
+  }
+  const projection = rawContract.visual_identity;
+  if (projection === null) return null;
+  if (!projection || typeof projection !== "object" || Array.isArray(projection) ||
+    typeof rawContract.visual_identity_role_clause !== "string") {
+    throw new TypeError("Framed provider identity requires validated identity facts");
+  }
+  return Object.freeze({
+    profile: projection.profile,
+    role: projection.role,
+    subject_class: projection.subject_class,
+    identity_subject_count: projection.identity_subject_count,
+    subject_restrictions: projection.subject_restrictions,
+    role_clause: rawContract.visual_identity_role_clause,
+  });
+}
+
 /** Validate Framed's provider-free canonical input before plan publication. */
 export function validateFramedProviderInputContract({ rawContract, generationProfile, compiledProviderInput } = {}) {
   try {
@@ -69,7 +89,7 @@ export function validateFramedProviderInputContract({ rawContract, generationPro
         composition: rawContract.provider_clauses?.composition,
         motifs: rawContract.provider_clauses?.motifs,
         relationship: rawContract.provider_clauses?.relationship || null,
-        identity: rawContract.visual_identity,
+        identity: buildFramedProviderIdentity(rawContract),
       }) ||
       !sameCanonical(request.generation_profile, generationProfile)) {
       throw new Error("Framed compiled provider input does not retain the exclusive header reservation contract");
