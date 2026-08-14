@@ -260,6 +260,16 @@ is the single selected workflow for one Work Version. Method modules and MD
 Controller guidance describe how the Agent proceeds; neither introduces another
 protocol or version-level workflow value.
 
+**Production Identity**:
+The State-owned exact-version agreement at
+`production_identity.by_version[3_versions/vN]`. Its record is exactly
+`{ workflow, source_epoch }`: source owns the pipeline and selected workflow;
+State owns the matching acceptance and freshness fence for state-owned
+evidence. A fresh authoring draft intentionally has no record. A missing,
+malformed, source-disagreeing, or historical record is a byte-preserving
+current-protocol hard-stop, not an alternate workflow or compatibility input.
+_Avoid_: Production mode, policy selector, project-metadata mirror
+
 **Compiled Provider Input**:
 The exact provider request bytes produced by a Page Image Workflow and bound into authorization and evidence lineage. For Framed it is distinct from the local header-renderer input and carries the provider-facing content and avoidance/controller facts selected for that page.
 _Avoid_: A transport-layer prompt rewrite, an unbound request wrapper
@@ -282,14 +292,6 @@ _Avoid_: Render permission, structural failure
 
 ### Intent Discovery And Control
 
-**Intent Route**:
-A closed, named classification of a user's goal whose only responsibility is to select the first safe discovery step.
-_Avoid_: CLI command, lifecycle node, authorization
-
-**Intent Route Catalog**:
-The versioned, auditable catalog of supported Intent Routes, separate from the Controller manifest and from runtime command dispatch.
-_Avoid_: Controller registry, command parser, workflow state machine
-
 **Foundation Request**:
 A request to establish or check local runtime, provider readiness, or in-scope provider capability before Deck work begins.
 _Avoid_: A Deck production request, a separate per-call permission prompt
@@ -311,8 +313,8 @@ A request to locate an exact run, diagnose a bounded failure, recover a missing 
 _Avoid_: New workflow, fallback production route
 
 **Route Gap**:
-A non-persistent response for an unrecognized request that names the smallest missing route, playbook, or owner capability without creating maintenance work automatically.
-_Avoid_: Backlog item, selected route state, silent fallback
+A non-persistent response for an unrecognized request that names the smallest missing Controller or owner capability without creating maintenance work automatically.
+_Avoid_: Backlog item, selected Controller state, silent fallback
 
 **Guided Checkpoint**:
 A non-authoritative collaboration point that states whether enough evidence and known human direction exist for the next irreversible action. When it is not ready, the Agent identifies the missing fact and prepares the smallest safe next action; it is not a Hard Stop or a second lifecycle state machine.

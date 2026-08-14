@@ -53,7 +53,6 @@ function fixture(workflow = "pure") {
   const source = `---\nproduction:\n  pipeline: page-image-workflow\n  workflow: ${workflow}\n---\n\n## Slide 01: \`DeckGo\`\n\n**TITLE**: Target prerequisite\n`;
   writeFileSync(join(runDir, "slide-specifications.md"), source);
   const state = createInitialState("target", "keynote", "dark-executive", {
-    mode: "image2-page-workflow",
     workflow,
   });
   state.continuation_target_version = "v1";
@@ -173,7 +172,7 @@ production:
         posture: "guide",
         root_cause: { owner: "narrative-authoring", kind: "NARRATIVE_SOURCES_REQUIRED" },
         primary_action: { action_id: "author-target-narrative-sources", requires_human: false },
-        evidence_summary: { pipeline: "page-image-workflow", mode: null, workflow: null },
+        evidence_summary: { pipeline: "page-image-workflow", workflow: null, source_epoch: null },
       });
       expect(isWorkflowInspectionSourceReady(inspection)).toBe(false);
       expect(treeSnapshot(deck)).toEqual(before);
@@ -191,7 +190,7 @@ production:
         posture: "hard-stop",
         root_cause: { owner: "selected-workflow-adapter", kind: "source-or-style-preflight-invalid" },
         primary_action: { owner: "04-pure-image", action_id: "repair-progressive-source-binding", requires_human: false },
-        evidence_summary: { mode: "image2-page-workflow", workflow: "pure" },
+        evidence_summary: { pipeline: "page-image-workflow", workflow: "pure", source_epoch: 1 },
       });
       expect(isWorkflowInspectionSourceReady(inspection)).toBe(true);
       expect(treeSnapshot(value.deck)).toEqual(before);
@@ -205,7 +204,6 @@ production:
     try {
       const path = join(value.deck, "_state", "state.yaml");
       const state = createInitialState("target", "keynote", "dark-executive", {
-        mode: "image2-page-workflow",
         workflow: "framed",
       });
       state.continuation_target_version = "v1";

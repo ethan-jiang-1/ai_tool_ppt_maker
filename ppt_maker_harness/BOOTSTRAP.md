@@ -32,7 +32,7 @@ node ppt_maker_harness/scripts/ppt_flow.mjs doctor --run-dir <run-dir> --operati
 
 ## Step 2 - Choose one version workflow while authoring
 
-新 source 的唯一 pipeline 是 `page-image-workflow`。`init` 创建当前 authoring draft；人必须先在 `production.workflow` 明确记录一次 `framed` 或 `pure`，source 才能进入 provider-work route。state 在 receipt 绑定后记录 `image2-page-workflow` 和同一 workflow；`project-metadata.yaml` 只是非权威镜像。不得从 deck type、任一 slide 或已有 artifact 推断 workflow。
+新 source 的唯一 pipeline 是 `page-image-workflow`。`init` 创建当前 authoring draft；人必须先在 `production.workflow` 明确记录一次 `framed` 或 `pure`，source 才能进入 provider-work route。State 接受 exact source 后在 `production_identity.by_version` 记录同一 workflow 与 `source_epoch`；`project-metadata.yaml` 没有 production-protocol mirror。不得从 deck type、任一 slide 或已有 artifact 推断 workflow。
 
 - `framed`: Provider 生成连续全画布以及 source-owned body、labels、metrics、callouts 和 supporting copy；固定 `standard` Header Rendering Policy 只在本地透明叠加 kicker、title、subtitle。选中的 profile 的 CSS-pixel `header_region` 定义 local-header-renderer-owned 的 Reserved Header Region，并推导 `normalized-canvas` 的 `protected_composition`：`reserved_header` 与其下方全宽的 `body_safe`。派生给 Provider 的 Provider Avoidance Constraint 只是有限避让提示和 Complete Page Review 指引，不证明 Provider compliance，也不创建 blank band；上述 machine fields 保持其既有序列化契约。本地 header literal 与其派生上下文绝不写入 provider input。`SUBJECT RESTRICTIONS` 是 source-owned 的闭集事实，Framed 将其绑定进 raw/request lineage。
 - `pure`: `04-pure-image` 让 Provider 生成包括 header 在内的所有最终像素。

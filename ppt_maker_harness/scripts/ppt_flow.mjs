@@ -71,8 +71,8 @@ import {
   // catalogues
   DECK_TYPE_TEMPLATES, STYLE_PRESETS,
   // init / check / create
-  initBundle, checkBundle, createVersion, nextVersionName, publishStructuralVersion, DEFAULT_INIT_MODE,
-  productionPolicyForMode, verifyDeckHarnessBinding,
+  initBundle, checkBundle, createVersion, nextVersionName, publishStructuralVersion,
+  verifyDeckHarnessBinding,
 } from "./shared/run-bundle/bundle_layout.mjs";
 const directRootEntry = process.argv[1] ? resolve(process.argv[1]) === __filename : false;
 const rootCommand = directRootEntry ? process.argv[2] : null;
@@ -198,7 +198,8 @@ function hasExplicitCliOption(option) {
 /**
  * Resolve one exact run to its only permitted production adapter before a
  * command reads generated output, checks readiness, or initializes a provider.
- * Every supported run has an explicit source marker and a durable mode record.
+ * Every supported run has an explicit source marker and a durable identity
+ * record that agrees with that marker.
  */
 function preflightAdapterSource(resolved, where) {
   const canonicalSource = join(resolved, SLIDE_SPECS_NAME);
@@ -216,7 +217,7 @@ function preflightAdapterSource(resolved, where) {
 }
 
 /**
- * A fresh current bundle has no durable mode record until its authored source has a
+ * A fresh current bundle has no durable identity record until its authored source has a
  * valid workflow receipt.  This narrow draft route lets the selected adapter
  * create that first binding; it never applies to an undeclared protocol or an active
  * non-draft execution.
@@ -228,9 +229,8 @@ async function resolveTargetAuthoringDraftAdapter(resolved, deckDir, harnessDir)
   return Object.freeze({
     ok: true,
     run_version: draft.run_version,
-    mode: "image2-page-workflow",
     workflow: draft.workflow,
-    policy: { adapter: "page-image-workflow", pipeline: PAGE_IMAGE_WORKFLOW_PIPELINE },
+    source_pipeline: PAGE_IMAGE_WORKFLOW_PIPELINE,
     adapter: "page-image-workflow",
     draft: true,
     target_workflow_selection_required: draft.workflow === null,
@@ -557,7 +557,7 @@ function collectStatus(runDir) {
  * @param {string} runDir
  */
 async function enrichStatusWithState(status, runDir, route = null) {
-  const { readState, buildResumeCard, statePath, inspectRunProductionMode } = await import("./shared/state/state.mjs");
+  const { readState, buildResumeCard, statePath, inspectRunProductionIdentity } = await import("./shared/state/state.mjs");
   const root = deckRoot(runDir);
   status.state_present = existsSync(statePath(root));
   // Status projects only exact, current run-bound authority. Unsupported state
@@ -570,12 +570,16 @@ async function enrichStatusWithState(status, runDir, route = null) {
     return status;
   }
   const version = basename(resolve(runDir));
-  const modeInspection = route?.mode
-    ? { ok: true, mode: route.mode, policy: route.policy }
-    : inspectRunProductionMode(root, { runDir, purpose: "observe" });
-  status.production_mode = modeInspection.ok
-    ? { resolvable: true, mode: modeInspection.mode, policy: modeInspection.policy }
-    : { resolvable: false, code: modeInspection.code };
+  const identityInspection = route?.draft
+    ? { ok: false, code: "IDENTITY_MISSING" }
+    : inspectRunProductionIdentity(root, { runDir, purpose: "observe" });
+  status.production_identity = identityInspection.ok
+    ? {
+      resolvable: true,
+      workflow: identityInspection.workflow,
+      source_epoch: identityInspection.source_epoch,
+    }
+    : { resolvable: false, code: identityInspection.code };
   const { buildPlaybookIndex } = await import("./shared/state/md_controller_reader.mjs");
   const { inspectWorkflow } = await import("./shared/workflow/inspect_workflow.mjs");
   const workflowInspection = inspectWorkflow({ runDir });
@@ -583,7 +587,7 @@ async function enrichStatusWithState(status, runDir, route = null) {
     workflowInspection,
     harnessDir: route?.harness_dir ?? HARNESS_DIR,
   });
-  if (modeInspection.ok && modeInspection.mode) controllerCtx.productionMode = modeInspection.mode;
+  if (identityInspection.ok) controllerCtx.productionWorkflow = identityInspection.workflow;
   const card = buildResumeCard(s, {
     style_master: status.style_master,
     raw_images: status.raw_images,
@@ -719,13 +723,8 @@ function buildEnvSearchDirs(dkRoot) {
  * Delegates to env-check.mjs as a subprocess.
  * @param {{image2?: boolean, smoke?: boolean, probeVendors?: boolean}} [opts]
  */
-async function commandDoctor({ image2 = false, smoke = false, probeVendors = false, mode = null, runDir = null, operation = null } = {}) {
+async function commandDoctor({ image2 = false, smoke = false, probeVendors = false, runDir = null, operation = null } = {}) {
   const args = [];
-  let resolvedMode = mode ?? DEFAULT_INIT_MODE;
-  if (resolvedMode !== DEFAULT_INIT_MODE) {
-    emitUsage("ppt_flow.doctor.mode", `mode must be ${DEFAULT_INIT_MODE}`, "Use the Page Image operation-scoped readiness check.");
-    return null;
-  }
   if (image2) {
     emitUsage("ppt_flow.doctor.image2", "--image2 is no longer a public doctor flag", "Use --operation raw-generation when raw Image2 readiness is required.");
     return null;
@@ -733,9 +732,7 @@ async function commandDoctor({ image2 = false, smoke = false, probeVendors = fal
   if (runDir) {
     const route = await resolveRunAdapter(runDir, "ppt_flow.doctor.run-dir");
     if (!route) return null;
-    resolvedMode = route.mode || DEFAULT_INIT_MODE;
   }
-  args.push("--mode", resolvedMode);
   if (smoke) args.push("--smoke");
   if (probeVendors) args.push("--probe-vendors");
   if (operation) args.push("--operation", operation);
@@ -751,18 +748,8 @@ async function commandDoctor({ image2 = false, smoke = false, probeVendors = fal
  * @param {string} deckDir
  * @param {{deckType: string, style: string}} opts
  */
-function commandInit(deckDir, { deckType, style, mode }) {
+function commandInit(deckDir, { deckType, style }) {
   const resolved = resolve(deckDir);
-  const normalizedMode = mode == null ? DEFAULT_INIT_MODE : mode;
-
-  if (normalizedMode !== DEFAULT_INIT_MODE) {
-    console.error(`✗ New decks use ${DEFAULT_INIT_MODE}; unsupported production modes cannot be initialized.`);
-    return emitUsage(
-      "ppt_flow.init.mode",
-      `New deck initialization does not support ${normalizedMode}`,
-      `Omit --mode or pass --mode ${DEFAULT_INIT_MODE}`
-    );
-  }
 
   if (!basename(resolved).startsWith("deck_")) {
     console.error("✗ Deck directory must start with 'deck_'.");
@@ -804,17 +791,16 @@ function commandInit(deckDir, { deckType, style, mode }) {
 
   let log;
   try {
-    log = initBundle(resolved, HARNESS_DIR, deckType, style, { mode: normalizedMode });
+    log = initBundle(resolved, HARNESS_DIR, deckType, style);
   } catch (err) {
     console.error(`✗ ${err.message}`);
     emitFailed("ppt_flow.init", err.message, "Fix the reported init error and retry");
     return 1;
   }
 
-  const modePolicy = productionPolicyForMode(normalizedMode);
   console.log(`✓ Initialized ${resolved}`);
   for (const line of log) console.log(`  - ${line}`);
-  console.log(`  production_mode: ${normalizedMode} (pipeline: ${modePolicy.pipeline})`);
+  console.log("  production_identity: unbound until the source workflow is selected and accepted by State");
   console.log(
     `\nNext: ppt_flow.mjs status ${join(resolved, VERSIONS_DIR, "v1")}`
   );
@@ -3294,7 +3280,7 @@ Examples:
   program
     .command("doctor")
     .description("Check offline local runtime and optional Image2 readiness")
-    .option("--run-dir <runDir>", "Resolve the exact run's production mode and scope checks to it")
+    .option("--run-dir <runDir>", "Resolve the exact run's production identity and scope checks to it")
     .option("--operation <operation>", "Run-bound Page Image operation: framed-local-refresh|raw-generation|full-build|assembly-notes")
     .option("--smoke", "Add Image2 presence plus one live first-vendor submit")
     .option(
@@ -3316,7 +3302,6 @@ Examples:
         image2: false,
         smoke: opts.smoke ?? false,
         probeVendors: opts.probeVendors ?? false,
-        mode: null,
         runDir: opts.runDir ?? null,
         operation: opts.operation ?? null,
       });
@@ -3349,7 +3334,6 @@ Examples:
       const code = commandInit(deckDir, {
         deckType: opts.deckType,
         style: opts.style,
-        mode: DEFAULT_INIT_MODE,
       });
       process.exit(code);
     });
@@ -3671,7 +3655,7 @@ Examples:
       if (opts.json) {
         const report = {
           durable_state: s,
-          production_mode: indexedCard.production_mode,
+          production_identity: indexedCard.production_identity,
           pipeline: s.pipeline || PAGE_IMAGE_WORKFLOW_PIPELINE,
           state_present: existsSync(statePath(deckDir)),
           playbook: indexedCard.playbook,

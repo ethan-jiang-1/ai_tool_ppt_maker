@@ -11,7 +11,6 @@ includes: [classify-change]
 ```yaml
 node: refresh-target-framed-visual
 method_module: 06-iteration
-production_modes: [image2-page-workflow]
 production_workflows: [framed]
 requires: [classify-change]
 produces: [target-framed-visual-refresh-route]
@@ -26,7 +25,6 @@ presentation package at its named source and rerun this checkpoint.
 ```yaml
 node: refresh-target-pure-visual
 method_module: 06-iteration
-production_modes: [image2-page-workflow]
 production_workflows: [pure]
 requires: [classify-change]
 produces: [target-pure-visual-refresh-route]
@@ -41,7 +39,6 @@ presentation package at its named source and rerun this checkpoint.
 ```yaml
 node: review-target-visual-delivery
 method_module: 06-iteration
-production_modes: [image2-page-workflow]
 production_workflows: [framed, pure]
 requires: [refresh-target-framed-visual, refresh-target-pure-visual]
 produces: [reviewed-target-visual-evidence]

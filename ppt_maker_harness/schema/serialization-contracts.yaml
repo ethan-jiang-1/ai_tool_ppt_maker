@@ -8,7 +8,6 @@ identifier_grammar:
 
 selectors:
   production_pipeline: page-image-workflow
-  production_mode: image2-page-workflow
   production_adapter: page-image-workflow
   identity_scheme: mnemonic
 
@@ -22,7 +21,7 @@ current_state_shape:
     - scripts/shared/state/state.mjs#writeState
   required_top_level_fields:
     - pipeline
-    - production_mode
+    - production_identity
     - playbook
     - current_node
     - execution_id
@@ -41,6 +40,15 @@ current_state_shape:
     - execution_id
     - execution_started_at
     - run_version
+  production_identity:
+    storage: production_identity.by_version
+    owner: scripts/shared/state/state.mjs
+    anchors:
+      - scripts/shared/run-bundle/production_identity.mjs#inspectProductionIdentity
+      - scripts/shared/state/state.mjs#inspectRunProductionIdentity
+    record_fields:
+      - workflow
+      - source_epoch
   execution_lease:
     name: current-execution-lease
     value: pptmaker-current-execution-lease
@@ -81,11 +89,6 @@ shared_contracts:
     field: schema
     anchors:
       - scripts/shared/run-bundle/run_bundle_locator.mjs#RUN_BUNDLE_SCHEMA
-  - name: intent-route-catalog
-    value: pptmaker-intent-routes
-    field: schema
-    anchors:
-      - scripts/shared/workflow/intent_route_catalog.mjs#INTENT_ROUTE_CATALOG_SCHEMA
   - name: cli-return-audit
     value: pptmaker-cli-return-audit
     field: schema

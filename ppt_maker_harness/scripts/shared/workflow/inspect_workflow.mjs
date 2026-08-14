@@ -79,7 +79,7 @@ function invalidCurrentProtocolResult(runDir, marker = null) {
     posture: "hard-stop",
     rootCause: { owner: "production-protocol", kind: "current-protocol-invalid" },
     primaryAction: ownerAction("production-protocol", "repair-current-protocol-identity", "repair", false, "Repair the current source or state protocol marker."),
-    evidenceSummary: { pipeline: marker?.branch ?? null, mode: null, workflow: null },
+    evidenceSummary: { pipeline: marker?.branch ?? null, workflow: null, source_epoch: null },
   });
 }
 
@@ -93,7 +93,7 @@ function inspectStateProtocol(runDir, deckDir, marker) {
       posture: "hard-stop",
       rootCause: { owner: "state", kind: "current-state-repair-required" },
       primaryAction: ownerAction("state", "validate-state", "repair", false, "Repair authoritative current Page Image state."),
-      evidenceSummary: { pipeline: marker?.branch ?? null, mode: null, workflow: null },
+      evidenceSummary: { pipeline: marker?.branch ?? null, workflow: null, source_epoch: null },
     });
   }
   return invalidCurrentProtocolResult(runDir, marker);
@@ -124,9 +124,9 @@ function progressiveTargetWorkflowResult(runDir, route) {
   const taskMandate = inspectCurrentPageImageTaskMandate(deckRoot(runDir), { runDir, workflow });
   const direct = inspectProgressiveRawLifecycle({ runDir, workflow, task_mandate: taskMandate });
   const baseSummary = {
-    pipeline: route.policy.pipeline,
-    mode: route.mode,
+    pipeline: route.source_pipeline,
     workflow,
+    source_epoch: route.source_epoch,
   };
   if (!direct.ok) {
     return report({
@@ -349,7 +349,7 @@ export function inspectWorkflow({ runDir } = {}) {
         posture: "hard-stop",
         rootCause: { owner: "run-bundle-layout", kind: "layout-invalid", detail: layoutIssues[0] },
         primaryAction: ownerAction("run-bundle-layout", "repair-layout", "repair", false, "Repair the reported bundle-layout issue."),
-        evidenceSummary: { pipeline: PAGE_IMAGE_WORKFLOW_PIPELINE, mode: null, workflow: null },
+        evidenceSummary: { pipeline: PAGE_IMAGE_WORKFLOW_PIPELINE, workflow: null, source_epoch: null },
       });
     }
     const stateProtocol = inspectStateProtocol(resolved, deckDir, marker);
@@ -367,7 +367,7 @@ export function inspectWorkflow({ runDir } = {}) {
           false,
           "Write or repair the Story Outline and Design Constraints before selecting a target workflow.",
         ),
-        evidenceSummary: { pipeline: PAGE_IMAGE_WORKFLOW_PIPELINE, mode: null, workflow: null },
+        evidenceSummary: { pipeline: PAGE_IMAGE_WORKFLOW_PIPELINE, workflow: null, source_epoch: null },
       });
     }
     return report({
@@ -375,7 +375,7 @@ export function inspectWorkflow({ runDir } = {}) {
       posture: "confirm",
       rootCause: { owner: "01-content", kind: "TARGET_WORKFLOW_SELECTION_REQUIRED" },
       primaryAction: ownerAction("01-content", "select-target-page-image-workflow", "select", true, "Select framed or pure for this target version before source validation or provider work."),
-      evidenceSummary: { pipeline: PAGE_IMAGE_WORKFLOW_PIPELINE, mode: null, workflow: null },
+      evidenceSummary: { pipeline: PAGE_IMAGE_WORKFLOW_PIPELINE, workflow: null, source_epoch: null },
     });
   }
   if (!marker || marker.branch !== PAGE_IMAGE_WORKFLOW_PIPELINE) return invalidCurrentProtocolResult(resolved, marker);
@@ -386,7 +386,7 @@ export function inspectWorkflow({ runDir } = {}) {
       posture: "hard-stop",
       rootCause: { owner: "run-bundle-layout", kind: "layout-invalid", detail: layoutIssues[0] },
       primaryAction: ownerAction("run-bundle-layout", "repair-layout", "repair", false, "Repair the reported bundle-layout issue."),
-      evidenceSummary: { pipeline: null, mode: null },
+      evidenceSummary: { pipeline: null, workflow: null, source_epoch: null },
     });
   }
   const stateProtocol = inspectStateProtocol(resolved, deckDir, marker);

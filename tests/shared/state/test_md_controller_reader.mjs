@@ -8,7 +8,6 @@ import {
   controllerActiveNodeIds,
   controllerDraftRouteNodes,
   controllerNodeIds,
-  nodeAppliesToMode,
   nodeAppliesToWorkflow,
   parseControllerFile,
   validatePlaybookIndex,
@@ -100,20 +99,19 @@ describe("MD Controller reader characterization", () => {
     ]);
   });
 
-  it("uses adapter mode declarations rather than numeric module order for Image Production legality", () => {
+  it("uses adapter and selected-workflow declarations for Image Production legality", () => {
     const index = buildPlaybookIndex(PLAYBOOK_DIR);
     const pageImage = index.nodesById.get("generate-target-framed-pilot");
-    const createDeck = index.controllers.get("create-deck");
-    expect(pageImage).toMatchObject({ methodModule: "03-framed-image", adapter: "page-image-workflow", productionModes: ["image2-page-workflow"] });
-    expect(nodeAppliesToMode(pageImage, createDeck.supportedProductionModes, "image2-page-workflow")).toBe(true);
-    expect(nodeAppliesToMode(pageImage, createDeck.supportedProductionModes, "unsupported-mode")).toBe(false);
+    expect(pageImage).toMatchObject({ methodModule: "03-framed-image", adapter: "page-image-workflow", productionWorkflows: ["framed"] });
+    expect(nodeAppliesToWorkflow(pageImage, "framed")).toBe(true);
+    expect(nodeAppliesToWorkflow(pageImage, "pure")).toBe(false);
   });
 
   it("projects one bound target workflow through 03 XOR 04, then common delivery and iteration", () => {
     const index = buildPlaybookIndex(PLAYBOOK_DIR);
-    const framed = controllerActiveNodeIds(index, "create-deck", "image2-page-workflow", "framed");
-    const pure = controllerActiveNodeIds(index, "create-deck", "image2-page-workflow", "pure");
-    const unresolved = controllerActiveNodeIds(index, "create-deck", "image2-page-workflow");
+    const framed = controllerActiveNodeIds(index, "create-deck", "framed");
+    const pure = controllerActiveNodeIds(index, "create-deck", "pure");
+    const unresolved = controllerActiveNodeIds(index, "create-deck");
 
     expect(unresolved).toEqual([
       "checkpoint-intake",
@@ -207,17 +205,17 @@ describe("MD Controller reader characterization", () => {
       "plan-target-pure-progressive-raw",
     ]);
 
-    expect(controllerActiveNodeIds(index, "edit-text", "image2-page-workflow", "framed")).toEqual([
+    expect(controllerActiveNodeIds(index, "edit-text", "framed")).toEqual([
       "classify-change",
       "refresh-target-framed-text",
       "review-target-text-delivery",
     ]);
-    expect(controllerActiveNodeIds(index, "edit-text", "image2-page-workflow", "pure")).toEqual([
+    expect(controllerActiveNodeIds(index, "edit-text", "pure")).toEqual([
       "classify-change",
       "refresh-target-pure-text",
       "review-target-text-delivery",
     ]);
-    expect(controllerActiveNodeIds(index, "edit-notes", "image2-page-workflow", "framed")).toEqual([
+    expect(controllerActiveNodeIds(index, "edit-notes", "framed")).toEqual([
       "classify-change",
       "refresh-target-speaker-notes",
       "verify-target-speaker-notes",
@@ -228,7 +226,6 @@ describe("MD Controller reader characterization", () => {
     expect(nodeAppliesToWorkflow(framedNode, "pure")).toBe(false);
 
     const state = createInitialState("target", "keynote", "dark", {
-      mode: "image2-page-workflow",
       workflow: "framed",
     });
     const card = buildResumeCard(state, null, { index, ctx: { runVersion: "v1" } });
@@ -240,44 +237,35 @@ describe("MD Controller reader characterization", () => {
     expect(mismatched.pending_nodes).toEqual(unresolved);
   });
 
-  it("accepts legacy phase as an unconsumed node key while rejecting other invalid controller declarations", () => {
-    const dir = fixtureDir("invalid");
-    try {
-      writeFileSync(join(dir, "bad.md"), `---\nplaybook: bad\nincludes: []\n---\n\n\`\`\`yaml\nnode: header-review\nphase: 04\nmethod_module: 05-delivery\nrequires: [later]\nentry: [node_status:header-review:completed]\nexit: [user_decision_recorded]\ndecisions: [yes]\n\`\`\`\n\n**Step 1 — GATE**: choose\n\n\`\`\`yaml\nnode: later\nmethod_module: invalid-module\nrequires: [header-review]\nentry: [node_decision:header-review:no]\nexit: []\n\`\`\`\n\n## Step 1 — MD\nlater\n`);
-      writeFileSync(join(dir, "duplicate.md"), `---\nplaybook: duplicate\nincludes: []\n---\n\n\`\`\`yaml\nnode: later\nmethod_module: 05-delivery\nrequires: []\nentry: []\nexit: []\n\`\`\`\n\n**Step 1 — MD**: duplicate\n`);
-      const result = validatePlaybookIndex(buildPlaybookIndex(dir));
-      expect(result.valid).toBe(false);
-      expect(result.errors.some((error) => error.rule === "requires-order")).toBe(true);
-      expect(result.errors.some((error) => error.rule === "dependency-cycle")).toBe(true);
-      expect(result.errors.some((error) => error.rule === "decision-value")).toBe(true);
-      expect(result.errors.some((error) => error.rule === "self-entry")).toBe(true);
-      expect(result.errors.some((error) => error.rule === "method-module")).toBe(true);
-      expect(result.errors.some((error) => error.rule.includes("phase") || error.rule.includes("lifecycle"))).toBe(false);
-      expect(Object.keys(buildPlaybookIndex(dir).nodesById.get("header-review"))).not.toContain(["lifecycle", "Phase"].join(""));
-      expect(result.errors.some((error) => error.rule === "duplicate-id")).toBe(true);
-      expect(result.errors.some((error) => error.rule === "steps")).toBe(true);
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
-  });
-
-  it("accepts legacy phase without a lifecycle projection or diagnostic", () => {
-    const dir = fixtureDir("legacy-phase");
-    try {
-      writeFileSync(join(dir, "legacy-phase.md"), `---\nnode: legacy-phase\nphase: 04\nmethod_module: 00-setup\nrequires: []\nentry: []\nexit: []\n---\n\n**Step 1 — MD**: read\n`);
-      const index = buildPlaybookIndex(dir);
-      expect(validatePlaybookIndex(index)).toMatchObject({ valid: true, errors: [] });
-      expect(index.nodesById.get("legacy-phase")).toMatchObject({ methodModule: "00-setup" });
-      expect(Object.keys(index.nodesById.get("legacy-phase"))).not.toContain(["lifecycle", "Phase"].join(""));
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
+  it("rejects undeclared Controller metadata before indexing or draft routing", () => {
+    const declarations = [
+      ["controller", "---\nplaybook: bad\nsupported_pipelines: [page-image-workflow]\nincludes: []\nunknown_key: true\n---\n", "unsupported Controller frontmatter key unknown_key"],
+      ["shared", "---\nnode: shared-node\nmethod_module: 01-content\nphase: 04\nrequires: []\nentry: []\nexit: []\nshared: true\n---\n\n**Step 1 — MD**: read\n", "unsupported shared-node frontmatter key phase"],
+      ["lifecycle", "---\nplaybook: bad\nsupported_pipelines: [page-image-workflow]\nincludes: []\n---\n\n```yaml\nnode: fenced-node\nmethod_module: 01-content\nlifecycle_phase: 01\nrequires: []\nentry: []\nexit: []\n```\n\n**Step 1 — MD**: read\n", "unsupported fenced-node frontmatter key lifecycle_phase"],
+      ["retired-mode", "---\nplaybook: bad\nsupported_pipelines: [page-image-workflow]\nincludes: []\n---\n\n```yaml\nnode: fenced-node\nmethod_module: 01-content\nproduction_modes: [image2-page-workflow]\nrequires: []\nentry: []\nexit: []\n```\n\n**Step 1 — MD**: read\n", "unsupported fenced-node frontmatter key production_modes"],
+      ["duplicate", "---\nplaybook: bad\nsupported_pipelines: [page-image-workflow]\nincludes: []\n---\n\n```yaml\nnode: fenced-node\nmethod_module: 01-content\nrequires: []\nentry: []\nexit: []\nexit: []\n```\n\n**Step 1 — MD**: read\n", "Map keys must be unique"],
+    ];
+    for (const [name, source, expected] of declarations) {
+      const dir = fixtureDir(`closed-${name}`);
+      const path = join(dir, "bad.md");
+      try {
+        writeFileSync(path, source);
+        const parsed = parseControllerFile(path);
+        expect(parsed.errors.some((error) => error.includes(expected))).toBe(true);
+        expect(parsed.nodes).toEqual([]);
+        const index = buildPlaybookIndex(dir);
+        expect(index.nodesById.size).toBe(0);
+        expect(controllerDraftRouteNodes(index, "bad", "framed")).toEqual([]);
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
     }
   });
 
   it("preserves target module adapter and workflow ownership checks", () => {
     const dir = fixtureDir("target-ownership");
     try {
-      writeFileSync(join(dir, "ownership.md"), `---\nplaybook: ownership\nsupported_pipelines: [page-image-workflow]\nincludes: []\n---\n\n\`\`\`yaml\nnode: target-without-owner-contract\nmethod_module: 03-framed-image\nproduction_modes: [image2-page-workflow]\nproduction_workflows: [pure]\nrequires: []\nentry: []\nexit: []\n\`\`\`\n\n**Step 1 — MD**: route\n`);
+      writeFileSync(join(dir, "ownership.md"), `---\nplaybook: ownership\nsupported_pipelines: [page-image-workflow]\nincludes: []\n---\n\n\`\`\`yaml\nnode: target-without-owner-contract\nmethod_module: 03-framed-image\nproduction_workflows: [pure]\nrequires: []\nentry: []\nexit: []\n\`\`\`\n\n**Step 1 — MD**: route\n`);
       const result = validatePlaybookIndex(buildPlaybookIndex(dir));
       expect(result.errors.some((error) => error.rule === "image-production-adapter")).toBe(true);
       expect(result.errors.some((error) => error.rule === "production-workflows")).toBe(true);
@@ -298,7 +286,6 @@ describe("MD Controller reader characterization", () => {
       "```yaml",
       "node: select-target-page-image-workflow",
       "method_module: 01-content",
-      "production_modes: [image2-page-workflow]",
       "draft_route: true",
       "requires: []",
       "entry: []",
@@ -351,7 +338,6 @@ describe("MD Controller reader characterization", () => {
       "```yaml",
       "node: select-target-page-image-workflow",
       "method_module: 01-content",
-      "production_modes: [image2-page-workflow]",
       `draft_route: ${value}`,
       ...(duplicate ? [`draft_route: ${value}`] : []),
       "requires: []",
@@ -366,7 +352,7 @@ describe("MD Controller reader characterization", () => {
       const dir = fixtureDir(`draft-route-${value.replace(/[^a-z0-9]/gi, "") || "null"}`);
       try {
         writeFileSync(join(dir, "create-deck.md"), controllerLines(value));
-        expect(validatePlaybookIndex(buildPlaybookIndex(dir)).errors.some((error) => error.rule === "draft-route")).toBe(true);
+        expect(validatePlaybookIndex(buildPlaybookIndex(dir)).errors.some((error) => error.rule === "parse")).toBe(true);
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }

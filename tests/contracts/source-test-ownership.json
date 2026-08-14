@@ -125,7 +125,6 @@
         "tests/contracts/test_harness_directory_layout.mjs",
         "tests/contracts/test_harness_governance_ledger.mjs",
         "tests/contracts/test_human_artifact_reference_cli.mjs",
-        "tests/contracts/test_intent_route_catalog.mjs",
         "tests/contracts/test_mock_development_verification_runner.mjs",
         "tests/contracts/test_mock_selected_verification.mjs",
         "tests/contracts/test_page_image_schema_definitions.mjs",

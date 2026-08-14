@@ -109,12 +109,12 @@ describe("clean Page Image target draft activation", () => {
         current_node: "author-target-page-image-content",
         continuation_target_version: "v2",
       });
-      expect(after.production_mode.by_version).toEqual({});
+      expect(after.production_identity.by_version).toEqual({});
       expect(after).not.toHaveProperty("page_image_target_evidence");
       expect(after).not.toHaveProperty("page_image_style_master");
       expect(after).not.toHaveProperty("page_image_raw_provider_authorization");
       expect(after).not.toHaveProperty("page_image_progressive_handoff");
-      expect(after.production_mode.by_version["3_versions/v2"]).toBeUndefined();
+      expect(after.production_identity.by_version["3_versions/v2"]).toBeUndefined();
       expect(after.page_image_target_evidence?.by_version?.["3_versions/v2"]).toBeUndefined();
       expect(after.page_image_style_master?.by_version?.["3_versions/v2"]).toBeUndefined();
       expect(after.page_image_raw_provider_authorization?.by_version?.["3_versions/v2"]).toBeUndefined();
@@ -152,7 +152,7 @@ describe("clean Page Image target draft activation", () => {
       expect(result).toMatchObject({ ok: true, source_version: "v1", target_version: "v2", workflow: "pure" });
       const after = readState(value.deck, { purpose: "observe", runDir: targetRunDir });
       expect(after).toMatchObject({ run_version: "v2", current_node: "author-target-page-image-content" });
-      expect(after.production_mode.by_version).toEqual({});
+      expect(after.production_identity.by_version).toEqual({});
       expect(after).not.toHaveProperty("page_image_target_evidence");
     } finally {
       rmSync(value.root, { recursive: true, force: true });
@@ -241,7 +241,7 @@ describe("clean Page Image target draft activation", () => {
         current_node: "author-target-page-image-content",
         continuation_target_version: "v2",
       });
-      expect(after.production_mode.by_version["3_versions/v2"]).toBeUndefined();
+      expect(after.production_identity.by_version["3_versions/v2"]).toBeUndefined();
       expect(after.page_image_target_evidence?.by_version?.["3_versions/v2"]).toBeUndefined();
     } finally {
       rmSync(value.root, { recursive: true, force: true });

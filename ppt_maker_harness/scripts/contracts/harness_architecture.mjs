@@ -313,6 +313,12 @@ export const ACTIVE_SURFACE_ROOTS = Object.freeze([
   "openspec/specs",
 ]);
 
+export const ACTIVE_SURFACE_FILES = Object.freeze([
+  "AGENTS.md",
+  "CONTEXT.md",
+  "openspec/config.yaml",
+]);
+
 export const ACTIVE_SURFACE_TEXT_EXTENSIONS = Object.freeze([
   ".mjs",
   ".md",
@@ -332,7 +338,7 @@ const ACTIVE_SURFACE_NUMERIC_VERSION = /\bv[1-9][0-9]*\b/gi;
 const ACTIVE_SURFACE_STRUCTURAL_VERSION = /\b3_versions\/v[1-9][0-9]*\b/i;
 const ACTIVE_SURFACE_REQUESTED_VERSION = /\brequested(?:[_ -][a-z]+)?[_ -]version\b/i;
 const ACTIVE_SURFACE_ACTIVE_VERSION = /\bactive(?:[_ -][a-z]+)?[_ -]version\b/i;
-const ACTIVE_SURFACE_STRUCTURAL_VERSION_FIELD = /\b(?:runVersion|run_version|sourceVersion|source_version|targetVersion|target_version|source_run_version|target_run_version|requested_run_version|active_run_version|continuation_target_version|production_mode_run_version)\b/;
+const ACTIVE_SURFACE_STRUCTURAL_VERSION_FIELD = /\b(?:runVersion|run_version|sourceVersion|source_version|targetVersion|target_version|source_run_version|target_run_version|requested_run_version|active_run_version|continuation_target_version|production_identity_run_version)\b/;
 const ACTIVE_SURFACE_STRUCTURAL_VERSION_OPERATION = /\b(?:canonicalVersionKey|normalizeRunVersion|selectedRunVersion|nextVersionName)\b/;
 const ACTIVE_SURFACE_STRUCTURAL_VERSION_HEADING = /^\s*#{1,6}\s+v[1-9][0-9]*\b/i;
 const ACTIVE_SURFACE_STRUCTURAL_VERSION_DIRECTORY = /\bv[1-9][0-9]*\//i;
@@ -377,6 +383,70 @@ function isBareJavaScriptVersionReference(path, line, match) {
 
 function isResidueDefinition(lines, index) {
   return ACTIVE_SURFACE_RESIDUE_DEFINITION.test(lines.slice(Math.max(0, index - 1), Math.min(lines.length, index + 2)).join("\n"));
+}
+
+const RETIRED_CONTROL_SURFACE_RULES = Object.freeze([
+  Object.freeze({
+    category: ["retired", "prompt", "cookbook"].join("-"),
+    pattern: new RegExp(["\\b", "agent", "[-_ ]?", "prompts", "(?:\\.md)?", "\\b"].join(""), "i"),
+  }),
+  Object.freeze({
+    category: ["retired", "inspection", "projection"].join("-"),
+    pattern: new RegExp(["\\b", "workflow", "[-_ ]?", "inspection", "[-_ ]?", "(?:baseline|ledger)", "(?:\\.md)?", "\\b"].join(""), "i"),
+  }),
+  Object.freeze({
+    category: ["retired", "control", "catalog"].join("-"),
+    pattern: new RegExp(["\\b", "intent", "[-_ ]?", "routes?", "(?:\\.json|[-_ ]?catalog)?", "\\b"].join(""), "i"),
+  }),
+  Object.freeze({
+    category: ["retired", "controller", "metadata"].join("-"),
+    pattern: /^\s*(?:production_modes|supported_production_modes|mode_transition_handoff|lifecycle_phase|phase)\s*:/im,
+  }),
+  Object.freeze({
+    category: ["retired", "mode", "dialect"].join("-"),
+    pattern: /\b(?:production_mode|image2-page-workflow)\b/i,
+  }),
+]);
+
+const EXPLICIT_RETIRED_CONTROL_REJECTION = /\b(?:reject(?:ed|s|ion)?|retired|remove[ds]?|forbid(?:den)?|unsupported|invalid|malformed|instead\s+of|not\s+(?:a\s+)?current|shall\s+not|must\s+not|does\s+not|do\s+not|without)\b|\bretired(?=[_-]|[A-Z])/i;
+
+function isExplicitRetiredControlRejection(path, lines, index) {
+  const lookbehind = path.startsWith("tests/") || path.startsWith("tests_e2e/") ? 6 : path.endsWith(".md") ? 4 : 1;
+  return EXPLICIT_RETIRED_CONTROL_REJECTION.test(lines.slice(Math.max(0, index - lookbehind), index + 1).join("\n"));
+}
+
+function isControllerDeclarationPath(path) {
+  return /^ppt_maker_harness\/playbook\/[^/]+\.md$/u.test(path);
+}
+
+/**
+ * Evaluate supplied active guidance, source, and test text for deleted control
+ * surfaces. This pure seam deliberately does not enumerate repositories.
+ */
+export function evaluateRetiredControlSurfaceReachability(snapshot = {}) {
+  if (!Array.isArray(snapshot.entries)) {
+    return Object.freeze({ ok: false, issues: Object.freeze([
+      activeSurfaceIssue("retired-control-snapshot-incomplete", "entries", "entries must be an array"),
+    ]) });
+  }
+
+  const issues = [];
+  for (const entry of snapshot.entries) {
+    if (!entry || typeof entry.path !== "string" || !entry.path || typeof entry.content !== "string") {
+      issues.push(activeSurfaceIssue("retired-control-entry-invalid", entry?.path || "entry", "each entry requires an exact path and text content"));
+      continue;
+    }
+    const lines = entry.content.split("\n");
+    for (const rule of RETIRED_CONTROL_SURFACE_RULES) {
+      if (rule.category === "retired-controller-metadata" && !isControllerDeclarationPath(entry.path)) continue;
+      const matchIndex = lines.findIndex((line) => rule.pattern.test(line));
+      const matchesPath = rule.pattern.test(entry.path);
+      if (matchIndex < 0 && !matchesPath) continue;
+      if (matchIndex >= 0 && isExplicitRetiredControlRejection(entry.path, lines, matchIndex)) continue;
+      issues.push(activeSurfaceIssue(rule.category, entry.path, "retired Agent control surface is reachable from active content"));
+    }
+  }
+  return Object.freeze({ ok: issues.length === 0, issues: Object.freeze(issues) });
 }
 
 /**
@@ -485,15 +555,19 @@ export function scanActiveSurfaceResidue({ root = process.cwd(), readFile = read
     visit(path);
   }
 
-  const configPath = resolve(base, "openspec/config.yaml");
-  if (!existsSync(configPath) || !statSync(configPath).isFile()) {
-    issues.push(activeSurfaceIssue("active-surface-file-missing", "openspec/config.yaml", "declared active-surface file is missing or not regular"));
-  } else {
-    addFile(configPath);
+  for (const activeFile of ACTIVE_SURFACE_FILES) {
+    const path = resolve(base, activeFile);
+    if (!existsSync(path) || !statSync(path).isFile()) {
+      issues.push(activeSurfaceIssue("active-surface-file-missing", activeFile, "declared active-surface file is missing or not regular"));
+      continue;
+    }
+    addFile(path);
   }
 
   const residue = evaluateActiveSurfaceResidue({ entries });
   issues.push(...residue.issues);
+  const retiredControls = evaluateRetiredControlSurfaceReachability({ entries: entries.filter((entry) => entry.kind === "text") });
+  issues.push(...retiredControls.issues);
   return Object.freeze({
     ok: issues.length === 0,
     issues: Object.freeze(issues),

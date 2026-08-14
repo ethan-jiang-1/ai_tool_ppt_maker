@@ -50,7 +50,6 @@ export const BASE_CHECK_NAMES = Object.freeze([
 ]);
 export const IMAGE2_CHECK_NAMES = Object.freeze(['api_key', 'image_base_url', 'page_image_raw_generator']);
 export const LIVE_CHECK_NAMES = Object.freeze(['image_smoke', 'image_probe_vendors']);
-export const DOCTOR_MODES = Object.freeze(['image2-page-workflow']);
 export const PAGE_IMAGE_DOCTOR_PROFILES = Object.freeze(['framed-runtime', 'image2-raw']);
 export const PAGE_IMAGE_DOCTOR_OPERATIONS = Object.freeze([
   'framed-local-refresh',
@@ -1035,28 +1034,21 @@ export async function runEnvCheckCli(argv = process.argv, { providerApi = null }
   const wantSmoke = argv.includes('--smoke');
   const wantProbe = argv.includes('--probe-vendors');
   const wantJson = argv.includes('--json');
-  const mode = argValue(argv, '--mode');
   const operation = argValue(argv, '--operation');
   if (wantJson) setCliOutputMode('json');
 
   if (retiredImage2Flag) {
-    emitEnvCheckUsage('--image2 is no longer a public doctor flag', 'Use --mode image2-page-workflow --operation raw-generation.');
+    emitEnvCheckUsage('--image2 is no longer a public doctor flag', 'Use --operation raw-generation.');
     process.exit(1);
   }
-  if (mode != null && !DOCTOR_MODES.includes(mode)) {
-    emitEnvCheckUsage(`unknown --mode ${JSON.stringify(mode)}`, `Allowed: ${DOCTOR_MODES.join(', ')}.`);
+  if (argv.includes('--mode')) {
+    emitEnvCheckUsage('--mode is not a current environment-check argument', 'Remove --mode; --operation selects the fixed Page Image readiness profile.');
     process.exit(1);
   }
   if (operation != null && !PAGE_IMAGE_DOCTOR_OPERATIONS.includes(operation)) {
     emitEnvCheckUsage(`unknown --operation ${JSON.stringify(operation)}`, `Allowed: ${PAGE_IMAGE_DOCTOR_OPERATIONS.join(', ')}.`);
     process.exit(1);
   }
-  if (operation != null && mode != null && mode !== 'image2-page-workflow') {
-    emitEnvCheckUsage('--operation requires --mode image2-page-workflow', 'Select the current Page Image mode before an operation-scoped doctor check.');
-    process.exit(1);
-  }
-
-  const resolvedMode = mode ?? 'image2-page-workflow';
   const resolvedOperation = operation ?? 'framed-local-refresh';
   const plan = pageImageDoctorPlan(resolvedOperation);
   let profile = plan.profile;
@@ -1126,7 +1118,6 @@ export async function runEnvCheckCli(argv = process.argv, { providerApi = null }
     probeVendors: wantProbe,
     image2: wantImage2,
     profile,
-    mode: resolvedMode,
     operation: resolvedOperation,
     ...(profiles.length ? { profiles } : {}),
   };
@@ -1139,7 +1130,7 @@ export async function runEnvCheckCli(argv = process.argv, { providerApi = null }
 
   if (!allPass) {
     const failed = results.filter((result) => result.status === 'fail' && !deferredChecks.has(result.check));
-    const invocationArgs = [ENV_CHECK_CLI, ...(wantJson ? ['--json'] : []), '--mode', resolvedMode, '--operation', resolvedOperation, ...(wantSmoke ? ['--smoke'] : []), ...(wantProbe ? ['--probe-vendors'] : [])];
+    const invocationArgs = [ENV_CHECK_CLI, ...(wantJson ? ['--json'] : []), '--operation', resolvedOperation, ...(wantSmoke ? ['--smoke'] : []), ...(wantProbe ? ['--probe-vendors'] : [])];
     emitCliError({
       code: CLI_ERROR_CODES.FAILED,
       message: `Environment check found ${failed.length} blocking requirement(s).`,

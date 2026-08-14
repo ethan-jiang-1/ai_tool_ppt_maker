@@ -39,7 +39,7 @@ function targetDeck() {
   const source = "---\nproduction:\n  pipeline: page-image-workflow\n  workflow: pure\n---\n";
   mkdirSync(runDir, { recursive: true });
   writeFileSync(join(runDir, "slide-specifications.md"), source, "utf8");
-  writeState(deck, createInitialState("gated", "keynote", "dark", { mode: "image2-page-workflow", workflow: "pure" }));
+  writeState(deck, createInitialState("gated", "keynote", "dark", { workflow: "pure" }));
   return {
     deck,
     runDir,

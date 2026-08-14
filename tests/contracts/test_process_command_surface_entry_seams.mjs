@@ -1,5 +1,7 @@
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
 import { runAllChecks } from "../../ppt_maker_harness/scripts/00-setup/internal/env_check.mjs";
@@ -7,10 +9,10 @@ import {
   PPT_FLOW_COMMAND_INVENTORY,
   parseCliErrorLine,
 } from "../../ppt_maker_harness/scripts/shared/cli/cli_error.mjs";
-import { PAGE_IMAGE_WORKFLOW_PRODUCTION_MODE } from "../../ppt_maker_harness/scripts/shared/run-bundle/production_mode.mjs";
 
 const ENV_CHECK = "ppt_maker_harness/scripts/00-setup/env-check.mjs";
 const PPT_FLOW = "ppt_maker_harness/scripts/ppt_flow.mjs";
+const BUNDLE_LAYOUT = "ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
 const ROOT_README = readFileSync("README.md", "utf8");
 const BOOTSTRAP = readFileSync("ppt_maker_harness/BOOTSTRAP.md", "utf8");
 const COMMANDS = readFileSync("ppt_maker_harness/COMMANDS.md", "utf8");
@@ -29,15 +31,19 @@ describe("command-surface entry seams", () => {
     const help = run(ENV_CHECK, ["--help"]);
     expect(help.status, help.stderr).toBe(0);
     expect(help.stdout).toContain("--json");
-    expect(help.stdout).toContain("--mode <mode>");
+    expect(help.stdout).not.toContain("--mode <mode>");
     expect(help.stdout).toContain("--operation <operation>");
     expect(help.stdout).toContain("--smoke");
     expect(help.stdout).toContain("--probe-vendors");
     expect(help.stdout).not.toContain("--image2");
 
-    const accepted = run(ENV_CHECK, ["--json", "--mode", PAGE_IMAGE_WORKFLOW_PRODUCTION_MODE, "--operation", "framed-local-refresh"]);
-    expect(accepted.stderr).not.toMatch(/unknown --mode|unknown --operation|requires --mode/i);
+    const accepted = run(ENV_CHECK, ["--json", "--operation", "framed-local-refresh"]);
+    expect(accepted.stderr).not.toMatch(/unknown --operation/i);
     expect(() => JSON.parse(accepted.stdout)).not.toThrow();
+
+    const retiredMode = run(ENV_CHECK, ["--mode", "image2-page-workflow"]);
+    expect(retiredMode.status).not.toBe(0);
+    expect(retiredMode.stderr).toContain("--mode is not a current environment-check argument");
 
     const retired = run(ENV_CHECK, ["--image2"]);
     expect(retired.status).not.toBe(0);
@@ -45,7 +51,7 @@ describe("command-surface entry seams", () => {
       category: "usage",
       next: { action: "fix_arguments" },
     });
-    expect(retired.stderr).toContain(`--mode ${PAGE_IMAGE_WORKFLOW_PRODUCTION_MODE} --operation raw-generation`);
+    expect(retired.stderr).toContain("--operation raw-generation");
 
     const providerApi = {
       inspect: vi.fn(async () => { throw new Error("default foundation must remain offline"); }),
@@ -56,6 +62,27 @@ describe("command-surface entry seams", () => {
     await runAllChecks({ profile: "page-image-framed", providerApi });
     for (const probe of Object.values(providerApi)) expect(probe).not.toHaveBeenCalled();
   }, 60_000);
+
+  it("rejects retired mode selectors before root or standalone initialization creates a bundle", () => {
+    const root = mkdtempSync(join(tmpdir(), "pptmaker-retired-mode-"));
+    const rootTarget = join(root, "deck_root_rejected");
+    const standaloneTarget = join(root, "deck_standalone_rejected");
+    try {
+      const rootInit = run(PPT_FLOW, ["init", rootTarget, "--deck-type", "keynote", "--style", "dark-executive", "--mode", "image2-page-workflow"]);
+      expect(rootInit.status).not.toBe(0);
+      expect(existsSync(rootTarget)).toBe(false);
+
+      const standaloneInit = run(BUNDLE_LAYOUT, ["--init", standaloneTarget, "--deck-type", "keynote", "--style", "dark-executive", "--mode", "image2-page-workflow"]);
+      expect(standaloneInit.status).not.toBe(0);
+      expect(standaloneInit.stderr).toContain("--mode is not a current bundle initialization argument");
+      expect(existsSync(standaloneTarget)).toBe(false);
+
+      const doctor = run(PPT_FLOW, ["doctor", "--mode", "image2-page-workflow"]);
+      expect(doctor.status).not.toBe(0);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
 
   it("keeps the twelve-command normal entry and accurately names verification tiers", () => {
     expect(PPT_FLOW_COMMAND_INVENTORY).toEqual([

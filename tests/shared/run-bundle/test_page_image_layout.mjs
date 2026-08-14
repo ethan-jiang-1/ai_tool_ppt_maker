@@ -8,7 +8,6 @@ import { join } from "node:path";
 import {
   BACKBONE_CONSTRAINTS,
   BACKBONE_STORY_OUTLINE,
-  DEFAULT_INIT_MODE,
   GEN_PAGE_IMAGE_DERIVED_SUBDIR,
   PAGE_DERIVED_ARTIFACT_FILENAMES,
   PAGE_CLASS_CATALOG_FILE,
@@ -37,10 +36,9 @@ import {
   parseStoryOutline,
 } from "../../../ppt_maker_harness/scripts/01-content/index.mjs";
 import {
-  PAGE_IMAGE_WORKFLOW_PRODUCTION_MODE,
-  initialProductionModeRecord,
-  inspectProductionMode,
-} from "../../../ppt_maker_harness/scripts/shared/run-bundle/production_mode.mjs";
+  initialProductionIdentityRecord,
+  inspectProductionIdentity,
+} from "../../../ppt_maker_harness/scripts/shared/run-bundle/production_identity.mjs";
 import {
   createInitialState,
   initializeTargetPageImageState,
@@ -103,7 +101,6 @@ describe("Page Image bundle layout", () => {
       const deck = join(root, "deck_current");
       initBundle(deck, null, "keynote", "dark-executive");
       const runDir = join(deck, "3_versions", "v1");
-      expect(DEFAULT_INIT_MODE).toBe(PAGE_IMAGE_WORKFLOW_PRODUCTION_MODE);
       const source = readFileSync(join(runDir, "slide-specifications.md"), "utf8");
       const presentationPath = join(deck, "2_backbone", "visual-style", PAGE_IMAGE_PRESENTATION_SUBDIR);
       const pureDeckVisualSystemPath = join(presentationPath, PURE_DECK_VISUAL_SYSTEM_FILE);
@@ -113,7 +110,7 @@ describe("Page Image bundle layout", () => {
       expect(checkBundle(runDir, false)).toEqual([PAGE_IMAGE_WORKFLOW_SELECTION_REQUIRED_MESSAGE]);
       const state = readState(deck, { purpose: "observe", heal: false, runVersion: "v1" });
       expect(state.pipeline).toBe(PAGE_IMAGE_WORKFLOW_PIPELINE);
-      expect(state.production_mode.by_version["3_versions/v1"]).toBeUndefined();
+      expect(state.production_identity.by_version["3_versions/v1"]).toBeUndefined();
       expect(state.current_node).toBe("author-target-narrative-sources");
       expect(existsSync(pageImageWorkflowPaths(runDir).root)).toBe(false);
       expect(existsSync(pureDeckVisualSystemPath)).toBe(true);
@@ -204,8 +201,8 @@ describe("Page Image bundle layout", () => {
       });
       expect(result).toMatchObject({ ok: true, status: "initialized" });
       expect(readState(deck, { purpose: "observe", heal: false, runVersion: "v1" })
-        .production_mode.by_version["3_versions/v1"])
-        .toEqual({ mode: PAGE_IMAGE_WORKFLOW_PRODUCTION_MODE, workflow: "pure", source_epoch: 1 });
+        .production_identity.by_version["3_versions/v1"])
+        .toEqual({ workflow: "pure", source_epoch: 1 });
       expect(checkBundle(runDir, false)).toEqual([]);
     } finally {
       rmSync(root, { recursive: true, force: true });
@@ -405,25 +402,42 @@ describe("Page Image bundle layout", () => {
   it("resolves workflow state marker-first and rejects a workflow mismatch", () => {
     const source = `---\nproduction:\n  pipeline: ${PAGE_IMAGE_WORKFLOW_PIPELINE}\n  workflow: pure\n---\n`;
     const state = {
-      production_mode: {
-        by_version: { "3_versions/v2": initialProductionModeRecord(PAGE_IMAGE_WORKFLOW_PRODUCTION_MODE, "pure") },
+      production_identity: {
+        by_version: { "3_versions/v2": initialProductionIdentityRecord("pure") },
       },
     };
-    expect(inspectProductionMode({ state, runVersion: "v2", sourceMarker: probeProductionMarker(source) })).toMatchObject({
+    expect(inspectProductionIdentity({ state, runVersion: "v2", sourceMarker: probeProductionMarker(source) })).toMatchObject({
       ok: true,
-      mode: PAGE_IMAGE_WORKFLOW_PRODUCTION_MODE,
       workflow: "pure",
     });
-    state.production_mode.by_version["3_versions/v2"] = initialProductionModeRecord(PAGE_IMAGE_WORKFLOW_PRODUCTION_MODE, "framed");
+    state.production_identity.by_version["3_versions/v2"] = initialProductionIdentityRecord("framed");
     const beforeMismatchInspection = structuredClone(state);
-    expect(inspectProductionMode({ state, runVersion: "v2", sourceMarker: probeProductionMarker(source) })).toMatchObject({
+    expect(inspectProductionIdentity({ state, runVersion: "v2", sourceMarker: probeProductionMarker(source) })).toMatchObject({
       ok: false,
-      code: "MODE_SOURCE_IDENTITY_MISMATCH",
+      code: "IDENTITY_SOURCE_MISMATCH",
     });
     expect(state).toEqual(beforeMismatchInspection);
-    expect(() => createInitialState("target", "keynote", "dark", { mode: PAGE_IMAGE_WORKFLOW_PRODUCTION_MODE })).toThrow("workflow");
-    expect(createInitialState("target", "keynote", "dark", { mode: PAGE_IMAGE_WORKFLOW_PRODUCTION_MODE, workflow: "pure" })
-      .production_mode.by_version["3_versions/v1"])
-      .toEqual({ mode: PAGE_IMAGE_WORKFLOW_PRODUCTION_MODE, workflow: "pure", source_epoch: 1 });
+    expect(() => createInitialState("target", "keynote", "dark")).toThrow("workflow");
+    expect(createInitialState("target", "keynote", "dark", { workflow: "pure" })
+      .production_identity.by_version["3_versions/v1"])
+      .toEqual({ workflow: "pure", source_epoch: 1 });
+  });
+
+  it("rejects missing, malformed, retired-mode, and source-disagreeing identity records without mutation", () => {
+    const source = `---\nproduction:\n  pipeline: ${PAGE_IMAGE_WORKFLOW_PIPELINE}\n  workflow: pure\n---\n`;
+    const sourceMarker = probeProductionMarker(source);
+    const cases = [
+      ["missing", {}, "IDENTITY_MISSING"],
+      ["malformed", { workflow: "pure", source_epoch: "1" }, "IDENTITY_RECORD_INVALID"],
+      ["retired-mode", { mode: "image2-page-workflow", workflow: "pure", source_epoch: 1 }, "IDENTITY_RECORD_INVALID"],
+      ["source-disagreeing", { workflow: "framed", source_epoch: 1 }, "IDENTITY_SOURCE_MISMATCH"],
+    ];
+    for (const [_name, record, code] of cases) {
+      const state = { production_identity: { by_version: {} } };
+      if (Object.keys(record).length) state.production_identity.by_version["3_versions/v1"] = record;
+      const before = structuredClone(state);
+      expect(inspectProductionIdentity({ state, runVersion: "v1", sourceMarker })).toMatchObject({ ok: false, code });
+      expect(state).toEqual(before);
+    }
   });
 });

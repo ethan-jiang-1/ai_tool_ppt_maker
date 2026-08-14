@@ -63,8 +63,9 @@ Agent 探索/理解 Harness 时只看上面 4 个源码目录。**做具体 deck
 - 页面 `slide_id` 是跨版本身份，`position` 只属于当前快照；结构编辑必须 preview + exact plan hash，提交/materialization 零远端调用，`needs_render` 另行授权
 - 新 deck 使用 `identity.scheme: mnemonic`；Agent 编写 5–8 字母、恰好两块 BlockCase 的可口述 ID，优先 5–6
 - `_generated/` 内一切都可以重跑管线重新生成, 绝不手动编辑
-- 新 deck 使用 `page-image-workflow`，并在 receipt 绑定后使用
-  `image2-page-workflow`；在 provider work 前由人明确选择版本级 `framed` 或 `pure`。
+- 新 deck 使用 `page-image-workflow`；在 provider work 前由人明确选择版本级
+  `framed` 或 `pure`，State 只在接受 exact source 后记录
+  `production_identity.by_version` 的 `{ workflow, source_epoch }`。
   未声明、缺失、混合或损坏的 source/state pair 保持字节不变并进入 owner-issued
   `repair-current-protocol-identity` hard-stop，绝不推断为当前工作流
 

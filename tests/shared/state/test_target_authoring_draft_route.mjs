@@ -20,7 +20,6 @@ function controllerNode(id, { workflow = null, draftRoute = false } = {}) {
     "```yaml",
     `node: ${id}`,
     "method_module: 01-content",
-    "production_modes: [image2-page-workflow]",
     ...(workflow ? [`production_workflows: [${workflow}]`] : []),
     ...(draftRoute ? ["draft_route: true"] : []),
     "requires: []",
@@ -130,7 +129,7 @@ function setHarnessDraft(value, { currentNode, workflow = "framed", playbook = "
   state.playbook = playbook;
   state.run_version = "v1";
   state.current_node = currentNode;
-  delete state.production_mode;
+  delete state.production_identity;
   writeState(value.deck, state);
 }
 
@@ -140,10 +139,9 @@ function setDraftState(fixtureValue, { currentNode = "author-target-page-image-c
   state.run_version = "v1";
   state.current_node = currentNode;
   if (bound) {
-    state.production_mode = {
+    state.production_identity = {
       by_version: {
         "3_versions/v1": {
-          mode: "image2-page-workflow",
           workflow: "framed",
           source_epoch: 1,
         },
@@ -224,7 +222,7 @@ describe("target authoring draft route", () => {
         state.playbook = "create-deck";
         state.run_version = "v1";
         state.current_node = currentNode;
-        delete state.production_mode;
+        delete state.production_identity;
         writeState(value.deck, state);
         expect(resolveTargetAuthoringDraftRoute(value.runDir)).toMatchObject({
           workflow,

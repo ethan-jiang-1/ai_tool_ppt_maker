@@ -88,7 +88,6 @@ describe("TARGET structural slides CLI", () => {
       const originalSource = source();
       writeFileSync(join(runDir, "slide-specifications.md"), originalSource);
       const state = createInitialState("target", "keynote", "dark-executive", {
-        mode: "image2-page-workflow",
         workflow: "pure",
       });
       state.continuation_target_version = "v1";
@@ -127,8 +126,7 @@ describe("TARGET structural slides CLI", () => {
       expect(readFileSync(join(deck, "3_versions", "v2", "slide-specifications.md"), "utf8"))
         .toContain("## Slide 01: `BodyMap`");
       const after = readState(deck, { purpose: "observe", runVersion: "v1" });
-      expect(after.production_mode.by_version["3_versions/v2"]).toEqual({
-        mode: "image2-page-workflow",
+      expect(after.production_identity.by_version["3_versions/v2"]).toEqual({
         workflow: "pure",
         source_epoch: 1,
       });
@@ -147,7 +145,6 @@ describe("TARGET structural slides CLI", () => {
       initBundle(deck, null, "keynote", "dark-executive");
       writeFileSync(join(runDir, "slide-specifications.md"), source());
       const state = createInitialState("target", "keynote", "dark-executive", {
-        mode: "image2-page-workflow",
         workflow: "pure",
       });
       state.continuation_target_version = "v1";
@@ -194,7 +191,6 @@ describe("TARGET structural slides CLI", () => {
       initBundle(deck, null, "keynote", "dark-executive");
       writeFileSync(join(runDir, "slide-specifications.md"), source());
       const state = createInitialState("target", "keynote", "dark-executive", {
-        mode: "image2-page-workflow",
         workflow: "pure",
       });
       state.continuation_target_version = "v1";

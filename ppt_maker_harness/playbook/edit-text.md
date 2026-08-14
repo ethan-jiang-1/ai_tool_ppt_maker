@@ -11,7 +11,6 @@ includes: [classify-change]
 ```yaml
 node: refresh-target-framed-text
 method_module: 06-iteration
-production_modes: [image2-page-workflow]
 production_workflows: [framed]
 requires: [classify-change]
 produces: [target-framed-refresh-route]
@@ -24,7 +23,6 @@ exit: [slide_specs_valid]
 ```yaml
 node: refresh-target-pure-text
 method_module: 06-iteration
-production_modes: [image2-page-workflow]
 production_workflows: [pure]
 requires: [classify-change]
 produces: [target-pure-refresh-route]
@@ -37,7 +35,6 @@ exit: [slide_specs_valid]
 ```yaml
 node: review-target-text-delivery
 method_module: 06-iteration
-production_modes: [image2-page-workflow]
 production_workflows: [framed, pure]
 requires: [refresh-target-framed-text, refresh-target-pure-text]
 produces: [verified-target-text-change]

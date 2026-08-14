@@ -41,7 +41,6 @@ describe("current Page Image CLI surface", () => {
     const root = mkdtempSync(join(tmpdir(), "current-route-"));
     try {
       const deck = join(root, "deck_current");
-      expect(() => initBundle(deck, null, "keynote", "dark-executive", { mode: "unsupported-mode" })).toThrow();
       initBundle(deck, null, "keynote", "dark-executive");
       const runDir = join(deck, "3_versions", "v1");
       const currentSource = "---\nproduction:\n  pipeline: page-image-workflow\n  workflow: pure\n---\n\n## Slide 01: `DeckGo`\n\n**TITLE**: Current source\n";
@@ -59,8 +58,9 @@ describe("current Page Image CLI surface", () => {
       });
       expect(resolveRunProductionAdapter(deck, { runDir })).toMatchObject({
         ok: true,
-        mode: "image2-page-workflow",
         workflow: "pure",
+        source_epoch: 1,
+        source_pipeline: "page-image-workflow",
         adapter: "page-image-workflow",
       });
 

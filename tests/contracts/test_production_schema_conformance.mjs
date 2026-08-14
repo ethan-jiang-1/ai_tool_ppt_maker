@@ -5,10 +5,12 @@ import { parseDocument } from "yaml";
 import { describe, expect, it } from "vitest";
 
 import {
+  ACTIVE_SURFACE_FILES,
   evaluateActiveSurfaceResidue,
   evaluateFramedCompositionConformance,
   evaluatePageDerivedPublicationConformance,
   evaluateProductionSchemaConformance,
+  evaluateRetiredControlSurfaceReachability,
   scanActiveSurfaceResidue,
 } from "../../ppt_maker_harness/scripts/contracts/harness_architecture.mjs";
 
@@ -224,7 +226,7 @@ function contractFieldObservations() {
       const location = relative(ROOT, path);
       const testInput = location.startsWith("tests/") || location.startsWith("tests_e2e/");
       const constants = path.endsWith(".mjs") ? constantsIn(path, constantsCache) : new Map();
-      for (const field of ["schema", "pipeline", "production_mode", "adapter", "scheme", "artifact_role"]) {
+      for (const field of ["schema", "pipeline", "production_identity", "adapter", "scheme", "artifact_role"]) {
         for (const assignment of resolvedAssignments(text, field, constants)) {
           if (assignment.value === null) continue;
           const parserStart = text.lastIndexOf("parseDocument(", assignment.offset);
@@ -422,11 +424,43 @@ function createActiveSurfaceFixture() {
   write("tests/structural.mjs", `const versionPath = "3_versions/${v2}";\n`);
   write("tests_e2e/execution.mjs", `const requested_run_version = "v1"; const active_run_version = "${v2}"; const source = "current";\n`);
   write("openspec/specs/current/spec.md", "The requirement SHALL NOT migrate invalid production identity.\n");
+  write("AGENTS.md", "Use the declared current control owners.\n");
+  write("CONTEXT.md", "Current production uses one production identity.\n");
   write("openspec/config.yaml", "schema: spec-driven\n");
   return { root, write };
 }
 
 describe("production schema conformance", () => {
+  it("rejects every retired Agent control category while preserving explicit negative controls", () => {
+    const retired = {
+      prompt: ["agent", "prompts"].join("-"),
+      inspection: ["workflow", "inspection", "baseline"].join("-"),
+      catalog: ["intent", "routes"].join("-"),
+    };
+    const result = evaluateRetiredControlSurfaceReachability({
+      entries: [
+        { path: `ppt_maker_harness/reference/${retired.prompt}.md`, content: "obsolete" },
+        { path: `ppt_maker_harness/reference/${retired.inspection}.md`, content: "obsolete" },
+        { path: "ppt_maker_harness/COMMANDS.md", content: `${retired.catalog}.json` },
+        { path: "ppt_maker_harness/playbook/retired.md", content: "production_modes: [framed]" },
+        { path: "ppt_maker_harness/scripts/retired-state.mjs", content: "const value = state.production_mode;" },
+      ],
+    });
+    expect(result.issues.map((issue) => [issue.code, issue.path])).toEqual([
+      [["retired", "prompt", "cookbook"].join("-"), `ppt_maker_harness/reference/${retired.prompt}.md`],
+      [["retired", "inspection", "projection"].join("-"), `ppt_maker_harness/reference/${retired.inspection}.md`],
+      [["retired", "control", "catalog"].join("-"), "ppt_maker_harness/COMMANDS.md"],
+      [["retired", "controller", "metadata"].join("-"), "ppt_maker_harness/playbook/retired.md"],
+      [["retired", "mode", "dialect"].join("-"), "ppt_maker_harness/scripts/retired-state.mjs"],
+    ]);
+    expect(evaluateRetiredControlSurfaceReachability({
+      entries: [{
+        path: "tests/control.mjs",
+        content: "// Reject the retired production_mode negative control.\nconst rejected = state.production_mode;",
+      }],
+    })).toEqual({ ok: true, issues: [] });
+  });
+
   it("classifies active-surface residue semantically without a global version-token exception", () => {
     const retiredNumericMarker = ["v", "2"].join("");
     const retiredAction = [["unsupported", "protocol"].join("-"), "export"].join("/");
@@ -457,9 +491,9 @@ describe("production schema conformance", () => {
     expect(valid).toEqual({ ok: true, issues: [] });
   });
 
-  it("enumerates only declared active roots and fails unclassified coverage without writes or provider calls", () => {
+  it("enumerates only fixed active roots/files and classifies planted residue without writes or provider calls", () => {
     const fixture = createActiveSurfaceFixture();
-    const repositoryConfig = readFileSync(join(ROOT, "openspec/config.yaml"), "utf8");
+    const repositoryFiles = Object.fromEntries(ACTIVE_SURFACE_FILES.map((path) => [path, readFileSync(join(ROOT, path), "utf8")]));
     const originalFetch = globalThis.fetch;
     let providerCalls = 0;
     try {
@@ -470,8 +504,30 @@ describe("production schema conformance", () => {
       expect(scanActiveSurfaceResidue({ root: fixture.root })).toMatchObject({
         ok: true,
         issues: [],
-        inventory: { text: 5, binary: 1 },
+        inventory: { text: 7, binary: 1 },
       });
+
+      const planted = [
+        ["ppt_maker_harness/reference/agent-prompts.md", "obsolete\n", "retired-prompt-cookbook"],
+        ["ppt_maker_harness/playbook/intent-routes.json", "{}\n", "retired-control-catalog"],
+        ["ppt_maker_harness/playbook/retired.md", "production_modes: [framed]\n", "retired-controller-metadata"],
+        ["tests/retired-state.mjs", "const identity = state.production_mode;\n", "retired-mode-dialect"],
+        ["CONTEXT.md", "The selected state is image2-page-workflow.\n", "retired-mode-dialect"],
+      ];
+      for (const [path, content, code] of planted) {
+        const target = fixture.write(path, content);
+        expect(scanActiveSurfaceResidue({ root: fixture.root }).issues).toEqual(expect.arrayContaining([
+          expect.objectContaining({ code, path }),
+        ]));
+        if (path === "CONTEXT.md") fixture.write(path, "Current production uses one production identity.\n");
+        else rmSync(target);
+      }
+      expect(scanActiveSurfaceResidue({ root: fixture.root })).toMatchObject({ ok: true, issues: [] });
+
+      fixture.write("openspec/changes/archive/historical.md", "state.production_mode\n");
+      fixture.write("_backlog/historical.md", "intent-routes.json\n");
+      fixture.write("deck_historical/_state/state.yaml", "production_mode: obsolete\n");
+      expect(scanActiveSurfaceResidue({ root: fixture.root })).toMatchObject({ ok: true, issues: [] });
 
       const unclassified = fixture.write("ppt_maker_harness/scripts/prompt-surface.prompt", "active text-like surface\n");
       expect(scanActiveSurfaceResidue({ root: fixture.root }).issues).toEqual(expect.arrayContaining([
@@ -483,7 +539,9 @@ describe("production schema conformance", () => {
 
       renameSync(unclassified, unclassified.replace(/\.prompt$/, ".txt"));
       expect(scanActiveSurfaceResidue({ root: fixture.root })).toMatchObject({ ok: true, issues: [] });
-      expect(readFileSync(join(ROOT, "openspec/config.yaml"), "utf8")).toEqual(repositoryConfig);
+      for (const [path, content] of Object.entries(repositoryFiles)) {
+        expect(readFileSync(join(ROOT, path), "utf8")).toEqual(content);
+      }
     } finally {
       globalThis.fetch = originalFetch;
       rmSync(fixture.root, { recursive: true, force: true });

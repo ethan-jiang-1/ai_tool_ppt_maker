@@ -165,8 +165,8 @@ durable narrative role as exactly two semantic BlockCase blocks under the
 existing mnemonic syntax, uniqueness, spoken-key, reserved-word, and
 near-confusion rules. Newly initialized sources SHALL declare the current
 unversioned `identity.scheme: mnemonic`; its presence means every current ID in
-the file has mnemonic syntax. The identity scheme is never a production-mode,
-migration, or Controller-routing signal.
+the file has mnemonic syntax. The identity scheme is never a production
+workflow, migration, or Controller-routing signal.
 
 #### Scenario: A new source has current mnemonic identity
 

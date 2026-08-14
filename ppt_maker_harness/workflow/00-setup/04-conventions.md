@@ -1,7 +1,8 @@
 # Conventions
 
-Use `page-image-workflow` for new source and
-`image2-page-workflow` after source receipt binding. Each slide has a
+Use `page-image-workflow` for new source. After State accepts the exact source,
+it records `production_identity.by_version` with `workflow` and `source_epoch`.
+Each slide has a
 mnemonic `slide_id`; it inherits the one version-level `framed` or `pure`
 workflow. A version source records only its one workflow selection.
 

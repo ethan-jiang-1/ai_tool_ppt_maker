@@ -113,7 +113,7 @@ or `--probe-vendors` from starting provider network work.
 ### Requirement: Environment check emits one declared current report
 
 The environment check SHALL output a structured report with per-check status and an
-overall verdict for the selected Page Image Workflow mode and operation. It SHALL
+overall verdict for the selected Page Image Workflow operation. It SHALL
 exit 0 on READY and non-zero on NOT READY. The direct `--json` form SHALL
 retain one declared current set of top-level readiness booleans and generic
 check-array contract; it SHALL not expose secrets, name a Harness report
@@ -132,10 +132,12 @@ existing machine-compatible overall status and JSON schema SHALL remain unchange
 evidence SHALL carry the same qualification without exposing prompt, credential, or provider response content.
 
 Direct `env-check --help` SHALL list only parser-accepted arguments:
-`--json`, `--mode <mode>`, `--operation <operation>`, `--smoke`, and
-`--probe-vendors`. `--image2` is retired and SHALL be rejected with the
-operation-scoped replacement. `--operation` SHALL require the current Page
-Authority mode, and `--smoke` / `--probe-vendors` remain mutually exclusive.
+`--json`, `--operation <operation>`, `--smoke`, and `--probe-vendors`.
+`--operation` SHALL select the fixed current Page Image readiness profile;
+`--smoke` / `--probe-vendors` remain mutually exclusive. `--mode` is not a
+current argument and SHALL be rejected without mapping a fixed mode literal.
+`--image2` remains retired and SHALL be rejected with the operation-scoped
+replacement.
 
 #### Scenario: Output format
 
@@ -157,19 +159,26 @@ Authority mode, and `--smoke` / `--probe-vendors` remain mutually exclusive.
 - **WHEN** direct `env-check --json` runs for a supported local or
   raw-generation operation
 - **THEN** stdout is one document under the declared current report contract
-- **AND** mode-specific behavior is represented by included checks and existing
-  live-probe booleans rather than a duplicate diagnostic schema
+- **AND** operation-specific behavior is represented by included checks and
+  existing live-probe booleans rather than a duplicate diagnostic schema
 
 #### Scenario: Direct help and parser agree
 
 - **WHEN** a user reads direct `env-check --help` or passes a documented form
 - **THEN** every advertised flag is accepted by the parser with its documented
   mode/operation constraints
-- **AND** no help or active documentation advertises `--image2`
+- **AND** no help or active documentation advertises `--image2` or `--mode`
 
 #### Scenario: Retired Image2 flag is rejected safely
 
 - **WHEN** a user passes direct `env-check --image2`
+- **THEN** it returns a bounded usage diagnostic naming the operation-scoped
+  replacement
+- **AND** it starts no provider work or lifecycle operation
+
+#### Scenario: Retired mode flag is rejected safely
+
+- **WHEN** a user passes direct `env-check --mode`
 - **THEN** it returns a bounded usage diagnostic naming the operation-scoped
   replacement
 - **AND** it starts no provider work or lifecycle operation

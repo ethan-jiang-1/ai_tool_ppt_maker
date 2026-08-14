@@ -342,13 +342,13 @@ describe("cli_error", () => {
         lineage: [{ kind: "script", path: "ppt_maker_harness/scripts/00-setup/env-check.mjs", stage: "foundation" }],
         next: createCliNext("repair_environment", {
           default: "Configure the selected raw-generation environment, then rerun this exact readiness check.",
-          invocation: { program: "node", args: ["env-check.mjs", "--mode", "image2-page-workflow", "--operation", "raw-generation"] },
+          invocation: { program: "node", args: ["env-check.mjs", "--operation", "raw-generation"] },
         }),
       },
     })));
     const expected = child?.diagnostic;
     const preserved = buildDelegatedDiagnostic({
-      invocation: { program: "node", args: ["env-check.mjs", "--mode", "image2-page-workflow", "--operation", "raw-generation"] },
+      invocation: { program: "node", args: ["env-check.mjs", "--operation", "raw-generation"] },
       childError: child,
       operation: "doctor",
       next: createCliNext("inspect", { default: "Generic parent advice must not replace the producer action." }),

@@ -18,7 +18,6 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { basename, join } from "node:path";
 import { parseDocument } from "yaml";
-import { PRODUCTION_MODES, PAGE_IMAGE_WORKFLOW_PRODUCTION_MODE, productionPolicyForMode } from "../run-bundle/production_mode.mjs";
 import {
   PAGE_IMAGE_WORKFLOW_PIPELINE,
   PAGE_IMAGE_WORKFLOWS,
@@ -37,7 +36,6 @@ export const RESERVED_NODE_IDS = Object.freeze([]);
 export const SUPPORTED_PIPELINES = Object.freeze([
   PAGE_IMAGE_WORKFLOW_PIPELINE,
 ]);
-export const SUPPORTED_PRODUCTION_MODES = Object.freeze([...PRODUCTION_MODES]);
 export const SUPPORTED_PRODUCTION_WORKFLOWS = Object.freeze([...PAGE_IMAGE_WORKFLOWS]);
 
 const TARGET_STAGE_FOUR_MODULES = new Set([
@@ -49,34 +47,6 @@ const TARGET_WORKFLOW_MODULES = Object.freeze({
   "03-framed-image": "framed",
   "04-pure-image": "pure",
 });
-
-/** Derived renderer pipeline for a valid production mode (null for invalid). */
-function derivedPipelineForMode(mode) {
-  const policy = productionPolicyForMode(mode);
-  return policy.ok ? policy.pipeline : null;
-}
-
-/**
- * Effective supported production modes for a controller: the declared
- * supported_production_modes when present, otherwise every mode whose derived
- * pipeline is in the controller's supported_pipelines.
- */
-export function controllerSupportedModes(controller) {
-  if (!controller) return [];
-  const declared = controller.supportedProductionModes;
-  if (declared.length > 0) return declared;
-  const pipelines = new Set(controller.supportedPipelines);
-  return PRODUCTION_MODES.filter((mode) => pipelines.has(derivedPipelineForMode(mode)));
-}
-
-/** True when a node is active under the exact mode given its controller scope. */
-export function nodeAppliesToMode(node, supportedModes, mode) {
-  if (!node) return false;
-  if (!Array.isArray(supportedModes) || !supportedModes.includes(mode)) return false;
-  const nodeModes = node.productionModes;
-  if (!nodeModes || nodeModes.length === 0) return true; // no restriction -> all supported modes
-  return nodeModes.includes(mode);
-}
 
 /** True when a target node is active for the version workflow selected in state. */
 export function nodeAppliesToWorkflow(node, workflow) {
@@ -107,25 +77,73 @@ function asStringArray(value) {
   return Array.isArray(value) ? value.map((v) => String(v)) : [String(value)];
 }
 
+const CONTROLLER_FRONTMATTER_KEYS = new Set([
+  "playbook",
+  "description",
+  "supported_pipelines",
+  "includes",
+]);
+const NODE_KEYS = new Set([
+  "node",
+  "method_module",
+  "requires",
+  "entry",
+  "exit",
+  "produces",
+  "decisions",
+  "production_workflows",
+  "adapter",
+  "draft_route",
+]);
+const SHARED_NODE_FRONTMATTER_KEYS = new Set([...NODE_KEYS, "shared"]);
+
 function parseFrontmatter(text, source) {
   const match = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/.exec(text);
-  if (!match) return { data: {}, end: 0, error: null };
+  if (!match) return { data: {}, keyLines: {}, end: 0, error: null };
   try {
-    return { data: parseYamlMapping(match[1], source) || {}, end: match[0].length, error: null };
+    const parsed = parseYamlMapping(match[1], source, 2);
+    return { ...parsed, end: match[0].length, error: null };
   } catch (error) {
-    return { data: {}, end: match[0].length, error: `${source}:1: ${error.message}` };
+    return { data: {}, keyLines: {}, end: match[0].length, error: error.message };
   }
 }
 
-function parseYamlMapping(text, source) {
+function parseYamlMapping(text, source, startLine) {
   const document = parseDocument(text, { uniqueKeys: true, prettyErrors: false });
-  if (document.errors.length > 0) throw new Error(`${source}: ${document.errors[0].message}`);
-  const value = document.toJS();
-  if (value == null) return {};
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    throw new Error(`${source}: YAML declaration must be a mapping`);
+  if (document.errors.length > 0) {
+    const error = document.errors[0];
+    const localLine = error.linePos?.[0]?.line || 1;
+    throw new Error(`${source}:${startLine + localLine - 1}: ${error.message}`);
   }
-  return value;
+  const value = document.toJS();
+  if (value == null) return { data: {}, keyLines: {} };
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`${source}:${startLine}: YAML declaration must be a mapping`);
+  }
+  const keyLines = {};
+  for (const pair of document.contents?.items || []) {
+    const key = pair?.key?.value;
+    if (typeof key !== "string") continue;
+    keyLines[key] = startLine + lineNumber(text, pair.key.range?.[0] || 0) - 1;
+  }
+  return { data: value, keyLines };
+}
+
+function validateDeclarationGrammar(data, keyLines, source, kind, allowedKeys, fallbackLine) {
+  const errors = [];
+  for (const key of Object.keys(data)) {
+    if (!allowedKeys.has(key)) {
+      errors.push(`${source}:${keyLines[key] || fallbackLine}: unsupported ${kind} frontmatter key ${key}`);
+    }
+  }
+  if (kind === "shared-node" && data.shared !== true) {
+    errors.push(`${source}:${keyLines.shared || fallbackLine}: shared-node frontmatter requires shared: true`);
+  }
+  if ((kind === "shared-node" || kind === "fenced-node") &&
+    Object.hasOwn(data, "draft_route") && data.draft_route !== true) {
+    errors.push(`${source}:${keyLines.draft_route || fallbackLine}: draft_route must be the literal Boolean true when present`);
+  }
+  return errors;
 }
 
 function parseSteps(body, startLine) {
@@ -150,10 +168,8 @@ function normalizeNode(raw, meta) {
     exit: asStringArray(raw?.exit),
     produces: asStringArray(raw?.produces),
     decisions: asStringArray(raw?.decisions),
-    productionModes: asStringArray(raw?.production_modes),
     productionWorkflows: asStringArray(raw?.production_workflows),
     adapter: raw?.adapter == null ? null : String(raw.adapter),
-    modeTransitionHandoff: raw?.mode_transition_handoff == null ? null : String(raw.mode_transition_handoff),
     draftRoute: raw && Object.hasOwn(raw, "draft_route") ? raw.draft_route === true : false,
     shared: raw?.shared === true,
     raw,
@@ -165,13 +181,26 @@ export function parseControllerFile(filePath) {
   const text = readFileSync(filePath, "utf8");
   const fm = parseFrontmatter(text, filePath);
   const errors = fm.error ? [fm.error] : [];
-  const playbook = fm.data.playbook == null ? "" : String(fm.data.playbook);
+  const sharedFrontmatter = Object.hasOwn(fm.data, "node");
+  if (!fm.error) {
+    errors.push(...validateDeclarationGrammar(
+      fm.data,
+      fm.keyLines,
+      filePath,
+      sharedFrontmatter ? "shared-node" : "Controller",
+      sharedFrontmatter ? SHARED_NODE_FRONTMATTER_KEYS : CONTROLLER_FRONTMATTER_KEYS,
+      1,
+    ));
+  }
+  const frontmatterValid = errors.length === 0;
+  const playbook = frontmatterValid && !sharedFrontmatter && fm.data.playbook != null
+    ? String(fm.data.playbook)
+    : "";
   const includes = asStringArray(fm.data.includes);
   const supportedPipelines = asStringArray(fm.data.supported_pipelines);
-  const supportedProductionModes = asStringArray(fm.data.supported_production_modes);
   const nodes = [];
 
-  if (fm.data.node) {
+  if (frontmatterValid && sharedFrontmatter) {
     const body = text.slice(fm.end);
     nodes.push(normalizeNode(fm.data, {
       playbook: "shared",
@@ -187,14 +216,21 @@ export function parseControllerFile(filePath) {
   const fences = [...text.matchAll(/^```yaml\s*\r?\n([\s\S]*?)^```\s*$/gm)];
   for (let index = 0; index < fences.length; index += 1) {
     const match = fences[index];
-    let raw;
+    const fenceLine = lineNumber(text, match.index);
+    let parsed;
     try {
-      raw = parseYamlMapping(match[1], `${filePath}:${lineNumber(text, match.index)}`) || {};
+      parsed = parseYamlMapping(match[1], filePath, fenceLine + 1);
     } catch (error) {
-      errors.push(`${filePath}:${lineNumber(text, match.index)}: ${error.message}`);
+      errors.push(error.message);
       continue;
     }
+    const { data: raw, keyLines } = parsed;
     if (!raw.node) continue;
+    const grammarErrors = validateDeclarationGrammar(raw, keyLines, filePath, "fenced-node", NODE_KEYS, fenceLine);
+    if (grammarErrors.length > 0) {
+      errors.push(...grammarErrors);
+      continue;
+    }
     const bodyStart = match.index + match[0].length;
     const bodyEnd = fences[index + 1]?.index ?? text.length;
     const body = text.slice(bodyStart, bodyEnd);
@@ -214,7 +250,6 @@ export function parseControllerFile(filePath) {
     playbook,
     includes,
     supportedPipelines,
-    supportedProductionModes,
     nodes,
     errors,
   };
@@ -398,11 +433,10 @@ function validateNodeShape(node, errors) {
   }
   const targetStageFour = TARGET_STAGE_FOUR_MODULES.has(node.methodModule);
   const targetWorkflow = TARGET_WORKFLOW_MODULES[node.methodModule] || null;
-  const targetModeOnly = hasExactSet(node.productionModes, [PAGE_IMAGE_WORKFLOW_PRODUCTION_MODE]);
   if (targetStageFour && node.adapter !== "page-image-workflow") addError(errors, node, "image-production-adapter", "target 03/04/05 nodes require adapter: page-image-workflow");
   if (!targetStageFour && node.adapter != null) addError(errors, node, "image-production-adapter", "only target Page Image production nodes may declare an adapter");
-  if (targetStageFour && (!targetModeOnly || node.playbook !== "create-deck")) {
-    addError(errors, node, "image-production-adapter", "target 03/04/05 production is owned by create-deck and requires image2-page-workflow");
+  if (targetStageFour && node.playbook !== "create-deck") {
+    addError(errors, node, "image-production-adapter", "target 03/04/05 production is owned by create-deck");
   }
   if (node.productionWorkflows.length > 0) {
     if (new Set(node.productionWorkflows).size !== node.productionWorkflows.length) {
@@ -413,9 +447,6 @@ function validateNodeShape(node, errors) {
         addError(errors, node, "production-workflows", `unsupported production workflow ${workflow}`);
       }
     }
-    if (!targetModeOnly) {
-      addError(errors, node, "production-workflows", "production_workflows require image2-page-workflow only");
-    }
   }
   if (targetWorkflow && !hasExactSet(node.productionWorkflows, [targetWorkflow])) {
     addError(errors, node, "production-workflows", `${node.methodModule} requires production_workflows: [${targetWorkflow}]`);
@@ -423,8 +454,8 @@ function validateNodeShape(node, errors) {
   if (node.methodModule === "05-delivery" && !hasExactSet(node.productionWorkflows, PAGE_IMAGE_WORKFLOWS)) {
     addError(errors, node, "production-workflows", "05-delivery must apply to both target workflows without a semantic branch");
   }
-  if (node.methodModule === "06-iteration" && (!targetModeOnly || node.productionWorkflows.length === 0)) {
-    addError(errors, node, "production-workflows", "06-iteration requires one or both target workflows on image2-page-workflow");
+  if (node.methodModule === "06-iteration" && node.productionWorkflows.length === 0) {
+    addError(errors, node, "production-workflows", "06-iteration requires one or both target workflows");
   }
   if (!Array.isArray(node.raw?.requires) || !Array.isArray(node.raw?.entry) || !Array.isArray(node.raw?.exit)) {
     addError(errors, node, "node-lists", "requires, entry, and exit must be YAML arrays");
@@ -628,25 +659,7 @@ export function validatePlaybookIndex(index) {
         errors.push({ rule: "supported-pipelines", source: controller.source, line: 1, message: `unsupported pipeline ${pipeline}` });
       }
     }
-    // Production-mode declarations: closed vocabulary, compatible with the
-    // controller's supported_pipelines, and node modes must stay within the
-    // controller's effective supported modes.
-    if (controller.supportedProductionModes.length > 0) {
-      if (new Set(controller.supportedProductionModes).size !== controller.supportedProductionModes.length) {
-        errors.push({ rule: "supported-production-modes", source: controller.source, line: 1, message: "supported_production_modes must be unique" });
-      }
-      for (const mode of controller.supportedProductionModes) {
-        if (!SUPPORTED_PRODUCTION_MODES.includes(mode)) {
-          errors.push({ rule: "supported-production-modes", source: controller.source, line: 1, message: `unsupported production mode ${mode}` });
-          continue;
-        }
-        const derived = derivedPipelineForMode(mode);
-        if (!controller.supportedPipelines.includes(derived)) {
-          errors.push({ rule: "supported-production-modes", source: controller.source, line: 1, message: `production mode ${mode} is incompatible with supported_pipelines` });
-        }
-      }
-    }
-    const effectiveModes = controllerSupportedModes(controller);
+    const supportsPageImage = controller.supportedPipelines.includes(PAGE_IMAGE_WORKFLOW_PIPELINE);
     const available = new Map();
     for (const include of controller.includes) {
       const shared = index.shared.get(include);
@@ -661,25 +674,12 @@ export function validatePlaybookIndex(index) {
     const seen = new Set(controller.includes);
     for (const node of controller.nodes) {
       validateNodeShape(node, errors);
-      if (node.productionModes.length > 0) {
-        if (new Set(node.productionModes).size !== node.productionModes.length) {
-          addError(errors, node, "production-modes", "production_modes must be unique");
-        }
-        for (const mode of node.productionModes) {
-          if (!SUPPORTED_PRODUCTION_MODES.includes(mode)) {
-            addError(errors, node, "production-modes", `unsupported production mode ${mode}`);
-          } else if (!effectiveModes.includes(mode)) {
-            addError(errors, node, "production-modes", `production mode ${mode} is outside controller ownership`);
-          }
-        }
+      if (node.productionWorkflows.length > 0 && !supportsPageImage) {
+        addError(errors, node, "production-workflows", "production_workflows require page-image-workflow controller ownership");
       }
       for (const required of node.requires) {
         if (!available.has(required)) addError(errors, node, "requires", `unknown required node ${required}`);
         else if (!seen.has(required)) addError(errors, node, "requires-order", `${required} must appear before ${node.id}`);
-      }
-      if (node.modeTransitionHandoff != null) {
-        if (!node.modeTransitionHandoff) addError(errors, node, "mode-transition-handoff", "mode_transition_handoff must be a non-empty node id");
-        else if (!available.has(node.modeTransitionHandoff)) addError(errors, node, "mode-transition-handoff", `unknown handoff node ${node.modeTransitionHandoff}`);
       }
       validateConditions(node, errors, available);
       seen.add(node.id);
@@ -722,23 +722,20 @@ export function controllerNodeIds(index, playbook) {
 }
 
 /**
- * Mode-filtered active node IDs for a controller under the exact authoritative
- * production mode. Includes apply when they have no mode restriction; nodes
- * apply when their production_modes (defaulting to all supported modes) contain
- * the mode. Inapplicable nodes are simply absent — never marked skipped.
+ * Workflow-filtered active node IDs for a Controller. Nodes without a
+ * production_workflows restriction remain active before selection; selected
+ * workflow nodes are absent until the current source selects framed or pure.
  */
-export function controllerActiveNodeIds(index, playbook, mode, workflow = null) {
+export function controllerActiveNodeIds(index, playbook, workflow = null) {
   const controller = index.controllers.get(playbook);
   if (!controller) return [];
-  const supportedModes = controllerSupportedModes(controller);
-  if (mode && !supportedModes.includes(mode)) return [];
   const active = [];
   for (const include of controller.includes) {
     const shared = index.shared.get(include);
-    if (!mode || (nodeAppliesToMode(shared, supportedModes, mode) && nodeAppliesToWorkflow(shared, workflow))) active.push(include);
+    if (nodeAppliesToWorkflow(shared, workflow)) active.push(include);
   }
   for (const node of controller.nodes) {
-    if (!mode || (nodeAppliesToMode(node, supportedModes, mode) && nodeAppliesToWorkflow(node, workflow))) active.push(node.id);
+    if (nodeAppliesToWorkflow(node, workflow)) active.push(node.id);
   }
   return active;
 }

@@ -4,7 +4,9 @@
 
 New Page Image authoring uses `page-image-workflow`. A version records
 exactly one `production.workflow: framed|pure` before provider work; state then
-binds the same workflow in `image2-page-workflow`. The target method graph
+binds the same workflow and its invalidation fence in
+`production_identity.by_version`. Project metadata has no production-protocol
+mirror. The target method graph
 is `03-framed-image XOR 04-pure-image -> 05-delivery -> 06-iteration`.
 
 | Target concern | Sole owner | Refresh consequence |
@@ -116,10 +118,9 @@ PPT Maker Harness capability.
 ## Intent Discovery Handoff
 
 `playbook/` is the home of MD Controllers and their normative controller manifest.
-`playbook/intent-routes.json` is the closed Intent Route Catalog, not
-a parser, dispatcher, Controller, or authorization record. The Agent interprets
-the user's words and uses the catalog only to check the first safe handoff before
-following the applicable Controller.
+The Agent interprets the user's words and hands them directly to the applicable
+Controller or CLI owner; discovery is not a parser, dispatcher, authorization
+record, or separate lifecycle authority.
 
 For a known exact run, keep this precedence:
 
@@ -146,8 +147,8 @@ main entry is unavailable; it cannot substitute for normal run-bound readiness,
 locate a run, start a Controller, or authorize provider work.
 
 Route Gap is conversational and non-persistent. Name whether the smallest
-missing extension is a catalog route, playbook, or owner capability, then wait
-for the human to request PPT Maker Harness maintenance. Route Gap does not write state,
+missing extension is a Controller or owner capability, then wait for the human
+to request PPT Maker Harness maintenance. Route Gap does not write state,
 receipts, grants, attempts, history, a collaboration card, or maintenance work.
 
 ## Diagnostic Recovery Handoff

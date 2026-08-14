@@ -264,7 +264,7 @@ describe('env-check optional Git public wiring', () => {
       let stdout = '';
       let status = 0;
       try {
-        stdout = execSync(`node ${join(process.cwd(), ENV_CHECK)} --json --mode image2-page-workflow --operation raw-generation`, {
+        stdout = execSync(`node ${join(process.cwd(), ENV_CHECK)} --json --operation raw-generation`, {
           encoding: 'utf8',
           timeout: 15_000,
           env: {
@@ -340,10 +340,10 @@ describe('00-env-check', () => {
 
   it.each([
     ['base', []],
-    ['raw-generation', ['--mode', 'image2-page-workflow', '--operation', 'raw-generation']],
+    ['raw-generation', ['--operation', 'raw-generation']],
     ['smoke', ['--smoke']],
     ['probe-vendors', ['--probe-vendors']],
-  ])('emits exactly one parseable JSON document in %s mode', (_mode, modeArgs) => {
+  ])('emits exactly one parseable JSON document in %s profile', (_profile, modeArgs) => {
     const live = modeArgs.some((arg) => arg === '--smoke' || arg === '--probe-vendors');
     const preload = join(process.cwd(), 'tests', 'helpers', 'fixtures', 'mock_image_probe_fetch.mjs');
     const script = join(process.cwd(), ENV_CHECK);
@@ -390,7 +390,7 @@ describe('00-env-check', () => {
     expect(checkNode(`${major}.0.0`).status).toBe('fail');
   });
 
-  it('default mode selects provider-free Framed-local readiness', () => {
+  it('default operation selects provider-free Framed-local readiness', () => {
     const { stdout } = runCheck('--json');
     const data = JSON.parse(stdout);
     expect(data.image2).toBe(false);
@@ -401,7 +401,7 @@ describe('00-env-check', () => {
   });
 
   it('reports Page Image raw owners for the raw-generation operation', () => {
-    const { stdout } = runCheck('--json --mode image2-page-workflow --operation raw-generation');
+    const { stdout } = runCheck('--json --operation raw-generation');
     const data = JSON.parse(stdout);
     const generator = data.checks.find(c => c.check === 'page_image_raw_generator');
     expect(generator).toBeDefined();
@@ -502,7 +502,7 @@ describe('env-check Image2 base URL hard fail', () => {
       let stdout = '';
       let exitCode = 0;
       try {
-        stdout = execSync(`node ${join(process.cwd(), ENV_CHECK)} --json --mode image2-page-workflow --operation raw-generation`, {
+        stdout = execSync(`node ${join(process.cwd(), ENV_CHECK)} --json --operation raw-generation`, {
           encoding: 'utf-8',
           timeout: 15000,
           cwd,
@@ -836,9 +836,9 @@ describe('env-check --probe-vendors', () => {
   });
 });
 
-describe('env-check Page Image mode boundary', () => {
-  it('rejects an unknown mode', () => {
-    const { exitCode } = runCheck('--mode unsupported-mode --json');
+describe('env-check Page Image selector boundary', () => {
+  it('rejects every retired mode selector', () => {
+    const { exitCode } = runCheck('--mode image2-page-workflow --json');
     expect(exitCode).not.toBe(0);
   });
 });
@@ -846,7 +846,7 @@ describe('env-check Page Image mode boundary', () => {
 describe('env-check Page Image operation profiles', () => {
   function runPageImageCheck(args, env = process.env) {
     try {
-      const stdout = execFileSync('node', [join(process.cwd(), ENV_CHECK), '--json', '--mode', 'image2-page-workflow', ...args], {
+      const stdout = execFileSync('node', [join(process.cwd(), ENV_CHECK), '--json', ...args], {
         encoding: 'utf8',
         timeout: 30_000,
         env: { ...env, IMAGE2_API_KEY: '', IMAGE2_BASE_URL: '' },

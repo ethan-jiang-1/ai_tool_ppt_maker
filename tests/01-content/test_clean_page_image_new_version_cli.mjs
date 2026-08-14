@@ -48,7 +48,6 @@ function runCli(args) {
 
 function activateCurrentSource(deck) {
   writeState(deck, createInitialState("target", "keynote", "dark-executive", {
-    mode: "image2-page-workflow",
     workflow: "pure",
   }));
 }
@@ -82,7 +81,7 @@ describe("ppt_flow new-version Page Image draft activation", () => {
         run_version: "v2",
         current_node: "author-target-page-image-content",
       });
-      expect(draftState.production_mode.by_version["3_versions/v2"]).toBeUndefined();
+      expect(draftState.production_identity.by_version["3_versions/v2"]).toBeUndefined();
       expect(draftState.page_image_target_evidence?.by_version?.["3_versions/v2"]).toBeUndefined();
       expect(draftState.page_image_style_master?.by_version?.["3_versions/v2"]).toBeUndefined();
 
@@ -113,8 +112,7 @@ describe("ppt_flow new-version Page Image draft activation", () => {
       expect(runCli(["validate", sourceRunDir]).status).toBe(0);
       activateCurrentSource(deck);
       const state = readState(deck, { purpose: "observe" });
-      state.production_mode.by_version["3_versions/v2"] = {
-        mode: "image2-page-workflow",
+      state.production_identity.by_version["3_versions/v2"] = {
         workflow: "pure",
         source_epoch: 1,
       };
@@ -127,7 +125,7 @@ describe("ppt_flow new-version Page Image draft activation", () => {
       expect(readdirSync(join(targetRunDir, "_generated")).sort()).toEqual(["README.md"]);
       expect(created.stderr).toBe("");
       const draftState = readState(deck, { purpose: "observe", runDir: targetRunDir });
-      expect(draftState.production_mode.by_version).toEqual({});
+      expect(draftState.production_identity.by_version).toEqual({});
       expect(draftState).not.toHaveProperty("page_image_target_evidence");
     } finally {
       rmSync(root, { recursive: true, force: true });

@@ -13,9 +13,10 @@ introducing a runtime controller or historical compatibility path.
 The Harness SHALL maintain `ppt_maker_harness/schema/serialization-contracts.yaml`
 as the authoritative inventory for every active Page Image and directly affected
 shared-Harness durable contract. The inventory SHALL declare an unversioned
-lowercase-hyphenated identifier grammar, current pipeline/mode/identity
-selectors, conceptual stage names, permitted `artifact_role` values, named
-shared contracts, field ownership, and stable code anchors.
+lowercase-hyphenated identifier grammar, current pipeline, workflow, and
+production-identity selectors, conceptual stage names, permitted
+`artifact_role` values, named shared contracts, field ownership, and stable code
+anchors.
 
 A Page Image artifact's `schema` SHALL identify exactly one declared stage definition.
 When more than one physical record or projection realizes that stage, the
@@ -46,6 +47,40 @@ record.
   `serialization-contracts.yaml`
 - **AND** it does not impersonate a Page Image stage or rely on a code-only
   historical literal
+
+### Requirement: Active control declarations have one current inventory
+
+The serialization inventory and bounded static conformance checks SHALL declare
+only active control contracts with a live owner and consumer. They SHALL not
+declare an Intent Route Catalog, Agent prompt cookbook, duplicate
+workflow-inspection prose projection, `production_mode`, or
+`supported_production_modes`. The current state identity declaration SHALL
+name only `production_identity.by_version` with exact `workflow` and
+`source_epoch` fields.
+
+The provider-free active-surface evaluator SHALL inspect only the declared
+`ppt_maker_harness/` source, `tests/`, `tests_e2e/`, root `AGENTS.md` and
+`CONTEXT.md`, accepted main specs, and OpenSpec configuration for those retired
+control names and report an exact path/category. It SHALL not inspect active
+change artifacts, archived changes, Backlog history, Run Bundles, research
+data, or generated outputs. The evaluator remains test-only and SHALL not
+become runtime routing, state mutation, provider work, or a second control
+owner.
+
+#### Scenario: A stale control declaration is planted
+
+- **WHEN** a focused synthetic or temporary active-surface input contains a
+  retired route, prompt, metadata, or production-mode declaration
+- **THEN** the static evaluator reports its exact path and residue category
+- **AND** restoring the input passes without repository mutation or provider
+  work
+
+#### Scenario: The current identity declaration is complete
+
+- **WHEN** conformance inspects a current state contract declaration
+- **THEN** it finds only the declared production-identity fields and their
+  current owner anchors
+- **AND** no alternate mode, catalog, or compatibility contract is accepted
 
 ### Requirement: The active Harness performs a clean serialization cutover
 

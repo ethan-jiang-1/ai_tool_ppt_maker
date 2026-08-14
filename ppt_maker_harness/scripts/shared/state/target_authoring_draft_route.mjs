@@ -45,7 +45,7 @@ export function resolveTargetAuthoringDraftRoute(runDir, { playbookDir = DEFAULT
   const versionKey = `3_versions/${runVersion}`;
   const isDraft = state && !state.replacement_required && !state.corrupted &&
     state.pipeline === PAGE_IMAGE_WORKFLOW_PIPELINE &&
-    state.production_mode?.by_version?.[versionKey] === undefined &&
+    state.production_identity?.by_version?.[versionKey] === undefined &&
     state.playbook === "create-deck" &&
     state.run_version === runVersion &&
     controllerDraftRouteIncludes(index, "create-deck", workflow, state.current_node);

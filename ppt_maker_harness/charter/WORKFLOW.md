@@ -1,8 +1,8 @@
 # Workflow
 
-New authoring uses the exact `page-image-workflow` /
-`image2-page-workflow` pair. Before provider work, a human records one
-version workflow: `framed` or `pure`. The workflow is source- and state-bound;
+New authoring uses `page-image-workflow`. Before provider work, a human records
+one version workflow: `framed` or `pure`. The workflow is source-bound and
+State records the matching `production_identity.by_version` fence;
 it is never inferred from a slide, artifact, directory, or deck type.
 
 ```text

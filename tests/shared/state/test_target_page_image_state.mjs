@@ -56,7 +56,6 @@ function targetFixture(workflow = "pure") {
   const source = `---\nproduction:\n  pipeline: page-image-workflow\n  workflow: ${workflow}\n---\n`;
   writeFileSync(join(runDir, "slide-specifications.md"), source);
   const state = createInitialState("target", "keynote", "dark-executive", {
-    mode: "image2-page-workflow",
     workflow,
   });
   state.continuation_target_version = "v1";
@@ -687,8 +686,7 @@ describe("TARGET Page Image state lineage", () => {
       });
       expect(advanced).toMatchObject({ ok: true, previous_source_epoch: 1, source_epoch: 2 });
       const state = readState(fixture.deck, { purpose: "observe", runVersion: "v1" });
-      expect(state.production_mode.by_version["3_versions/v1"]).toEqual({
-        mode: "image2-page-workflow",
+      expect(state.production_identity.by_version["3_versions/v1"]).toEqual({
         workflow: "pure",
         source_epoch: 2,
       });
@@ -767,11 +765,35 @@ describe("TARGET Page Image state lineage", () => {
       expect(() => initializeTargetPageImageState(mismatch.deck, {
         runVersion: "v1",
         sourceReceipt: mismatchReceipt,
-      })).toThrow("MODE_SOURCE_IDENTITY_MISMATCH");
+      })).toThrow("IDENTITY_SOURCE_MISMATCH");
       expect(readFileSync(statePath(mismatch.deck))).toEqual(mismatchBefore);
     } finally {
       rmSync(missingWorkflow.root, { recursive: true, force: true });
       rmSync(mismatch.root, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps a malformed or retired identity record byte-identical before target publication", () => {
+    const malformed = targetFixture("pure");
+    const retired = targetFixture("pure");
+    try {
+      for (const [value, record] of [
+        [malformed, { workflow: "pure", source_epoch: "1" }],
+        [retired, { mode: "image2-page-workflow", workflow: "pure", source_epoch: 1 }],
+      ]) {
+        const state = readState(value.deck, { purpose: "observe", runVersion: "v1" });
+        state.production_identity.by_version["3_versions/v1"] = record;
+        writeFileSync(statePath(value.deck), `${JSON.stringify(state, null, 2)}\n`);
+        const before = readFileSync(statePath(value.deck));
+        expect(() => initializeTargetPageImageState(value.deck, {
+          runVersion: "v1",
+          sourceReceipt: value.sourceReceipt,
+        })).toThrow("STATE_UNAVAILABLE");
+        expect(readFileSync(statePath(value.deck))).toEqual(before);
+      }
+    } finally {
+      rmSync(malformed.root, { recursive: true, force: true });
+      rmSync(retired.root, { recursive: true, force: true });
     }
   });
 

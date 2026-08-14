@@ -1,8 +1,8 @@
 # PPT Maker Harness Agent Guide
 
-New authoring uses `page-image-workflow` with
-`image2-page-workflow`. Before provider work, a human records exactly one
-version workflow: `framed` or `pure`. Every target slide inherits that workflow;
+New authoring uses `page-image-workflow`. Before provider work, a human records
+exactly one version workflow: `framed` or `pure`; State then binds it with its
+`source_epoch` in `production_identity.by_version`. Every target slide inherits that workflow;
 there is no slide-level authority choice. Any other source/state pair is an
 current-protocol-invalid hard-stop and remains byte-preserving.
 

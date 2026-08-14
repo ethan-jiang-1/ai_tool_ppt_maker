@@ -6,7 +6,8 @@ readiness. They do not create a separate production route.
 ### Requirement: Style Master planning is scoped to the current Page Image Workflow
 
 The Style Master owner SHALL resolve exactly one current
-`page-image-workflow` authoring draft and matching `image2-page-workflow` state
+`page-image-workflow` authoring draft and matching state-owned
+`production_identity` record
 for one version-level workflow, `framed` or `pure`. Its candidate plan,
 authorization, attempt, review, effective selection, and acceptance facts
 retain their existing exact workflow, visual-language, source-context,

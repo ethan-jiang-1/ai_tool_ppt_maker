@@ -49,34 +49,6 @@ COMMANDS.md SHALL be the concise human-facing interface and SHALL link detailed 
 - **THEN** every active classifier link resolves to the target iteration classifier
 - **AND** no active link resolves to a v1 or compatibility path
 
-### Requirement: Intent Route Catalog is a closed discovery contract
-
-The intent-route catalog SHALL use the unversioned shared-contract name
-declared in the serialization inventory and retain its existing closed route
-shape. It SHALL contain exactly the declared contract marker and `routes`; each
-route SHALL retain the required routing fields and deterministic validation.
-No active route catalog, template, or command reference SHALL carry a
-version-suffixed contract marker.
-
-#### Scenario: An Agent loads the current route catalog
-
-- **WHEN** command routing loads the checked-in catalog
-- **THEN** its contract marker resolves in the serialization inventory and its
-  routes validate under the existing closed rules
-- **AND** no alternate or historical catalog format is considered
-
-#### Scenario: Catalog validates the public discovery surface
-
-- **WHEN** the checked-in current catalog is validated
-- **THEN** its contract declaration and every required route field validate
-- **AND** no code-only or version-suffixed route schema is accepted
-
-#### Scenario: Work-change leaves reuse existing lifecycle owners
-
-- **WHEN** a route resolves a production change
-- **THEN** it delegates to the existing current lifecycle owner
-- **AND** it does not create a compatibility controller
-
 ### Requirement: Intent discovery preserves explicit requests and exact-run boundaries
 
 The command guidance SHALL preserve a user's explicit Deck/run selection and
@@ -97,28 +69,26 @@ attributable current delivery drift SHALL likewise retain its existing
 narrative/workflow-selection, state, execution-version, or delivery owner. Only
 a one-to-one, fence-clear current state repair may write.
 
-The Agent SHALL interpret natural-language requests, then use the catalog only
-to validate the first safe discovery step.  `work-resume` for a known exact run
-SHALL obtain `workflow_inspection.primary_action`.  An explicit change request
-for that run SHALL take precedence over the current resume action and enter
+The Agent SHALL interpret natural-language requests through COMMANDS guidance
+and the applicable current Controller. A known exact-run resume SHALL obtain
+`workflow_inspection.primary_action`. An explicit change request for that run
+SHALL take precedence over the current resume action and enter
 `classify-change`; it SHALL not be converted into passive resume.
 
-`work-resume` and every work-change route SHALL require an exact run.  Without
-one, discovery SHALL enter `orientation-locate-run` and request `RUN_BUNDLE.md`
-or an exact deck/run path.  It SHALL not scan `deck_*`, infer a target from a
-name, timestamp, current directory, rendered artifact, or conversation memory.
-Foundation routes do not require a run except an owner-defined run-bound
-readiness operation.  In particular, normal raw-generation readiness SHALL use
-an exact run through the owner-issued `ppt_flow doctor` operation.  An unbound
-direct `env-check` operation-scoped report is available only through
-`orientation-env-recovery` when the main entry is unavailable or the Harness is
-pre-install; it is not a normal foundation-provider-readiness continuation.
+Resume and every work-change request SHALL require an exact run. Without one,
+guidance SHALL request `RUN_BUNDLE.md` or an exact deck/run path. It SHALL not
+scan `deck_*`, infer a target from a name, timestamp, current directory,
+rendered artifact, or conversation memory. Normal raw-generation readiness
+SHALL use an exact run through the owner-issued `ppt_flow doctor` operation. An
+unbound direct `env-check` report is available only when the main entry is
+unavailable or the Harness is pre-install; it is not a normal production
+continuation.
 
-An unrecognized request SHALL produce the non-persistent Route Gap through
-`orientation-unrouted-intent`.  The Agent SHALL explain whether the smallest
-extension is a route, playbook, or owner capability, but SHALL not automatically
-create a backlog item, issue, OpenSpec change, state field, receipt, grant,
-attempt, history record, task projection, or selected-route record.
+An unrecognized request SHALL produce a non-persistent Route Gap. The Agent
+SHALL explain whether the smallest extension is a Controller or owner
+capability, but SHALL not automatically create a backlog item, issue, OpenSpec
+change, state field, receipt, grant, attempt, history record, task projection,
+or selected-route record.
 
 #### Scenario: An explicit run has an undeclared contract
 
@@ -140,31 +110,30 @@ attempt, history record, task projection, or selected-route record.
 
 - **WHEN** an exact run has a current `primary_action` and the user explicitly
   asks to change text, visual content, notes, or structure
-- **THEN** discovery enters `classify-change` and the applicable leaf route
+- **THEN** guidance enters `classify-change` and the applicable Controller path
 - **AND** it does not substitute the current resume action for the requested
   mutation
 
 #### Scenario: Missing exact run uses the locator
 
 - **WHEN** a user asks to resume or change a deck without an exact run
-- **THEN** the Agent requests the supported card or exact path through
-  `orientation-locate-run`
+- **THEN** the Agent requests the supported card or exact path
 - **AND** it does not inspect production deck directories to guess a target
 
 #### Scenario: Normal raw readiness does not bypass the exact-run boundary
 
 - **WHEN** the installed normal entry is available and a user requests
   raw-generation readiness without an exact run
-- **THEN** discovery establishes applicable local foundation and requests the
+- **THEN** guidance establishes applicable local foundation and requests the
   exact run before the normal raw-readiness operation
 - **AND** it does not present direct `env-check` recovery as an unbound normal
   provider-readiness route
 
 #### Scenario: Route Gap has no durable side effect
 
-- **WHEN** a request does not match a supported route
-- **THEN** the Agent returns a Route Gap and preserves the current workflow
-  authority unchanged
+- **WHEN** a request does not match a supported current owner path
+- **THEN** the Agent explains the smallest missing extension and preserves the
+  current workflow authority unchanged
 - **AND** it does not create maintenance work unless the user separately
   confirms that extension
 
@@ -261,19 +230,3 @@ with current playbooks and CLI owners.
 - **THEN** the reference explains the next human/Agent interaction in
 goal-oriented terms
 - **AND** it does not require the user to identify a workflow-internal record
-
-### Requirement: Discovery guidance distinguishes the catalog from MD Controllers
-
-Active discovery guidance SHALL call `intent-routes.json` the Intent Route
-Catalog and SHALL describe it as a closed first-safe-handoff catalog. It SHALL
-describe `playbook/` as the home of MD Controllers and their normative
-controller manifest. The catalog SHALL not be described as a Controller,
-parser, dispatcher, authorization record, or workflow state machine, and the
-playbook home SHALL not be reduced to an intent-routing appendix.
-
-#### Scenario: An Agent routes a natural-language request
-
-- **WHEN** an Agent follows active discovery guidance for a user request
-- **THEN** it uses the Intent Route Catalog only for the first safe handoff and
-  reaches the existing MD Controller boundary where applicable
-- **AND** it does not mistake either source for a second lifecycle controller

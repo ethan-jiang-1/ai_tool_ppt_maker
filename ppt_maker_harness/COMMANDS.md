@@ -34,20 +34,19 @@ decisions.
 
 ## Agent Routing Reference
 
-The [Intent Route Catalog](playbook/intent-routes.json) is a closed, static
-first-safe-handoff catalog, not an execution mechanism. `playbook/` is the home
-of MD Controllers and their normative controller manifest. Interpret the user's
-language conversationally, use the catalog only for discovery, then follow these
-existing Controller and capability owners:
+`playbook/` is the home of MD Controllers and their normative controller manifest.
+Interpret the user's language conversationally, then hand it directly
+to the current Controller or CLI owner:
 
-- For a known exact run, obtain the current owner result before selecting a
-  Controller or route. When it reports the `production-protocol`
+- For a known exact run, obtain `state --json.workflow_inspection.primary_action`
+  before selecting a Controller. When it reports the `production-protocol`
   `current-protocol-invalid` hard-stop, present the owner-issued
   `repair-current-protocol-identity` repair and stop; do not inspect dependent
-  source content, choose a workflow, or offer an alternate route. Otherwise,
+  source content, choose a workflow, or offer an alternate owner. Otherwise,
   an explicit change enters the current
-  [change classifier](scripts/06-iteration/change-classifier.md), while resume
-  follows `state --json.workflow_inspection.primary_action`.
+  [`classify-change` Controller](playbook/classify-change.md), which uses the
+  current [change classifier](scripts/06-iteration/change-classifier.md); resume
+  follows the reported primary action.
 - If no exact run is known, use the `RUN_BUNDLE.md` / exact-path locator in
   [the Agent contract](charter/AGENT_CONTRACT.md). Never scan production
   folders or infer a latest run.
@@ -62,13 +61,15 @@ existing Controller and capability owners:
 - Channel diagnostics use
   [probe-image-channels](playbook/probe-image-channels.md). Direct environment
   recovery is only for a pre-install or unavailable main entry.
+- Use a direct CLI owner only for its declared deterministic operation, such as
+  `ppt_flow doctor` for exact-run readiness or `ppt_flow state` / `status` for
+  observation. A direct CLI does not select a Controller path.
 - For a current failure or a stuck request, follow the shared
   [Diagnostic Recovery Handoff](charter/AGENT_CONTRACT.md#diagnostic-recovery-handoff).
   It preserves the current producer action before any inspection, location, or
   recovery choice.
 - A Route Gap is conversational and non-persistent. Name the smallest missing
-  catalog route, playbook, or owner capability, then wait for an explicit
-  maintenance request.
+  Controller or owner capability, then wait for an explicit maintenance request.
 
 ## Agent Verification Scope
 

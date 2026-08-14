@@ -37,8 +37,9 @@ is its layout owner's lower-level interface, not a second startup route.
 06 workflow-aware refresh and structural versioning
 ```
 
-New decks use only `image2-page-workflow` / `page-image-workflow` and
-record exactly one version workflow, `framed` or `pure`, before provider work.
+New decks use only `page-image-workflow`, record exactly one version workflow,
+`framed` or `pure`, before provider work, and bind that source selection in
+State's `production_identity.by_version` record.
 The method graph is `03-framed-image XOR 04-pure-image -> 05-delivery ->
 06-iteration`. Framed supports only deterministic local header overlay; both
 policies use Provider-rendered body content. Raw work is receipt-bound and requires explicit

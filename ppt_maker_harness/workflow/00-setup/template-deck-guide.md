@@ -22,7 +22,7 @@ and workflow facts. `AGENTS.md` and `CLAUDE.md` point to the locator first, then
 
 Use `RUN_BUNDLE.md` to locate this bundle in a new local Agent session. This
 guide defines source ownership and operating rules after the bundle is located; current run,
-production mode, node, gates, and recovery actions always come from state/status.
+production identity, node, gates, and recovery actions always come from state/status.
 
 ## Source ownership
 

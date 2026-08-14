@@ -6,13 +6,22 @@ second workflow.
 
 ## Controller declaration
 
-Controllers declare the Page Image pipelines they can consume. New
-authoring uses `page-image-workflow` /
-`image2-page-workflow`, and target nodes declare one or both
+Controllers declare the Page Image pipeline they can consume. New
+authoring uses `page-image-workflow`, and target nodes declare one or both
 `production_workflows: [framed|pure]`. The selected workflow route is
 `03-framed-image XOR 04-pure-image -> 05-delivery -> 06-iteration`; `05` nodes
 apply to both workflows without semantic branching. An undeclared source/state pair
 is a byte-preserving `repair-current-protocol-identity` hard-stop.
+
+Controller metadata is a closed grammar at the Markdown parser boundary.
+Controller frontmatter permits only `playbook`, `description`,
+`supported_pipelines`, and `includes`. A shared-node frontmatter permits the
+node keys plus literal `shared: true`; a fenced node permits only `node`,
+`method_module`, `requires`, `entry`, `exit`, `produces`, `decisions`,
+`production_workflows`, `adapter`, and optional literal `draft_route: true`.
+`method_module` is the only lifecycle-location declaration. An unknown,
+duplicate, `phase`, `lifecycle_phase`, or retired mode declaration fails with
+its exact file and line before Controller indexing, draft routing, or handoff.
 
 Node IDs are global kebab-case. Entry and exit conditions must be explicit,
 ordered, and satisfiable from current source/state evidence. A node cannot use
@@ -24,17 +33,16 @@ For each selected target `vN`, `_state/state.yaml` records:
 
 ```yaml
 pipeline: page-image-workflow
-production_mode:
+production_identity:
   by_version:
     3_versions/v1:
-      mode: image2-page-workflow
       workflow: framed # or pure
       source_epoch: 1
 ```
 
-Fresh authoring drafts have no mode record until the human has explicitly
-selected `framed|pure` and the source receipt is bound. The metadata mirror is
-display-only. It never selects a route or repairs state. Target evidence records
+Fresh authoring drafts have no production-identity record until the human has
+explicitly selected `framed|pure` and State accepts the exact source. Project
+metadata has no production-protocol mirror. Target evidence records
 source receipt, workflow, authorization, accepted raw evidence, final manifest,
 and delivery references. Unknown or retired node/evidence records fail closed.
 

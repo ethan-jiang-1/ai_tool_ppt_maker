@@ -21,7 +21,6 @@ Resolve every position/spoken selector to the current stable ID. New IDs are Age
 ```yaml
 node: preview-target-structural-version
 method_module: 06-iteration
-production_modes: [image2-page-workflow]
 production_workflows: [framed, pure]
 requires: [classify-change]
 produces: [target-structural-preview, target-workflow-choice]
@@ -36,7 +35,6 @@ exit: [user_decision_recorded]
 ```yaml
 node: apply-target-structural-version
 method_module: 06-iteration
-production_modes: [image2-page-workflow]
 production_workflows: [framed, pure]
 requires: [preview-target-structural-version]
 produces: [target-vnext-source, target-vnext-raw-debt]
@@ -49,7 +47,6 @@ exit: [evidence:target-structural-published]
 ```yaml
 node: review-target-structural-route
 method_module: 06-iteration
-production_modes: [image2-page-workflow]
 production_workflows: [framed, pure]
 requires: [apply-target-structural-version]
 produces: [reviewed-target-structural-route]

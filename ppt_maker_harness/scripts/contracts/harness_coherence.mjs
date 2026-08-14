@@ -48,13 +48,13 @@ const TERMINOLOGY_AUTHORITY_REQUIREMENTS = Object.freeze([
   }),
   Object.freeze({
     file: "ppt_maker_harness/COMMANDS.md",
-    required: ["Intent Route Catalog", "MD Controllers", "controller manifest"],
-    forbidden: ["[discovery catalog]"],
+    required: ["MD Controllers", "controller manifest", "create-deck", "classify-change", "workflow_inspection.primary_action", "probe-image-channels"],
+    forbidden: [["Intent", "Route", "Catalog"].join(" "), ["intent", "routes.json"].join("-")],
   }),
   Object.freeze({
     file: "ppt_maker_harness/charter/AGENT_CONTRACT.md",
-    required: ["Intent Route Catalog", "MD Controllers", "controller manifest", "`html-render-runtime`", "receipt-bound Framed Page", "`05-delivery` consumes the resulting current final"],
-    forbidden: [],
+    required: ["MD Controllers", "controller manifest", "create-deck", "classify-change", "workflow_inspection.primary_action", "`html-render-runtime`", "receipt-bound Framed Page", "`05-delivery` consumes the resulting current final"],
+    forbidden: [["Intent", "Route", "Catalog"].join(" "), ["intent", "routes.json"].join("-")],
   }),
   Object.freeze({
     file: "ppt_maker_harness/charter/CONSTITUTION.md",

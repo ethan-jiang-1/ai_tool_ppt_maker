@@ -75,7 +75,7 @@ import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { readState, writeState, setNodeStatus, createTargetAuthoringState, STATE_DIR, STATE_FILE, STATE_DIR_README, statePath } from '../state/state.mjs';
 import { PAGE_IMAGE_WORKFLOW_PIPELINE, PAGE_IMAGE_WORKFLOW_SELECTION_REQUIRED_MESSAGE, isPageImageWorkflowSelectionPending, probeProductionMarker } from './production_marker.mjs';
-import { PRODUCTION_MODES, PAGE_IMAGE_WORKFLOW_PRODUCTION_MODE, canonicalVersionKey, isProductionMode, normalizeRunVersion, pipelineFromSourceMarker, productionPolicyForMode } from './production_mode.mjs';
+import { canonicalVersionKey, normalizeRunVersion, pipelineFromSourceMarker } from './production_identity.mjs';
 import {
     canonicalHarnessRoot,
     currentHarnessRoot,
@@ -113,9 +113,8 @@ import {
     VERSIONS_DIR,
 } from './page_image_paths.mjs';
 
-// Production-mode policy is consumed by the root CLI through this public
-// run-bundle interface; the policy module itself remains an internal detail.
-export { PRODUCTION_MODES, canonicalVersionKey, isProductionMode, normalizeRunVersion, pipelineFromSourceMarker, productionPolicyForMode };
+// Version-key and source-marker helpers are shared with the public CLI.
+export { canonicalVersionKey, normalizeRunVersion, pipelineFromSourceMarker };
 export { verifyDeckHarnessBinding };
 export {
     GENERATED_SUBDIR,
@@ -145,20 +144,6 @@ export {
     SLIDE_SPECS_NAME,
     VERSIONS_DIR,
 };
-
-/**
- * Production mode assumed when `ppt_flow init` omits `--mode`. New decks use
- * the current Page Image Workflow protocol.
- */
-export const DEFAULT_INIT_MODE = PAGE_IMAGE_WORKFLOW_PRODUCTION_MODE;
-
-function validateInitMode(mode) {
-    if (mode !== DEFAULT_INIT_MODE) {
-        throw new Error(
-            `new deck initialization only supports ${DEFAULT_INIT_MODE}; received ${JSON.stringify(mode)}`);
-    }
-    return mode;
-}
 
 // ---------------------------------------------------------------------------
 // Self-location (self path resolution
@@ -1387,8 +1372,8 @@ closed \`VISUAL BRIEF\` selection from the visual-language registry.
 `;
 }
 
-/** Source text + label for a production mode's canonical seed. */
-function _seedSourceForMode(deckType) {
+/** Source text + label for the canonical unbound authoring draft. */
+function _seedSourceForDraft(deckType) {
     return { source: pageImageInitialDraftSource(deckType), label: 'Page Image Image2 authoring draft' };
 }
 
@@ -1480,7 +1465,7 @@ function renderDeckGuide(deckName) {
 
 Use [RUN_BUNDLE.md](RUN_BUNDLE.md) to locate this bundle in a new local Agent session. This
 guide defines source ownership and operating rules after the bundle is located; current run,
-production mode, node, gates, and recovery actions always come from state/status.
+production identity, node, gates, and recovery actions always come from state/status.
 
 ## Source ownership
 
@@ -1540,7 +1525,7 @@ user's explicit authorization for its named operation and exact scope.
 `;
 }
 
-function initBundleForMode(deckDir, harnessDir = null, deckType = null, style = null, { mode } = {}) {
+function initBundleForDraft(deckDir, harnessDir = null, deckType = null, style = null) {
     if (harnessDir === null) {
         harnessDir = path.resolve(__dirname, '..', '..', '..');
     }
@@ -1618,7 +1603,7 @@ function initBundleForMode(deckDir, harnessDir = null, deckType = null, style = 
     }
     const specsDest = path.join(deckDir, VERSIONS_DIR, 'v1', SLIDE_SPECS_NAME);
     if (!fs.existsSync(specsDest)) {
-        const seed = _seedSourceForMode(deckType);
+        const seed = _seedSourceForDraft(deckType);
         fs.writeFileSync(specsDest, seed.source, 'utf8');
         log.push(`${specsLabel} (${seed.label}): ${VERSIONS_DIR}/v1/${SLIDE_SPECS_NAME}`);
     }
@@ -1647,9 +1632,7 @@ function initBundleForMode(deckDir, harnessDir = null, deckType = null, style = 
         `# ${name} — project metadata (static config + pipeline gates)\n` +
         `# Playbook execution progress / playbook gates live in _state/state.yaml — see _state/README.md\n` +
         `deck_name: ${name}\n` +
-        `topic: \naudience: \nlanguage: \none_thing_to_remember: \n` +
-        `# production_mode is a non-authoritative mirror; _state/state.yaml is the routing authority.\n` +
-        `production_mode: ${mode}\nproduction_mode_run_version: v1\n`);
+        `topic: \naudience: \nlanguage: \none_thing_to_remember: \n`);
     _writeIfAbsent(
         path.join(deckDir, AGENT_POINTER_FILE),
         `# ${name}\n\n先读 [RUN_BUNDLE.md](RUN_BUNDLE.md) 定位本 deck 与 PPT Maker Harness，` +
@@ -1697,16 +1680,15 @@ function initBundleForMode(deckDir, harnessDir = null, deckType = null, style = 
         setNodeStatus(state, 'checkpoint-intake', 'completed');
         state.current_node = 'author-target-narrative-sources';
         writeState(deckDir, state);
-        log.push(`state: ${STATE_DIR}/${STATE_FILE} (mode:${mode})`);
+        log.push(`state: ${STATE_DIR}/${STATE_FILE} (unbound authoring draft)`);
     }
 
     return log;
 }
 
-/** Public new-deck initializer: only Page Image Image2 may be created. */
-export function initBundle(deckDir, harnessDir = null, deckType = null, style = null, options = {}) {
-    const mode = validateInitMode(options.mode ?? DEFAULT_INIT_MODE);
-    return initBundleForMode(deckDir, harnessDir, deckType, style, { mode });
+/** Public new-deck initializer: creates one unbound Page Image authoring draft. */
+export function initBundle(deckDir, harnessDir = null, deckType = null, style = null) {
+    return initBundleForDraft(deckDir, harnessDir, deckType, style);
 }
 
 // ---------------------------------------------------------------------------
@@ -1867,7 +1849,7 @@ function _parseArgs(argv) {
         init: null,
         deckType: null,
         style: null,
-        mode: null,
+        unsupportedMode: null,
         check: null,
         structureOnly: false,
         newVersion: null,
@@ -1889,7 +1871,7 @@ function _parseArgs(argv) {
                 args.style = argv[++i] || null;
                 break;
             case '--mode':
-                args.mode = argv[++i] || null;
+                args.unsupportedMode = argv[++i] || "";
                 break;
             case '--check':
                 args.check = argv[++i] || null;
@@ -1942,15 +1924,19 @@ function _main() {
     const argv = process.argv.slice(2);
     const args = _parseArgs(argv);
 
-    if ((args.deckType || args.style || args.mode) && !args.init) {
-        console.error('✗ --deck-type / --style / --mode only apply together with --init.');
+    if (args.unsupportedMode !== null) {
         emitCliError({
             code: CLI_ERROR_CODES.USAGE,
-            message: "--deck-type, --style, and --mode require --init.",
-            hint: "Use the template options only while initializing a deck.",
+            message: "--mode is not a current bundle initialization argument.",
+            hint: "Create an unbound draft, then record framed or pure in the exact current source.",
             where: "bundle_layout.arguments",
-            diagnostic: { schema: CLI_DIAGNOSTIC_SCHEMA, category: "usage", operation: "parse-arguments", next: createCliNext("fix_arguments", { default: "Add --init or remove the template-only options." }) },
+            diagnostic: { schema: CLI_DIAGNOSTIC_SCHEMA, category: "usage", operation: "parse-arguments", next: createCliNext("fix_arguments", { default: "Remove --mode and select framed or pure through the current source workflow." }) },
         });
+        process.exit(1);
+    }
+    if ((args.deckType || args.style) && !args.init) {
+        console.error('✗ --deck-type / --style only apply together with --init.');
+        emitCliError({ code: CLI_ERROR_CODES.USAGE, message: "--deck-type and --style require --init.", hint: "Use the template options only while initializing a deck.", where: "bundle_layout.arguments", diagnostic: { schema: CLI_DIAGNOSTIC_SCHEMA, category: "usage", operation: "parse-arguments", next: createCliNext("fix_arguments", { default: "Add --init or remove the template-only options." }) } });
         process.exit(1);
     }
     if (args.versionName && !args.newVersion) {
@@ -1985,10 +1971,6 @@ function _main() {
     }
 
     if (args.init) {
-        if (args.mode && args.mode !== DEFAULT_INIT_MODE) {
-            emitCliError({ code: CLI_ERROR_CODES.USAGE, message: `New deck initialization does not support ${args.mode}.`, hint: `Omit --mode or pass --mode ${DEFAULT_INIT_MODE}.`, where: "bundle_layout.init.mode", diagnostic: { schema: CLI_DIAGNOSTIC_SCHEMA, category: "usage", operation: "init", next: createCliNext("fix_arguments", { default: `Omit --mode or pass --mode ${DEFAULT_INIT_MODE}.` }) } });
-            process.exit(1);
-        }
         const deckDir = path.resolve(args.init);
         if (!path.basename(deckDir).startsWith('deck_')) {
             console.error(
@@ -2008,7 +1990,7 @@ function _main() {
         }
         let created;
         try {
-            created = initBundle(deckDir, null, args.deckType, args.style, { mode: args.mode ?? DEFAULT_INIT_MODE });
+            created = initBundle(deckDir, null, args.deckType, args.style);
         } catch {
             emitCliError({ code: CLI_ERROR_CODES.USAGE, message: "unknown or invalid bundle initialization option.", hint: "Choose a documented deck type and style preset.", where: "bundle_layout.init.options", diagnostic: { schema: CLI_DIAGNOSTIC_SCHEMA, category: "usage", operation: "init", source: { path: deckDir }, next: createCliNext("fix_arguments", { default: "Inspect --help, choose supported initialization options, and rerun." }) } });
             process.exit(1);

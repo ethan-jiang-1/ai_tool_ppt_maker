@@ -8,7 +8,7 @@ import { hasCurrentPageImageSourceReceiptEnvelope } from "../../shared/page-imag
 import { PAGE_IMAGE_WORKFLOW_PIPELINE, probeProductionMarker } from "../../shared/run-bundle/production_marker.mjs";
 import { nextVersionName, publishStructuralVersion } from "../../shared/run-bundle/bundle_layout.mjs";
 import {
-  inspectRunProductionMode,
+  inspectRunProductionIdentity,
   registerTargetPageImageStructuralPublication,
   revalidateTargetPageImageStructuralReplay,
 } from "../../shared/state/state.mjs";
@@ -87,7 +87,8 @@ function validTargetStructuralPlan(plan) {
     "schema",
     "source_run_version",
     "target_run_version",
-    "source_mode",
+    "source_workflow",
+    "source_epoch",
     "slide_edit_plan",
     "slide_edit_plan_sha256",
     "target_workflow",
@@ -100,7 +101,8 @@ function validTargetStructuralPlan(plan) {
   ];
   return exactKeys(plan, keys) && plan.schema === TARGET_STRUCTURAL_PLAN_SCHEMA &&
     /^v[1-9][0-9]*$/.test(plan.source_run_version || "") && /^v[1-9][0-9]*$/.test(plan.target_run_version || "") &&
-    plan.source_run_version !== plan.target_run_version && typeof plan.source_mode === "string" &&
+    plan.source_run_version !== plan.target_run_version && PAGE_IMAGE_WORKFLOWS.has(plan.source_workflow) &&
+    Number.isInteger(plan.source_epoch) && plan.source_epoch > 0 &&
     verifySlideEditPlanHash(plan.slide_edit_plan) && plan.slide_edit_plan_sha256 === plan.slide_edit_plan.plan_sha256 &&
     PAGE_IMAGE_WORKFLOWS.has(plan.target_workflow) && typeof plan.target_source_text === "string" &&
     SHA256_RE.test(plan.target_source_sha256 || "") && Array.isArray(plan.ordered_slide_ids) && plan.ordered_slide_ids.length > 0 &&
@@ -164,7 +166,7 @@ export function previewTargetStructuralVersion({
     throw new Error("target structural vNext already exists; inspect that exact version");
   }
   const sourceText = readFileSync(join(context.runDir, "slide-specifications.md"), "utf8");
-  const sourceInspection = inspectRunProductionMode(context.deckDir, { runVersion: context.sourceVersion, purpose: "observe" });
+  const sourceInspection = inspectRunProductionIdentity(context.deckDir, { runVersion: context.sourceVersion, purpose: "observe" });
   if (!sourceInspection.ok) throw new Error(`target structural source is unavailable: ${sourceInspection.code}`);
   const applied = validateSlidePlan(slideEditPlan, sourceText, targetVersion);
   const candidate = targetSourceText === null
@@ -175,7 +177,8 @@ export function previewTargetStructuralVersion({
     schema: TARGET_STRUCTURAL_PLAN_SCHEMA,
     source_run_version: context.sourceVersion,
     target_run_version: targetVersion,
-    source_mode: sourceInspection.mode,
+    source_workflow: sourceInspection.workflow,
+    source_epoch: sourceInspection.source_epoch,
     slide_edit_plan: structuredClone(slideEditPlan),
     slide_edit_plan_sha256: slideEditPlan.plan_sha256,
     target_workflow: workflow,
@@ -218,7 +221,9 @@ export function applyTargetStructuralVersion({ sourceRunDir, plan, planHash, exp
       sourceReceipt: plan.target_source_receipt,
       planHash,
     });
-    if (replay.workflow !== plan.target_workflow || replay.source_mode !== plan.source_mode) {
+    if (replay.workflow !== plan.target_workflow ||
+      replay.source_workflow !== plan.source_workflow ||
+      replay.source_epoch !== plan.source_epoch) {
       throw new Error("target structural replay source or workflow drifted");
     }
     return Object.freeze({
@@ -240,9 +245,10 @@ export function applyTargetStructuralVersion({ sourceRunDir, plan, planHash, exp
   if (plan.target_run_version !== nextVersionName(context.runDir)) {
     throw new Error("target structural plan no longer names the current next vNext");
   }
-  const sourceInspection = inspectRunProductionMode(context.deckDir, { runVersion: context.sourceVersion, purpose: "execute" });
-  if (!sourceInspection.ok || sourceInspection.mode !== plan.source_mode) {
-    throw new Error("target structural source mode changed after preview");
+  const sourceInspection = inspectRunProductionIdentity(context.deckDir, { runVersion: context.sourceVersion, purpose: "execute" });
+  if (!sourceInspection.ok || sourceInspection.workflow !== plan.source_workflow ||
+    sourceInspection.source_epoch !== plan.source_epoch) {
+    throw new Error("target structural source identity changed after preview");
   }
 
   const publication = publishStructuralVersion({

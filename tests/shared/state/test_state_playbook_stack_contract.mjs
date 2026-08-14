@@ -10,7 +10,6 @@ import {
 describe("current playbook stack contract", () => {
   it("rejects a missing stack instead of normalizing it during a state write", () => {
     const state = createInitialState("deck", "keynote", "dark-executive", {
-      mode: "image2-page-workflow",
       workflow: "pure",
     });
     delete state.playbook_stack;
@@ -26,7 +25,6 @@ describe("current playbook stack contract", () => {
 
   it("rejects an incomplete frame before a state mutation", () => {
     const state = createInitialState("deck", "keynote", "dark-executive", {
-      mode: "image2-page-workflow",
       workflow: "framed",
     });
     state.playbook_stack = [{ playbook: "create-deck" }];

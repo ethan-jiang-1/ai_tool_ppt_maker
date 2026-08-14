@@ -19,7 +19,7 @@ import {
 } from "../../shared/run-bundle/bundle_layout.mjs";
 import {
   initializeTargetPageImageState,
-  inspectRunProductionMode,
+  inspectRunProductionIdentity,
   readState,
   registerTargetPageImageStructuralPublication,
 } from "../../shared/state/state.mjs";
@@ -347,7 +347,7 @@ function targetReceipt(inputs, candidate, source) {
 }
 
 function requireCurrentSourceForVNext(context, sourceText, inputs) {
-  const inspection = inspectRunProductionMode(context.deckDir, {
+  const inspection = inspectRunProductionIdentity(context.deckDir, {
     runVersion: context.sourceVersion,
     purpose: "observe",
   });

@@ -14,8 +14,6 @@ import {
   validatePlaybookIndex,
 } from "../state/md_controller_reader.mjs";
 
-export const PROGRESSIVE_TASK_PROJECTION_MODE = "image2-page-workflow";
-
 const HARNESS_PLAYBOOK_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "playbook");
 
 function requiredObject(value, label) {
@@ -69,7 +67,7 @@ export function progressiveControllerTaskProjectionEligibility({ runDir, inspect
   try {
     const resolvedRunDir = resolve(runDir || "");
     const summary = inspection?.evidence_summary;
-    if (!summary || summary.mode !== PROGRESSIVE_TASK_PROJECTION_MODE || !["framed", "pure"].includes(summary.workflow)) {
+    if (!summary || !["framed", "pure"].includes(summary.workflow)) {
       return ineligible("PROGRESSIVE_CONTROLLER_WORKFLOW_REQUIRED");
     }
     const checkpoint = progressiveControllerCheckpoint(inspection);
@@ -84,7 +82,7 @@ export function progressiveControllerTaskProjectionEligibility({ runDir, inspect
     }
     const index = buildPlaybookIndex(playbookDir);
     if (!validatePlaybookIndex(index).valid) return ineligible("PROGRESSIVE_CONTROLLER_MANIFEST_INVALID");
-    const active = controllerActiveNodeIds(index, "create-deck", PROGRESSIVE_TASK_PROJECTION_MODE, checkpoint.workflow);
+    const active = controllerActiveNodeIds(index, "create-deck", checkpoint.workflow);
     if (!active.includes(currentState.current_node) || currentState.current_node !== checkpoint.controller_node) {
       return ineligible("PROGRESSIVE_CONTROLLER_NODE_MISMATCH");
     }

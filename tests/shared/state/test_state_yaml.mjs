@@ -18,7 +18,6 @@ function declaredCurrentFixture() {
   const fixture = currentFixture();
   writeFileSync(join(fixture.runDir, "slide-specifications.md"), "---\nproduction:\n  pipeline: page-image-workflow\n  workflow: pure\n---\n");
   writeState(fixture.deck, createInitialState("current", "keynote", "dark-executive", {
-    mode: "image2-page-workflow",
     workflow: "pure",
   }));
   return fixture;
@@ -32,7 +31,7 @@ describe("Page Image state boundary", () => {
       const before = readFileSync(path);
       const state = readState(fixture.deck, { purpose: "observe", runVersion: "v1" });
       expect(state).not.toHaveProperty("schema_version");
-      expect(state.production_mode.by_version["3_versions/v1"]).toBeUndefined();
+      expect(state.production_identity.by_version["3_versions/v1"]).toBeUndefined();
       expect(readFileSync(path)).toEqual(before);
     } finally {
       rmSync(fixture.root, { recursive: true, force: true });

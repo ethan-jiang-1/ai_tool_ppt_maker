@@ -24,15 +24,15 @@ After it has resolved a semantic intent and exact run, the MD Controller SHALL u
 - **THEN** it uses the workflow-entry inspection result for workflow control
 - **AND** it retains the requested mutation with its direct owner rather than substituting a resume action
 
-### Requirement: Intent Route Catalog enters existing Controller boundaries only
+### Requirement: Direct intent entry reaches existing Controller boundaries only
 
-The MD Controller SHALL use the Intent Route Catalog only before lifecycle
-entry. `work-new` SHALL reach the existing direct initialization and
-create-deck Controller boundary after its applicable foundation work.
-`work-resume` SHALL require an exact run and consume workflow inspection.
-`work-change` SHALL require an exact run and enter `classify-change` before
-the existing text, visual, notes, or structural playbook. The catalog SHALL not
-select a node, mutate execution state, or replace a current Controller route.
+The MD Controller SHALL receive new-work, resume, and change intent directly
+from current command guidance after applicable foundation work. New work SHALL
+reach the existing direct initialization and `create-deck` Controller boundary.
+Resume SHALL require an exact run and consume workflow inspection. A change
+SHALL require an exact run and enter `classify-change` before the existing text,
+visual, notes, or structural playbook. Guidance SHALL not select a node, mutate
+execution state, or replace a current Controller route before that handoff.
 
 #### Scenario: New-deck discovery does not preselect a lifecycle node
 
@@ -47,8 +47,8 @@ select a node, mutate execution state, or replace a current Controller route.
 - **WHEN** a user with an exact run asks for a work change
 - **THEN** the Agent enters `classify-change` and the existing selected leaf
   playbook
-- **AND** it does not use the resume card or catalog to infer a direct owner
-  mutation
+- **AND** it does not use a route registry or resume card to infer a direct
+  owner mutation
 
 ### Requirement: Existing-deck sessions start with whole-workflow resume ritual
 For an exact run, an existing-deck session SHALL begin with state/status inspection and use its shared workflow inspection as progress truth. The Controller SHALL resolve source marker, schema, exact run version, durable mode, and Controller identity before selecting a resume node. A usable current state resumes its active current Controller/node after presenting the full workflow position. A current one-to-one canonical defect is repaired only by its owning mutation path behind existing fences; observation remains non-writing. Pre-current schema, topology-only version identity, retired Controller/node, missing/retired marker, or unrecoverable state SHALL return the one owner-issued typed next action with no state seed, alias, inferred mode, or current execution graph.
@@ -191,11 +191,12 @@ absent or the literal Boolean `true`; explicit `false`, strings, numbers, null,
 and duplicate YAML keys SHALL be rejected rather than normalized into a second
 representation of non-routability.
 
-`method_module` SHALL be the only bound lifecycle-location declaration. The
-validator SHALL NOT require, normalize, derive a lifecycle decision from, or
-emit a lifecycle-specific diagnostic for numeric `lifecycle_phase` or legacy
-`phase` metadata. This requirement does not determine the reader's general
-handling of otherwise unconsumed node-frontmatter keys.
+`method_module` SHALL be the only bound lifecycle-location declaration. Every
+Controller and node frontmatter shape SHALL be closed to its declared current
+keys. The validator SHALL reject `production_modes`,
+`supported_production_modes`, numeric `lifecycle_phase`, legacy `phase`, and
+all otherwise unconsumed node-frontmatter keys before Controller indexing,
+draft routing, or diagnostic projection.
 
 #### Scenario: Draft-route projection matches playbooks
 
@@ -209,14 +210,21 @@ handling of otherwise unconsumed node-frontmatter keys.
 - **THEN** canonical node parsing fails before Controller indexing or draft routing
 - **AND** absence remains the only representation of a node that is not draft-routable
 
+#### Scenario: Undeclared metadata cannot become a silent Controller dialect
+
+- **WHEN** a Controller or node declaration adds an unknown, duplicate, stale,
+  or misspelled metadata key
+- **THEN** canonical node parsing fails before Controller indexing or draft
+  routing
+- **AND** it does not normalize, retain, or derive routing from that key
+
 #### Scenario: Method module is the only lifecycle binding
 
 - **WHEN** a registered node declares a valid `method_module` and omits
-  `lifecycle_phase`
+  `lifecycle_phase`, `phase`, and production-mode metadata
 - **THEN** the canonical validator accepts its lifecycle location subject to the
   existing module, adapter, and workflow ownership checks
-- **AND** it produces no numeric lifecycle-derived field or phase-specific
-  diagnostic
+- **AND** it produces no lifecycle-derived field or mode-specific diagnostic
 
 ### Requirement: Structural verification is identity-aware
 

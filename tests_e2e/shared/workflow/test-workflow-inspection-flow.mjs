@@ -71,7 +71,6 @@ negative_constraints:
 `;
   writeFileSync(join(runDir, "slide-specifications.md"), source, "utf8");
   const state = createInitialState("target", "keynote", "dark-executive", {
-    mode: "image2-page-workflow",
     workflow,
   });
   state.continuation_target_version = "v1";
@@ -125,6 +124,11 @@ describe("workflow inspection observation flow", () => {
       const state = flow(["state", fixture.runDir, "--json"]);
       expect(status.status, status.stderr).toBe(0);
       expect(state.status, state.stderr).toBe(0);
+      expect(JSON.parse(status.stdout).production_identity).toEqual({
+        resolvable: true,
+        workflow,
+        source_epoch: 1,
+      });
       expect(JSON.parse(state.stdout).workflow_inspection).toMatchObject({
         posture: "guide",
         evidence_summary: { workflow },
@@ -141,7 +145,6 @@ describe("workflow inspection observation flow", () => {
     const fixture = await createSelectedTargetFixture("pure");
     try {
       const state = createInitialState("target", "keynote", "dark-executive", {
-        mode: "image2-page-workflow",
         workflow: "framed",
       });
       state.continuation_target_version = "v1";

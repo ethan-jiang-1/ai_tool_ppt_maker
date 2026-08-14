@@ -11,7 +11,6 @@ includes: [classify-change]
 ```yaml
 node: refresh-target-speaker-notes
 method_module: 06-iteration
-production_modes: [image2-page-workflow]
 production_workflows: [framed, pure]
 requires: [classify-change]
 produces: [target-page-image-notes-receipt]
@@ -24,7 +23,6 @@ exit: [speaker_notes_injected]
 ```yaml
 node: verify-target-speaker-notes
 method_module: 06-iteration
-production_modes: [image2-page-workflow]
 production_workflows: [framed, pure]
 requires: [refresh-target-speaker-notes]
 produces: [verified-target-notes]

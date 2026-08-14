@@ -29,8 +29,9 @@ const PPT_FLOW = resolve(process.cwd(), "ppt_maker_harness/scripts/ppt_flow.mjs"
 function progressiveInspection({ actionId, latestBatch = null, progress = null } = {}) {
   return {
     evidence_summary: {
-      mode: "image2-page-workflow",
+      pipeline: "page-image-workflow",
       workflow: "pure",
+      source_epoch: 1,
       plan_hash: "a".repeat(64),
       latest_batch: latestBatch,
       progress,

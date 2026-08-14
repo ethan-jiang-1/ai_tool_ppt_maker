@@ -3,9 +3,9 @@
 > Type: program control sheet | Updated: 2026-08-14
 > Program status: `active`
 > Fixed OpenSpec change count: `3`
-> Overall: `2 done / 1 ready / 0 queued`
-> Current gate: Change 3 apply
-> Next checkbox: Change 3 / apply / 1.1
+> Overall: `2 done / 1 active / 0 queued`
+> Current gate: Change 3 Git closure
+> Next checkbox: Change 3 / verify and close / 5.4
 
 This is the one program-level progress view. OpenSpec artifacts remain the
 authority for each change's WHY, WHAT, HOW, and implementation tasks; current
@@ -15,7 +15,7 @@ main specs remain the accepted behavior authority.
 
 - [x] **Change 1 of 3** - `converge-active-harness-authority` - `done`
 - [x] **Change 2 of 3** - `retire-historical-protocol-surfaces` - `done` (`22/22` tasks)
-- [ ] **Change 3 of 3** - `converge-agent-control-surfaces` - `ready` (`0/19` tasks)
+- [ ] **Change 3 of 3** - `converge-agent-control-surfaces` - `active` (`20/21` tasks)
 - [ ] **Program closure** - final evidence and Git reconciliation; this is not
   another OpenSpec change
 
@@ -47,7 +47,7 @@ updated plan explaining why Change 3 cannot safely contain the work.
 [ ] Change 3 - converge remaining Agent control surfaces
        A. remove competing routing/prose surfaces
        B. close Controller metadata grammar
-       C. decide and enforce the production_mode outcome
+       C. cut over to production identity
        D. prove reachability, residue, and final coherence
                  |
                  v
@@ -289,8 +289,8 @@ Evidence:
 
 ## Change 3 Of 3 - `converge-agent-control-surfaces`
 
-Status: `ready`; dependency: Change 2 is `done` and reconciled. Implementation
-has not started (`0/19`).
+Status: `active`; dependency: Change 2 is `done` and reconciled. Tasks
+`1.1` through `5.3` are complete (`20/21`); only Git closure remains.
 
 Terminal invariant: active guidance, Controller metadata, route discovery, and
 persisted production identity form one attributable control model with no
@@ -308,13 +308,13 @@ Lifecycle:
 - [x] `proposal`
 - [x] `specs`
 - [x] `design`
-- [x] `tasks` - `19` implementation/closure tasks
+- [x] `tasks` - `21` implementation/closure tasks
 - [x] `artifact-validation` - strict change plus strict all-spec validation
   passed (`27/27`)
-- [ ] `apply`
-- [ ] `focused-verification`
-- [ ] `baseline-and-residue`
-- [ ] `archive`
+- [x] `apply` - `20/21`; implementation is complete and the archived checklist is current
+- [x] `focused-verification`
+- [x] `baseline-and-residue`
+- [x] `archive`
 - [ ] `commit`
 - [ ] `push-and-reconcile`
 
@@ -334,33 +334,36 @@ Lifecycle:
   package and in Change 3 design/specs before artifact validation.
 - [x] Complete and strictly validate one coherent Change 3 artifact set.
 
-### Gate 3B - Remove Competing Agent Routes
+### Gate 3B - Remove Competing Agent Routes (`3/3`)
 
-- [ ] Delete `reference/agent-prompts.md` after reconfirming no live consumer.
-- [ ] Absorb any unique current invariant from both workflow-inspection prose
+- [x] `1.1` Delete `reference/agent-prompts.md` after reconfirming no live consumer.
+- [x] `1.1` Absorb any unique current invariant from both workflow-inspection prose
   records, then delete the duplicate projections.
-- [ ] Remove or explicitly justify the Intent Route Catalog JSON, reader, schema
+- [x] `1.2` Remove the Intent Route Catalog JSON, reader, schema
   declaration, tests, and guidance as one atomic family.
-- [ ] Prove no prompt cookbook, orphan prose projection, or unconsumed routing
+- [x] `1.3` Prove no prompt cookbook, orphan prose projection, or unconsumed routing
   authority remains active.
 
-### Gate 3C - Close Controller Metadata
+### Gate 3C - Close Controller Metadata (`4/4`)
 
-- [ ] Define exact keys for Controller frontmatter, shared-node frontmatter, and
+- [x] `2.1` Define exact keys for Controller frontmatter, shared-node frontmatter, and
   fenced node declarations.
-- [ ] Keep `method_module` as the sole lifecycle-location declaration.
-- [ ] Reject `phase`, `lifecycle_phase`, misspellings, ambiguous duplicates, and
+- [x] `2.3` Keep `method_module` as the sole lifecycle-location declaration.
+- [x] `2.1` Reject `phase`, `lifecycle_phase`, misspellings, ambiguous duplicates, and
   every undeclared key with bounded diagnostics.
-- [ ] Replace legacy-acceptance tests with planted negative controls.
-- [ ] Validate every checked-in Controller under the closed grammar.
+- [x] `2.4` Replace legacy-acceptance tests with planted negative controls.
+- [x] `2.3` Validate every checked-in Controller under the closed grammar.
 
-### Gate 3D - Enforce The `production_mode` Decision
+### Gate 3D - Cut Over To Production Identity (`5/5`)
 
-- [ ] Model missing, corrupt, mismatched, stale, retry, restart, replay,
+- [x] `3.1` Model missing, corrupt, mismatched, stale, retry, restart, replay,
   concurrent-write, partial-cutover, and uncertain-commit behavior.
-- [ ] Record fact authority, owner, writers, admission, recovery, terminal
+- [x] `3.1` Record fact authority, owner, writers, admission, recovery, terminal
   invariant, and completion evidence for the chosen outcome.
-- [ ] Implement and verify the one selected outcome.
+- [x] `3.2` Implement State creation, mutation, CAS/replay, and epoch invalidation
+  writers with only the identity record.
+- [x] `3.3` Update Controller, structural, Style Master, and inspection consumers.
+- [x] `3.4` and `3.5` Remove mode CLI contracts and update active schema/guidance.
 
 Collapse completion means every active reader, writer, schema, Controller, and
 test is updated in one clean cutover with no compatibility path or Run Bundle
@@ -368,22 +371,35 @@ scan. Retention completion means the distinct invariant, live consumers,
 failure path, and falsifiable guard are proved and incidental residue in Change
 3 scope is removed.
 
-- [ ] Prove the chosen outcome has fewer unexplained concepts and no weaker
+- [x] Prove the chosen outcome has fewer unexplained concepts and no weaker
   source/state identity boundary.
 
-### Gate 3E - Guard, Verify, And Close
+### Gate 3E - Prove The Clean Break (`5/5`)
 
-- [ ] Add reachability/residue guards rooted in declared active entries, with
+- [x] `4.1` Add missing, malformed, source-disagreeing, and retired-record State
+  controls that short-circuit before a write or provider work.
+- [x] `4.2` Prove Controller, Style Master, inspection, CLI/status, and direct
+  environment-check identity propagation and no wrong-owner fallback.
+- [x] `4.3` Prove mocked end-to-end inactive-write lifecycle fencing.
+- [x] `4.4` Add reachability/residue guards rooted in declared active entries, with
   exact owned shrink-only exceptions where justified.
-- [ ] Plant orphan-module, stale-metadata, duplicate-route, and selected
+- [x] `4.4` Plant orphan-module, stale-metadata, duplicate-route, and selected
   production-identity negative controls.
-- [ ] Resolve or explicitly reject every remaining P0/P1 finding with owner and
+- [x] `4.5` Resolve or explicitly reject every remaining P0/P1 finding with owner and
   rationale.
-- [ ] Pass focused tests, `npm test`, `npm run test:sweep`, strict OpenSpec
+- [x] `5.1`–`5.2` Pass focused tests, `npm test`, `npm run test:sweep`, strict OpenSpec
   validation, scoped residue searches, and `git diff --check`.
-- [ ] Sync, archive, exact-path stage, inspect, ordinarily commit, fetch, push,
-  and reconcile all four master SHAs.
-- [ ] Record active path, archive path, and closure SHA.
+- [x] `5.3` Sync accepted delta specs, revalidate, and archive Change 3.
+- [ ] `5.4` Stage exact paths, inspect, ordinarily commit, fetch, push, and
+  reconcile all four master SHAs.
+- [x] Record archive path; closure SHA remains pending Git closure.
+
+Ordering note: 4.4 exposed seven positive old declarations in accepted main
+specs. The 5.3 **sync** substep was therefore completed early as a direct
+precondition for 4.5; strict validation and the repository-clean guard passed
+afterward. Archive completed after a second strict validation. Commit, push,
+and 5.4 completion remain pending. No runtime or scan exception masks the
+resolved drift.
 
 ## Final Program Closure - Not A Change
 
@@ -423,3 +439,12 @@ Status: `blocked` until all three changes are `done`.
 | 2026-08-14 | Program control | Remaining work consolidated into fixed Change 3; total change count fixed at three | this file + `program.md` |
 | 2026-08-14 | Change 3 | Admitted and scaffolded from clean reconciled master | baseline `dc53149`; `openspec/changes/converge-agent-control-surfaces/` |
 | 2026-08-14 | Change 3 | Proposal, eight capability deltas, design, and 19-task checklist completed; strict validation passed | `openspec/changes/converge-agent-control-surfaces/`; change + all specs `27/27` |
+| 2026-08-14 | Change 3 | Tasks `1.1`–`3.5` applied: competing routes removed, Controller grammar closed, and State identity cut over | `tasks.md` progress `12/21`; focused State/structural/inspection/CLI/environment/schema tests passed |
+| 2026-08-14 | Change 3 / 4.1 | Identity negative controls verified | `npx vitest run tests/shared/run-bundle/test_page_image_layout.mjs tests/shared/state/test_target_page_image_state.mjs` (`2` files, `29` tests passed); invalid identity records preserved State bytes before target publication |
+| 2026-08-14 | Change 3 / 4.2 | Cross-owner identity propagation verified | Controller/Style Master/inspection suite (`6` files, `41` tests), workflow status E2E (`4`), env-check process suite (`56`), and command-surface process suite (`5`) passed; retired `--mode` is rejected before init/state writes |
+| 2026-08-14 | Change 3 / 4.3 | Inactive-write lifecycle fence verified | `npx vitest run --config vitest.e2e.config.mjs tests_e2e/shared/state/test_mock_inactive_run_state_writes.mjs` (`1` E2E passed); inactive build hard-stops before writes/provider work and permits only exact active-state repair |
+| 2026-08-14 | Change 3 / 4.4 | Fixed-root residue guard verified | `npx vitest run tests/contracts/test_production_schema_conformance.mjs` (`10` tests passed); fixture controls prove exact prompt/catalog/metadata/mode categories, root guidance coverage, historical-root exclusion, and zero repository/provider mutation |
+| 2026-08-14 | Change 3 / 4.5 | Main specs synchronized and active residue cleared | `openspec validate --specs --strict --no-interactive` (`26/26`), fixed-root scan (`338` text / `102` binary; zero issues), scoped residue search, and `git diff --check` passed; remaining terms are explicit normative rejection, test negative controls, or guard definitions |
+| 2026-08-14 | Change 3 / 5.1 | Focused verification passed | Controller/state/Style Master/inspection/CLI/schema suite (`10` files, `70`), env process (`56`), command process (`5`), inactive-write E2E (`1`), and workflow-inspection E2E (`4`) passed; concurrent E2E timeout was eliminated by normal serial reruns |
+| 2026-08-14 | Change 3 / 5.2 | Release gate passed | `npm test`, `npm run test:sweep`, strict active-change validation, strict all validation (`27`), fixed-root scan (`338` text / `102` binary; zero issues), scoped residue audit, and `git diff --check` passed; no unresolved P0/P1 findings |
+| 2026-08-14 | Change 3 / 5.3 | Archived after synchronized-spec revalidation | archive `openspec/changes/archive/2026-08-14-converge-agent-control-surfaces/`; post-archive strict main-spec validation (`26`) and fixed-root scan remained clean; Git closure pending |

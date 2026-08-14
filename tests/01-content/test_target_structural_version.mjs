@@ -50,7 +50,6 @@ function fixture() {
   const sourceText = source();
   writeFileSync(join(runDir, "slide-specifications.md"), sourceText);
   const state = createInitialState("target", "keynote", "dark-executive", {
-    mode: "image2-page-workflow",
     workflow: "pure",
   });
   state.continuation_target_version = "v1";
@@ -127,8 +126,7 @@ describe("TARGET structural vNext", () => {
         inherited_acceptance: false,
       });
       const state = readState(value.deck, { purpose: "observe", runVersion: "v1" });
-      expect(state.production_mode.by_version["3_versions/v2"]).toEqual({
-        mode: "image2-page-workflow",
+      expect(state.production_identity.by_version["3_versions/v2"]).toEqual({
         workflow: "pure",
         source_epoch: 1,
       });
@@ -220,7 +218,7 @@ describe("TARGET structural vNext", () => {
         label: "target mode",
         apply: ({ deck }) => {
           const state = readState(deck, { purpose: "observe" });
-          state.production_mode.by_version["3_versions/v2"].source_epoch = 2;
+          state.production_identity.by_version["3_versions/v2"].source_epoch = 2;
           writeFileSync(statePath(deck), `${JSON.stringify(state, null, 2)}\n`);
         },
       },
