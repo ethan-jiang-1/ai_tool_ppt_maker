@@ -17,7 +17,7 @@
 
 ## 活跃列表
 
-暂无活跃 plan。
+- [identity-role-clause-provider-input.md](identity-role-clause-provider-input.md) — identity subject 的 role_clause 正文未进 provider prompt，导致重复视觉主体（amber-agent）跨页不一致；待 review 决定落地方式。
 
 **Next available plan ID: CLS-035**（移入 `_closed_plans/` 时分配；CLS-001…034 已用）
 

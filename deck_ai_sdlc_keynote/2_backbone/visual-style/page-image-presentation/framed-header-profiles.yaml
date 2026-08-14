@@ -1,0 +1,59 @@
+schema: pptmaker-framed-header-profiles
+profiles:
+  standard:
+    permitted_fields: [kicker, title, subtitle]
+    canvas: { css_width: 1000, css_height: 562.5, capture_width: 2000, capture_height: 1125 }
+    font_families: [Source Sans 3, Noto Sans SC]
+    theme:
+      text: '#fffdf8'
+      muted_text: '#eee4d7'
+      kicker: '#ffd27f'
+      contrast: { kind: text-shadow, color: '#000000', opacity: 0.42, offset_x: 0, offset_y: 1, blur: 3 }
+    header_region: { x: 40, y: 28, width: 920, height: 238 }
+    fields:
+      kicker: { x: 64, y: 54, width: 872, height: 22, font_size: 16, line_height: 20, weight: 600, color: '#ffd27f', max_lines: 1 }
+      title: { x: 64, y: 82, width: 872, height: 104, font_size: 46, line_height: 52, weight: 700, color: '#fffdf8', max_lines: 2 }
+      subtitle: { x: 64, y: 194, width: 872, height: 46, font_size: 23, line_height: 28, weight: 400, color: '#eee4d7', max_lines: 1 }
+  opening:
+    permitted_fields: [title]
+    canvas: { css_width: 1000, css_height: 562.5, capture_width: 2000, capture_height: 1125 }
+    font_families: [Source Sans 3, Noto Sans SC]
+    theme:
+      text: '#fffdf8'
+      muted_text: '#eee4d7'
+      kicker: '#ffd27f'
+      contrast: { kind: text-shadow, color: '#000000', opacity: 0.42, offset_x: 0, offset_y: 1, blur: 3 }
+    header_region: { x: 40, y: 28, width: 920, height: 238 }
+    fields:
+      kicker: { x: 64, y: 54, width: 872, height: 22, font_size: 16, line_height: 20, weight: 600, color: '#ffd27f', max_lines: 1 }
+      title: { x: 64, y: 82, width: 872, height: 104, font_size: 46, line_height: 52, weight: 700, color: '#fffdf8', max_lines: 2 }
+      subtitle: { x: 64, y: 194, width: 872, height: 46, font_size: 23, line_height: 28, weight: 400, color: '#eee4d7', max_lines: 1 }
+  transition:
+    permitted_fields: [title, subtitle]
+    canvas: { css_width: 1000, css_height: 562.5, capture_width: 2000, capture_height: 1125 }
+    font_families: [Source Sans 3, Noto Sans SC]
+    theme:
+      text: '#fffdf8'
+      muted_text: '#eee4d7'
+      kicker: '#ffd27f'
+      contrast: { kind: text-shadow, color: '#000000', opacity: 0.42, offset_x: 0, offset_y: 1, blur: 3 }
+    header_region: { x: 40, y: 28, width: 920, height: 238 }
+    fields:
+      kicker: { x: 64, y: 54, width: 872, height: 22, font_size: 16, line_height: 20, weight: 600, color: '#ffd27f', max_lines: 1 }
+      title: { x: 64, y: 82, width: 872, height: 104, font_size: 46, line_height: 52, weight: 700, color: '#fffdf8', max_lines: 2 }
+      subtitle: { x: 64, y: 194, width: 872, height: 46, font_size: 23, line_height: 28, weight: 400, color: '#eee4d7', max_lines: 1 }
+  closing:
+    permitted_fields: [title, subtitle]
+    canvas: { css_width: 1000, css_height: 562.5, capture_width: 2000, capture_height: 1125 }
+    font_families: [Source Sans 3, Noto Sans SC]
+    theme:
+      text: '#fffdf8'
+      muted_text: '#eee4d7'
+      kicker: '#ffd27f'
+      contrast: { kind: text-shadow, color: '#000000', opacity: 0.42, offset_x: 0, offset_y: 1, blur: 3 }
+    header_region: { x: 40, y: 28, width: 920, height: 238 }
+    fields:
+      kicker: { x: 64, y: 54, width: 872, height: 22, font_size: 16, line_height: 20, weight: 600, color: '#ffd27f', max_lines: 1 }
+      title: { x: 64, y: 82, width: 872, height: 104, font_size: 46, line_height: 52, weight: 700, color: '#fffdf8', max_lines: 2 }
+      subtitle: { x: 64, y: 194, width: 872, height: 46, font_size: 23, line_height: 28, weight: 400, color: '#eee4d7', max_lines: 1 }
+ 

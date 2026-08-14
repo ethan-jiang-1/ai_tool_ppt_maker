@@ -1,4 +1,4 @@
-schema: pptmaker-image2-reference-registry-v1
+schema: pptmaker-image2-reference-registry
 profiles:
   amber-agent:
     subject_class: amber-light-form

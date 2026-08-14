@@ -1,165 +1,91 @@
 # _state/state.yaml — MD Controller execution state (not a hand-edit playground)
-# Schema authority: PPTMAKER_FRAMEWORK/charter/NODE-SPEC.md
-# API: PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs
-# CLI: node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state <runDir> [--json|--check-gates]
-# Fields: schema_version, pipeline, production_mode.by_version, playbook, current_node, execution_id, nodes.*, gates.*, deck.*, playbook_stack
-# MD Controller source: PPTMAKER_FRAMEWORK/playbook/*.md
-# Read boundary: observation validates current schema-5 authority and never rewrites, infers, or continues unsupported historical state
-schema_version: 5
-pipeline: page-authority-image2-v2
-production_mode:
+# Schema authority: ppt_maker_harness/charter/NODE-SPEC.md
+# API: ppt_maker_harness/scripts/shared/state/state.mjs
+# CLI: node ppt_maker_harness/scripts/ppt_flow.mjs state <runDir> [--json|--check-gates]
+# Fields: pipeline, production_identity.by_version, page_image_task_mandate.by_version, playbook, current_node, execution_id, nodes.*, gates.*, deck.*, playbook_stack
+# MD Controller source: ppt_maker_harness/playbook/*.md
+# Read boundary: observation validates the declared current authority and never rewrites, infers, or continues unsupported state
+pipeline: page-image-workflow
+production_identity:
   by_version:
-    3_versions/v2:
-      mode: image2-page-authority-v2
-      workflow: framed
-      source_epoch: 1
-    3_versions/v4:
-      mode: image2-page-authority-v2
-      workflow: framed
-      source_epoch: 2
-    3_versions/v5:
-      mode: image2-page-authority-v2
-      workflow: pure
-      source_epoch: 3
-    3_versions/v7:
-      mode: image2-page-authority-v2
+    3_versions/v8:
       workflow: pure
       source_epoch: 1
-started_at: 2026-07-20T00:00:00.000Z
-updated_at: 2026-08-03T16:31:40.502Z
+playbook: create-deck
+current_node: author-target-page-image-content
+execution_id: exec-d554196b-9f5e-46c0-b7c0-7abecd068b3c
+execution_started_at: 2026-08-14T14:43:36.789Z
+run_version: v8
+continuation_target_version: v8
+started_at: 2026-08-14T14:43:36.789Z
+updated_at: 2026-08-14T14:52:38.903Z
+nodes:
+  checkpoint-intake:
+    status: completed
+    execution_id: exec-d554196b-9f5e-46c0-b7c0-7abecd068b3c
+    run_version: v8
+    evidence: {}
+    completed: 2026-08-14T14:43:36.822Z
+gates:
+  content: pending
+  visual: pending
 deck:
   name: ai_sdlc_keynote
   type: keynote
   style: warm-editorial
-nodes: {}
-gates:
-  content: waived
-  visual: waived
 playbook_stack: []
-execution_id: exec-f60bc155-fb44-416b-87c7-1bc04f5f8db0
-execution_started_at: 2026-08-02T18:32:41.338Z
-diagnostics:
-  - "schema healed: v3 → v5 (2026-07-24 framework alignment)"
-  - "migrated: html-first-v1 → page-authority-image2-v2, workflow=framed (2026-07-30)"
-page_authority_raw_provider_authorization:
+page_image_target_evidence:
   by_version:
-    3_versions/v4:
-      schema: pptmaker-page-authority-raw-provider-authorization-v2
-      run_version: v4
-      source_epoch: 2
-      source_receipt_sha256: 5aa9aed79e12ec80e2d28744cd8f53284030e58521ce7dbaac4ae3b76aabe155
-      workflow: framed
-      raw_work_plan_sha256: dc6b7a452247399a573f6514cf8d8468c6f406243ee36e3d730c48c583434837
-      provider_profile_sha256: 644cb5294ceabf3e0af9f6e5f06cda667a1b88561ec0d478a6cc33a802337617
-      authorization_scope_sha256: 3fa655ef35f429bc25271e9379e77ed03617cf677ca58c65291880b8ff1b8b83
-      max_submissions: 25
-      execution_id: exec-941302da-f423-45aa-b293-b9ae7a054ff6
-      decided_at: 2026-07-30T09:16:18.014Z
-page_authority_target_evidence:
-  by_version:
-    3_versions/v2:
-      schema: page-authority-image2-target-state-v1
-      run_version: v2
+    3_versions/v8:
+      schema: page-image-workflow-target-state
+      run_version: v8
       source_epoch: 1
-      source_receipt_sha256: 9bf45992ef43fd99b53725ba622119ffea523de4758be926ff99a93693d8bbcc
-      workflow: framed
-      provider_authorization_sha256: null
-      accepted_raw_evidence_sha256: null
-      final_manifest_sha256: null
-      delivery_receipt_sha256: null
-    3_versions/v4:
-      schema: page-authority-image2-target-state-v1
-      run_version: v4
-      source_epoch: 2
-      source_receipt_sha256: 5aa9aed79e12ec80e2d28744cd8f53284030e58521ce7dbaac4ae3b76aabe155
-      workflow: framed
-      provider_authorization_sha256: ede39251936801c98cc904c0b39b7edff64500741c1211198e353a766268d60c
-      accepted_raw_evidence_sha256: e1d363598e9e371468b38378ee2910d94e2ca4daf9689f93bb0621757a6eabeb
-      final_manifest_sha256: 4c5eaf375fb6708a6d73ecc214cdd0dac3558815c46d650c979dd6e5b1aca0f5
-      delivery_receipt_sha256: 02ecbeb20d50df1ad1a2a302092102cc7965176d7667a8050deaa97c7edd399e
-    3_versions/v5:
-      schema: page-authority-image2-target-state-v1
-      run_version: v5
-      source_epoch: 3
-      source_receipt_sha256: 3d3a2abb46045411d3fc5477a83858b4d8072e1e3adb5f65e4f0cc933bc4850f
+      source_receipt_sha256: 78ccd71a30f9914da12765a69ca74e2fac7c0ffc0f0b13ccc55652b71d5f57f6
       workflow: pure
       provider_authorization_sha256: null
       accepted_raw_evidence_sha256: null
       final_manifest_sha256: null
       delivery_receipt_sha256: null
-    3_versions/v7:
-      schema: page-authority-image2-target-state-v1
-      run_version: v7
-      source_epoch: 1
-      source_receipt_sha256: 3d3a2abb46045411d3fc5477a83858b4d8072e1e3adb5f65e4f0cc933bc4850f
-      workflow: pure
-      provider_authorization_sha256: null
-      accepted_raw_evidence_sha256: null
-      final_manifest_sha256: null
-      delivery_receipt_sha256: null
-page_authority_style_master:
+page_image_style_master:
   by_version:
-    3_versions/v5:
-      schema: page-authority-style-master-selection-v1
-      run_version: v5
+    3_versions/v8:
+      schema: page-image-style-master-selection
+      run_version: v8
       workflow: pure
-      plan_sha256: 608549bda7d6a29010d1a1bc0254ca18c4f1aed6d87c12102b8f572925dce123
+      plan_sha256: 5d69304fc8e47cd967127eed2453da6518c6636eb85aafdcf02032ae63686646
       candidate_id: local-existing
-      candidate_sha256: 4a65306948030a2027ad3fff390c5ac9c4117f659eed772a27ff9dc11a7868a7
-      candidate_media_type: image/jpeg
+      candidate_sha256: 4de34543be9166839f0df2967e84b19ed269a0142d73a61f9878c297f7df50c6
+      candidate_media_type: image/png
       candidate_width: 1536
       candidate_height: 864
-      candidate_provenance_sha256: 9c2a29266818c7efeaa0558568a5a9e134f37e00afc4dd2490e3de4cc8bdf0c0
-      style_intent_sha256: 14328036b68d68255a7fdd174c38bba159d18ffd7a664e34a4e038a85a1269b0
-      style_context_sha256: 5bbcc7fcd8ba0326af2899ff35d5fbedddd43f1dc252767938cdba7dc0991bcc
-      candidate_generation_profile_sha256: 8a2eb9268f79acad25b028236149715df359fdf54792ac907b4765582a64692d
-      previous_selection_sha256: 9e4facc5ac4f270f7891b65c7f75a98f096875200ada6a6586b0e22af4980574
-      review_decision_sha256: 00047215ff568da6994325460945f263a7f0117e6cf240e12ba02ffbb81f60ec
-      accepted_at: 2026-08-02T14:20:13.261Z
-    3_versions/v7:
-      schema: page-authority-style-master-selection-v1
-      run_version: v7
-      workflow: pure
-      plan_sha256: 4907a3fd5150911d14bf15a7c2632a98b07c0d50f525733cd7e78b21448c15c6
-      candidate_id: local-existing
-      candidate_sha256: 6518f7f2bbdc9c4b4d5a3a2a75fe6bfecdd975a3b0ef4f4226e4f43657ac7eb7
-      candidate_media_type: image/jpeg
-      candidate_width: 1536
-      candidate_height: 864
-      candidate_provenance_sha256: 5199e75b14424735004f23fde3ea1a829e79c6c235043812e080083e05cc06ee
-      style_intent_sha256: 14328036b68d68255a7fdd174c38bba159d18ffd7a664e34a4e038a85a1269b0
-      style_context_sha256: 5bbcc7fcd8ba0326af2899ff35d5fbedddd43f1dc252767938cdba7dc0991bcc
-      candidate_generation_profile_sha256: 8a2eb9268f79acad25b028236149715df359fdf54792ac907b4765582a64692d
-      previous_selection_sha256: null
-      review_decision_sha256: 792aee78f925dd38df3e37bf88420bb8fdbde019e23672b65e790e3a700a122f
-      accepted_at: 2026-08-03T06:32:17.006Z
-page_authority_progressive_handoff:
+      candidate_provenance_sha256: 2678d70a6c122ed84ff100c446cbdbf521016c6d3107f55764c61c1ac9970ca4
+      style_intent_sha256: 9c8aa0a6715e20ece7c3b1ddb18641b04af26811b3e7234d0fc05ca0cd4c0505
+      style_context_sha256: 594cb1e72f78eb8fdc712b3fabf1e7eb3dfd42d79f1ada5e53df3d33b1dde397
+      candidate_generation_profile_sha256: e90d58e604ea663cc6ab337d3f4827e15453a66804b602325899cb3c10e8e886
+      previous_selection_sha256: 150ff0cbaa6f051e563738adba2253cbdd5daafaf415549b9c6350c506334c69
+      review_decision_sha256: 2fe34165a85e1c2cb738626f99fba4d154163d72d95ac3f7fa490d24d3edc464
+      accepted_at: 2026-08-14T14:52:32.567Z
+page_image_task_mandate:
   by_version:
-    3_versions/v5:
-      schema: page-authority-progressive-handoff-v1
-      run_version: v5
-      source_epoch: 3
-      source_receipt_sha256: 3d3a2abb46045411d3fc5477a83858b4d8072e1e3adb5f65e4f0cc933bc4850f
+    3_versions/v8:
+      schema: page-image-task-mandate
+      run_version: v8
       workflow: pure
-      raw_work_plan_sha256: 20da2c656e8eb830ab7673baefdaae9d2f0c86e2b1421d262327115a4931efc6
-      partial_pilot_decision_sha256: f10628998914ffb800f6a9e7d94a475d383ce99b7c858dd50acdec0c57f0cfbc
-      complete_raw_review_sha256: 85f041a978ba20360ad5ddffe7b426912d6b32ad82e80d7bf6be2a04e63bf8d6
-      accepted_raw_evidence_sha256: 646133f2c2b1eb22159f83efff3dcd91e0b863e80533bbe6395c77ec14b771eb
-      final_manifest_sha256: 4c47342923bbb5e127260b48222264f92a34454e20caa01de48a17440c21e2d6
-      delivery_receipt_sha256: bf1fbe31a66451d72d8de5719d4c89917bd459856e122a9cd1a82bc7639b984e
-    3_versions/v7:
-      schema: page-authority-progressive-handoff-v1
-      run_version: v7
+      execution_id: exec-d554196b-9f5e-46c0-b7c0-7abecd068b3c
+      execution_started_at: 2026-08-14T14:43:36.789Z
+      issued_at: 2026-08-14T14:52:38.773Z
+      scope: normal-page-image-production
+page_image_progressive_handoff:
+  by_version:
+    3_versions/v8:
+      schema: page-image-workflow-handoff
+      run_version: v8
       source_epoch: 1
-      source_receipt_sha256: 3d3a2abb46045411d3fc5477a83858b4d8072e1e3adb5f65e4f0cc933bc4850f
+      source_receipt_sha256: 78ccd71a30f9914da12765a69ca74e2fac7c0ffc0f0b13ccc55652b71d5f57f6
       workflow: pure
-      raw_work_plan_sha256: a905c2ffd916b25f308ed6764c43eecdbbdda568cd14f7374e4154c6a15a0f5a
-      partial_pilot_decision_sha256: 8f0556716cea04adbbc0e045de095aae83f2ae97aa6e360f875cd22e0a7f795e
-      complete_raw_review_sha256: d7853817fb86d0c7e7c721f1ea1e67911d337894bcedffe96b63877fccb08464
-      accepted_raw_evidence_sha256: c0bd7393e4c70f061cff3916bcebb10862eb96b44ae225f6532c19eca27d206e
-      final_manifest_sha256: 511cb363a9f61d88d273176bb3dd9910d1bea00759140c147793c6cd8557ae87
-      delivery_receipt_sha256: b4918534368bd67510de707a96508bcb277bb460ee243c431a0506484bd02037
-playbook: create-deck
-current_node: author-target-page-authority-content
-run_version: v7
-continuation_target_version: v7
+      raw_work_plan_sha256: 535fc0700a913bf4d4e77c2f054c508d08f5c00a845d7f175d616253d6afd61a
+      partial_pilot_decision_sha256: null
+      complete_raw_review_sha256: null
+      accepted_raw_evidence_sha256: null
+      final_manifest_sha256: null
+      delivery_receipt_sha256: null

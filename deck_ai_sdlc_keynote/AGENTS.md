@@ -1,8 +1,8 @@
 # ai_sdlc_keynote
 
-进入这个 run bundle 先读 [RUN_BUNDLE.md](RUN_BUNDLE.md)（deck/framework 定位），再读 [deck-guide.md](deck-guide.md)（consumer 规则与当前版本）。
+进入这个 run bundle 先读 [RUN_BUNDLE.md](RUN_BUNDLE.md) 定位本 deck 与 PPT Maker Harness，再读 [deck-guide.md](deck-guide.md) 获取操作规则。
 
-**断线 / 清聊天：** 先 `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state 3_versions/v2 --json`（整流程 where-am-I），再动手。进度在盘上（`_state/state.yaml` + 产物），不在聊天上下文。
+**断线 / 清聊天：** 先 `node ppt_maker_harness/scripts/ppt_flow.mjs state 3_versions/v8 --json`（整流程 where-am-I），再动手。进度在盘上（`_state/state.yaml` + 产物），不在聊天上下文。
 
-Framework 入口：`PPTMAKER_FRAMEWORK/BOOTSTRAP.md` → `PPTMAKER_FRAMEWORK/charter/AGENT_CONTRACT.md`。
-目录宪法：`PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs`。
+Harness 入口：`ppt_maker_harness/BOOTSTRAP.md` → `ppt_maker_harness/charter/AGENT_CONTRACT.md`。
+目录宪法：`ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs`。

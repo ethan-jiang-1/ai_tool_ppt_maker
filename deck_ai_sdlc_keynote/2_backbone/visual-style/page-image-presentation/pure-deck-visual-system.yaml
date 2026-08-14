@@ -1,0 +1,102 @@
+schema: pptmaker-pure-deck-visual-system
+profiles:
+  standard:
+    typography:
+      voices:
+        display: editorial-serif
+        text: editorial-sans
+      hierarchy:
+        kicker: eyebrow
+        title: display
+        subtitle: supporting
+        body: body
+        label: label
+        metric: metric
+        diagram_text: diagram
+        quote: quote
+        callout: callout
+        supporting_copy: supporting
+    colour_use:
+      palette_source: style-master
+      roles: { primary_text: primary, secondary_text: secondary, accent: accent, surface: neutral }
+    layout:
+      zones:
+        title: { x: 0.08, y: 0.08, width: 0.84, height: 0.22 }
+        content: { x: 0.08, y: 0.34, width: 0.84, height: 0.54 }
+      whitespace: generous
+      families: [editorial-hero, diagram-led, data-led]
+  opening:
+    typography:
+      voices:
+        display: editorial-serif
+        text: editorial-sans
+      hierarchy:
+        kicker: eyebrow
+        title: display
+        subtitle: supporting
+        body: body
+        label: label
+        metric: metric
+        diagram_text: diagram
+        quote: quote
+        callout: callout
+        supporting_copy: supporting
+    colour_use:
+      palette_source: style-master
+      roles: { primary_text: primary, secondary_text: secondary, accent: accent, surface: neutral }
+    layout:
+      zones:
+        title: { x: 0.08, y: 0.08, width: 0.84, height: 0.22 }
+        content: { x: 0.08, y: 0.34, width: 0.84, height: 0.54 }
+      whitespace: generous
+      families: [editorial-hero, diagram-led, data-led]
+  transition:
+    typography:
+      voices:
+        display: editorial-serif
+        text: editorial-sans
+      hierarchy:
+        kicker: eyebrow
+        title: display
+        subtitle: supporting
+        body: body
+        label: label
+        metric: metric
+        diagram_text: diagram
+        quote: quote
+        callout: callout
+        supporting_copy: supporting
+    colour_use:
+      palette_source: style-master
+      roles: { primary_text: primary, secondary_text: secondary, accent: accent, surface: neutral }
+    layout:
+      zones:
+        title: { x: 0.08, y: 0.08, width: 0.84, height: 0.22 }
+        content: { x: 0.08, y: 0.34, width: 0.84, height: 0.54 }
+      whitespace: generous
+      families: [editorial-hero, diagram-led, data-led]
+  closing:
+    typography:
+      voices:
+        display: editorial-serif
+        text: editorial-sans
+      hierarchy:
+        kicker: eyebrow
+        title: display
+        subtitle: supporting
+        body: body
+        label: label
+        metric: metric
+        diagram_text: diagram
+        quote: quote
+        callout: callout
+        supporting_copy: supporting
+    colour_use:
+      palette_source: style-master
+      roles: { primary_text: primary, secondary_text: secondary, accent: accent, surface: neutral }
+    layout:
+      zones:
+        title: { x: 0.08, y: 0.08, width: 0.84, height: 0.22 }
+        content: { x: 0.08, y: 0.34, width: 0.84, height: 0.54 }
+      whitespace: generous
+      families: [editorial-hero, diagram-led, data-led]

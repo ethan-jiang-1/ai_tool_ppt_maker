@@ -1,0 +1,8 @@
+schema: pptmaker-page-image-deck-defaults
+typography:
+  density: generous
+colour_roles:
+  primary_text: primary
+  secondary_text: secondary
+  accent: accent
+  surface: neutral

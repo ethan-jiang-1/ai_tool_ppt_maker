@@ -1,53 +1,64 @@
-schema: pptmaker-page-authority-visual-language-v1
-revision: 2
-text_guard: page-authority-text-guard-v1
+schema: pptmaker-page-image-visual-language
 recipes:
   editorial-systems:
-    provider_clause: warm editorial sketch on cream paper, sepia ink, amber accents, quiet depth, display heading supporting line and body content painted in clear sepia serif lettering as the primary surface, the sketched scene as a supporting metaphor
-    authorities: [pure-image2, framed-image2]
-    composition_ids: [centered-constellation, left-to-right-flow]
+    provider_clause: warm editorial sketch on cream paper, sepia ink, amber accents, quiet depth, fine cross-hatched shading, generous negative space
+    workflows: [framed, pure]
+    composition_ids: [centered-constellation, left-to-right-flow, field-of-work]
     motif_ids: [connected-nodes, layered-pathways, soft-grid]
     identity_subject_classes: [none, amber-light-form]
   collaborative-work:
-    provider_clause: warm amber light form within a calm shared work setting, display heading and body content painted in clear sepia serif lettering, the shared work scene as a supporting metaphor
-    authorities: [pure-image2, framed-image2]
+    provider_clause: warm amber light form within a calm shared work setting, soft perspective, quiet collaborative posture
+    workflows: [framed, pure]
     composition_ids: [field-of-work, centered-constellation]
     motif_ids: [shared-work-surface, connected-nodes, soft-grid]
     identity_subject_classes: [none, amber-light-form]
 compositions:
   centered-constellation:
     provider_clause: centered focal form with balanced negative space, unmarked surface
-    authorities: [pure-image2, framed-image2]
+    workflows: [framed, pure]
     min_motifs: 0
     max_motifs: 3
   left-to-right-flow:
     provider_clause: clear left to right movement across an open unmarked field
-    authorities: [pure-image2, framed-image2]
+    workflows: [framed, pure]
     min_motifs: 1
     max_motifs: 3
   field-of-work:
     provider_clause: grounded work surface with calm depth and soft perspective, unmarked
-    authorities: [pure-image2, framed-image2]
+    workflows: [framed, pure]
     min_motifs: 1
     max_motifs: 3
 motifs:
   connected-nodes:
     provider_clause: luminous connected nodes with measured spacing, abstract visual element
-    authorities: [pure-image2, framed-image2]
+    workflows: [framed, pure]
     recipe_ids: [editorial-systems, collaborative-work]
     composition_ids: [centered-constellation, left-to-right-flow, field-of-work]
   layered-pathways:
     provider_clause: layered pathways with gentle directional energy, abstract visual element
-    authorities: [pure-image2, framed-image2]
+    workflows: [framed, pure]
     recipe_ids: [editorial-systems]
     composition_ids: [centered-constellation, left-to-right-flow]
   soft-grid:
     provider_clause: subtle structural grid with restrained glow, abstract visual element
-    authorities: [pure-image2, framed-image2]
+    workflows: [framed, pure]
     recipe_ids: [editorial-systems, collaborative-work]
     composition_ids: [centered-constellation, left-to-right-flow, field-of-work]
   shared-work-surface:
     provider_clause: shared work surface with quiet collaborative posture, abstract visual element
-    authorities: [pure-image2, framed-image2]
+    workflows: [framed, pure]
     recipe_ids: [collaborative-work]
     composition_ids: [field-of-work, centered-constellation]
+relationships:
+  layer-stack:
+    provider_clause: nested translucent planes rising from broad base to focused apex
+    workflows: [framed, pure]
+    recipe_ids: [editorial-systems]
+    composition_ids: [centered-constellation]
+    reading_order: bottom-to-top
+  causal-flow:
+    provider_clause: connected luminous forms progressing from left origin to right outcome
+    workflows: [framed, pure]
+    recipe_ids: [editorial-systems, collaborative-work]
+    composition_ids: [left-to-right-flow]
+    reading_order: left-to-right

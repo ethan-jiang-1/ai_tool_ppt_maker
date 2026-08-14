@@ -1,0 +1,7 @@
+schema: pptmaker-page-image-class-catalog
+default: standard
+classes:
+  standard: { pure: standard, framed: standard }
+  opening: { pure: opening, framed: opening }
+  transition: { pure: transition, framed: transition }
+  closing: { pure: closing, framed: closing }
