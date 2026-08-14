@@ -103,5 +103,7 @@ skills-lock.json
 .agents
 .codewhale/
 
-deck_*_current/
-deck_*_reconstructed/
+# ===== deck workspaces =====
+# 只跟踪 *_keynote；其它 deck_* 子目录一律忽略
+deck_*/
+!deck_*_keynote/
