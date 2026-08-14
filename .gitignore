@@ -80,6 +80,9 @@ deck-tmp-*
 
 dpt_rb_*
 
+# ===== PowerPoint decks =====
+*.ppt
+*.pptx
 *.ppt*
 
 # ===== Images (generated/raw — keep out of git) =====
