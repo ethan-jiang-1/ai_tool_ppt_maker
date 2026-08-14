@@ -19,12 +19,15 @@ as automatic visual approval or placing a production deck in test scope.
 - Reuse the existing `PPTMAKER_RUN_REAL_E2E=1` selected-test gate; the test
   remains absent from ordinary, focused, mock-E2E, and sweep invocation.
 - Require one configured endpoint and credentials before any network attempt;
-  perform at most one provider submission, with no automatic retry, fallback,
-  Style Master generation, review decision, finalization, or delivery.
-- Drive the accepted public Page Image command route through a disposable
-  temporary run bundle, assert only attributable raw-attempt/media facts, and
-  delete all temporary material on success or failure without logging secrets,
-  prompts, or provider response bodies.
+  perform at most one Page Image provider submission, with no automatic retry,
+  fallback, generated Style Master work, Page Image raw review/acceptance
+  decision, finalization, or delivery.
+- Seed a disposable temporary run bundle with the existing test fixture seam,
+  including its provider-free accepted `local-existing` Style Master
+  prerequisite. Then drive every provider-affecting Page Image operation
+  through its accepted public command route; assert only attributable
+  raw-attempt/media facts and delete all temporary material on success or
+  failure without logging secrets, prompts, or provider response bodies.
 - Add offline contract coverage for the live-test gate, preflight short
   circuits, single-submission budget, cleanup, and non-acceptance boundary.
 - Document the human-operated invocation and its cost/effect boundary in the
