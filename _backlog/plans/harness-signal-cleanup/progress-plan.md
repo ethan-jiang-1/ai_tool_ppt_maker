@@ -4,8 +4,8 @@
 > Program status: `done`
 > Fixed OpenSpec change count: `3`
 > Overall: `3 done / 0 active / 0 queued`
-> Current gate: complete
-> Next checkbox: none
+> Current gate: program closed; future intake only
+> Next checkbox: no pending cleanup task
 
 This is the one program-level progress view. OpenSpec artifacts remain the
 authority for each change's WHY, WHAT, HOW, and implementation tasks; current
@@ -22,8 +22,8 @@ main specs remain the accepted behavior authority.
 | Measure | Count |
 | --- | ---: |
 | Total OpenSpec changes | 3 |
-| Closed | 2 |
-| Ready | 1 |
+| Closed | 3 |
+| Ready | 0 |
 | Remaining after the ready change | 0 |
 | Additional unplanned changes | 0 |
 
@@ -87,11 +87,11 @@ Status vocabulary: `queued`, `planning`, `ready`, `active`, `blocked`, `done`.
   invariants in the owning spec/test before removal.
 - [x] Every new guard includes a planted negative control and an explicit scan
   scope.
-- [ ] Every P0/P1 finding is resolved or explicitly rejected with owner and
+- [x] Every P0/P1 finding is resolved or explicitly rejected with owner and
   rationale.
-- [ ] Every retained active concept has one declared authority and a live
+- [x] Every retained active concept has one declared authority and a live
   consumer.
-- [ ] Final `HEAD`, local `master`, `origin/master`, and remote `master` match
+- [x] Final `HEAD`, local `master`, `origin/master`, and remote `master` match
   with no cleanup-related worktree residue.
 
 ## OpenSpec Lifecycle
@@ -427,6 +427,15 @@ reconciliation are complete.
 - [x] Retain this plan package at its user-designated location as the program
   operation record.
 
+## Successor Intake
+
+There is no pending cleanup task and no fourth change is implied by this
+program. A successor change requires newly observed current behavior, a named
+owning capability, a bounded source scope, and a falsifiable acceptance test.
+Do not reopen this closed plan merely to perform another broad historical-term
+search; the active-surface guard and ordinary maintenance verification own that
+steady-state protection.
+
 ## Evidence Log
 
 | Date | Work item | Event | Evidence/path/SHA |
@@ -451,3 +460,5 @@ reconciliation are complete.
 | 2026-08-14 | Change 3 / 5.3 | Archived after synchronized-spec revalidation | archive `openspec/changes/archive/2026-08-14-converge-agent-control-surfaces/`; post-archive strict main-spec validation (`26`) and fixed-root scan remained clean; Git closure pending |
 | 2026-08-14 | Change 3 / 5.4 | Ordinary implementation closure commit, normal push, and four-SHA reconciliation completed | closure `2184973`; `HEAD = master = origin/master = remote master = 218497324f18ff92296af95fc99f5aa889c67787` |
 | 2026-08-14 | Program closure | Tracking record commit pushed and reconciled; program plan retained at its user-designated location | tracking closure `c12db7c`; `HEAD = master = origin/master = remote master = c12db7ce981973f44e38273304662bb75c4c5888` |
+| 2026-08-14 | Program closure | Dashboard counts, invariants, and successor-intake rule reconciled after final closure | no active change; this plan remains the closed operation record |
+| 2026-08-14 | Post-closure readiness | Current Harness entrypoint checked without production work | `node ppt_maker_harness/scripts/ppt_flow.mjs doctor` passed; local Node, dependencies, Chromium, fonts, and offline HTML runtime are ready |
