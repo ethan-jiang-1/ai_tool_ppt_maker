@@ -1,11 +1,11 @@
 # Harness Signal Cleanup - Progress Plan
 
 > Type: program control sheet | Updated: 2026-08-14
-> Program status: `done`
+> Program status: `done`; independent successor: `archived` by owner waiver
 > Fixed OpenSpec change count: `3`
-> Overall: `3 done / 0 active / 0 queued`
-> Current gate: cleanup program closed; independent successor is planned
-> Next checkbox: review `add-real-provider-e2e-acceptance` before explicit apply
+> Overall: cleanup `3 done / 0 active / 0 queued`; successor archived, live acceptance waived
+> Current gate: ordinary commit, normal push, and reconciliation
+> Next checkbox: commit the archived real-provider acceptance lane
 
 This is the one program-level progress view. OpenSpec artifacts remain the
 authority for each change's WHY, WHAT, HOW, and implementation tasks; current
@@ -18,6 +18,9 @@ main specs remain the accepted behavior authority.
 - [x] **Change 3 of 3** - `converge-agent-control-surfaces` - `done` (`21/21` tasks)
 - [x] **Program closure** - final evidence and Git reconciliation complete;
   this was not another OpenSpec change
+- [x] **Independent successor** - `add-real-provider-e2e-acceptance` - `archived`
+  by explicit project-owner waiver; implementation and provider-free
+  verification are complete, while live acceptance is not claimed as passed
 
 | Measure | Count |
 | --- | ---: |
@@ -26,6 +29,7 @@ main specs remain the accepted behavior authority.
 | Ready | 0 |
 | Remaining after the ready change | 0 |
 | Additional unplanned changes | 0 |
+| Independent successors | 1 archived (live acceptance waived) |
 
 The count is fixed at three. The former routing cleanup, Controller metadata
 cleanup, and singleton `production_mode` decision are nested workstreams inside
@@ -440,11 +444,27 @@ steady-state protection.
 
 The project owner approved one successor after the post-closure coverage audit:
 
-- [x] `add-real-provider-e2e-acceptance` - planning complete (`0/12` tasks);
-  this is not Change 4 and does not alter this cleanup program's fixed count.
-- [ ] Apply its test-only implementation after explicit review/request.
-- [ ] Run its chargeable one-submission live acceptance only with separate
-  operator authority and a non-production endpoint.
+- [x] `add-real-provider-e2e-acceptance` - planning complete; this is not
+  Change 4 and does not alter this cleanup program's fixed count.
+- [x] Apply its test-only implementation and complete provider-free
+  verification (`11/12` tasks): the selected test entry, fixture, guards,
+  `npm test`, full sweep, strict change/all-spec validation, and diff check
+  passed.
+- [x] Run its chargeable one-submission live acceptance after the external
+  provider condition is resolved, or close the change only by explicit project
+  owner waiver. The first authorized 2026-08-14 invocation
+  loaded the project `.env` and returned a succeeded raw materialization after
+  one submission, but exposed a local evidence-ordering assertion defect. The
+  corrected live invocations have since returned provider-owned
+  `known_failure` before raw materialization, most recently with bounded
+  `provider_failure=http_error:400`. Each temporary fixture was cleaned; no
+  retry or reconciliation has occurred. The project owner explicitly approved
+  the archive waiver; this is not a claim that the live acceptance passed.
+- [x] Archive under the explicit owner waiver; preserve the recorded incomplete
+  live-acceptance evidence. Archive path:
+  `openspec/changes/archive/2026-08-14-add-real-provider-e2e-acceptance/`
+- [ ] Commit, normally push, and reconcile the archived successor under the
+  explicit owner waiver.
 
 Its OpenSpec artifacts own scope and tasks:
 `openspec/changes/add-real-provider-e2e-acceptance/`. It reuses the existing
@@ -478,3 +498,14 @@ contract, production-data scope, or compatibility work.
 | 2026-08-14 | Program closure | Dashboard counts, invariants, and successor-intake rule reconciled after final closure | no active change; this plan remains the closed operation record |
 | 2026-08-14 | Post-closure readiness | Current Harness entrypoint checked without production work | `node ppt_maker_harness/scripts/ppt_flow.mjs doctor` passed; local Node, dependencies, Chromium, fonts, and offline HTML runtime are ready |
 | 2026-08-14 | Independent successor | Owner accepted a bounded real-provider E2E acceptance lane after coverage audit | `openspec/changes/add-real-provider-e2e-acceptance/`; planning complete, apply and live operator acceptance pending |
+| 2026-08-14 | Independent successor / 4.3 | Authorized real-E2E invocation stopped at credential preflight | `IMAGE2_API_KEY` absent; no fixture, network request, provider submission, or retry; task remains `11/12` pending a fresh authorized invocation |
+| 2026-08-14 | Independent successor / 4.3 | One authorized real-E2E submission returned succeeded raw materialization, then exposed a local assertion defect | project `.env` was loaded; one temporary Pure scope submitted once and cleaned in `finally`; direct records are unordered, so the test was corrected to follow the claimed/submitted/succeeded hash chain; provider-free regression (`34` tests) passed, with no retry or reconciliation |
+| 2026-08-14 | Independent successor / 4.3 | Corrected authorized real-E2E invocation returned provider-owned known failure | one synthetic Pure scope submitted once, stopped before raw materialization, and cleaned in `finally`; no provider body was retained, and no retry or test-side reconciliation is permitted |
+| 2026-08-14 | Independent successor / 4.3 | Blocker diagnostics hardened without a further provider call | the pending entry now projects only declared known-failure classifications; synthetic provider-body redaction control passed, as did `npm test`, full sweep (`68` files / `565` tests), strict change/all-spec validation, and `git diff --check` |
+| 2026-08-14 | Independent successor / 4.3 | Further authorized real-E2E invocation returned the same external blocker | one synthetic Pure scope submitted once, returned bounded `known_failure` / `provider_failure=http_error:400`, and was cleaned in `finally`; no provider body, retry, or test-side reconciliation was retained |
+| 2026-08-14 | Independent successor / 4.3 | Provider-free repeatability check excluded a local idempotency collision | two independently created temporary Pure scopes reached `authorize` with one-submission grants; their plan and batch identities differed and both scopes were cleaned, with no `generate` or network access |
+| 2026-08-14 | Independent successor / 4.3 | Read-only provider capability probe confirmed configured model availability | one authenticated `GET /models` returned 200 JSON and listed `gpt-image-2`; no prompt, reference image, idempotency key, generation request, or provider response body was sent or retained |
+| 2026-08-14 | Independent successor / 4.3 | Safe local/provider-read diagnostics exhausted | raw-binding mock suite passed (`17` tests), including non-reading of HTTP failure bodies; root/versioned OpenAPI and `/docs` exposed no current request schema, so a provider-issued rejection classification is required before any transport change |
+| 2026-08-14 | Independent successor / 4.3 | Later authorized selected run ended with an uncertain external outcome | the OS-temporary fixture was cleaned, but the npm parent exited `1` without a redacted terminal outcome in the runner transcript; it is not successful-result evidence or a classified provider failure, and no retry or reconciliation followed |
+| 2026-08-14 | Independent successor / closure | Project owner approved archive without a passed corrected live acceptance | 4.3 is dispositioned as an explicit waiver, not a success claim; retain the opt-in test and all bounded failure evidence, then archive/commit/push/reconcile normally |
+| 2026-08-14 | Independent successor / archive | Archived with explicit project-owner waiver | `openspec/changes/archive/2026-08-14-add-real-provider-e2e-acceptance/`; no delta specs existed, so no main-spec sync was required or performed |

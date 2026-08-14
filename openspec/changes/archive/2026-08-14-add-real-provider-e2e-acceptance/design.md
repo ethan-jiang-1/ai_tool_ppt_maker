@@ -161,7 +161,8 @@ validator, retry manager, or provider success projection is introduced.
 - [Secrets or provider content leak in test output] -> Reuse existing
   credential handling and assert a bounded redaction policy for test failures.
 - [Temporary artifacts are mistaken for production data] -> Use an OS
-  temporary directory, avoid `deck_*` names/paths, and delete it in `finally`.
+  temporary directory containing the layout-required, test-only `deck_` run
+  bundle; keep it outside the repository and delete it in `finally`.
 - [The test drifts into a parallel workflow] -> Route only through the public
   CLI and existing State/Image2 owners; architecture tests prohibit production
   imports from test helpers.
@@ -180,6 +181,20 @@ validator, retry manager, or provider success projection is introduced.
    automatic and is not required to invoke the change's implementation tests.
 4. If the lane proves unsafe or unhelpful, remove the test and its guidance;
    no production data, schema, state migration, or compatibility path exists.
+
+## Archive Disposition
+
+On 2026-08-14, the project owner explicitly approved archival after the
+selected live probe produced one earlier raw materialization that exposed a
+test assertion defect, followed by provider-owned known failures and one
+uncertain runner outcome. The provider-free implementation and its safety
+guards are complete, but this archive does not claim that the corrected live
+acceptance passed.
+
+The checked-in opt-in test remains the sole bounded probe for a later fresh
+operator run. This disposition neither changes the Image2 transport contract
+nor treats a provider's intermittent result as visual acceptance, a retry
+permission, or evidence for delivery.
 
 ## Open Questions
 

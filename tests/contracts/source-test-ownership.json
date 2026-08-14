@@ -134,6 +134,7 @@
         "tests/contracts/test_process_style_master_lifecycle_integration.mjs",
         "tests/contracts/test_process_workflow_inspection_cli.mjs",
         "tests/contracts/test_production_schema_conformance.mjs",
+        "tests/contracts/test_real_provider_e2e_acceptance.mjs",
         "tests/contracts/test_workflow_control_ledger.mjs"
       ],
       "e2e": []
@@ -214,6 +215,15 @@
         "tests/shared/page-image/test_page_image_invalidation.mjs"
       ],
       "e2e": []
+    },
+    {
+      "owner": "shared/real-provider",
+      "interfaces": [],
+      "executables": [],
+      "unit_integration": [],
+      "e2e": [
+        "tests_e2e/shared/real-provider/test_real_provider_e2e_acceptance.mjs"
+      ]
     },
     {
       "owner": "shared/run-bundle",

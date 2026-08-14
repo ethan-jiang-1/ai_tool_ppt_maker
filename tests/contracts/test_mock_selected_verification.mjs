@@ -4,6 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { realE2EEnabled, runSelectedVerification, validateSelectedInvocation } from "./run_selected_verification.mjs";
 
+const REAL_PROVIDER_ENTRY = "tests_e2e/shared/real-provider/test_real_provider_e2e_acceptance.mjs";
+
 describe("mock selected verifier dispatcher", () => {
   it("requires one tier-compatible path and does not expand it", () => {
     expect(validateSelectedInvocation(["focused"])).toMatchObject({ ok: false });
@@ -32,6 +34,13 @@ describe("mock selected verifier dispatcher", () => {
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
+  });
+
+  it("keeps the checked-in real acceptance entry behind the exact selected tier", () => {
+    expect(validateSelectedInvocation(["real-e2e", REAL_PROVIDER_ENTRY], process.cwd(), {}))
+      .toMatchObject({ ok: false, detail: "real E2E requires PPTMAKER_RUN_REAL_E2E=1" });
+    expect(validateSelectedInvocation(["real-e2e", REAL_PROVIDER_ENTRY], process.cwd(), { PPTMAKER_RUN_REAL_E2E: "1" }))
+      .toMatchObject({ ok: true, config: "vitest.real-e2e.config.mjs", entry: REAL_PROVIDER_ENTRY });
   });
 
   it("passes exactly one selected path to its owning Vitest configuration", () => {

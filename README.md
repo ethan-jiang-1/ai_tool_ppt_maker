@@ -47,6 +47,20 @@ process-level and live-provider work. Mock E2E uses a fake external adapter;
 real E2E requires the selected real test plus its existing authorization
 boundary. Do not use a broad E2E command.
 
+The checked-in live acceptance probe is deliberately one synthetic Pure page.
+Use a non-production Image2-compatible endpoint and explicit credentials; it
+performs at most one chargeable submission, removes its OS-temporary test
+bundle, and stops after native raw PNG materialization. A returned PNG is not
+visual acceptance, permission to proceed, finalization, delivery, or a reason
+to retry an uncertain provider outcome. The selected test reads missing
+`IMAGE2_API_KEY` and `IMAGE2_BASE_URL` values from the project-root `.env`;
+already exported environment values retain precedence.
+
+```bash
+PPTMAKER_RUN_REAL_E2E=1 IMAGE2_API_KEY=... IMAGE2_BASE_URL=https://non-production.example/v1 \
+  npm run test:real-e2e -- tests_e2e/shared/real-provider/test_real_provider_e2e_acceptance.mjs
+```
+
 ## Project Structure
 
 | Directory | Purpose |
