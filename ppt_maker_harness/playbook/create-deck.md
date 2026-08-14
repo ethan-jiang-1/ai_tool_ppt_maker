@@ -66,6 +66,14 @@ action, or recovery route. The shared handoff owns the user explanation and
 recovery precedence. A current raw visual `proceed`, `repair`, or `redirect`
 confirmation remains an owner-required stop, never a mechanical repair.
 
+For a present production source, state, or evidence record that cannot
+establish current identity, present the producer-issued `production-protocol`
+`current-protocol-invalid` hard-stop and its
+`repair-current-protocol-identity` repair before selecting a node. Do not
+create a Controller, task projection, migration, export, conversion, adoption,
+or fallback route. A declared fresh authoring draft remains on its existing
+narrative/workflow-selection owner; this boundary does not recategorize it.
+
 For Style Master work, project only the owner-issued current scope head, exact
 plan hash, grant progress, real-byte review evidence, and next action. A
 Controller node status or an OpenSpec task checkbox is a collaboration record,
@@ -389,7 +397,7 @@ produces: [target-framed-final-slide-manifest]
 entry: [node_decision:review-target-framed-raw:proceed]
 exit: [evidence:target-framed-final-manifest-current]
 ```
-**Step 1 — CLI**: Run `ppt_flow image2 accept <run-dir> --plan-hash <sha256> --decision proceed`, then let the Framed workflow publish its final manifest from the accepted v3 evidence. It does not assemble PPTX or notes.
+**Step 1 — CLI**: Run `ppt_flow image2 accept <run-dir> --plan-hash <sha256> --decision proceed`, then let the Framed workflow publish its final manifest from the accepted raw evidence. It does not assemble PPTX or notes.
 
 ### inspect-target-pure-style-master
 ```yaml
@@ -640,7 +648,7 @@ produces: [target-pure-final-slide-manifest]
 entry: [node_decision:review-target-pure-raw:proceed]
 exit: [evidence:target-pure-final-manifest-current]
 ```
-**Step 1 — CLI**: Run `ppt_flow image2 accept <run-dir> --plan-hash <sha256> --decision proceed`, then let the Pure workflow publish its final manifest from the accepted v3 evidence. It does not assemble PPTX or notes.
+**Step 1 — CLI**: Run `ppt_flow image2 accept <run-dir> --plan-hash <sha256> --decision proceed`, then let the Pure workflow publish its final manifest from the accepted raw evidence. It does not assemble PPTX or notes.
 
 ### deliver-target-page-image
 ```yaml

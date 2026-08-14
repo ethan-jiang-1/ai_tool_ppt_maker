@@ -337,7 +337,7 @@ negative_constraints:
     }
   });
 
-  it("delivers a small-debt Pure progressive lifecycle from v3 accepted evidence without a v2 authorization", async () => {
+  it("delivers a small-debt Pure progressive lifecycle from accepted evidence without a new authorization", async () => {
     const root = mkdtempSync(join(tmpdir(), "pure-progressive-target-"));
     const deck = join(root, "deck_pure_progressive");
     const runDir = join(deck, "3_versions", "v1");
@@ -751,7 +751,7 @@ negative_constraints:
     }
   });
 
-  it("takes a partial Pilot through Expansion, complete v3 acceptance, and rebuildable delivery", async () => {
+  it("takes a partial Pilot through Expansion, complete acceptance, and rebuildable delivery", async () => {
     const root = mkdtempSync(join(tmpdir(), "pure-progressive-expansion-delivery-"));
     const deck = join(root, "deck_pure_progressive_expansion");
     const runDir = join(deck, "3_versions", "v1");

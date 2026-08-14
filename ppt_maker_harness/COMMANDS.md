@@ -40,9 +40,14 @@ of MD Controllers and their normative controller manifest. Interpret the user's
 language conversationally, use the catalog only for discovery, then follow these
 existing Controller and capability owners:
 
-- For a known exact run, an explicit change enters the current
-  [change classifier](scripts/06-iteration/change-classifier.md). Otherwise,
-  resume from `state --json.workflow_inspection.primary_action`.
+- For a known exact run, obtain the current owner result before selecting a
+  Controller or route. When it reports the `production-protocol`
+  `current-protocol-invalid` hard-stop, present the owner-issued
+  `repair-current-protocol-identity` repair and stop; do not inspect dependent
+  source content, choose a workflow, or offer an alternate route. Otherwise,
+  an explicit change enters the current
+  [change classifier](scripts/06-iteration/change-classifier.md), while resume
+  follows `state --json.workflow_inspection.primary_action`.
 - If no exact run is known, use the `RUN_BUNDLE.md` / exact-path locator in
   [the Agent contract](charter/AGENT_CONTRACT.md). Never scan production
   folders or infer a latest run.

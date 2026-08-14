@@ -58,8 +58,8 @@ describe("workflow inspection CLI projection", () => {
       expect(state.status, state.stderr).toBe(0);
       expect(JSON.parse(status.stdout)).toMatchObject({ pipeline: "page-image-workflow" });
       expect(JSON.parse(state.stdout).workflow_inspection).toMatchObject({
-        posture: "confirm",
-        primary_action: { action_id: "select-target-page-image-workflow" },
+        posture: "guide",
+        primary_action: { action_id: "author-target-narrative-sources" },
       });
       expect(treeSnapshot(deck)).toEqual(before);
     } finally {
@@ -87,7 +87,7 @@ describe("workflow inspection CLI projection", () => {
     }
   });
 
-  it("rejects undeclared source and state markers without writes", () => {
+  it("rejects undeclared source and state markers through the shared repair without writes", () => {
     const root = mkdtempSync(join(tmpdir(), "workflow-inspection-cli-retained-"));
     const sourceDeck = join(root, "deck_retained_source");
     const stateDeck = join(root, "deck_retained_state");
@@ -120,12 +120,23 @@ describe("workflow inspection CLI projection", () => {
       expect(resume.status, resume.stderr).not.toBe(0);
       expect(finalDiagnostic(resume)).toMatchObject({
         diagnostic: {
-          operation: "observe-state",
-          reason: { kind: "replacement_required" },
+          operation: "repair-current-protocol",
+          reason: { kind: "current_protocol_invalid" },
           next: { action: "repair_prerequisite" },
         },
       });
       expect(readFileSync(retainedStatePath, "utf8")).toBe(UNDECLARED_STATE);
+      expect(treeSnapshot(stateDeck)).toEqual(stateBefore);
+
+      const validate = flow(["state", stateRunDir, "--validate-state"]);
+      expect(validate.status, validate.stderr).toBe(1);
+      expect(finalDiagnostic(validate)).toMatchObject({
+        diagnostic: {
+          operation: "repair-current-protocol",
+          reason: { kind: "current_protocol_invalid" },
+          next: { action: "repair_prerequisite" },
+        },
+      });
       expect(treeSnapshot(stateDeck)).toEqual(stateBefore);
     } finally {
       rmSync(root, { recursive: true, force: true });

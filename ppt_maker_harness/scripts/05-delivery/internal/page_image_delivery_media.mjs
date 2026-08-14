@@ -7,6 +7,7 @@ import {
   pageImageOrdinalImageFilename,
   validateFinalSlideManifest,
 } from "../../shared/image2/page_image_artifacts.mjs";
+import { currentProtocolInvalid, isCurrentProtocolInvalid } from "../../shared/workflow/current_protocol_invalid.mjs";
 
 export const PAGE_IMAGE_DELIVERY_MEDIA_SCHEMA = "page-image-delivery-media";
 export const PAGE_IMAGE_DELIVERY_MEDIA_PROFILE = Object.freeze({
@@ -31,7 +32,7 @@ function expectedPath(item) {
 function assertCurrentFinalManifest(finalManifest, finalManifestSha256) {
   const checked = validateFinalSlideManifest(finalManifest);
   if (!checked.ok || !SHA256_RE.test(finalManifestSha256 || "") || checked.sha256 !== finalManifestSha256) {
-    throw new Error("Page Image final manifest is invalid or stale for delivery media");
+    throw currentProtocolInvalid("the delivery media final manifest cannot establish current production identity");
   }
   return checked;
 }
@@ -56,7 +57,7 @@ export function validatePageImageDeliveryMediaManifest(manifest, {
     manifest.workflow !== finalManifest.workflow ||
     !validProfile(manifest.profile) ||
     !Array.isArray(manifest.entries) || manifest.entries.length !== finalManifest.items.length) {
-    throw new Error("Page Image delivery-media manifest is invalid or stale");
+    throw currentProtocolInvalid("the delivery media manifest cannot establish current production identity");
   }
 
   for (const [index, item] of finalManifest.items.entries()) {
@@ -67,7 +68,7 @@ export function validatePageImageDeliveryMediaManifest(manifest, {
       entry.path !== expectedPath(item) || !Number.isSafeInteger(entry.width) || entry.width <= 0 ||
       !Number.isSafeInteger(entry.height) || entry.height <= 0 ||
       (Object.hasOwn(item, "width") && (entry.width !== item.width || entry.height !== item.height))) {
-      throw new Error("Page Image delivery-media manifest does not bind final media order");
+      throw currentProtocolInvalid("the delivery media manifest cannot establish current production identity");
     }
   }
 
@@ -218,9 +219,18 @@ export async function readPageImageDeliveryMedia(paths, { finalManifest, finalMa
   try {
     manifest = JSON.parse(readFileSync(paths.delivery_media_manifest, "utf8"));
   } catch {
+    if (existsSync(paths.delivery_media_manifest)) {
+      throw currentProtocolInvalid("the delivery media record cannot establish current production identity");
+    }
     throw new Error("Page Image delivery media is unavailable");
   }
-  const checked = validatePageImageDeliveryMediaManifest(manifest, { finalManifest, finalManifestSha256 });
+  let checked;
+  try {
+    checked = validatePageImageDeliveryMediaManifest(manifest, { finalManifest, finalManifestSha256 });
+  } catch (error) {
+    if (isCurrentProtocolInvalid(error)) throw error;
+    throw currentProtocolInvalid("the delivery media record cannot establish current production identity");
+  }
   const mediaBySlide = {};
   for (const entry of checked.manifest.entries) {
     const path = join(paths.final_root, entry.path);

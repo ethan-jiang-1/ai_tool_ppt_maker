@@ -49,10 +49,19 @@ not introduce a new configuration or review gate.
 
 PPTX Assembly SHALL accept only the declared current `final-page-list`, its
 receipt-bound final PNG media, and the declared `delivery-package` media
-representation published by shared delivery. Shared delivery SHALL retain the
-existing JPEG derivation, dimensions, and ordering rules. Assembly SHALL reject
-an undeclared contract before PPTX creation and SHALL not read or adapt a
-historical manifest or media representation.
+representation published by shared delivery. A present foreign, unreadable,
+incomplete, or cross-lineage final-manifest or delivery-media record that cannot
+establish exact declared-current production identity SHALL
+emit the typed `current_protocol_invalid` cause and project the owner-issued
+`production-protocol` `current-protocol-invalid` hard-stop with
+`repair-current-protocol-identity` of kind `repair` before PPTX creation. The
+assembly consumer SHALL not define a duplicate action schema or read, transcode,
+adapt, or adopt an undeclared representation.
+
+When valid current final-manifest and receipt facts attribute one current
+lineage but required derived JPEG media is missing, corrupt, or drifted, the
+existing delivery owner SHALL retain `delivery_media_rebuild_required`. This
+current derived-output repair SHALL not be recategorized as invalid protocol.
 
 #### Scenario: Assembly receives current final media
 
@@ -68,9 +77,11 @@ historical manifest or media representation.
 
 #### Scenario: Stale JPEG delivery media is rebuilt before assembly
 
-- **WHEN** current final-page facts are valid but derived JPEG media is stale
-- **THEN** the existing delivery owner rebuilds it before assembly
-- **AND** it does not use an older media contract
+- **WHEN** current final-manifest and receipt facts attribute one current lineage
+  but derived JPEG media is missing, corrupt, or drifted
+- **THEN** the existing delivery owner returns
+  `delivery_media_rebuild_required` before assembly
+- **AND** it does not replace that current rebuild action with protocol repair
 
 #### Scenario: JPEG derivation failure protects the existing delivery
 
@@ -80,6 +91,17 @@ historical manifest or media representation.
 
 #### Scenario: Undeclared media cannot become assembly input
 
-- **WHEN** assembly receives media with an undeclared contract marker
-- **THEN** it rejects the input before PPTX creation
-- **AND** it does not transcode or adopt it
+- **WHEN** assembly receives media whose present identity record cannot establish
+  the declared current contract
+- **THEN** it returns the shared `production-protocol` repair action before PPTX
+  creation
+- **AND** it does not transcode or adopt the media
+
+#### Scenario: Foreign final manifest cannot become assembly input
+
+- **WHEN** a final manifest is foreign or cross-lineage and cannot establish
+  declared-current production identity
+- **THEN** assembly returns the shared `production-protocol` repair action before
+  PPTX creation
+- **AND** it does not read delivery media, write assembly evidence, or invoke a
+  compatibility reader

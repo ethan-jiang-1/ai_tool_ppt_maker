@@ -7,6 +7,7 @@ import { validateFinalSlideManifest } from "../shared/image2/page_image_artifact
 import { inspectPageImageFinalMedia } from "../shared/image2/page_image_media_contract.mjs";
 import { createPngRasterProjectionCanvas } from "../shared/image2/png_raster_projection.mjs";
 import { pageImageWorkflowPaths } from "../shared/run-bundle/bundle_layout.mjs";
+import { currentProtocolInvalid, isCurrentProtocolInvalid } from "../shared/workflow/current_protocol_invalid.mjs";
 import { extractNoteRecordsFromMarkdown } from "./internal/notes_runtime.mjs";
 import {
   PAGE_IMAGE_PPTX_ASSEMBLY_SCHEMA,
@@ -58,11 +59,11 @@ export class PageImageDeliveryError extends Error {
 const SHA256_RE = /^[0-9a-f]{64}$/;
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 
-function parseCurrentDeliveryRecord(bytes, code, message) {
+function parseCurrentDeliveryRecord(bytes, message) {
   try {
     return JSON.parse(Buffer.from(bytes).toString("utf8"));
   } catch {
-    throw new PageImageDeliveryError(code, message);
+    throw currentProtocolInvalid(message);
   }
 }
 
@@ -100,25 +101,24 @@ export function sourceOwnedNotesBySlide(sourcePath, orderedSlideIds) {
   return Object.freeze(notesBySlide);
 }
 
-/** Validate shared replacement final media before any delivery artifact is written. */
-export function validateTargetFinalDeliveryInput({ manifest, acceptedRawEvidence, finalBytesBySlide, notesBySlide, sourceEpoch } = {}) {
+/** Validate identity-bearing final facts before source-note or delivery-artifact reads. */
+function validateTargetFinalDeliveryIdentity({ manifest, acceptedRawEvidence, finalBytesBySlide, sourceEpoch } = {}) {
   if (!Number.isInteger(sourceEpoch) || sourceEpoch <= 0) {
     throw new PageImageDeliveryError("source_epoch_invalid", "a positive target source epoch is required for delivery");
   }
   const manifestValidation = validateFinalSlideManifest(manifest, { evidence: acceptedRawEvidence });
   if (!manifestValidation.ok || manifest.schema !== "page-image-final-slide-manifest") {
-    throw new PageImageDeliveryError(manifestValidation.code || "final_manifest_invalid", "target final manifest is invalid or stale");
+    throw currentProtocolInvalid("the target final manifest cannot establish current production identity");
   }
   const orderedSlideIds = manifest.items.map((item) => item.slide_id);
   if (!finalBytesBySlide || typeof finalBytesBySlide !== "object" || Array.isArray(finalBytesBySlide) ||
     Object.keys(finalBytesBySlide).sort().join("\n") !== [...orderedSlideIds].sort().join("\n")) {
     throw new PageImageDeliveryError("final_bytes_coverage_invalid", "final bytes must exactly cover final manifest slide IDs");
   }
-  if (!notesBySlide || typeof notesBySlide !== "object" || Array.isArray(notesBySlide) ||
-    Object.keys(notesBySlide).sort().join("\n") !== [...orderedSlideIds].sort().join("\n")) {
-    throw new PageImageDeliveryError("notes_coverage_invalid", "source notes must exactly cover final manifest slide IDs");
-  }
   const finalBytes = {};
+  if (!Array.isArray(acceptedRawEvidence?.items)) {
+    throw currentProtocolInvalid("the target final evidence cannot establish current production identity");
+  }
   const rawShaBySlide = new Map(acceptedRawEvidence.items.map((item) => [item.slide_id, item.raw_sha256]));
   for (const item of manifest.items) {
     const bytes = asBytes(finalBytesBySlide[item.slide_id], `final bytes for ${item.slide_id}`);
@@ -135,9 +135,6 @@ export function validateTargetFinalDeliveryInput({ manifest, acceptedRawEvidence
     if (Object.hasOwn(item, "width") && (item.width !== media.actual.width || item.height !== media.actual.height)) {
       throw new PageImageDeliveryError("final_dimensions_stale", `final dimensions drifted for ${item.slide_id}`);
     }
-    if (typeof notesBySlide[item.slide_id] !== "string" || !notesBySlide[item.slide_id].trim()) {
-      throw new PageImageDeliveryError("source_notes_invalid", `source notes are missing for ${item.slide_id}`);
-    }
     finalBytes[item.slide_id] = media.bytes;
   }
   return Object.freeze({
@@ -145,9 +142,23 @@ export function validateTargetFinalDeliveryInput({ manifest, acceptedRawEvidence
     manifest_sha256: manifestValidation.sha256,
     ordered_slide_ids: Object.freeze(orderedSlideIds),
     final_bytes_by_slide: Object.freeze(finalBytes),
-    notes_by_slide: Object.freeze({ ...notesBySlide }),
     source_epoch: sourceEpoch,
   });
+}
+
+/** Validate shared replacement final media before any delivery artifact is written. */
+export function validateTargetFinalDeliveryInput({ manifest, acceptedRawEvidence, finalBytesBySlide, notesBySlide, sourceEpoch } = {}) {
+  const identity = validateTargetFinalDeliveryIdentity({ manifest, acceptedRawEvidence, finalBytesBySlide, sourceEpoch });
+  if (!notesBySlide || typeof notesBySlide !== "object" || Array.isArray(notesBySlide) ||
+    Object.keys(notesBySlide).sort().join("\n") !== [...identity.ordered_slide_ids].sort().join("\n")) {
+    throw new PageImageDeliveryError("notes_coverage_invalid", "source notes must exactly cover final manifest slide IDs");
+  }
+  for (const slideId of identity.ordered_slide_ids) {
+    if (typeof notesBySlide[slideId] !== "string" || !notesBySlide[slideId].trim()) {
+      throw new PageImageDeliveryError("source_notes_invalid", `source notes are missing for ${slideId}`);
+    }
+  }
+  return Object.freeze({ ...identity, notes_by_slide: Object.freeze({ ...notesBySlide }) });
 }
 
 /** Delivery has one current replacement-manifest protocol. */
@@ -165,17 +176,11 @@ function readPersistedTargetFinalManifest(paths, input, acceptedRawEvidence) {
   } catch {
     throw new PageImageDeliveryError("final_manifest_unavailable", "current final manifest is required before delivery");
   }
-  const persisted = parseCurrentDeliveryRecord(
-    bytes,
-    "final-manifest",
-    paths.target_final_manifest,
-    "final_manifest_invalid",
-    "current final manifest is invalid",
-  );
+  const persisted = parseCurrentDeliveryRecord(bytes, "the persisted final manifest cannot establish current production identity");
   const check = validateFinalSlideManifest(persisted, { evidence: acceptedRawEvidence });
   if (!check.ok || check.sha256 !== input.manifest_sha256 ||
     canonicalJsonSha256(persisted) !== canonicalJsonSha256(input.manifest)) {
-    throw new PageImageDeliveryError("final_manifest_stale", "persisted final manifest no longer binds the current finalization");
+    throw currentProtocolInvalid("the persisted final manifest cannot establish current production identity");
   }
   return Object.freeze(persisted);
 }
@@ -237,7 +242,8 @@ export async function deliverTargetFinalSlideManifest({
   projectionDeriver = deriveFinalProjection,
 } = {}) {
   // Identity must hard-stop before source-note or artifact reads.
-  const selectedNotes = notesBySlide || sourceOwnedNotesBySlide(sourcePath, manifest?.items?.map((item) => item.slide_id) || []);
+  const identity = validateTargetFinalDeliveryIdentity({ manifest, acceptedRawEvidence, finalBytesBySlide, sourceEpoch });
+  const selectedNotes = notesBySlide || sourceOwnedNotesBySlide(sourcePath, identity.ordered_slide_ids);
   const input = validateTargetFinalDeliveryInput({
     manifest,
     acceptedRawEvidence,
@@ -316,9 +322,9 @@ async function currentTargetDeliveryReceipt(runDir) {
   } catch {
     throw new PageImageDeliveryError("delivery_receipt_unavailable", "current replacement delivery lineage is unavailable for notes refresh");
   }
-  const receipt = parseCurrentDeliveryRecord(receiptBytes, "delivery-receipt", receiptPath, "delivery_receipt_invalid", "target delivery receipt is invalid");
+  const receipt = parseCurrentDeliveryRecord(receiptBytes, "the delivery receipt cannot establish current production identity");
   if (!receipt || !Number.isInteger(receipt.source_epoch) || receipt.source_epoch <= 0) {
-    throw new PageImageDeliveryError("delivery_receipt_invalid", "target delivery receipt is invalid");
+    throw currentProtocolInvalid("the delivery receipt cannot establish current production identity");
   }
   let manifestBytes;
   try {
@@ -326,13 +332,13 @@ async function currentTargetDeliveryReceipt(runDir) {
   } catch {
     throw new PageImageDeliveryError("delivery_receipt_unavailable", "current replacement delivery lineage is unavailable for notes refresh");
   }
-  const manifest = parseCurrentDeliveryRecord(manifestBytes, "final-manifest", paths.target_final_manifest, "final_manifest_invalid", "current final manifest is invalid");
+  const manifest = parseCurrentDeliveryRecord(manifestBytes, "the final manifest cannot establish current production identity");
   const manifestCheck = validateFinalSlideManifest(manifest);
   if (!manifestCheck.ok || manifest.schema !== "page-image-final-slide-manifest") {
-    throw new PageImageDeliveryError("final_manifest_invalid", "current final manifest is invalid");
+    throw currentProtocolInvalid("the final manifest cannot establish current production identity");
   }
   if (!SHA256_RE.test(receipt.delivery_media_manifest_sha256 || "")) {
-    throw new PageImageDeliveryError("delivery_media_rebuild_required", "current JPEG delivery media must be rebuilt through normal delivery");
+    throw currentProtocolInvalid("the delivery receipt cannot establish current production identity");
   }
   let deliveryMedia;
   try {
@@ -341,6 +347,7 @@ async function currentTargetDeliveryReceipt(runDir) {
       finalManifestSha256: manifestCheck.sha256,
     });
   } catch (error) {
+    if (isCurrentProtocolInvalid(error)) throw error;
     throw new PageImageDeliveryError("delivery_media_rebuild_required", "current JPEG delivery media must be rebuilt through normal delivery");
   }
   const assemblyPath = join(paths.final_root, "pptx-assembly.json");
@@ -350,7 +357,7 @@ async function currentTargetDeliveryReceipt(runDir) {
   } catch {
     throw new PageImageDeliveryError("delivery_receipt_unavailable", "current replacement delivery lineage is unavailable for notes refresh");
   }
-  const assembly = parseCurrentDeliveryRecord(assemblyBytes, "pptx-assembly-receipt", assemblyPath, "assembly_invalid", "current Page Image assembly receipt is invalid");
+  const assembly = parseCurrentDeliveryRecord(assemblyBytes, "the assembly receipt cannot establish current production identity");
   const assemblyCheck = validatePageImageAssemblyReceipt(assembly, {
     manifest,
     finalManifestSha256: manifestCheck.sha256,
@@ -364,7 +371,7 @@ async function currentTargetDeliveryReceipt(runDir) {
   } catch {
     throw new PageImageDeliveryError("delivery_receipt_unavailable", "current replacement delivery lineage is unavailable for notes refresh");
   }
-  const notes = parseCurrentDeliveryRecord(notesBytes, "notes-receipt", notesPath, "notes_receipt_invalid", "current Page Image notes receipt is invalid");
+  const notes = parseCurrentDeliveryRecord(notesBytes, "the notes receipt cannot establish current production identity");
   const notesCheck = validatePageImageNotesReceipt(notes, {
     assembly,
     assemblyReceiptSha256: canonicalJsonSha256(assembly),
@@ -403,7 +410,7 @@ async function currentTargetDeliveryReceipt(runDir) {
     receipt.notes_fingerprint !== notesCheck.receipt.notes_fingerprint ||
     receipt.notes_injected !== notesCheck.receipt.notes_injected ||
     !existsSync(pptxPath) || sha256(readFileSync(pptxPath)) !== receipt.pptx_sha256) {
-    throw new PageImageDeliveryError("delivery_receipt_invalid", "target delivery receipt no longer binds the current assembled PPTX");
+    throw currentProtocolInvalid("the delivery receipt cannot establish current production identity");
   }
   return Object.freeze({
     paths,
@@ -428,6 +435,31 @@ export async function inspectCurrentTargetPageImageDelivery({ runDir } = {}) {
   if (!existsSync(receiptPath)) return Object.freeze({ available: false });
   const current = await currentTargetDeliveryReceipt(runDir);
   return Object.freeze({ available: true, ...current });
+}
+
+/**
+ * Existing delivery identity is checked before an adapter publishes another
+ * final manifest. A first delivery has no record to inspect; a present record
+ * must already be a complete current lineage rather than a replacement input.
+ */
+export async function assertPresentCurrentTargetDeliveryIdentity({ runDir } = {}) {
+  const paths = pageImageWorkflowPaths(runDir);
+  const receiptPath = join(paths.final_root, "delivery-receipt.json");
+  if (existsSync(receiptPath)) return currentTargetDeliveryReceipt(runDir);
+  if (!existsSync(paths.target_final_manifest)) return null;
+
+  let manifestBytes;
+  try {
+    manifestBytes = readFileSync(paths.target_final_manifest);
+  } catch {
+    throw currentProtocolInvalid("the persisted final manifest cannot establish current production identity");
+  }
+  const manifest = parseCurrentDeliveryRecord(manifestBytes, "the persisted final manifest cannot establish current production identity");
+  const check = validateFinalSlideManifest(manifest);
+  if (!check.ok || manifest.schema !== "page-image-final-slide-manifest") {
+    throw currentProtocolInvalid("the persisted final manifest cannot establish current production identity");
+  }
+  return Object.freeze({ available: false, manifest: Object.freeze(manifest), manifest_sha256: check.sha256 });
 }
 
 /** Refresh notes only after revalidating the same replacement final/assembly lineage. */

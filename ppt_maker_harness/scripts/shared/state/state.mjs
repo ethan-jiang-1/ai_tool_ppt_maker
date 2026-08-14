@@ -1468,7 +1468,7 @@ export function rebindTargetAcceptedRawEvidenceForLocalCompose(deckDir, args = {
 
 /**
  * Rebind source/state handoffs after the raw owner has published a fully
- * validated provider-free v3 local-rebind successor. State keeps references
+ * validated provider-free local-rebind successor. State keeps references
  * only; it never reconstructs or authorizes raw materialization facts.
  */
 export function rebindTargetProgressiveRawEvidenceForLocalCompose(deckDir, {
@@ -1884,7 +1884,7 @@ export function recordTargetProgressiveCompleteRawReview(deckDir, {
   });
 }
 
-/** Persist the v3 accepted-evidence reference only after raw-owner validation. */
+/** Persist the accepted-evidence reference only after raw-owner validation. */
 export function recordTargetProgressiveAcceptedRawEvidence(deckDir, {
   runVersion,
   runDir,
@@ -1911,7 +1911,7 @@ export function recordTargetProgressiveAcceptedRawEvidence(deckDir, {
   });
 }
 
-/** Persist selected-workflow final-manifest lineage from exact v3 accepted evidence. */
+/** Persist selected-workflow final-manifest lineage from exact accepted evidence. */
 export function recordTargetProgressiveFinalManifest(deckDir, {
   runVersion,
   runDir,

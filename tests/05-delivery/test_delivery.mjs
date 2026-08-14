@@ -15,6 +15,7 @@ import { publishCurrentFinalSlideManifest } from "../../ppt_maker_harness/script
 import {
   PageImageDeliveryError,
   assemblePageImagePptx,
+  assertPresentCurrentTargetDeliveryIdentity,
   inspectCurrentTargetPageImageDelivery,
   validatePageImageDeliveryInput,
   deliverTargetFinalSlideManifest,
@@ -132,6 +133,25 @@ describe("target Page Image delivery", () => {
       const inspected = await inspectCurrentTargetPageImageDelivery({ runDir });
       expect(inspected).toMatchObject({ available: true, receipt: { schema: "page-image-delivery-receipt" } });
       expect(readFileSync(join(pageImageWorkflowPaths(runDir).final_root, "delivery-receipt.json"))).toEqual(before);
+    } finally {
+      rmSync(deckDir, { recursive: true, force: true });
+    }
+  });
+
+  it("hard-stops a present malformed final manifest before finalization can overwrite it", async () => {
+    const deckDir = mkdtempSync(join(tmpdir(), "deck_delivery_existing_manifest_"));
+    const runDir = join(deckDir, "3_versions", "v1");
+    mkdirSync(runDir, { recursive: true });
+    const paths = pageImageWorkflowPaths(runDir);
+    const malformed = Buffer.from('{"schema":"foreign-final-manifest"}\n');
+    try {
+      mkdirSync(paths.final_root, { recursive: true });
+      writeFileSync(paths.target_final_manifest, malformed);
+
+      await expect(assertPresentCurrentTargetDeliveryIdentity({ runDir }))
+        .rejects.toMatchObject({ code: "current_protocol_invalid" });
+      expect(readFileSync(paths.target_final_manifest)).toEqual(malformed);
+      expect(existsSync(join(paths.final_root, "delivery-receipt.json"))).toBe(false);
     } finally {
       rmSync(deckDir, { recursive: true, force: true });
     }
@@ -414,7 +434,7 @@ describe("target Page Image delivery", () => {
     }
   });
 
-  it("requires normal delivery rebuild for a pre-JPEG delivery receipt", async () => {
+  it("routes an incomplete delivery receipt to the current-protocol hard-stop", async () => {
     const deckDir = mkdtempSync(join(tmpdir(), "deck_old_delivery_receipt_"));
     const runDir = join(deckDir, "3_versions", "v1");
     mkdirSync(runDir, { recursive: true });
@@ -432,7 +452,7 @@ describe("target Page Image delivery", () => {
       await expect(refreshTargetPageImageNotes({
         runDir,
         sourcePath: join(runDir, "slide-specifications.md"),
-      })).rejects.toMatchObject({ code: "delivery_media_rebuild_required" });
+      })).rejects.toMatchObject({ code: "current_protocol_invalid" });
       expect(readFileSync(result.assembly.path)).toEqual(beforePptx);
     } finally {
       rmSync(deckDir, { recursive: true, force: true });
@@ -519,7 +539,7 @@ describe("target Page Image delivery", () => {
         acceptedRawEvidence: { schema: "unrecognized-accepted-raw-evidence" },
         finalBytesBySlide: { DeckGo: NATIVE_PROVIDER_PNG },
         notesBySlide: { DeckGo: "Source-owned note" },
-      })).rejects.toMatchObject({ code: "final_manifest_invalid" });
+      })).rejects.toMatchObject({ code: "current_protocol_invalid" });
       expect(existsSync(paths.final_root)).toBe(false);
     } finally {
       rmSync(deckDir, { recursive: true, force: true });
@@ -543,7 +563,7 @@ describe("target Page Image delivery", () => {
         sourceEpoch: 1,
         manifest,
         acceptedRawEvidence: evidence,
-      })).rejects.toThrow("Page Image final manifest is stale before assembly");
+      })).rejects.toMatchObject({ code: "current_protocol_invalid" });
 
       expect(existsSync(join(paths.final_root, "deck.pptx"))).toBe(false);
       expect(readFileSync(join(paths.final_root, manifest.items[0].path))).toEqual(finalBytesBySlide.DeckGo);
@@ -571,7 +591,7 @@ describe("target Page Image delivery", () => {
       writeFileSync(pptxPath, sentinel);
 
       await expect(refreshTargetPageImageNotes({ runDir, sourcePath: join(runDir, "slide-specifications.md") }))
-        .rejects.toMatchObject({ code: "final_manifest_invalid" });
+        .rejects.toMatchObject({ code: "current_protocol_invalid" });
 
       expect(readFileSync(pptxPath)).toEqual(sentinel);
       expect(existsSync(join(paths.final_root, "pptx-assembly.json"))).toBe(false);

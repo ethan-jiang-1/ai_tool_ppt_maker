@@ -107,6 +107,7 @@ import {
   resolveStyleMasterScopeContext,
 } from "../shared/image2/style_master_scope.mjs";
 import {
+  assertPresentCurrentTargetDeliveryIdentity,
   deliverTargetFinalSlideManifest,
   refreshTargetPageImageNotes,
 } from "../05-delivery/index.mjs";
@@ -1168,7 +1169,7 @@ export function inspectFramedProgressiveLocalRebind(runDir, { planHash, candidat
   });
 }
 
-/** Compile/prove selected Framed source then publish only its provider-free v3 full plan. */
+/** Compile/prove selected Framed source then publish only its provider-free full plan. */
 export async function buildFramedProgressiveTargetRawPlan(runDir, { allowSourceRebuild = false } = {}) {
   preflightFramedMutation(runDir);
   const prior = inspectProgressiveRawLifecycle({ runDir, workflow: FRAMED_IMAGE_WORKFLOW });
@@ -1635,6 +1636,7 @@ export function inspectFramedProgressiveCurrentCompletePageReview(runDir) {
 /** Compose, publish, and deliver only from exact current accepted raw evidence. */
 export async function buildFramedProgressiveTargetDelivery(runDir) {
   preflightFramedMutation(runDir);
+  await assertPresentCurrentTargetDeliveryIdentity({ runDir });
   const plan = readFramedProgressiveTargetStoredPlanContext(runDir);
   const raw = readProgressiveAcceptedRawWork({
     runDir: plan.run_dir,
@@ -1694,6 +1696,7 @@ export async function buildFramedProgressiveTargetDelivery(runDir) {
 /** Framed finalization then shared delivery through the one target delivery owner. */
 export async function buildFramedTargetDelivery(runDir) {
   preflightFramedMutation(runDir);
+  await assertPresentCurrentTargetDeliveryIdentity({ runDir });
   const progressive = inspectProgressiveRawLifecycle({ runDir, workflow: FRAMED_IMAGE_WORKFLOW });
   if (progressive.ok && progressive.plan) return buildFramedProgressiveTargetDelivery(runDir);
   const plan = readFramedTargetStoredPlanContext(runDir);
@@ -1875,6 +1878,7 @@ export async function refreshFramedTargetText(runDir, { slideIds = null } = {}) 
 /** Notes-only target refresh remains a shared delivery operation. */
 export async function refreshFramedTargetNotes(runDir) {
   preflightFramedMutation(runDir);
+  await assertPresentCurrentTargetDeliveryIdentity({ runDir });
   const progressive = await refreshFramedProgressiveTargetNotes(runDir);
   if (progressive) return progressive;
   const refresh = resolveTargetLocalComposeContext(runDir, {

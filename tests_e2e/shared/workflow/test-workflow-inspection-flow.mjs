@@ -118,9 +118,8 @@ describe("workflow inspection observation flow", () => {
     const fixture = await createSelectedTargetFixture(workflow);
     try {
       const paths = pageImageWorkflowPaths(fixture.runDir);
-      expect(() => readFileSync(paths.target_source_receipt)).not.toThrow();
-      expect(() => readFileSync(paths.receipt)).toThrow();
-      const targetReceipt = readFileSync(paths.target_source_receipt);
+      expect(paths.receipt).toBe(paths.target_source_receipt);
+      const sourceReceipt = readFileSync(paths.receipt);
       const before = treeSnapshot(fixture.deck);
       const status = flow(["status", fixture.runDir, "--json"]);
       const state = flow(["state", fixture.runDir, "--json"]);
@@ -131,8 +130,7 @@ describe("workflow inspection observation flow", () => {
         evidence_summary: { workflow },
         primary_action: { action_id: "plan_progressive_raw_work" },
       });
-      expect(readFileSync(paths.target_source_receipt)).toEqual(targetReceipt);
-      expect(() => readFileSync(paths.receipt)).toThrow();
+      expect(readFileSync(paths.receipt)).toEqual(sourceReceipt);
       expect(treeSnapshot(fixture.deck)).toEqual(before);
     } finally {
       rmSync(fixture.root, { recursive: true, force: true });
@@ -155,13 +153,21 @@ describe("workflow inspection observation flow", () => {
       expect(JSON.parse(status.stderr)).toMatchObject({
         ok: false,
         code: "FAILED",
-        message: expect.stringContaining("CURRENT_PROTOCOL_INVALID"),
+        diagnostic: {
+          operation: "repair-current-protocol",
+          reason: { kind: "current_protocol_invalid" },
+          next: { action: "repair_prerequisite" },
+        },
       });
-      expect(stateResult.status, stateResult.stderr).toBe(0);
-      expect(JSON.parse(stateResult.stdout).workflow_inspection).toMatchObject({
-        posture: "hard-stop",
-        root_cause: { owner: "production-mode", kind: "MODE_SOURCE_IDENTITY_MISMATCH" },
-        primary_action: { action_id: "repair-current-route" },
+      expect(stateResult.status, stateResult.stderr).toBe(1);
+      expect(JSON.parse(stateResult.stderr)).toMatchObject({
+        ok: false,
+        code: "FAILED",
+        diagnostic: {
+          operation: "repair-current-protocol",
+          reason: { kind: "current_protocol_invalid" },
+          next: { action: "repair_prerequisite" },
+        },
       });
       expect(treeSnapshot(fixture.deck)).toEqual(before);
     } finally {

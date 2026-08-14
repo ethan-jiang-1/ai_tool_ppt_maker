@@ -8,6 +8,7 @@ import {
   inspectCurrentFinalSlideManifest,
   publishCurrentFinalSlideManifest,
 } from "../../../ppt_maker_harness/scripts/shared/image2/page_image_final_manifest.mjs";
+import { CurrentProtocolInvalidError } from "../../../ppt_maker_harness/scripts/shared/workflow/current_protocol_invalid.mjs";
 import { pageImageProviderInputBinding } from "../../helpers/page_image_provider_input_binding.mjs";
 
 const digest = (letter) => letter.repeat(64);
@@ -58,6 +59,6 @@ describe("Page Image common final manifest helper", () => {
       acceptedRawEvidence,
       ownerWorkflow: "framed",
       finalBytesBySlide: { DeckGo: framedFinalPng() },
-    })).toThrow(/current raw work plan/);
+    })).toThrow(CurrentProtocolInvalidError);
   });
 });

@@ -34,7 +34,7 @@ function rawWorkPlan(sourceReceiptSha256) {
 }
 
 function targetDeck() {
-  const deck = mkdtempSync(join(tmpdir(), "deck_page_image_v2_raw_"));
+  const deck = mkdtempSync(join(tmpdir(), "deck_page_image_raw_"));
   const runDir = join(deck, "3_versions", "v1");
   const source = "---\nproduction:\n  pipeline: page-image-workflow\n  workflow: pure\n---\n";
   mkdirSync(runDir, { recursive: true });

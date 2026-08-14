@@ -13,6 +13,7 @@ import {
   validatePageImageDeliveryMediaManifest,
 } from "./page_image_delivery_media.mjs";
 import { injectNotes } from "./notes_runtime.mjs";
+import { currentProtocolInvalid } from "../../shared/workflow/current_protocol_invalid.mjs";
 
 export const PAGE_IMAGE_NOTES_RECEIPT_SCHEMA = "page-image-notes-receipt";
 
@@ -28,7 +29,7 @@ function parseCurrentRecord(bytes, kind, path, message) {
   try {
     return JSON.parse(Buffer.from(bytes).toString("utf8"));
   } catch {
-    throw new Error(message);
+    throw currentProtocolInvalid(message);
   }
 }
 
@@ -46,7 +47,7 @@ export function validatePageImageNotesInput({ assembly, finalManifest, finalMani
   const manifestChecked = validateFinalSlideManifest(finalManifest);
   if (!manifestChecked.ok || manifestChecked.sha256 !== finalManifestSha256 ||
     finalManifest.schema !== "page-image-final-slide-manifest") {
-    throw new Error("Page Image final manifest is invalid or stale");
+    throw currentProtocolInvalid("the notes final manifest cannot establish current production identity");
   }
   const deliveryChecked = validatePageImageDeliveryMediaManifest(deliveryMediaManifest, {
     finalManifest,
@@ -61,11 +62,11 @@ export function validatePageImageNotesInput({ assembly, finalManifest, finalMani
   if (assembly.schema !== PAGE_IMAGE_PPTX_ASSEMBLY_SCHEMA ||
     !notesBySlide || typeof notesBySlide !== "object" || Array.isArray(notesBySlide) ||
     Object.keys(notesBySlide).sort().join("\n") !== [...assemblyChecked.ordered_slide_ids].sort().join("\n")) {
-    throw new Error("notes_by_slide must exactly cover final manifest slide IDs");
+    throw currentProtocolInvalid("the notes input cannot establish current production identity");
   }
   for (const slideId of assemblyChecked.ordered_slide_ids) {
     if (typeof notesBySlide[slideId] !== "string" || !notesBySlide[slideId].trim()) {
-      throw new Error("notes_by_slide must contain nonempty source notes");
+      throw currentProtocolInvalid("the notes input cannot establish current production identity");
     }
   }
   return Object.freeze({
@@ -125,7 +126,7 @@ export function validatePageImageNotesReceipt(receipt, {
     !SHA256_RE.test(receipt.previous_pptx_sha256 || "") ||
     !SHA256_RE.test(receipt.pptx_sha256 || "") ||
     !Number.isInteger(receipt.notes_injected) || receipt.notes_injected < 0) {
-    throw new Error("Page Image notes receipt is invalid or stale");
+    throw currentProtocolInvalid("the notes receipt cannot establish current production identity");
   }
   return Object.freeze({ receipt: Object.freeze(receipt), ordered_slide_ids: input.ordered_slide_ids });
 }

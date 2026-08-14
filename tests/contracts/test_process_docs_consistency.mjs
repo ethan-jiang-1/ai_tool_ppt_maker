@@ -143,7 +143,7 @@ describe("Harness documentation coherence", () => {
       .toContain("authority-registry-yaml");
   });
 
-  it("adapts checked-in authority facts and rejects a planted registry mismatch", () => {
+  it("adapts checked-in authority facts and rejects planted post-cutover registry drift", () => {
     const configPath = "openspec/config.yaml";
     const original = readFileSync(configPath, "utf8");
     expect(evaluateRepositoryHarnessAuthorityMap({ configText: original })).toEqual({ ok: true, issues: [] });
@@ -152,11 +152,21 @@ describe("Harness documentation coherence", () => {
       ["missing marker", original.replace("<!-- harness-capability-registry:start -->", ""), "authority-registry-marker"],
       ["repeated marker", original.replace("<!-- harness-capability-registry:end -->", "<!-- harness-capability-registry:start -->\n  <!-- harness-capability-registry:end -->"), "authority-registry-marker"],
       ["malformed payload", original.replace("capabilities:\n", "capabilities: [\n"), "authority-registry-yaml"],
-      ["identity mismatch", original.replace("id: workflow-inspection", "id: workflow-observation"), "authority-capability-missing"],
+      ["missing capability", original.replace("id: workflow-inspection", "id: workflow-observation"), "authority-capability-missing"],
+      ["extra capability", original.replace(
+        "<!-- harness-capability-registry:end -->",
+        [
+          "  - id: unbacked-authority",
+          "      spec: openspec/specs/unbacked-authority/spec.md",
+          "      scope: planted post-cutover authority drift",
+          "  <!-- harness-capability-registry:end -->",
+        ].join("\n"),
+      ), "authority-capability-extra"],
     ];
     for (const [, configText, expected] of cases) {
       expect(evaluateRepositoryHarnessAuthorityMap({ configText }).issues.map((item) => item.rule)).toContain(expected);
     }
+    expect(evaluateRepositoryHarnessAuthorityMap({ configText: original })).toEqual({ ok: true, issues: [] });
   });
 
   it("keeps the current entry documents available", () => {
@@ -190,14 +200,24 @@ describe("Harness documentation coherence", () => {
     const root = process.cwd();
     const context = readFileSync("CONTEXT.md", "utf8");
     const bootstrap = readFileSync("ppt_maker_harness/BOOTSTRAP.md", "utf8");
+    const agentContract = readFileSync("ppt_maker_harness/charter/AGENT_CONTRACT.md", "utf8");
     expect(context).not.toContain("**HTML Production**");
     expect(context).not.toContain("reviewed visual-slot asset");
+    expect(context).toContain("The current whole-page Page Image Workflow capability family.");
     expect(bootstrap).toContain("Reserved Header Region");
     expect(bootstrap).toContain("Provider Avoidance Constraint");
+    expect(agentContract).toContain("`html-render-runtime`");
+    expect(agentContract).toContain("receipt-bound Framed Page\nImage finalization");
     expect(validateTerminologyAuthorityPointers({
       root,
       readFile: (path, encoding) => path.endsWith("CONTEXT.md")
         ? `${readFileSync(path, encoding)}\n**HTML Production**`
+        : readFileSync(path, encoding),
+    }).some((item) => item.rule === "terminology-authority")).toBe(true);
+    expect(validateTerminologyAuthorityPointers({
+      root,
+      readFile: (path, encoding) => path.endsWith("CONTEXT.md")
+        ? `${readFileSync(path, encoding)}\nwhole-deck renderer`
         : readFileSync(path, encoding),
     }).some((item) => item.rule === "terminology-authority")).toBe(true);
   });

@@ -3,6 +3,7 @@ import { isAbsolute, join, relative, resolve, sep } from "node:path";
 
 import { sha256Bytes } from "../identity/byte_hash.mjs";
 import { pageImageWorkflowPaths } from "../run-bundle/page_image_paths.mjs";
+import { currentProtocolInvalid } from "../workflow/current_protocol_invalid.mjs";
 import {
   inspectExactPageImagePng,
   pageImageFinalPngForWorkflow,
@@ -30,9 +31,9 @@ function bytes(value) {
 
 function requireCurrentEvidence({ rawWorkPlan, acceptedRawEvidence }) {
   const plan = validateRawWorkPlanForFinalization(rawWorkPlan);
-  if (!plan.ok) throw new PageImageFinalManifestError(plan.code, plan.message);
+  if (!plan.ok) throw currentProtocolInvalid("the finalization plan cannot establish current production identity");
   const evidence = validateAcceptedRawEvidenceForFinalization(acceptedRawEvidence, { plan: rawWorkPlan });
-  if (!evidence.ok) throw new PageImageFinalManifestError(evidence.code, evidence.message);
+  if (!evidence.ok) throw currentProtocolInvalid("the finalization evidence cannot establish current production identity");
   return { plan, evidence };
 }
 

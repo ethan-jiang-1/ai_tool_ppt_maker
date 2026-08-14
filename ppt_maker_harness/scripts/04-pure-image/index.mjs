@@ -99,6 +99,7 @@ import {
   resolveStyleMasterScopeContext,
 } from "../shared/image2/style_master_scope.mjs";
 import {
+  assertPresentCurrentTargetDeliveryIdentity,
   deliverTargetFinalSlideManifest,
 } from "../05-delivery/index.mjs";
 
@@ -885,7 +886,7 @@ export function readPureProgressiveTargetPlanCandidate(runDir, { sourceEpoch = n
   });
 }
 
-/** Compile and publish the provider-free v3 full plan through the selected Pure adapter. */
+/** Compile and publish the provider-free full plan through the selected Pure adapter. */
 export function buildPureProgressiveTargetRawPlan(runDir, { allowSourceRebuild = false } = {}) {
   preflightPureMutation(runDir);
   const prior = inspectProgressiveRawLifecycle({ runDir, workflow: PURE_IMAGE_WORKFLOW });
@@ -896,7 +897,7 @@ export function buildPureProgressiveTargetRawPlan(runDir, { allowSourceRebuild =
     runDir: context.run_dir,
     workflow: PURE_IMAGE_WORKFLOW,
   });
-  // This is a rebuildable adapter projection; v3 direct records own lifecycle facts.
+  // This is a rebuildable adapter projection; direct records own lifecycle facts.
   writeTargetRawWorkPlan(context, candidate.raw_work_plan);
   const progressiveRawWorkPlan = progressivePurePlanFromContext({
     ...context,
@@ -1267,9 +1268,10 @@ export function inspectPureProgressiveCurrentCompletePageReview(runDir) {
   return Object.freeze({ available: true, plan, raw, presentation });
 }
 
-/** Publish final and delivery projections from exact v3 accepted raw evidence only. */
+/** Publish final and delivery projections from exact accepted raw evidence only. */
 export async function buildPureProgressiveTargetDelivery(runDir) {
   preflightPureMutation(runDir);
+  await assertPresentCurrentTargetDeliveryIdentity({ runDir });
   const plan = readPureProgressiveTargetStoredPlanContext(runDir);
   const raw = readProgressiveAcceptedRawWork({
     runDir: plan.run_dir,
@@ -1329,6 +1331,7 @@ export async function buildPureProgressiveTargetDelivery(runDir) {
 /** Pure finalization publishes accepted raw bytes, then joins shared delivery. */
 export async function buildPureTargetDelivery(runDir) {
   preflightPureMutation(runDir);
+  await assertPresentCurrentTargetDeliveryIdentity({ runDir });
   const progressive = inspectProgressiveRawLifecycle({ runDir, workflow: PURE_IMAGE_WORKFLOW });
   if (progressive.ok && progressive.plan) return buildPureProgressiveTargetDelivery(runDir);
   const plan = readPureTargetStoredPlanContext(runDir);
@@ -1362,6 +1365,7 @@ export async function buildPureTargetDelivery(runDir) {
 /** Notes-only target refresh remains a shared delivery operation. */
 export async function refreshPureTargetNotes(runDir) {
   preflightPureMutation(runDir);
+  await assertPresentCurrentTargetDeliveryIdentity({ runDir });
   const refresh = resolveTargetLocalComposeContext(runDir, {
     workflow: PURE_IMAGE_WORKFLOW,
     parseReceipt: parsePureTargetReceipt,

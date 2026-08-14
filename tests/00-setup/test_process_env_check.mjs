@@ -836,7 +836,7 @@ describe('env-check --probe-vendors', () => {
   });
 });
 
-describe('env-check v2 mode boundary', () => {
+describe('env-check Page Image mode boundary', () => {
   it('rejects an unknown mode', () => {
     const { exitCode } = runCheck('--mode unsupported-mode --json');
     expect(exitCode).not.toBe(0);

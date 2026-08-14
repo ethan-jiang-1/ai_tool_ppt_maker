@@ -7,6 +7,7 @@ import { PAGE_IMAGE_WORKFLOW_PIPELINE, PAGE_IMAGE_WORKFLOW_SELECTION_REQUIRED_ME
 import { resolveTargetAuthoringDraftRoute } from "../state/target_authoring_draft_route.mjs";
 import {
   inspectCurrentPageImageTaskMandate,
+  readState,
   readTargetProgressiveControllerDecision,
   readTargetProgressiveHandoff,
   resolveRunProductionAdapter,
@@ -80,6 +81,22 @@ function invalidCurrentProtocolResult(runDir, marker = null) {
     primaryAction: ownerAction("production-protocol", "repair-current-protocol-identity", "repair", false, "Repair the current source or state protocol marker."),
     evidenceSummary: { pipeline: marker?.branch ?? null, mode: null, workflow: null },
   });
+}
+
+function inspectStateProtocol(runDir, deckDir, marker) {
+  const validation = validateStateReadOnly(deckDir, { runDir });
+  if (validation.valid) return null;
+  const state = readState(deckDir, { purpose: "observe", runDir });
+  if (state.current_repair_required === true) {
+    return report({
+      runDir,
+      posture: "hard-stop",
+      rootCause: { owner: "state", kind: "current-state-repair-required" },
+      primaryAction: ownerAction("state", "validate-state", "repair", false, "Repair authoritative current Page Image state."),
+      evidenceSummary: { pipeline: marker?.branch ?? null, mode: null, workflow: null },
+    });
+  }
+  return invalidCurrentProtocolResult(runDir, marker);
 }
 
 function progressiveAdapter(workflow) {
@@ -335,6 +352,8 @@ export function inspectWorkflow({ runDir } = {}) {
         evidenceSummary: { pipeline: PAGE_IMAGE_WORKFLOW_PIPELINE, mode: null, workflow: null },
       });
     }
+    const stateProtocol = inspectStateProtocol(resolved, deckDir, marker);
+    if (stateProtocol) return stateProtocol;
     const draftRoute = resolveTargetAuthoringDraftRoute(resolved);
     if (draftRoute?.workflow === null && draftRoute.current_node === "author-target-narrative-sources") {
       return report({
@@ -370,27 +389,11 @@ export function inspectWorkflow({ runDir } = {}) {
       evidenceSummary: { pipeline: null, mode: null },
     });
   }
-  const validation = validateStateReadOnly(deckDir, { runDir: resolved });
-  if (!validation.valid) {
-    return report({
-      runDir: resolved,
-      posture: "hard-stop",
-      rootCause: { owner: "state", kind: "state-validation", detail: validation.issues[0]?.path || "state.yaml" },
-      primaryAction: ownerAction("state", "validate-state", "repair", false, "Repair authoritative Page Image state."),
-      evidenceSummary: { pipeline: null, mode: null },
-    });
-  }
+  const stateProtocol = inspectStateProtocol(resolved, deckDir, marker);
+  if (stateProtocol) return stateProtocol;
 
   const route = resolveRunProductionAdapter(deckDir, { runDir: resolved, purpose: "observe" });
-  if (!route.ok) {
-    return report({
-      runDir: resolved,
-      posture: "hard-stop",
-      rootCause: { owner: "production-mode", kind: route.code || "current-route-unavailable" },
-      primaryAction: ownerAction("production-mode", "repair-current-route", "repair", false, "Repair the exact Page Image source/state pair."),
-      evidenceSummary: { pipeline: null, mode: null },
-    });
-  }
+  if (!route.ok) return invalidCurrentProtocolResult(resolved, marker);
 
   return progressiveTargetWorkflowResult(resolved, route);
 }

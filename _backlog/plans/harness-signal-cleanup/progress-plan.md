@@ -1,160 +1,125 @@
 # Harness Signal Cleanup - Progress Plan
 
-> Type: program control sheet | Updated: 2026-08-13
+> Type: program control sheet | Updated: 2026-08-14
 > Program status: `active`
-> Current gate: admit Change 2 after Change 1 normal closure
+> Fixed OpenSpec change count: `3`
+> Overall: `1 done / 1 active / 1 queued`
+> Current gate: Change 2 closure, `20/22` implementation tasks complete
+> Next checkbox: Change 2 / Gate 2E / task `5.5`
 
-This file tracks program-level execution and evidence. It is not a second source
-of truth for behavior: each OpenSpec change owns its WHY/WHAT/HOW/tasks, current
-main specs own accepted behavior, and archived changes preserve history.
+This is the one program-level progress view. OpenSpec artifacts remain the
+authority for each change's WHY, WHAT, HOW, and implementation tasks; current
+main specs remain the accepted behavior authority.
 
-## How to Update This File
+## At A Glance
 
-- Check an item only when its stated evidence exists; update it immediately at
-  the same milestone, without creating a commit solely for checkbox churn.
-- Keep the summary row, the detailed checklist, and the evidence record in sync.
-- Record exact active/archive paths, verification results, and commit SHAs. Do
-  not use prose such as "basically done" in place of evidence.
-- OpenSpec `tasks.md` owns implementation task detail. This file tracks only
-  cross-change order, lifecycle gates, decisions, and Git closure.
-- Use `blocked` only with a named blocker and owner. Use `done` only after the
-  change is archived, pushed normally, and all four master SHAs reconcile.
-- If scope or architecture changes, revise the relevant OpenSpec artifacts
-  first, then update this projection. Never resolve a behavioral conflict here.
+- [x] **Change 1 of 3** - `converge-active-harness-authority` - `done`
+- [ ] **Change 2 of 3** - `retire-historical-protocol-surfaces` - `active` (`20/22` tasks)
+- [ ] **Change 3 of 3** - `converge-agent-control-surfaces` - `queued`
+- [ ] **Program closure** - final evidence and Git reconciliation; this is not
+  another OpenSpec change
 
-Status vocabulary: `not-started`, `ready`, `active`, `blocked`,
-`decision-required`, `rejected`, `done`.
+| Measure | Count |
+| --- | ---: |
+| Total OpenSpec changes | 3 |
+| Closed | 1 |
+| Active | 1 |
+| Remaining after the active change | 1 |
+| Additional unplanned changes | 0 |
+
+The count is fixed at three. The former routing cleanup, Controller metadata
+cleanup, and singleton `production_mode` decision are nested workstreams inside
+Change 3. A fourth change requires an explicit project-owner decision and an
+updated plan explaining why Change 3 cannot safely contain the work.
+
+## Execution Order
+
+```text
+[x] Investigation and green baseline
+                 |
+                 v
+[x] Change 1 - repair the active authority map
+                 |
+                 v
+[ ] Change 2 - retire historical protocol surfaces       <- closure: 20/22
+                 |
+                 v
+[ ] Change 3 - converge remaining Agent control surfaces
+       A. remove competing routing/prose surfaces
+       B. close Controller metadata grammar
+       C. decide and enforce the production_mode outcome
+       D. prove reachability, residue, and final coherence
+                 |
+                 v
+[ ] Program closure - verify, commit, push, reconcile
+```
+
+Only one cleanup change may be active at a time. Change 3 is deliberately one
+OpenSpec change with ordered internal gates; its workstreams must not be split
+into more changes merely for convenience.
+
+## Update Rules
+
+- [x] Check an item only when its stated evidence exists.
+- [x] Update this file and the active change's `tasks.md` at the same stable
+  milestone; do not leave implementation progress only in chat.
+- [x] Keep the dashboard count, detailed checklist, evidence path, and closure
+  SHA consistent.
+- [x] Use `done` only after archive, ordinary commit, ordinary push, and
+  four-SHA reconciliation.
+- [x] Never treat this plan as a second behavioral spec.
+- [x] Never use `git add .`, rebase, reset, history rewrite, or force push for
+  this program.
+
+Status vocabulary: `queued`, `planning`, `ready`, `active`, `blocked`, `done`.
 
 ## Program Invariants
 
-- [x] Scope is limited to `ppt_maker_harness/`, `openspec/`, `tests/`,
+- [x] Source scope is limited to `ppt_maker_harness/`, `openspec/`, `tests/`,
   `tests_e2e/`, root active guidance, and this authorized plan package.
-- [x] `deck_*`, `dpt_*`, and historical production data are excluded.
+- [x] `deck_*`, `dpt_*`, `_generated/`, and historical production data are
+  excluded.
 - [x] Compatibility readers, aliases, converters, and migrations are excluded;
   the target is one current active contract.
-- [x] `openspec/changes/archive/` remains historical evidence and is not cleaned
-  as an active authority surface.
-- [x] Every deletion must close live entries/consumers and preserve any current
-  invariant in its owning spec/test before the old surface disappears.
-- [x] Drift guards are part of Changes 1-4, with planted negative controls; they
-  are not an optional follow-up batch.
-- [x] Git closure uses exact-path staging, ordinary commits, and ordinary
-  fast-forward pushes only: no rebase, reset, history rewrite, or force push.
-- [ ] Every P0/P1 finding is resolved or explicitly rejected with an owner and
+- [x] `openspec/changes/archive/` remains historical evidence and is excluded
+  from active-surface cleanup scans.
+- [x] Every deletion closes live entries and consumers and preserves current
+  invariants in the owning spec/test before removal.
+- [x] Every new guard includes a planted negative control and an explicit scan
+  scope.
+- [ ] Every P0/P1 finding is resolved or explicitly rejected with owner and
   rationale.
 - [ ] Every retained active concept has one declared authority and a live
   consumer.
-- [ ] Final `HEAD`, local `master`, `origin/master`, and remote `master` match,
+- [ ] Final `HEAD`, local `master`, `origin/master`, and remote `master` match
   with no cleanup-related worktree residue.
 
-## Dependency Order
+## OpenSpec Lifecycle
 
-```text
-investigation + green baseline (done)
-                |
-                v
-1. converge-active-harness-authority
-                |
-                v
-2. retire-historical-protocol-surfaces
-                |
-                v
-3. remove-competing-agent-routing-surfaces
-                |
-                v
-4. close-controller-metadata-schema
-                |
-                v
-5. production_mode decision gate
-       | collapse approved      | retain deliberately
-       v                        v
-collapse-singleton-       record decision and
-production-mode           verify retained authority
-       \_______________________/
-                |
-                v
-        final program closure
-```
+Each of the three changes pays this lifecycle cost once:
 
-Only one cleanup change should be active at a time. A later change may be
-explored while an earlier one runs, but it must not implement against an
-unsettled authority surface.
-
-## Status Summary
-
-| Order | Work item | Status | Depends on | Evidence path | Closure commit |
-| --- | --- | --- | --- | --- | --- |
-| 0 | Investigation and baseline | `done` | - | this plan package | `71e1f85` |
-| 1 | `converge-active-harness-authority` | `done` | 0 | `openspec/changes/archive/2026-08-13-converge-active-harness-authority/` | `640727a` |
-| 2 | `retire-historical-protocol-surfaces` | `not-started` | 1 | - | - |
-| 3 | `remove-competing-agent-routing-surfaces` | `not-started` | 2 | - | - |
-| 4 | `close-controller-metadata-schema` | `not-started` | 3 | - | - |
-| 5 | Singleton production-mode decision | `decision-required` | 4 | - | - |
-| 5a | `collapse-singleton-production-mode` | `blocked` | collapse decision | - | - |
-| 5b | Deliberate singleton-mode retention | `blocked` | retention decision | - | - |
-| 6 | Final program closure | `blocked` | 1-4 + 5a or 5b | - | - |
-
-## 0. Investigation and Baseline
-
-- [x] Active Harness source boundary was established without reading `deck_*`
-  or `dpt_*`.
-- [x] Active guidance/spec/config/runtime contradictions were inventoried in
-  `findings.md`.
-- [x] Candidate deletions and their preconditions were recorded in
-  `deletion-matrix.md`.
-- [x] Cleanup work was split into ownership-coherent OpenSpec changes in
-  `program.md`.
-- [x] Git, recovery, pre-push, and post-push invariants were recorded in
-  `safety-and-closure.md`.
-- [x] `openspec list --json` reported no active changes at investigation close.
-- [x] `npm test` passed.
-- [x] `npm run test:sweep` passed: 68 files, 552 tests.
-- [x] Focused docs consistency passed: 6/6 tests.
-- [x] Focused architecture/schema/controller verification passed: 43/43 tests.
-- [x] `openspec validate --all --strict` passed: 27/27 specs.
-
-Baseline note: green tests coexist with known contradictions because current
-coherence guards do not exercise all surfaces they claim to cover.
-
-## OpenSpec Lifecycle Definition
-
-Every approved change below has its own lifecycle checklist. Each label means:
-
-| Label | Done when |
+| Gate | Completion evidence |
 | --- | --- |
-| `admission` | `origin/master` was fetched; start/local/tracking/remote SHAs, worktree state, and active changes were checked |
-| `scaffold` | `openspec new change <name>` created the change; its directory was not made by hand |
-| `proposal` | WHY, scope, capabilities, control owner, run-bundle impact, non-goals, and retired concepts are captured |
-| `specs` | Current-only observable behavior and required REMOVED notes are assigned to the actual owning capabilities |
-| `design` | Authority, readers/writers, deletion/cutover, failure/recovery, guard sensitivity, tests, and net concepts are closed |
-| `tasks` | Source/spec/controller/consumer/docs work, negative controls, verification, archive, and Git closure are covered |
-| `artifact-validation` | Planning artifacts are coherent and the active change passes strict OpenSpec validation before apply |
-| `apply` | Accepted tasks are implemented and checked as completed; material scope changes first revise the artifacts |
-| `focused-verification` | Affected tests and safe planted violations prove the changed guards fail and recover as designed |
-| `baseline-and-residue` | Baseline tests, strict validation, `git diff --check`, and scoped old-surface searches pass |
-| `archive` | Accepted deltas are reflected in main specs and the change is archived through OpenSpec, then strictly revalidated |
-| `commit` | Exact intended paths and staged diff were inspected; ordinary coherent commit(s) and closure SHA are recorded |
-| `push-and-reconcile` | Remote parent was rechecked; ordinary push succeeded; four master SHAs match; status/path/evidence are projected here |
+| `admission` | Start/local/tracking/remote SHAs fetched and recorded |
+| `scaffold` | Created through `openspec new change` |
+| `proposal` | WHY, scope, owners, impact, and non-goals closed |
+| `specs` | Observable current behavior and removals defined |
+| `design` | Authority, cutover, recovery, guards, and tests closed |
+| `tasks` | Implementation and closure made trackable |
+| `artifact-validation` | Strict change and all-spec validation pass |
+| `apply` | Implementation complete and `tasks.md` current |
+| `focused-verification` | Relevant tests and negative controls pass |
+| `baseline-and-residue` | Full tests, strict validation, and searches pass |
+| `archive` | Accepted deltas synced, archived, and revalidated |
+| `commit` | Exact paths staged and staged diff reviewed |
+| `push-and-reconcile` | Normal push succeeds and all four SHAs match |
 
-Checkpoint commits are allowed when a change spans sessions, but only the
-post-archive ordinary commit/push/reconciliation closes a change. Never use
-`git add .`, force push, or history rewriting.
+The list above defines the lifecycle labels; completion is recorded per change
+below.
 
-Use the local OpenSpec root and let the CLI supply artifact-specific
-instructions rather than guessing a template:
+## Change 1 Of 3 - `converge-active-harness-authority`
 
-```bash
-openspec new change <name>
-openspec status --change <name> --json
-openspec instructions <artifact> --change <name> --json
-openspec validate <name> --type change --strict --no-interactive
-openspec archive <name> -y
-openspec validate --all --strict --no-interactive
-```
-
-## 1. `converge-active-harness-authority`
-
-Status: `done`; archived, ordinarily committed, pushed, and reconciled.
+Status: `done`.
 
 Lifecycle:
 
@@ -172,29 +137,164 @@ Lifecycle:
 - [x] `commit`
 - [x] `push-and-reconcile`
 
-Change-specific closure:
+Outcome:
 
-- [x] Make the config capability registry bijective with current main specs.
-- [x] Replace all nonexistent implementation paths with current public owner
-  paths, without exposing private internals as new authority.
-- [x] Remove retired lifecycle numbering, render aliases, Chain aliases, and
-  stale Stage 1-5 routing from active OpenSpec context.
-- [x] Replace `Frozen Identifier` compatibility framing with exact current
-  schema-contract language.
-- [x] Fill the `slide-identity-and-ordering` purpose and correct stale source
-  ownership comments/README labels.
-- [x] Add guards for registry/spec mismatch and nonexistent literal authority
-  paths, including missing-capability, extra-capability, and stale-path negative
-  controls.
-- [x] Prove every literal authority path exists and every current spec is
-  represented exactly once.
-- [x] Record active path: `openspec/changes/converge-active-harness-authority/`
-- [x] Record archive path: `openspec/changes/archive/2026-08-13-converge-active-harness-authority/`
-- [x] Record closure SHA: `640727a`
+- [x] Capability registry is bijective with current main specs.
+- [x] Literal authority paths resolve to current public owners.
+- [x] Retired lifecycle numbering, aliases, and stale routing were removed from
+  active OpenSpec context.
+- [x] Registry/path drift guards have planted negative controls.
+- [x] Archive path recorded:
+  `openspec/changes/archive/2026-08-13-converge-active-harness-authority/`
+- [x] Closure commit recorded: `640727a`
+- [x] Ordinary push and four-SHA reconciliation completed.
 
-## 2. `retire-historical-protocol-surfaces`
+## Change 2 Of 3 - `retire-historical-protocol-surfaces`
 
-Status: `not-started`; dependency: Change 1 is `done`.
+Status: `archived`; repository closure progress: `20/22`.
+
+Archived task authority:
+`openspec/changes/archive/2026-08-14-retire-historical-protocol-surfaces/tasks.md`
+
+Lifecycle:
+
+- [x] `admission`
+- [x] `scaffold`
+- [x] `proposal`
+- [x] `specs`
+- [x] `design`
+- [x] `tasks`
+- [x] `artifact-validation`
+- [x] `apply` - `20/22`
+- [x] `focused-verification`
+- [x] `baseline-and-residue`
+- [x] `archive`
+- [ ] `commit`
+- [ ] `push-and-reconcile`
+
+### Gate 2A - One Invalid-Protocol Contract (`4/4`)
+
+- [x] `1.1` Workflow inspection projects one production-protocol repair action.
+- [x] `1.2` State observation preserves bytes and keeps valid current state
+  repair with the state owner.
+- [x] `1.3` Finalization, delivery, image, and notes boundaries reject foreign
+  identity while preserving current delivery-owner rebuild behavior.
+- [x] `1.4` Direct CLI routes, including `state --validate-state`, project the
+  shared hard-stop before dependent work.
+
+### Gate 2B - Active Consumer Surfaces (`6/6`)
+
+- [x] `2.1` Converge Controller, command discovery, and handoff guidance.
+- [x] `2.2` Converge charter and workflow-inspection reference wording.
+- [x] `2.3` Remove protocol-era environment and architecture names.
+- [x] `2.4` Replace retired whole-deck renderer terminology with current Page
+  Image and private Framed-runtime ownership.
+- [x] `2.5` Delete the unreachable reset branch and prove refresh parser scope.
+- [x] `2.6` Remove historical fixtures/descriptions while retaining structural
+  `3_versions/vN` coverage.
+
+### Gate 2C - Retire Empty Capability (`3/3`)
+
+- [x] `3.1` Prove retained Framed runtime behavior has current owners.
+- [x] `3.2` Retire `html-slide-rendering` through accepted OpenSpec flow.
+- [x] `3.3` Prove the post-retirement registry/spec bijection.
+
+### Gate 2D - Falsifiable Residue Guard (`3/3`)
+
+- [x] `4.1` Add the bounded active-surface residue evaluator.
+- [x] `4.2` Permit only owner-rooted structural Work Version `vN` usage.
+- [x] `4.3` Add exact planted negative controls and zero-mutation/provider proof.
+
+### Gate 2E - Verify And Close (`4/6`)
+
+- [x] `5.1` Run focused workflow, CLI, state, delivery, structure, docs, and
+  architecture tests.
+- [x] `5.2` Sync accepted deltas and confirm the retired capability and registry
+  row stay absent from the main-spec set.
+- [x] `5.3` Run scoped active-surface residue searches and inspect every
+  remaining structural-version or execution-mismatch occurrence.
+- [x] `5.4` Pass full tests, sweep, strict validation, archive, and revalidate.
+- [ ] `5.5` Update evidence, stage exact paths, commit, fetch, and normally push.
+- [ ] `5.6` Reconcile `HEAD`, local, tracking, and remote master SHAs.
+
+Evidence:
+
+- [x] Archived change path recorded:
+  `openspec/changes/archive/2026-08-14-retire-historical-protocol-surfaces/`
+- [x] Planning artifacts passed strict change and all-spec validation.
+- [x] Focused tests for completed tasks 1.1, 1.2, and 1.4 passed.
+- [x] Task 1.3 delivery, final-manifest, and Pure workflow checks passed;
+  malformed/cross-lineage final or receipt records hard-stop before writes,
+  while attributable JPEG drift remains delivery rebuild work.
+- [x] Task 2.1 Controller grammar and intent-route discovery checks passed;
+  active guidance consumes, rather than duplicates, the owner-issued repair.
+- [x] Task 2.2 Harness coherence sweep passed after workflow and inspection
+  references converged on the shared hard-stop.
+- [x] Task 2.3 declared the shared typed-cause interface, preserved the
+  private-import and sibling-adapter guards, and passed architecture (`22/22`)
+  plus env-check process (`56/56`) verification, including one-endpoint URL
+  normalization and pre-network comma-list short-circuiting.
+- [x] Task 2.4 made the private `html-render-runtime` and `05-delivery`
+  final-manifest ownership explicit and extended the coherence guard; document
+  coherence (`11/11`) and the direct coherence sweep passed.
+- [x] Task 2.5 removed the unreachable refresh control surface and added a
+  parser/help boundary check; command-surface process verification passed
+  (`4/4`) with the active registry owner assertion repaired.
+- [x] Task 2.6 converged source/state mismatch inspection and direct CLI
+  projection on the shared protocol repair; workflow unit (`9/9`), env-check
+  process (`56/56`), and mock E2E (`4/4`) passed, and targeted historical
+  action/fixture searches returned no active matches.
+- [x] Task 3.1 added a focused architecture proof that maps browser/font,
+  capture/compositor, Framed finalization, and delivery consumption to current
+  owners; the core architecture verification passed with no active old-capability
+  command or script surface.
+- [x] Task 3.2 synchronized the one retirement delta under the configured
+  `retire_capabilities` rule, removed the empty main-spec directory and exact
+  registry row, and passed strict main-spec validation (`26/26`).
+- [x] Task 3.3 passed the post-cutover authority-map evaluator and its exact
+  in-memory missing/extra-capability negative controls; restoring the valid
+  registry snapshot passed again without repository mutation.
+- [x] Tasks 4.1-4.3 added a provider-free active-surface evaluator and fixed-root
+  inventory. Direct Vitest conformance/architecture checks (`32/32`) proved
+  semantic residue detection, owner-rooted structural-version and
+  execution-mismatch exclusions, binary font classification, unclassified-
+  extension failure, and zero repository/provider mutation in the temporary-root
+  negative controls. The evaluator now also scans the synchronized repository
+  root in regression coverage, so its structural classification is not proven
+  only by synthetic fixtures.
+- [x] Task 5.1 focused verification passed: workflow (`2`), CLI (`3`), command
+  surface (`4`), environment check (`56`), documentation/coherence (`11`),
+  state/structural/architecture/conformance (`54`), and mock workflow E2E (`4`).
+- [x] Task 5.2 synchronized all remaining accepted deltas; per-requirement
+  comparisons, absent retired capability/registry checks, strict main-spec
+  validation (`26/26`), and `git diff --check` passed.
+- [x] Task 5.3 reran the provider-free active-surface scan over exactly the
+  declared roots after synchronization (`342` text and `102` binary files,
+  zero issues). Scoped searches found only structural Work Version/exact
+  execution-mismatch uses of `vN`, JavaScript identifier references, and the
+  explicit normative/negative-control descriptions of rejected residue; no
+  active numeric protocol identity, competing recovery action, reset branch,
+  affirmative compatibility claim, or whole-deck renderer capability remains.
+- [x] Task 5.4 passed `npm test`; full sweep (`68` files / `560` tests); strict
+  active Change validation; strict all-spec validation before archive (`27`)
+  and after archive (`26`); and `git diff --check` before and after archive.
+  The archive sync assessment found all 14 delta operations already reflected
+  in main specs, including the absent retired capability, before the move.
+- [x] Archive path recorded:
+  `openspec/changes/archive/2026-08-14-retire-historical-protocol-surfaces/`
+- [ ] Closure commit recorded: `-`
+
+## Change 3 Of 3 - `converge-agent-control-surfaces`
+
+Status: `queued`; dependency: Change 2 is `done` and reconciled.
+
+Terminal invariant: active guidance, Controller metadata, route discovery, and
+persisted production identity form one attributable control model with no
+orphan prompt cookbook, parallel routing registry, silent metadata dialect, or
+unjustified singleton state layer.
+
+This one change absorbs the former Changes 3 and 4 and the conditional Change
+5. The three workstreams remain ordered gates inside one OpenSpec lifecycle.
 
 Lifecycle:
 
@@ -212,233 +312,103 @@ Lifecycle:
 - [ ] `commit`
 - [ ] `push-and-reconcile`
 
-Change-specific closure:
+### Gate 3A - Planning And Decision
 
-- [ ] Confirm Change 1's authority map is the accepted starting point.
-- [ ] Delete the retired `html-slide-rendering` main-spec capability only after
-  confirming all current Framed behavior has another explicit owner.
-- [ ] Replace v2-named tombstones with positive current contracts and generic
-  undeclared-input rejection where that boundary remains required.
-- [ ] Converge action ID, action kind, human requirement, byte preservation, and
-  zero-provider/mutation semantics on one owner-issued recovery taxonomy.
-- [ ] Update runtime, specs, Controllers/guidance, fixtures, and tests atomically;
-  delete historical aliases and fixtures rather than converting them.
-- [ ] Plant negative controls for historical-version prose, retired recovery
-  actions, and compatibility-reader claims across the full declared active
-  scan scope.
-- [ ] Prove known-invalid current-shaped inputs hard-stop without byte changes,
-  provider work, or mutation.
-- [ ] Record active path: `-`
-- [ ] Record archive path: `-`
-- [ ] Record closure SHA: `-`
+- [ ] Reconfirm the remaining F5-F10 findings against post-Change-2 master.
+- [ ] Enumerate all affected specs, entry surfaces, readers, writers, persisted
+  fields, tests, and guards before locking artifacts.
+- [ ] Decide the Intent Route Catalog as one family; default to deletion unless
+  a distinct authority and live consumer are proven.
+- [ ] Decide `production_mode` inside this change: collapse it only if exact
+  consumer and failure-path evidence proves net concept subtraction; otherwise
+  retain it with a named distinct invariant and guard.
+- [ ] Record the project-owner-approved `production_mode` outcome in this plan
+  package and in Change 3 design/specs before artifact validation.
+- [ ] Complete and strictly validate one coherent Change 3 artifact set.
 
-## 3. `remove-competing-agent-routing-surfaces`
+### Gate 3B - Remove Competing Agent Routes
 
-Status: `not-started`; dependency: Change 2 is `done`.
+- [ ] Delete `reference/agent-prompts.md` after reconfirming no live consumer.
+- [ ] Absorb any unique current invariant from both workflow-inspection prose
+  records, then delete the duplicate projections.
+- [ ] Remove or explicitly justify the Intent Route Catalog JSON, reader, schema
+  declaration, tests, and guidance as one atomic family.
+- [ ] Prove no prompt cookbook, orphan prose projection, or unconsumed routing
+  authority remains active.
 
-Lifecycle:
+### Gate 3C - Close Controller Metadata
 
-- [ ] `admission`
-- [ ] `scaffold`
-- [ ] `proposal`
-- [ ] `specs`
-- [ ] `design`
-- [ ] `tasks`
-- [ ] `artifact-validation`
-- [ ] `apply`
-- [ ] `focused-verification`
-- [ ] `baseline-and-residue`
-- [ ] `archive`
-- [ ] `commit`
-- [ ] `push-and-reconcile`
-
-Change-specific closure:
-
-- [ ] Confirm Changes 1-2 leave one current authority/recovery vocabulary.
-- [ ] Reconfirm `reference/agent-prompts.md` has no live inbound current
-  consumer, then delete it.
-- [ ] Compare both workflow-inspection prose records against their owning main
-  spec and machine ledger; absorb only unique current invariants, then delete
-  both prose projections.
-- [ ] Enumerate every Intent Route Catalog reference and first-handoff behavior.
-- [ ] Decide the catalog family as one surface. Default: delete its JSON, reader,
-  schema declaration, dedicated tests, and duplicate guidance if existing
-  `COMMANDS`/classifier/Controllers/inspection fully own the handoff.
-- [ ] If any catalog surface is retained, record its fact authority, owner,
-  live consumer, non-overlapping jurisdiction, and why deletion would lose a
-  current contract; do not retain it as an unexplained exception.
-- [ ] Add a reachability guard rooted in declared executable/public/contract
-  entries, with planted orphan detection and exact, owned, shrink-only
-  exceptions for any justified data/plugin entry.
-- [ ] Prove no prompt cookbook, orphan prose projection, or unconsumed parallel
-  routing authority remains active.
-- [ ] Record active path: `-`
-- [ ] Record archive path: `-`
-- [ ] Record closure SHA: `-`
-
-## 4. `close-controller-metadata-schema`
-
-Status: `not-started`; dependency: Change 3 is `done`.
-
-Lifecycle:
-
-- [ ] `admission`
-- [ ] `scaffold`
-- [ ] `proposal`
-- [ ] `specs`
-- [ ] `design`
-- [ ] `tasks`
-- [ ] `artifact-validation`
-- [ ] `apply`
-- [ ] `focused-verification`
-- [ ] `baseline-and-residue`
-- [ ] `archive`
-- [ ] `commit`
-- [ ] `push-and-reconcile`
-
-Change-specific closure:
-
-- [ ] Confirm earlier deletion work did not leave metadata consumers outside
-  the declared Controller reader path.
-- [ ] Specify exact allowed keys separately for Controller frontmatter,
-  shared-node frontmatter, and fenced node declarations.
+- [ ] Define exact keys for Controller frontmatter, shared-node frontmatter, and
+  fenced node declarations.
 - [ ] Keep `method_module` as the sole lifecycle-location declaration.
-- [ ] Reject `phase`, `lifecycle_phase`, misspellings, duplicate keys where
-  ambiguous, and every other undeclared key with a bounded diagnostic.
-- [ ] Replace legacy-acceptance tests with planted negative controls for every
-  closed metadata boundary.
-- [ ] Validate all checked-in Controllers under the closed grammar.
-- [ ] Prove a stale or misspelled key cannot be silently ignored or projected
-  into state.
-- [ ] Record active path: `-`
-- [ ] Record archive path: `-`
-- [ ] Record closure SHA: `-`
+- [ ] Reject `phase`, `lifecycle_phase`, misspellings, ambiguous duplicates, and
+  every undeclared key with bounded diagnostics.
+- [ ] Replace legacy-acceptance tests with planted negative controls.
+- [ ] Validate every checked-in Controller under the closed grammar.
 
-## 5. Singleton Production-Mode Decision Gate
+### Gate 3D - Enforce The `production_mode` Decision
 
-Status: `decision-required`; dependency: Change 4 is `done`.
-
-This is a design decision, not a presumed deletion. Do not scaffold
-`collapse-singleton-production-mode` until the collapse branch is approved.
-
-- [ ] Enumerate every `production_mode` reader, writer, persisted field,
-  Controller key, CLI surface, schema anchor, and test.
-- [ ] Separate current pipeline identity/checksum facts from historical layering
-  and from the version-level `framed|pure` workflow choice.
 - [ ] Model missing, corrupt, mismatched, stale, retry, restart, replay,
-  concurrent-write, partial-cutover, and uncertain-commit paths.
-- [ ] Define decision authority, recovery owner/action, terminal invariant, and
-  evidence for each material negative path.
-- [ ] Compare exact concept subtraction and addition: schema fields, functions,
-  branches, Controller keys, public/persisted promises, tests, and guards.
-- [ ] Confirm the proposed clean cutover enumerates all consumers/state and
-  requires no Run Bundle scan, migration, alias, or compatibility reader.
-- [ ] Choose one outcome with project-owner approval: collapse because it
-  demonstrably removes net concepts, or deliberate retention because the
-  dimension owns a distinct invariant.
-- [ ] Record the rationale in a dedicated decision note in this plan package.
-  If collapse is chosen, carry it into the change proposal/design; if retention
-  changes any active contract, scope that modification through OpenSpec before
-  claiming closure.
-- [ ] Record decision outcome: `-`
-- [ ] Record decision artifact/path: `-`
-- [ ] Record decision commit SHA: `-`
+  concurrent-write, partial-cutover, and uncertain-commit behavior.
+- [ ] Record fact authority, owner, writers, admission, recovery, terminal
+  invariant, and completion evidence for the chosen outcome.
+- [ ] Implement and verify the one selected outcome.
 
-### 5a. Collapse Branch (Conditional)
+Collapse completion means every active reader, writer, schema, Controller, and
+test is updated in one clean cutover with no compatibility path or Run Bundle
+scan. Retention completion means the distinct invariant, live consumers,
+failure path, and falsifiable guard are proved and incidental residue in Change
+3 scope is removed.
 
-Status: `blocked` pending an approved collapse decision.
+- [ ] Prove the chosen outcome has fewer unexplained concepts and no weaker
+  source/state identity boundary.
 
-Lifecycle (do not start before project-owner approval):
+### Gate 3E - Guard, Verify, And Close
 
-- [ ] `admission`
-- [ ] `scaffold`
-- [ ] `proposal`
-- [ ] `specs`
-- [ ] `design`
-- [ ] `tasks`
-- [ ] `artifact-validation`
-- [ ] `apply`
-- [ ] `focused-verification`
-- [ ] `baseline-and-residue`
-- [ ] `archive`
-- [ ] `commit`
-- [ ] `push-and-reconcile`
+- [ ] Add reachability/residue guards rooted in declared active entries, with
+  exact owned shrink-only exceptions where justified.
+- [ ] Plant orphan-module, stale-metadata, duplicate-route, and selected
+  production-identity negative controls.
+- [ ] Resolve or explicitly reject every remaining P0/P1 finding with owner and
+  rationale.
+- [ ] Pass focused tests, `npm test`, `npm run test:sweep`, strict OpenSpec
+  validation, scoped residue searches, and `git diff --check`.
+- [ ] Sync, archive, exact-path stage, inspect, ordinarily commit, fetch, push,
+  and reconcile all four master SHAs.
+- [ ] Record active path, archive path, and closure SHA.
 
-Change-specific closure:
+## Final Program Closure - Not A Change
 
-- [ ] Scaffold name is exactly `collapse-singleton-production-mode` unless the
-  approved decision note records why its scope requires a different name.
-- [ ] Update every active reader/writer/schema/controller/test in one clean
-  cutover; leave no forwarding reader, legacy field, alias, or migration path.
-- [ ] Prove source/state identity, failure, restart, and concurrency behavior at
-  the same or stronger boundary with fewer net concepts.
-- [ ] Record active path: `-`
-- [ ] Record archive path: `-`
-- [ ] Record closure SHA: `-`
+Status: `blocked` until all three changes are `done`.
 
-### 5b. Retention Branch (Conditional)
-
-Status: `blocked` pending project-owner approval of deliberate retention.
-
-- [ ] Name the distinct invariant owned by `production_mode` and why the current
-  pipeline/workflow authorities cannot own it without distortion.
-- [ ] Confirm one fact authority, accountable owner, writer/admission path,
-  consumers, persisted contract, failure/recovery behavior, and drift guard.
-- [ ] Confirm the accepted decision note is sufficient evidence when no active
-  behavior changes; otherwise complete a scoped OpenSpec lifecycle before
-  marking this branch `done`.
-- [ ] Remove any incidental residue found during the decision work through an
-  appropriately scoped OpenSpec change; do not hide cleanup inside the record.
-- [ ] Record the accepted retention evidence and commit SHA in the summary.
-
-## 6. Final Program Closure
-
-Status: `blocked` until Changes 1-4 and exactly one Change 5 branch close.
-
-- [ ] Changes 1-4 are `done` and each has an archive path and reconciled closure
-  SHA.
-- [ ] Exactly one singleton-mode outcome is accepted and fully recorded; Change
-  5a is also `done` if collapse was selected.
-- [ ] Every P0/P1 finding in `findings.md` maps to a closed change or an explicit
-  rejection with decision authority, owner, and rationale.
+- [ ] Changes 1-3 are archived and each has a reconciled closure SHA.
+- [ ] Every P0/P1 finding maps to a closed change or explicit rejection.
 - [ ] Every `delete`/`absorb` row in `deletion-matrix.md` satisfies the deletion
   rule; every `decide` row has an accepted outcome.
-- [ ] Active specs/config/guidance contain no targeted old term, path, alias,
-  tombstone, or competing authority; archive and legitimate domain examples are
-  excluded explicitly rather than silently.
-- [ ] Every retained active authority has a named owner, live consumer, and
-  falsifiable guard or explicit auditable review.
-- [ ] Every new/changed guard has fresh planted-negative-control evidence and
-  an explicit scan scope that cannot be escaped by moving a file.
-- [ ] Exception baselines, if any, are exact-path, owned, reasoned, dated,
-  removal-conditioned, and shrink-only.
+- [ ] Active specs, config, guidance, runtime, and tests contain no targeted old
+  term, path, alias, tombstone, or competing authority.
+- [ ] Every retained authority has a named owner, live consumer, and falsifiable
+  guard or explicit auditable review.
 - [ ] Final `npm test` passes.
 - [ ] Final `npm run test:sweep` passes.
-- [ ] Final `openspec validate --all --strict` passes.
+- [ ] Final `openspec validate --all --strict --no-interactive` passes.
 - [ ] Final `git diff --check` passes.
-- [ ] `openspec list --json` reports no unintended active changes.
-- [ ] Final exact-path staged diff and final commit are inspected.
+- [ ] `openspec list --json` reports no unintended active change.
+- [ ] Final exact-path staged diff and ordinary commit are inspected.
 - [ ] Final ordinary `git push origin master` succeeds.
 - [ ] Final `HEAD`, local `master`, `origin/master`, and remote `master` SHAs are
   identical.
 - [ ] Worktree is clean except for separately identified user work.
-- [ ] Move this plan package to the repository's closed-plan location only after
-  all checks above are true; preserve it as the program operation record.
+- [ ] Move this plan package to the closed-plan location and preserve it as the
+  program operation record.
 
 ## Evidence Log
 
-Append one row per stable milestone. Keep evidence concise and reproducible;
-OpenSpec artifacts and commits hold the detail.
-
-| Date | Work item | Event | Evidence/path/SHA | Recorded by |
-| --- | --- | --- | --- | --- |
-| 2026-08-13 | Investigation | Baseline and cleanup program completed | `71e1f85` | Codex |
-| 2026-08-13 | Progress control | Checklist created; no OpenSpec change started | `progress-plan.md` | Codex |
-| 2026-08-13 | Change 1 | Proposal, delta, design, and tasks strictly validated; implementation not started | `openspec/changes/converge-active-harness-authority/` | Codex |
-| 2026-08-13 | Change 1 | Tasks 1.1-5.1 implemented and checked: bounded registry/evaluator, active-authority convergence, targeted terminology cleanup, and focused planted-negative verification | `openspec/changes/converge-active-harness-authority/tasks.md`; focused tests: 11/11 documentation coherence and 20/20 architecture | Codex |
-| 2026-08-13 | Change 1 | Scoped active-surface residue audit completed; replaced the remaining active `Phase 0 adapter` label in `environment-check`; retained only current guard patterns, prohibition assertions, Change 2 tombstones, or ordinary presentation-domain examples | excluded `openspec/changes/archive/`, this change rationale, `deck_*`, `dpt_*`, and `_generated/`; targeted searches recorded no unresolved active authority conflict | Codex |
-| 2026-08-13 | Change 1 | Baseline verification passed without provider work or production-data changes | `npm test` passed; `npm run test:sweep`: 68 files/552 tests; `openspec validate converge-active-harness-authority --strict --no-interactive` passed; `openspec validate --all --strict --no-interactive`: 28/28; `git diff --check` passed | Codex |
-| 2026-08-13 | Change 1 | Final implementation diff reviewed against proposal, delta, design, and Change 1 closure checklist; all 15 OpenSpec tasks are complete | authority map uses the existing coherence checkpoint and manifest admission; no CLI/state/provider/run-bundle surface added; archive, commit, and push remain intentionally pending | Codex |
-| 2026-08-13 | Change 1 | Archived after synchronizing the `harness-charter` delta to its main spec; no active OpenSpec changes remain | `openspec/changes/archive/2026-08-13-converge-active-harness-authority/`; post-archive `openspec validate --all --strict --no-interactive`: 27/27 | Codex |
-| 2026-08-13 | Change 1 | Ordinary implementation/archive commit created after exact-path staged-diff review | `640727a` (`refactor(harness): converge active authority`) | Codex |
-| 2026-08-13 | Change 1 | Ordinary push and four-SHA reconciliation completed | `HEAD`, `master`, `origin/master`, and `remote master`: `3bad2a67d8654280fcdd8a46d6d7fddaf3bdb338`; worktree clean | Codex |
+| Date | Work item | Event | Evidence/path/SHA |
+| --- | --- | --- | --- |
+| 2026-08-13 | Investigation | Baseline and cleanup program completed | `71e1f85` |
+| 2026-08-13 | Change 1 | Archived, committed, pushed, and reconciled | archive `2026-08-13-converge-active-harness-authority`; closure commit `640727a` |
+| 2026-08-13 | Change 2 | Proposal, deltas, design, and tasks strictly validated | `openspec/changes/retire-historical-protocol-surfaces/` |
+| 2026-08-14 | Change 2 | Tasks 1.1, 1.2, and 1.4 implemented; focused workflow/CLI/state tests passed | `tasks.md` progress `3/22` |
+| 2026-08-14 | Change 2 | Full verification, sync assessment, and archive completed | archive `2026-08-14-retire-historical-protocol-surfaces`; `20/22` |
+| 2026-08-14 | Program control | Remaining work consolidated into fixed Change 3; total change count fixed at three | this file + `program.md` |

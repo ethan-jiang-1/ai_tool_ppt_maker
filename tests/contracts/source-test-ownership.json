@@ -261,6 +261,7 @@
     {
       "owner": "shared/workflow",
       "interfaces": [
+        "shared/workflow/current_protocol_invalid.mjs",
         "shared/workflow/inspect_workflow.mjs",
         "shared/workflow/page_production_display_references.mjs",
         "shared/workflow/page_production_task_projection.mjs",

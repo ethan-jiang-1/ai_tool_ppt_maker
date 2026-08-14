@@ -144,9 +144,6 @@ context: |-
       scope: retained private Framed header-overlay runtime boundary
       owner_paths:
         - ppt_maker_harness/workflow/03-framed-image/README.md
-    - id: html-slide-rendering
-      spec: openspec/specs/html-slide-rendering/spec.md
-      scope: retired capability record with no current route
     - id: image-generation
       spec: openspec/specs/image-generation/spec.md
       scope: receipt-bound Page Image raw generation and review

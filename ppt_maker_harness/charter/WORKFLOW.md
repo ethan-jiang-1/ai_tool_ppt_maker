@@ -34,7 +34,17 @@ to the current snapshot. Structural work, including a Framed/Pure switch, is
 previewed and exact-hash applied before any target materialization.
 `_generated/` is never edited by hand.
 
-A source/state pair with an undeclared marker is a
-current-protocol-invalid hard-stop. Normal observation and production commands do
-not infer a workflow, decode it, or modify it; export is the only immediate
-action.
+A present production source, state, evidence, final-manifest, delivery-media,
+or receipt record that is foreign, unreadable, incomplete, or cross-lineage and
+cannot establish exact current identity is a `production-protocol`
+`current-protocol-invalid` hard-stop. Its only owner-issued action is
+`repair-current-protocol-identity` of kind `repair`, with no human decision
+required. Normal observation and production commands preserve the direct bytes
+and do not infer a workflow, read dependent artifacts as authority, rewrite,
+adopt, migrate, convert, export, or route the record.
+
+This boundary does not replace an exact Harness binding failure, a declared
+fresh authoring draft, a declared-current state defect, an exact requested/active
+Work Version mismatch, or attributable current delivery-media drift. Those
+facts retain their existing binding, narrative/workflow-selection, state,
+execution-version, or delivery rebuild owner respectively.

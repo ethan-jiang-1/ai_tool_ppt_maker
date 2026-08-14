@@ -1,5 +1,5 @@
-import { readdirSync, readFileSync, statSync } from "node:fs";
-import { dirname, join, posix, relative, resolve } from "node:path";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { dirname, extname, join, posix, relative, resolve } from "node:path";
 import { EXECUTABLE_INVENTORY, normalizeExecutablePath } from "./executable_inventory.mjs";
 
 export const ACTIVE_FOUNDATION_METHOD_MODULES = Object.freeze([
@@ -25,6 +25,7 @@ export const TARGET_ITERATION_INTERFACES = Object.freeze([
 // It consumes owner-issued facts and cannot select or mutate lifecycle state.
 export const HUMAN_NAVIGATION_INTERFACE = "shared/image2/page_image_human_artifact_reference.mjs";
 export const PAGE_DERIVED_DATA_INTERFACE = "shared/image2/page_derived_data.mjs";
+export const CURRENT_PROTOCOL_INVALID_INTERFACE = "shared/workflow/current_protocol_invalid.mjs";
 
 export const FOUNDATION_METHOD_MODULE_ADJACENCY = Object.freeze({
   "00-setup": Object.freeze([]),
@@ -61,6 +62,7 @@ export const PUBLIC_SHARED_INTERFACES = Object.freeze([
   "shared/image2/style_master_plan.mjs",
   "shared/image2/style_master_scope.mjs",
   "shared/state/target_authoring_draft_route.mjs",
+  CURRENT_PROTOCOL_INVALID_INTERFACE,
   "shared/workflow/inspect_workflow.mjs",
   "shared/workflow/page_production_display_references.mjs",
   "shared/workflow/page_production_task_projection.mjs",
@@ -302,6 +304,201 @@ export function evaluateProductionSchemaConformance(snapshot = {}) {
     }
   }
   return Object.freeze({ ok: issues.length === 0, issues: Object.freeze(issues) });
+}
+
+export const ACTIVE_SURFACE_ROOTS = Object.freeze([
+  "ppt_maker_harness",
+  "tests",
+  "tests_e2e",
+  "openspec/specs",
+]);
+
+export const ACTIVE_SURFACE_TEXT_EXTENSIONS = Object.freeze([
+  ".mjs",
+  ".md",
+  ".json",
+  ".yaml",
+  ".css",
+  ".html",
+  ".txt",
+]);
+
+export const ACTIVE_SURFACE_BINARY_EXTENSIONS = Object.freeze([".woff2"]);
+
+const ACTIVE_SURFACE_TEXT_EXTENSION_SET = new Set(ACTIVE_SURFACE_TEXT_EXTENSIONS);
+const ACTIVE_SURFACE_BINARY_EXTENSION_SET = new Set(ACTIVE_SURFACE_BINARY_EXTENSIONS);
+const ACTIVE_SURFACE_ROLE = /\b(?:source|state|receipt|plan|evidence|route|adapter|candidate|acceptance)(?:\b|_)/i;
+const ACTIVE_SURFACE_NUMERIC_VERSION = /\bv[1-9][0-9]*\b/gi;
+const ACTIVE_SURFACE_STRUCTURAL_VERSION = /\b3_versions\/v[1-9][0-9]*\b/i;
+const ACTIVE_SURFACE_REQUESTED_VERSION = /\brequested(?:[_ -][a-z]+)?[_ -]version\b/i;
+const ACTIVE_SURFACE_ACTIVE_VERSION = /\bactive(?:[_ -][a-z]+)?[_ -]version\b/i;
+const ACTIVE_SURFACE_STRUCTURAL_VERSION_FIELD = /\b(?:runVersion|run_version|sourceVersion|source_version|targetVersion|target_version|source_run_version|target_run_version|requested_run_version|active_run_version|continuation_target_version|production_mode_run_version)\b/;
+const ACTIVE_SURFACE_STRUCTURAL_VERSION_OPERATION = /\b(?:canonicalVersionKey|normalizeRunVersion|selectedRunVersion|nextVersionName)\b/;
+const ACTIVE_SURFACE_STRUCTURAL_VERSION_HEADING = /^\s*#{1,6}\s+v[1-9][0-9]*\b/i;
+const ACTIVE_SURFACE_STRUCTURAL_VERSION_DIRECTORY = /\bv[1-9][0-9]*\//i;
+const ACTIVE_SURFACE_STRUCTURAL_VERSION_ROOT = /(?:\b3_versions|\$\{VERSIONS_DIR\})\/v[1-9][0-9]*\b/i;
+const ACTIVE_SURFACE_INITIAL_DRAFT_VERSION = /\b(?:initial(?:ized|[_ -]?draft)?|hasInitialEvidence|deck-type seed)\b/i;
+const ACTIVE_SURFACE_NEGATION = /\b(?:shall|must|does|do|can|will)\s+not\b|\b(?:never|without)\b/i;
+const ACTIVE_SURFACE_RESIDUE_DEFINITION = /\b(?:affirmative\s+claim|residue\s+categor(?:y|ies)|defines?\s+or\s+forbids?)\b/i;
+const ACTIVE_SURFACE_INVALID_IDENTITY = /\b(?:invalid|foreign|undeclared)\b[\s\S]{0,80}\b(?:protocol|production\s+identity|identity)\b/i;
+const ACTIVE_SURFACE_AFFIRMATIVE_RECOVERY = /\b(?:read|migrat(?:e|ed|ion)|convert(?:ed|sion)?|adopt(?:ed|ion)?|export(?:ed|ing)?|handled|fallback(?:-handled)?)\b/i;
+const ACTIVE_SURFACE_AFFIRMATIVE_LINK = /\b(?:is|are|will|can|does|do|may|shall)\s+(?:be\s+)?(?:read|migrated|converted|adopted|exported|handled)\b/i;
+const ACTIVE_SURFACE_RETIRED_ACTION = new RegExp(
+  `\\b${["unsupported", "protocol"].join("-")}\\s*/\\s*${"export"}\\b|` +
+  `\\b${"repair"}\\s*(?:or|/)\\s*${"export"}\\b`,
+  "i",
+);
+
+function activeSurfaceIssue(code, path, message) {
+  return Object.freeze({ code, path, message });
+}
+
+function activeSurfaceLocation(path, line) {
+  return `${path}:${line}`;
+}
+
+function isStructuralVersionOccurrence(line) {
+  return ACTIVE_SURFACE_STRUCTURAL_VERSION.test(line) ||
+    (ACTIVE_SURFACE_REQUESTED_VERSION.test(line) && ACTIVE_SURFACE_ACTIVE_VERSION.test(line)) ||
+    ACTIVE_SURFACE_STRUCTURAL_VERSION_FIELD.test(line) ||
+    ACTIVE_SURFACE_STRUCTURAL_VERSION_OPERATION.test(line) ||
+    ACTIVE_SURFACE_STRUCTURAL_VERSION_HEADING.test(line) ||
+    ACTIVE_SURFACE_STRUCTURAL_VERSION_DIRECTORY.test(line) ||
+    ACTIVE_SURFACE_STRUCTURAL_VERSION_ROOT.test(line) ||
+    ACTIVE_SURFACE_INITIAL_DRAFT_VERSION.test(line);
+}
+
+function isBareJavaScriptVersionReference(path, line, match) {
+  if (!path.endsWith(".mjs")) return false;
+  const before = line.slice(0, match.index).trimEnd().at(-1) || "";
+  const after = line.slice(match.index + match[0].length).trimStart().at(0) || "";
+  return /[.(,\[]/.test(before) && /[,);}\]]/.test(after);
+}
+
+function isResidueDefinition(lines, index) {
+  return ACTIVE_SURFACE_RESIDUE_DEFINITION.test(lines.slice(Math.max(0, index - 1), Math.min(lines.length, index + 2)).join("\n"));
+}
+
+/**
+ * Evaluate already-classified active text without filesystem, bundle, or provider access.
+ * The caller owns enumeration; this seam owns only residue classification.
+ */
+export function evaluateActiveSurfaceResidue(snapshot = {}) {
+  const entries = snapshot.entries;
+  if (!Array.isArray(entries)) {
+    return Object.freeze({ ok: false, issues: Object.freeze([
+      activeSurfaceIssue("active-surface-snapshot-incomplete", "entries", "entries must be an array"),
+    ]) });
+  }
+
+  const issues = [];
+  for (const entry of entries) {
+    if (!entry || typeof entry.path !== "string" || !entry.path || (entry.kind !== "text" && entry.kind !== "binary")) {
+      issues.push(activeSurfaceIssue("active-surface-entry-invalid", entry?.path || "entry", "each entry requires an exact path and text or binary classification"));
+      continue;
+    }
+    if (entry.kind === "binary") continue;
+    if (typeof entry.content !== "string") {
+      issues.push(activeSurfaceIssue("active-surface-entry-invalid", entry.path, "text entry content must be a string"));
+      continue;
+    }
+
+    const lines = entry.content.split("\n");
+    for (const [index, line] of lines.entries()) {
+      if (!isStructuralVersionOccurrence(line) && ACTIVE_SURFACE_ROLE.test(line)) {
+        for (const match of line.matchAll(ACTIVE_SURFACE_NUMERIC_VERSION)) {
+          if (isBareJavaScriptVersionReference(entry.path, line, match)) continue;
+          issues.push(activeSurfaceIssue(
+            "retired-numeric-protocol-identity",
+            activeSurfaceLocation(entry.path, index + 1),
+            `numeric ${match[0]} is coupled to a production source/state/receipt/plan/evidence/route/adapter/candidate/acceptance role`,
+          ));
+        }
+      }
+      if (ACTIVE_SURFACE_RETIRED_ACTION.test(line)) {
+        issues.push(activeSurfaceIssue(
+          "retired-protocol-action",
+          activeSurfaceLocation(entry.path, index + 1),
+          "retired invalid-protocol recovery action is active",
+        ));
+      }
+      if (ACTIVE_SURFACE_INVALID_IDENTITY.test(line) && ACTIVE_SURFACE_AFFIRMATIVE_RECOVERY.test(line) &&
+        ACTIVE_SURFACE_AFFIRMATIVE_LINK.test(line) && !ACTIVE_SURFACE_NEGATION.test(line) && !isResidueDefinition(lines, index)) {
+        issues.push(activeSurfaceIssue(
+          "invalid-protocol-compatibility-claim",
+          activeSurfaceLocation(entry.path, index + 1),
+          "invalid protocol identity compatibility claim is active",
+        ));
+      }
+    }
+  }
+  return Object.freeze({ ok: issues.length === 0, issues: Object.freeze(issues) });
+}
+
+function excludedActiveSurfaceDirectory(name) {
+  return name === "_generated" || /^(?:deck_|dpt_)/.test(name);
+}
+
+/**
+ * Read only the declared active maintenance roots. Run bundles, research, changes,
+ * Backlog, generated outputs, and providers are outside this repository check.
+ */
+export function scanActiveSurfaceResidue({ root = process.cwd(), readFile = readFileSync } = {}) {
+  const base = resolve(root);
+  const entries = [];
+  const issues = [];
+  let textFiles = 0;
+  let binaryFiles = 0;
+
+  const addFile = (path) => {
+    const location = normalized(relative(base, path));
+    const extension = extname(path).toLowerCase();
+    if (ACTIVE_SURFACE_TEXT_EXTENSION_SET.has(extension)) {
+      entries.push({ path: location, kind: "text", content: readFile(path, "utf8") });
+      textFiles += 1;
+      return;
+    }
+    if (ACTIVE_SURFACE_BINARY_EXTENSION_SET.has(extension)) {
+      entries.push({ path: location, kind: "binary" });
+      binaryFiles += 1;
+      return;
+    }
+    issues.push(activeSurfaceIssue("active-surface-extension-unclassified", location, `regular active-surface file has unclassified extension ${extension || "[none]"}`));
+  };
+
+  const visit = (path) => {
+    for (const entry of readdirSync(path, { withFileTypes: true })) {
+      if (entry.isDirectory()) {
+        if (!excludedActiveSurfaceDirectory(entry.name)) visit(join(path, entry.name));
+        continue;
+      }
+      if (entry.isFile()) addFile(join(path, entry.name));
+    }
+  };
+
+  for (const activeRoot of ACTIVE_SURFACE_ROOTS) {
+    const path = resolve(base, activeRoot);
+    if (!existsSync(path) || !statSync(path).isDirectory()) {
+      issues.push(activeSurfaceIssue("active-surface-root-missing", activeRoot, "declared active-surface root is missing or not a directory"));
+      continue;
+    }
+    visit(path);
+  }
+
+  const configPath = resolve(base, "openspec/config.yaml");
+  if (!existsSync(configPath) || !statSync(configPath).isFile()) {
+    issues.push(activeSurfaceIssue("active-surface-file-missing", "openspec/config.yaml", "declared active-surface file is missing or not regular"));
+  } else {
+    addFile(configPath);
+  }
+
+  const residue = evaluateActiveSurfaceResidue({ entries });
+  issues.push(...residue.issues);
+  return Object.freeze({
+    ok: issues.length === 0,
+    issues: Object.freeze(issues),
+    inventory: Object.freeze({ text: textFiles, binary: binaryFiles }),
+  });
 }
 
 const FRAMED_COMPOSITION_SUBJECT_RESTRICTIONS = new Set(["none", "no-generic-metal-robot", "no-identity-subject"]);

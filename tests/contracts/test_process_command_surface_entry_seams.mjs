@@ -75,6 +75,24 @@ describe("command-surface entry seams", () => {
     expect(guidance).toMatch(/real E2E[\s\S]{0,180}(?:explicit|separate) authorization/i);
   });
 
+  it("keeps refresh kinds closed to the current public contract", () => {
+    const help = run(PPT_FLOW, ["refresh", "--help"]);
+    expect(help.status, help.stderr).toBe(0);
+    expect(help.stdout).toContain("--kind <kind>");
+    expect(help.stdout).toContain("title, visual, or notes");
+    expect(help.stdout).toContain("--only <ids>");
+    expect(help.stdout).toContain("--all");
+
+    const retiredKind = ["reset", "html", "production"].join("-");
+    expect(help.stdout).not.toContain(retiredKind);
+    const rejected = run(PPT_FLOW, ["refresh", "unused", "--kind", retiredKind]);
+    expect(rejected.status, rejected.stderr).toBe(1);
+    expect(parseCliErrorLine(rejected.stderr.trim().split(/\r?\n/u).filter(Boolean).at(-1))?.diagnostic).toMatchObject({
+      category: "usage",
+      next: { action: "fix_arguments", requires_human: false },
+    });
+  });
+
   it("keeps root onboarding, classifier pointers, and active terminology current", () => {
     const retiredProtocolStem = ["image2", "page", "authority"].join("-");
     expect(ROOT_README).toMatch(/Node\.js 22\.x, 24\.x, or 26\.x/);
@@ -91,7 +109,8 @@ describe("command-surface entry seams", () => {
 
     expect(COMMANDS).toContain("scripts/06-iteration/change-classifier.md");
     expect(COMMANDS).not.toContain("scripts/05-iteration/change-classifier.md");
-    expect(OPEN_SPEC_CONFIG).toContain("scripts/06-iteration/change-classifier.md");
+    expect(OPEN_SPEC_CONFIG).toContain("ppt_maker_harness/playbook/create-deck.md");
+    expect(OPEN_SPEC_CONFIG).not.toContain("scripts/06-iteration/change-classifier.md");
     expect(OPEN_SPEC_CONFIG).not.toContain("scripts/05-iteration/change-classifier.md");
   });
 });

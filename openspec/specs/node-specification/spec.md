@@ -5,15 +5,15 @@ Define the Node — the atomic unit of playbook execution — and its governing 
 ### Requirement: Stateful Controller entry follows verified Harness binding
 
 Before a Controller or state consumer uses a run-scoped Deck as current work,
-the owning CLI or locator entry SHALL verify that Bundle's v2 local Harness
-binding. The MD Controller SHALL consume the resulting bounded success or
-hard-stop and SHALL not infer a current execution, choose another Harness, or
-seed state from a structure-only observation.
+the owning CLI or locator entry SHALL verify the Bundle's exact declared current
+local Harness binding. The MD Controller SHALL consume the resulting bounded
+success or hard-stop and SHALL not infer a current execution, choose another
+Harness, or seed state from a structure-only observation.
 
 #### Scenario: A legacy Bundle is presented to a stateful command
 
-- **WHEN** a stateful command derives a Deck root with a missing or legacy
-  locator
+- **WHEN** a stateful command derives a Deck root with a missing or undeclared
+  locator binding
 - **THEN** it returns the binding owner's one bounded hard-stop before reading
   state or selecting a Controller node
 - **AND** the Controller does not create a replacement state record
@@ -170,18 +170,39 @@ The catalog SHALL include a `node_done:<name>` condition that returns true when 
 - **AND** setup can proceed
 
 ### Requirement: Playbook stack preserves position during switching
-_state/state.yaml SHALL contain a playbook_stack YAML array for deep parent-execution snapshots. Ordinary resumable entries use playbook, current_node, execution_id, execution_started_at, run_version, and controller_nodes, where every contained Controller record binds the same run version. writeState and readState SHALL round-trip that array. switchPlaybook() pushes the six-field snapshot, preserves reserved system records, clears the active Controller set, and starts nested work for the same exact version; resumePlaybook() restores that snapshot and retains latest reserved records.
 
-Only the current cross-pipeline transaction may add the closed transition-suspended extension defined by its own requirement. Unknown keys, invalid versions/modes/pipelines/hashes, a source mode that disagrees with authoritative state, malformed embedded frames, more than one suspension, or any generic resume of a suspension SHALL fail closed. A pre-current or incomplete stack record is not normalized into a resumable execution: observation returns one bounded owner-issued typed next action with original bytes intact, and no read/heal operation fabricates a suspension.
+`_state/state.yaml` SHALL contain a `playbook_stack` YAML array for deep
+parent-execution snapshots. Ordinary resumable entries use `playbook`,
+`current_node`, `execution_id`, `execution_started_at`, `run_version`, and
+`controller_nodes`, where every contained Controller record binds the same run
+version. `writeState` and `readState` SHALL round-trip that array.
+`switchPlaybook()` pushes the six-field snapshot, preserves reserved system
+records, clears the active Controller set, and starts nested work for the same
+exact version; `resumePlaybook()` restores that snapshot and retains latest
+reserved records.
+
+Only the current cross-pipeline transaction may add the closed
+transition-suspended extension defined by its own requirement. Unknown keys,
+invalid versions/modes/pipelines/hashes, a source mode that disagrees with
+authoritative state, malformed embedded frames, more than one suspension, or
+any generic resume of a suspension SHALL fail closed. A stack record outside
+the declared current shape or with incomplete identity is not normalized into a
+resumable execution:
+observation returns one bounded owner-issued typed next action with original
+bytes intact, and no read/heal operation fabricates a suspension.
 
 #### Scenario: Ordinary nested work remains resumable
+
 - **WHEN** an ordinary same-version iteration Controller finishes
-- **THEN** resumePlaybook() restores the exact six-field parent snapshot
+- **THEN** `resumePlaybook()` restores the exact six-field parent snapshot
 - **AND** it does not infer transition-only identity
 
 #### Scenario: Historical stack cannot be promoted
-- **WHEN** a stack entry lacks an execution snapshot or provable current run version
-- **THEN** state returns bounded unsupported-protocol guidance without writing it
+
+- **WHEN** a stack entry lacks an execution snapshot or provable current run
+  version
+- **THEN** state returns the bounded `production-protocol`
+  `repair-current-protocol-identity` action without writing it
 - **AND** resume does not attribute shared-node evidence to a guessed execution
 
 ### Requirement: State writes are atomic
@@ -382,39 +403,90 @@ Playbook CLI steps that invoke `ppt_flow.mjs` SHALL treat a non-zero exit as act
 - **AND** `readState` still returns the expected playbook fields
 
 ### Requirement: state.mjs SAFETY — heal before blaming the user
-`readState` SHALL retain tolerant YAML parsing and deterministic canonical repair for a usable declared-current record, but SHALL classify source marker, exact run version, durable mode, and Controller identity before any repair write. Its closed purpose SHALL remain `observe|execute`; `state`, `status`, checks, and validation SHALL use `observe` and make no state/history/metadata/generated/provider write. An owner-authorized execution path MAY atomically canonicalize only a declared-current record whose changed fields have one-to-one meaning, preserve the exact execution/evidence relationship, and are not fenced by a gate journal, reset, or transition.
 
-A pre-current schema, topology-only execution binding, retired Controller/node identity, markerless/retired source, or impossible source/mode pair SHALL never be transformed into a current state, mode, Controller, or transition checkpoint. It SHALL return one bounded owner-issued typed next action with the raw state/history bytes intact. A current explicit run whose bytes cannot preserve its current execution/evidence SHALL similarly return the state owner's one bounded typed next action; the Controller SHALL carry that action without asking a person to hand-edit YAML or inventing a continuation from generated artifacts, metadata, history, or source preference.
+`readState` SHALL retain tolerant YAML parsing and deterministic canonical
+repair for a usable declared-current record, but SHALL classify source marker,
+exact run version, durable mode, and Controller identity before any repair
+write. Its closed purpose SHALL remain `observe|execute`; `state`, `status`,
+checks, and validation SHALL use `observe` and make no
+state/history/metadata/generated/provider write. An owner-authorized execution
+path MAY atomically canonicalize only a declared-current record whose changed
+fields have one-to-one meaning, preserve the exact execution/evidence
+relationship, and are not fenced by a gate journal, reset, or transition.
+
+A schema outside the declared current shape, topology-only execution binding,
+undeclared Controller/node identity, markerless/undeclared source, or impossible
+source/mode pair SHALL never be transformed into a current state, mode,
+Controller, or transition checkpoint.
+When the direct source/state/evidence protocol cannot establish the declared
+current contract, it SHALL return the `production-protocol`
+`current-protocol-invalid` hard-stop with
+`repair-current-protocol-identity` of kind `repair`, and preserve raw
+state/history bytes. A current explicit run whose bytes cannot preserve its
+current execution/evidence SHALL return its existing state-owner action; the
+Controller SHALL carry that action without asking a person to hand-edit YAML or
+inventing a continuation from generated artifacts, metadata, history, or source
+preference.
 
 #### Scenario: Current state repairs through its owner
-- **WHEN** an owner-authorized execution reads a consistent declared-current state with a one-to-one malformed status or formatting defect
-- **THEN** it preserves the execution/evidence bindings and writes the canonical repaired state
-- **AND** it reports the repair without treating it as human approval or a new route
+
+- **WHEN** an owner-authorized execution reads a consistent declared-current
+  state with a one-to-one malformed status or formatting defect
+- **THEN** it preserves the execution/evidence bindings and writes the
+  canonical repaired state
+- **AND** it reports the repair without treating it as human approval or a new
+  route
 
 #### Scenario: Plain observation does not heal
-- **WHEN** `state`, `status`, or validation observes a current state that its owning execution could safely repair
-- **THEN** it returns the bounded owner-issued repair action without writing state, history, metadata, or generated artifacts
+
+- **WHEN** `state`, `status`, or validation observes a current state that its
+  owning execution could safely repair
+- **THEN** it returns the bounded owner-issued repair action without writing
+  state, history, metadata, or generated artifacts
 
 #### Scenario: Historical state is not compatibility-migrated
-- **WHEN** a pre-current state, topology-only binding, or retired transition/old-node identity is supplied
-- **THEN** observation and execution reject it without alias migration, source/mode inference, or state replacement
-- **AND** the returned recreation action does not require the user to edit raw YAML
+
+- **WHEN** a state outside the declared current shape, topology-only binding, or
+  undeclared transition/node identity is supplied
+- **THEN** observation and execution reject it without alias migration,
+  source/mode inference, or state replacement
+- **AND** the returned repair action does not require the user to edit raw YAML
 
 #### Scenario: Current state cannot preserve evidence
-- **WHEN** a current explicit run has state bytes that cannot establish a preserveable current execution/evidence object
-- **THEN** state returns its one bounded owner-issued typed next action and preserves the original bytes during observation
-- **AND** it does not create a default execution, reuse generated evidence, or silently resume work
+
+- **WHEN** a current explicit run has state bytes that cannot establish a
+  preserveable current execution/evidence object
+- **THEN** state returns its one bounded owner-issued typed next action and
+  preserves the original bytes during observation
+- **AND** it does not create a default execution, reuse generated evidence, or
+  silently resume work
 
 ### Requirement: State YAML parse/stringify uses a maintained YAML library
-scripts/shared/state/state.mjs SHALL use the npm yaml package for _state/state.yaml I/O. Read uses tolerant parseDocument options needed to classify syntactic defects; write emits only canonical stringify output plus the existing # header. A successful parse does not authorize a write. Observation remains byte-preserving. An owner-authorized execute path may stringify a usable declared-current record only after its source/mode/Controller identity and one-to-one repair are verified and all fences permit the write. Undeclared, ambiguous, or evidence-unpreservable input returns one bounded owner-issued typed next action without writeback.
+
+`scripts/shared/state/state.mjs` SHALL use the npm `yaml` package for
+`_state/state.yaml` I/O. Read uses tolerant `parseDocument` options needed to
+classify syntactic defects; write emits only canonical stringify output plus the
+existing `#` header. A successful parse does not authorize a write. Observation
+remains byte-preserving. An owner-authorized execute path may stringify a usable
+declared-current record only after its source/mode/Controller identity and
+one-to-one repair are verified and all fences permit the write. Undeclared,
+ambiguous, or evidence-unpreservable input returns one bounded owner-issued
+typed next action without writeback. Failure to establish current protocol
+identity uses `production-protocol`; a defect after that identity is established
+retains the state owner.
 
 #### Scenario: Current canonicalization uses the YAML library
-- **WHEN** an owner-authorized declared-current record has a one-to-one formatting defect
-- **THEN** the repaired output uses library stringify and retains its execution/evidence bindings
+
+- **WHEN** an owner-authorized declared-current record has a one-to-one
+  formatting defect
+- **THEN** the repaired output uses library stringify and retains its
+  execution/evidence bindings
 
 #### Scenario: Tolerant parse does not migrate old state
-- **WHEN** a historical state parses but lacks current identity
-- **THEN** observation preserves bytes and returns the bounded unsupported-protocol action
+
+- **WHEN** a state parses but lacks declared current identity
+- **THEN** observation preserves bytes and returns the bounded
+  `production-protocol` repair action
 
 ### Requirement: writeState ensures _state README exists
 state.mjs SHALL export the canonical _state/README.md body used by bundle scaffolding and SHALL not import bundle_layout.mjs. When an authorized write to a supported current state occurs, writeState SHALL ensure _state/README.md exists using that body. Observation, structure checking, and an unsupported historical state SHALL not create the README as an incidental repair or compatibility upgrade.
@@ -466,37 +538,81 @@ An owner-authorized canonicalization MAY convert a scalar decision only in a dec
 - **THEN** state hard-stops before conversion and preserves the original bytes during observation
 
 ### Requirement: State uses one declared current shape
-`state.yaml` for every supported actively executing run SHALL use one declared current shape while preserving whole-workflow timing, execution identities, controller working sets, stack semantics, typed records, atomic writes, and reserved system records. A supported state SHALL bind one exact current source/mode pair and its exact normalized run version. Read or execute MAY perform only lossless canonicalization of an already supported record when every affected field has a one-to-one meaning and no gate, reset, or transition fence is active. It SHALL not infer a source, mode, controller, run version, execution binding, or review evidence from metadata, generated artifacts, invocation order, source preference, or directory topology.
 
-An undeclared, identity-invalid, or evidence-unpreservable state protocol is unsupported. State/status observation SHALL return a diagnostic carrying one bounded owner-issued typed next action without changing bytes, and execution SHALL fail before Controller entry, journal, staging, target publication, or provider work. It SHALL not map an undeclared checkpoint, receipt, or controller record into a current execution. A valid current record shall never be re-inferred from source or derived artifacts. Starting a new top-level execution still requires the existing explicit replacement authorization when a current execution is incomplete and preserves reserved records.
+`state.yaml` for every supported actively executing run SHALL use one declared
+current shape while preserving whole-workflow timing, execution identities,
+controller working sets, stack semantics, typed records, atomic writes, and
+reserved system records. A supported state SHALL bind one exact current
+source/mode pair and its exact normalized run version. Read or execute MAY
+perform only lossless canonicalization of an already supported record when every
+affected field has a one-to-one meaning and no gate, reset, or transition fence
+is active. It SHALL not infer a source, mode, controller, run version,
+execution binding, or review evidence from metadata, generated artifacts,
+invocation order, source preference, or directory topology.
+
+An undeclared or identity-invalid state protocol is unsupported. State/status
+observation SHALL return the owner-issued `production-protocol`
+`current-protocol-invalid` hard-stop with
+`repair-current-protocol-identity` of kind `repair` without changing bytes, and
+execution SHALL fail before Controller entry, journal, staging, target
+publication, or provider work. It SHALL not map an undeclared checkpoint,
+receipt, or controller record into a current execution.
+
+When a record establishes declared-current protocol identity but a state defect
+cannot preserve its current execution/evidence, it SHALL retain the existing
+state-owner action and remain byte-preserving during observation. Only a
+one-to-one, fence-clear repair may write. A valid current record shall never be
+re-inferred from source or derived artifacts. Starting a new top-level execution
+still requires the existing explicit replacement authorization when a current
+execution is incomplete and preserves reserved records.
 
 #### Scenario: Current state remains durable
-- **WHEN** a declared-current state has an exact supported source/mode pair and normalized active execution version
-- **THEN** state retains its current execution, stack, decisions, waits, gates, reset/refinement evidence, and reserved records
+
+- **WHEN** a declared-current state has an exact supported source/mode pair and
+  normalized active execution version
+- **THEN** state retains its current execution, stack, decisions, waits, gates,
+  reset/refinement evidence, and reserved records
 - **AND** canonical observation does not invent a second routing authority
 
 #### Scenario: Undeclared state protocol is encountered
-- **WHEN** state/status reads a schema or controller protocol outside the current supported contract
-- **THEN** it returns one bounded owner-issued typed next action without rewriting the state bytes
-- **AND** it does not create a mode record, execution, alternate projection, or transition checkpoint
+
+- **WHEN** state/status reads a schema or controller protocol outside the
+  current supported contract
+- **THEN** it returns the owner-issued protocol repair action without rewriting
+  state bytes
+- **AND** it does not create a mode record, execution, alternate projection, or
+  transition checkpoint
 
 #### Scenario: Unsupported state rejection is byte-preserving
-- **WHEN** an undeclared state, a retired transition execution, or a topology-only execution binding is supplied to observe or execute
-- **THEN** the state owner rejects it before `healState`, alias mapping, marker inference, or default-state creation
-- **AND** `state.yaml`, `history.jsonl`, gate journals, and version directories remain byte-identical
+
+- **WHEN** an undeclared state, an undeclared transition execution, or a
+  topology-only execution binding is supplied to observe or execute
+- **THEN** the state validator rejects it before `healState`, alias mapping, marker
+  inference, or default-state creation
+- **AND** `state.yaml`, `history.jsonl`, gate journals, and version directories
+  remain byte-identical
 
 #### Scenario: Source or mode is inconsistent
-- **WHEN** a declared-current state has a missing, malformed, or mismatched source/mode fact
-- **THEN** observation and execution fail before Controller, journal, staging, or target mutation
+
+- **WHEN** a declared-current state has a missing, malformed, or mismatched
+  source/mode fact
+- **THEN** observation and execution fail before Controller, journal, staging,
+  or target mutation
 - **AND** no metadata or generated artifact is used to repair the relationship
 
 #### Scenario: Incomplete current execution is protected
-- **WHEN** a supported current execution is incomplete and no explicit replacement authorization exists
-- **THEN** starting another top-level Controller fails without clearing or repurposing the execution
+
+- **WHEN** a supported current execution is incomplete and no explicit
+  replacement authorization exists
+- **THEN** starting another top-level Controller fails without clearing or
+  repurposing the execution
 
 #### Scenario: Canonicalization would cross a protected fence
-- **WHEN** a requested canonicalization encounters a gate, reset, or transition write fence
-- **THEN** state leaves the original bytes unchanged and returns the owning recovery action
+
+- **WHEN** a requested canonicalization encounters a gate, reset, or transition
+  write fence
+- **THEN** state leaves the original bytes unchanged and returns the owning
+  recovery action
 
 The production schema inventory SHALL declare the top-level current state
 contract and its owner. State readers and writers SHALL use that one declared
@@ -544,13 +660,13 @@ MD SHALL NOT invent omitted paths, ids, lines, causes, invocations, approvals, o
 
 #### Scenario: MD follows an automatic invocation safely
 
-- **WHEN** v1 evidence has `next.requires_human:false` and a structured invocation
+- **WHEN** diagnostic evidence has `next.requires_human:false` and a structured invocation
 - **THEN** MD uses supplied causal evidence without expanding affected scope
 - **AND** executes program/args with argument boundaries preserved and shell disabled
 
 #### Scenario: MD receives a human decision gate
 
-- **WHEN** v1 evidence has `next.requires_human:true`
+- **WHEN** diagnostic evidence has `next.requires_human:true`
 - **THEN** MD presents the named decision/evidence to the human
 - **AND** does not treat default or invocation as fabricated approval
 
@@ -949,23 +1065,6 @@ hard-stop before State mutation or provider work.
 - **AND** it does not reinterpret source evidence as target evidence or invoke
   a provider
 
-### Requirement: Style Master readiness is declared-workflow scoped
-
-The `style_master_accepted` Controller prerequisite SHALL consult only the
-current Style Master acceptance for the exact Page Image Workflow version,
-workflow, source/visual scope, and selected bytes. File presence, task cards,
-v2 candidates, a v2 acceptance record, or a sibling workflow selection SHALL
-not satisfy the condition. The Boolean remains read-only; the Style Master
-owner supplies its detailed repair action.
-
-#### Scenario: A v2 style asset does not pass current readiness
-
-- **WHEN** an otherwise current Framed version has only a v2 Style Master
-  selection or `style_master.jpg` file
-- **THEN** `style_master_accepted` is false and inspection points to the
-  current Style Master owner
-- **AND** state does not seed a replacement acceptance record
-
 ### Requirement: State records only JPEG-bound current delivery lineage
 
 When State records a current Page Image delivery handoff, it SHALL require a
@@ -992,3 +1091,20 @@ not establish `delivery_receipt_sha256`.
 - **THEN** State rejects the handoff before mutating the target record
 - **AND** its existing delivery rebuild route remains the only way to publish
   current completion
+
+### Requirement: Style Master readiness accepts only exact current evidence
+
+The `style_master_accepted` Controller prerequisite SHALL consult only the
+current Style Master acceptance for the exact Page Image Workflow version,
+workflow, source/visual scope, and selected bytes. File presence, task cards,
+undeclared or mismatched acceptance evidence, or a sibling workflow selection
+SHALL not satisfy the condition. The Boolean remains read-only; the Style Master
+owner supplies its detailed repair action.
+
+#### Scenario: Foreign style evidence does not pass current readiness
+
+- **WHEN** an otherwise current Framed version has only an undeclared Style
+  Master selection or `style_master.jpg` file
+- **THEN** `style_master_accepted` is false and inspection points to the
+  current Style Master owner
+- **AND** state does not seed a replacement acceptance record

@@ -148,20 +148,47 @@ is selected.
 - **AND** it does not use an ordinal filename, task card, or approximate match
   as authority
 
-### Requirement: v2 input is excluded from current lifecycle routing
+### Requirement: Undeclared production input is excluded from current lifecycle routing
 
-Before route selection, orchestration SHALL require the exact current
-source/state pair and current evidence lineage. A v2 marker, state, receipt,
-plan, or evidence record SHALL return the owner-issued `unsupported-protocol/export`
-hard-stop and SHALL not acquire a current lifecycle, refresh route, plan,
-authorization, generated-artifact reader, or recovery branch.
+Before route selection, orchestration SHALL require exact declared-current
+source/state identity and current evidence lineage whenever a production record
+is present. A foreign, unreadable, incomplete, or cross-lineage record that
+cannot establish that identity SHALL return the owner-issued
+`production-protocol` `current-protocol-invalid` hard-stop with the
+`repair-current-protocol-identity` action of kind `repair`. It SHALL not acquire
+a current lifecycle, refresh route, plan, authorization, generated-artifact
+reader, recovery branch, export, conversion, adoption, fallback, or
+compatibility reader.
 
-#### Scenario: v2 refresh request cannot select a local route
+This boundary SHALL not recategorize an exact Harness locator/binding failure, a
+declared fresh authoring draft, a state-owned defect after current protocol
+identity is established, an exact requested/active Work Version mismatch, or
+attributable current delivery drift. Those facts SHALL continue to route to
+their existing Harness-binding, narrative/workflow-selection, state,
+execution-version, or delivery owner respectively. Only a one-to-one,
+fence-clear current state repair may write.
 
-- **WHEN** a refresh request names v2 source/state or evidence
+#### Scenario: Invalid evidence cannot select a local route
+
+- **WHEN** a refresh request names source, state, or evidence that cannot
+  establish the exact current protocol
 - **THEN** orchestration stops at the protocol boundary before change
-  classification
+  classification with the owner-issued repair action
 - **AND** it does not attempt a local rebind, raw rebuild, or data conversion
+
+#### Scenario: Declared fresh draft remains authoring work
+
+- **WHEN** a target is a declared fresh authoring draft and has not yet acquired
+  production identity
+- **THEN** orchestration returns the existing narrative/workflow-selection owner
+- **AND** it does not invent an invalid-protocol record or repair action
+
+#### Scenario: Exact execution version mismatch retains its owner
+
+- **WHEN** the requested Work Version differs from the exact active execution
+  version of an otherwise declared-current run
+- **THEN** orchestration returns the existing execution-version owner action
+- **AND** it does not replace that action with protocol repair
 
 ### Requirement: Image2 planning has one provider-free derived-data publication checkpoint
 

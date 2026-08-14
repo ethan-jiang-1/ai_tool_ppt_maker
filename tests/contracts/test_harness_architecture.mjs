@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { EXECUTABLE_INVENTORY } from "../../ppt_maker_harness/scripts/contracts/executable_inventory.mjs";
 import {
   ACTIVE_FOUNDATION_METHOD_MODULES,
+  CURRENT_PROTOCOL_INVALID_INTERFACE,
   HUMAN_NAVIGATION_INTERFACE,
   PAGE_DERIVED_DATA_INTERFACE,
   PAGE_IMAGE_CORE_INTERFACE,
@@ -102,6 +103,11 @@ describe("Harness architecture contract", () => {
   it("registers the one derived Human Navigation Path writer as a public shared interface", () => {
     expect(HUMAN_NAVIGATION_INTERFACE).toBe("shared/image2/page_image_human_artifact_reference.mjs");
     expect(PUBLIC_SHARED_INTERFACES).toContain(HUMAN_NAVIGATION_INTERFACE);
+  });
+
+  it("registers the shared current-protocol invalid typed cause as a public interface", () => {
+    expect(CURRENT_PROTOCOL_INVALID_INTERFACE).toBe("shared/workflow/current_protocol_invalid.mjs");
+    expect(PUBLIC_SHARED_INTERFACES).toContain(CURRENT_PROTOCOL_INVALID_INTERFACE);
   });
 
   it("accepts the exact target tree, executable registry, and ownership manifest", () => {
@@ -241,6 +247,22 @@ describe("Harness architecture contract", () => {
     }
   });
 
+  it("allows the declared typed-cause seam but rejects private shared and sibling adapter imports", () => {
+    const declared = canonicalSnapshot();
+    declared.files["05-delivery/index.mjs"] = `import "../${CURRENT_PROTOCOL_INVALID_INTERFACE}";`;
+    expect(issueCodes(validateArchitectureSnapshot(declared))).not.toContain("target-private-shared-import");
+
+    const privateShared = canonicalSnapshot();
+    privateShared.files["05-delivery/index.mjs"] = 'import "../shared/workflow/private_reader.mjs";';
+    privateShared.files["shared/workflow/private_reader.mjs"] = "export {};";
+    expect(issueCodes(validateArchitectureSnapshot(privateShared))).toContain("target-private-shared-import");
+
+    const siblingAdapter = canonicalSnapshot();
+    siblingAdapter.files["03-framed-image/index.mjs"] = 'import "../04-pure-image/internal/private_adapter.mjs";';
+    siblingAdapter.files["04-pure-image/internal/private_adapter.mjs"] = "export {};";
+    expect(issueCodes(validateArchitectureSnapshot(siblingAdapter))).toContain("sibling-workflow-import");
+  });
+
   it("keeps all PPTX and notes writers under the delivery owner", () => {
     const snapshot = canonicalSnapshot();
     snapshot.files["03-framed-image/internal/operations.mjs"] = "import PptxGenJS from 'pptxgenjs'; new PptxGenJS();";
@@ -373,6 +395,49 @@ describe("Harness architecture contract", () => {
     expect(framedAdapter).toContain("resolvePageImagePresentation");
     expect(pureAdapter).toContain("resolvePageImagePresentation");
     expect(overlay).not.toMatch(/standard/);
+  });
+
+  it("keeps private Framed runtime behavior under current Page Image owners", () => {
+    const harnessRoot = join(process.cwd(), "ppt_maker_harness");
+    const runtimeOwnerPaths = [
+      "scripts/00-setup/internal/html_runtime.mjs",
+      "scripts/00-setup/internal/html_fonts.mjs",
+      "scripts/00-setup/internal/html_runtime_profile.mjs",
+      "scripts/00-setup/internal/env_check.mjs",
+      "scripts/03-framed-image/internal/capture_runtime.mjs",
+      "scripts/03-framed-image/internal/framed_render_contract.mjs",
+      "scripts/03-framed-image/internal/framed_render_profile.mjs",
+      "scripts/03-framed-image/internal/header_overlay.mjs",
+      "scripts/03-framed-image/index.mjs",
+      "scripts/05-delivery/index.mjs",
+    ];
+    for (const path of runtimeOwnerPaths) {
+      expect(readFileSync(join(harnessRoot, path), "utf8"), path).not.toEqual("");
+    }
+
+    const framedAdapter = readFileSync(join(harnessRoot, "scripts", "03-framed-image", "index.mjs"), "utf8");
+    const compositor = readFileSync(join(harnessRoot, "scripts", "03-framed-image", "internal", "framed_render_contract.mjs"), "utf8");
+    const runtimeProfile = readFileSync(join(harnessRoot, "scripts", "03-framed-image", "internal", "framed_render_profile.mjs"), "utf8");
+    const setupRuntime = readFileSync(join(harnessRoot, "scripts", "00-setup", "internal", "html_runtime.mjs"), "utf8");
+    const delivery = readFileSync(join(harnessRoot, "scripts", "05-delivery", "index.mjs"), "utf8");
+
+    expect(framedAdapter).toContain('"./internal/framed_render_contract.mjs"');
+    expect(framedAdapter).toContain('"./internal/framed_render_profile.mjs"');
+    expect(framedAdapter).toContain("publishCurrentFinalSlideManifest");
+    expect(compositor).toContain("./capture_runtime.mjs");
+    expect(compositor).toContain("./framed_render_profile.mjs");
+    expect(runtimeProfile).toContain("../../00-setup/internal/html_fonts.mjs");
+    expect(runtimeProfile).toContain("../../00-setup/internal/html_runtime_profile.mjs");
+    expect(setupRuntime).toContain("./html_fonts.mjs");
+    expect(delivery).toContain("validateFinalSlideManifest");
+    expect(delivery).not.toContain("../03-framed-image");
+
+    const retiredCapability = ["html", "slide", "rendering"].join("-");
+    const liveSources = [
+      ...walkHarnessScripts(join(harnessRoot, "scripts")),
+      join(harnessRoot, "COMMANDS.md"),
+    ].filter((path) => readFileSync(path, "utf8").includes(retiredCapability));
+    expect(liveSources.map((path) => relative(process.cwd(), path))).toEqual([]);
   });
 
   it("enforces the final architecture against the real repository tree", () => {

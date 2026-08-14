@@ -33,8 +33,8 @@ const TERMINOLOGY_AUTHORITY_REQUIREMENTS = Object.freeze([
   }),
   Object.freeze({
     file: "CONTEXT.md",
-    required: ["Normative Harness Specification", "openspec/specs/", "Workflow Meanings", "NN_slideID"],
-    forbidden: ["**HTML Production**", "reviewed visual-slot asset"],
+    required: ["Normative Harness Specification", "openspec/specs/", "Workflow Meanings", "NN_slideID", "The current whole-page Page Image Workflow capability family."],
+    forbidden: ["**HTML Production**", "reviewed visual-slot asset", "whole-deck renderer", "visual-slot production branch"],
   }),
   Object.freeze({
     file: "ppt_maker_harness/AGENTS.md",
@@ -53,7 +53,7 @@ const TERMINOLOGY_AUTHORITY_REQUIREMENTS = Object.freeze([
   }),
   Object.freeze({
     file: "ppt_maker_harness/charter/AGENT_CONTRACT.md",
-    required: ["Intent Route Catalog", "MD Controllers", "controller manifest"],
+    required: ["Intent Route Catalog", "MD Controllers", "controller manifest", "`html-render-runtime`", "receipt-bound Framed Page", "`05-delivery` consumes the resulting current final"],
     forbidden: [],
   }),
   Object.freeze({

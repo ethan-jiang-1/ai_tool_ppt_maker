@@ -1,9 +1,16 @@
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join, relative, resolve } from "node:path";
 import { parseDocument } from "yaml";
 import { describe, expect, it } from "vitest";
 
-import { evaluateFramedCompositionConformance, evaluatePageDerivedPublicationConformance, evaluateProductionSchemaConformance } from "../../ppt_maker_harness/scripts/contracts/harness_architecture.mjs";
+import {
+  evaluateActiveSurfaceResidue,
+  evaluateFramedCompositionConformance,
+  evaluatePageDerivedPublicationConformance,
+  evaluateProductionSchemaConformance,
+  scanActiveSurfaceResidue,
+} from "../../ppt_maker_harness/scripts/contracts/harness_architecture.mjs";
 
 const ROOT = process.cwd();
 const HARNESS = join(ROOT, "ppt_maker_harness");
@@ -401,7 +408,94 @@ function framedCompositionSnapshot(workflow = "framed") {
   };
 }
 
+function createActiveSurfaceFixture() {
+  const root = mkdtempSync(join(tmpdir(), "pptmaker-active-surface-"));
+  const write = (path, content) => {
+    const target = join(root, path);
+    mkdirSync(dirname(target), { recursive: true });
+    writeFileSync(target, content);
+    return target;
+  };
+  const v2 = ["v", "2"].join("");
+  write("ppt_maker_harness/scripts/current.mjs", "export const current = true;\n");
+  write("ppt_maker_harness/scripts/fonts/face.woff2", Buffer.from([0, 1, 2, 3]));
+  write("tests/structural.mjs", `const versionPath = "3_versions/${v2}";\n`);
+  write("tests_e2e/execution.mjs", `const requested_run_version = "v1"; const active_run_version = "${v2}"; const source = "current";\n`);
+  write("openspec/specs/current/spec.md", "The requirement SHALL NOT migrate invalid production identity.\n");
+  write("openspec/config.yaml", "schema: spec-driven\n");
+  return { root, write };
+}
+
 describe("production schema conformance", () => {
+  it("classifies active-surface residue semantically without a global version-token exception", () => {
+    const retiredNumericMarker = ["v", "2"].join("");
+    const retiredAction = [["unsupported", "protocol"].join("-"), "export"].join("/");
+    const affirmativeVerb = ["migr", "ated"].join("");
+    const result = evaluateActiveSurfaceResidue({
+      entries: [
+        { path: "tests/numeric.mjs", kind: "text", content: `const source_protocol = "${retiredNumericMarker}";` },
+        { path: "tests/action.md", kind: "text", content: retiredAction },
+        { path: "tests/claim.md", kind: "text", content: `Invalid production identity is ${affirmativeVerb} before use.` },
+      ],
+    });
+    expect(result.issues.map((issue) => [issue.code, issue.path])).toEqual([
+      ["retired-numeric-protocol-identity", "tests/numeric.mjs:1"],
+      ["retired-protocol-action", "tests/action.md:1"],
+      ["invalid-protocol-compatibility-claim", "tests/claim.md:1"],
+    ]);
+
+    const valid = evaluateActiveSurfaceResidue({
+      entries: [
+        { path: "tests/structural.mjs", kind: "text", content: `const versionPath = "3_versions/${retiredNumericMarker}";` },
+        { path: "tests/execution.mjs", kind: "text", content: `const requested_run_version = "v1"; const active_run_version = "${retiredNumericMarker}"; const source = "current";` },
+        { path: "tests/source-version.mjs", kind: "text", content: `const sourceVersion = "${retiredNumericMarker}";` },
+        { path: "openspec/specs/current/spec.md", kind: "text", content: `The guard rejects the residue category where invalid production identity is ${affirmativeVerb}.` },
+        { path: "ppt_maker_harness/scripts/current.mjs", kind: "text", content: "export const compatibility = true;" },
+        { path: "ppt_maker_harness/scripts/fonts/face.woff2", kind: "binary" },
+      ],
+    });
+    expect(valid).toEqual({ ok: true, issues: [] });
+  });
+
+  it("enumerates only declared active roots and fails unclassified coverage without writes or provider calls", () => {
+    const fixture = createActiveSurfaceFixture();
+    const repositoryConfig = readFileSync(join(ROOT, "openspec/config.yaml"), "utf8");
+    const originalFetch = globalThis.fetch;
+    let providerCalls = 0;
+    try {
+      globalThis.fetch = () => {
+        providerCalls += 1;
+        throw new Error("active-surface residue scanning must not contact a provider");
+      };
+      expect(scanActiveSurfaceResidue({ root: fixture.root })).toMatchObject({
+        ok: true,
+        issues: [],
+        inventory: { text: 5, binary: 1 },
+      });
+
+      const unclassified = fixture.write("ppt_maker_harness/scripts/prompt-surface.prompt", "active text-like surface\n");
+      expect(scanActiveSurfaceResidue({ root: fixture.root }).issues).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          code: "active-surface-extension-unclassified",
+          path: "ppt_maker_harness/scripts/prompt-surface.prompt",
+        }),
+      ]));
+
+      renameSync(unclassified, unclassified.replace(/\.prompt$/, ".txt"));
+      expect(scanActiveSurfaceResidue({ root: fixture.root })).toMatchObject({ ok: true, issues: [] });
+      expect(readFileSync(join(ROOT, "openspec/config.yaml"), "utf8")).toEqual(repositoryConfig);
+    } finally {
+      globalThis.fetch = originalFetch;
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
+    expect(providerCalls).toBe(0);
+  });
+
+  it("accepts the synchronized repository active surface", () => {
+    const result = scanActiveSurfaceResidue();
+    expect(result.issues, result.issues.map((issue) => `${issue.code}: ${issue.path} ${issue.message}`).join("\n")).toEqual([]);
+  });
+
   it("matches the declared active source, test, and E2E contract surface", () => {
     const result = evaluateProductionSchemaConformance(currentSnapshot());
     expect(result.issues, result.issues.map((issue) => `${issue.code}: ${issue.path} ${issue.message}`).join("\n")).toEqual([]);

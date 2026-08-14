@@ -14,6 +14,7 @@ import {
   readPageImageDeliveryMedia,
   validatePageImageDeliveryMediaManifest,
 } from "./page_image_delivery_media.mjs";
+import { currentProtocolInvalid } from "../../shared/workflow/current_protocol_invalid.mjs";
 
 export const PAGE_IMAGE_FINAL_SLIDE_MANIFEST_SCHEMA = "page-image-final-slide-manifest";
 export const PAGE_IMAGE_PPTX_ASSEMBLY_SCHEMA = "page-image-pptx-assembly";
@@ -44,7 +45,7 @@ export function validatePageImageAssemblyInput({ manifest, acceptedRawEvidence, 
   requireSourceEpoch(sourceEpoch);
   const checked = validateFinalSlideManifest(manifest, { evidence: acceptedRawEvidence });
   if (!checked.ok || manifest.schema !== PAGE_IMAGE_FINAL_SLIDE_MANIFEST_SCHEMA) {
-    throw new Error("Page Image final manifest is invalid or stale");
+    throw currentProtocolInvalid("the assembly final manifest cannot establish current production identity");
   }
   return Object.freeze({
     manifest: Object.freeze(manifest),
@@ -98,7 +99,7 @@ export function validatePageImageAssemblyReceipt(receipt, {
     receipt.ordered_slide_ids.length !== manifest.items.length ||
     receipt.final_entries.length !== manifest.items.length ||
     receipt.delivery_entries.length !== manifest.items.length) {
-    throw new Error("Page Image assembly lineage is invalid or stale");
+    throw currentProtocolInvalid("the assembly receipt cannot establish current production identity");
   }
   for (const [index, item] of manifest.items.entries()) {
     const entry = receipt.final_entries[index];
@@ -106,7 +107,7 @@ export function validatePageImageAssemblyReceipt(receipt, {
       !exactKeys(entry, ["slide_id", "position", "final_sha256"]) ||
       entry.slide_id !== item.slide_id || entry.position !== item.position ||
       entry.final_sha256 !== item.final_sha256) {
-      throw new Error("Page Image assembly receipt does not bind final manifest order");
+      throw currentProtocolInvalid("the assembly receipt cannot establish current production identity");
     }
     const deliveryEntry = receipt.delivery_entries[index];
     const expectedDeliveryEntry = deliveryChecked.manifest.entries[index];
@@ -115,7 +116,7 @@ export function validatePageImageAssemblyReceipt(receipt, {
       deliveryEntry.position !== expectedDeliveryEntry.position ||
       deliveryEntry.source_final_sha256 !== expectedDeliveryEntry.source_final_sha256 ||
       deliveryEntry.jpeg_sha256 !== expectedDeliveryEntry.jpeg_sha256) {
-      throw new Error("Page Image assembly receipt does not bind delivery media order");
+      throw currentProtocolInvalid("the assembly receipt cannot establish current production identity");
     }
   }
   return Object.freeze({
@@ -138,12 +139,12 @@ function readPersistedFinalManifest(paths, input) {
   try {
     manifest = JSON.parse(bytes.toString("utf8"));
   } catch {
-    throw new Error("Page Image final manifest is invalid");
+    throw currentProtocolInvalid("the persisted final manifest cannot establish current production identity");
   }
   const checked = validateFinalSlideManifest(manifest, { evidence: input.accepted_raw_evidence });
   if (!checked.ok || checked.sha256 !== input.final_manifest_sha256 ||
     canonicalJsonSha256(manifest) !== canonicalJsonSha256(input.manifest)) {
-    throw new Error("Page Image final manifest is stale before assembly");
+    throw currentProtocolInvalid("the persisted final manifest cannot establish current production identity");
   }
   return Object.freeze(manifest);
 }

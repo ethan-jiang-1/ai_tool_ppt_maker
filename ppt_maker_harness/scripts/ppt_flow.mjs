@@ -209,24 +209,7 @@ function preflightAdapterSource(resolved, where) {
   const marker = probeProductionMarker(sourceBytes, { source: basename(source) });
   if (marker.branch === "invalid") {
     if (isPageImageWorkflowSelectionPending(marker)) return false;
-    const markerRequiresOwnerValidation = marker.issues.some((issue) =>
-      ["missing_production_marker", "unsupported_pipeline_marker"].includes(issue.code)
-    );
-    if (markerRequiresOwnerValidation) return false;
-    emitCliError({
-      code: CLI_ERROR_CODES.FAILED,
-      message: "Leading source frontmatter is invalid.",
-      hint: "Repair the canonical source marker before routing production work.",
-      where: `${where}.source`,
-      diagnostic: {
-        schema: CLI_DIAGNOSTIC_SCHEMA,
-        category: "source_validation",
-        operation: "probe-production-marker",
-        source: marker.issues[0]?.source || { path: sourceLocator },
-        issues: marker.issues.map((entry) => ({ message: entry.message, source: entry.source, reason: { kind: entry.code || "invalid_pipeline_marker" } })),
-        next: createCliNext("edit_source", { default: "Repair leading frontmatter before adapter routing, readiness, or writes." }),
-      },
-    });
+    emitCurrentProtocolError(`${where}.source`, resolved, marker.issues[0]?.code || "CURRENT_PROTOCOL_INVALID");
     return true;
   }
   return false;
@@ -257,8 +240,8 @@ async function resolveTargetAuthoringDraftAdapter(resolved, deckDir, harnessDir)
 function emitCurrentProtocolError(where, resolved, code = "CURRENT_PROTOCOL_INVALID") {
   emitCliError({
     code: CLI_ERROR_CODES.FAILED,
-    message: "This run does not contain an exact current Page Image Workflow source/state pair.",
-    hint: "Repair the current source or state marker through its owner before continuing.",
+    message: "This run contains a record that cannot establish exact current Page Image Workflow identity.",
+    hint: "Repair the current source, state, or delivery identity through its owner before continuing.",
     where,
     diagnostic: {
       schema: CLI_DIAGNOSTIC_SCHEMA,
@@ -267,7 +250,7 @@ function emitCurrentProtocolError(where, resolved, code = "CURRENT_PROTOCOL_INVA
       source: { path: resolved },
       reason: { kind: "current_protocol_invalid", actual: code },
       next: createCliNext("repair_prerequisite", {
-        default: "Repair the current source or state marker through its owner, then retry.",
+        default: "Repair the current source, state, or delivery identity through its owner, then retry.",
       }),
     },
   });
@@ -907,6 +890,10 @@ async function commandPageImageBuild(route, { resolution, model, baseUrl, reuseI
     console.log(`✓ Target Page Image ${route.workflow} delivery assembled: ${result.delivery.assembly.path}`);
     return 0;
   } catch (error) {
+    if (error?.code === "current_protocol_invalid") {
+      emitCurrentProtocolError("ppt_flow.build.page-image.identity", route.run_dir, error.code);
+      return 1;
+    }
     emitFailed(
       "ppt_flow.build.page-image",
       error.message || "Page Image build failed.",
@@ -935,19 +922,7 @@ async function commandPageImageRefresh(route, {
   kind,
   only,
   all,
-  resolution,
-  baseUrl,
-  dryRun,
-  confirmRunVersion,
-  retiredControlsExplicit,
 }) {
-  if (confirmRunVersion || baseUrl || dryRun || retiredControlsExplicit) {
-    return emitUsage(
-      "ppt_flow.refresh.page-image",
-      "Page Image refresh accepts no provider, resolution, dry-run, reset, or retired override controls",
-      "Use the canonical receipt-bound lifecycle and select only title or notes refresh work."
-    );
-  }
   if (route.adapter === "page-image-workflow") {
     if (kind === "visual") {
       return emitUsage(
@@ -955,9 +930,6 @@ async function commandPageImageRefresh(route, {
         "Target Page Image visual refresh requires a selected-workflow raw rebuild",
         "Run image2 plan, authorize the exact raw scope when needed, generate, review, then build."
       );
-    }
-    if (kind === "reset-html-production") {
-      return emitUsage("ppt_flow.refresh.target.reset", "reset-html-production is not available for target Page Image", "Use the selected workflow evidence owner actions instead of a retired HTML reset.");
     }
     try {
       const operations = await targetImage2Operations(route.workflow);
@@ -977,6 +949,10 @@ async function commandPageImageRefresh(route, {
       console.log(`✓ Target Framed refresh delivered without provider submission: ${result.delivery.assembly.path}`);
       return 0;
     } catch (error) {
+      if (error?.code === "current_protocol_invalid") {
+        emitCurrentProtocolError("ppt_flow.refresh.target.identity", route.run_dir, error.code);
+        return 1;
+      }
       const rawRequired = /TARGET_(?:ACCEPTED_RAW_EVIDENCE_REQUIRED|RAW_REVIEW|SOURCE_RECEIPT_STALE)|raw_evidence|raw_review/i.test(`${error.code || ""} ${error.message || ""}`);
       if (rawRequired) {
         emitCliError({
@@ -1006,12 +982,12 @@ async function commandPageImageRefresh(route, {
  * Routes only the current Page Image ownership/invalidation path.
  *
  * @param {string} runDir
- * @param {{kind: string, only: string|null, all: boolean, resolution: string, baseUrl: string|null, dryRun: boolean}} opts
+ * @param {{kind: string, only: string|null, all: boolean}} opts
  */
-async function commandRefresh(runDir, { kind, only, all, resolution, baseUrl, dryRun, confirmRunVersion = null, retiredControlsExplicit = false }) {
+async function commandRefresh(runDir, { kind, only, all }) {
   const route = await resolveRunAdapter(runDir, "ppt_flow.refresh.identity");
   if (!route) return 1;
-  return commandPageImageRefresh(route, { kind, only, all, resolution, baseUrl, dryRun, confirmRunVersion, retiredControlsExplicit });
+  return commandPageImageRefresh(route, { kind, only, all });
 }
 // Command: new-version
 // ---------------------------------------------------------------------------
@@ -3442,11 +3418,6 @@ Examples:
         kind: opts.kind,
         only: opts.only || null,
         all: opts.all ?? false,
-        resolution: null,
-        baseUrl: null,
-        dryRun: false,
-        confirmRunVersion: null,
-        retiredControlsExplicit: false,
       });
       process.exit(code);
     });
@@ -3602,6 +3573,13 @@ Examples:
         // This closed diagnostic operation always returns its bounded report,
         // including when the failure envelope makes the process exit non-zero.
         setCliOutputMode("json");
+        const { inspectWorkflow } = await import("./shared/workflow/inspect_workflow.mjs");
+        const workflowInspection = inspectWorkflow({ runDir: resolved });
+        if (workflowInspection.root_cause.kind === "current-protocol-invalid") {
+          emitCurrentProtocolError("ppt_flow.state.validate-state.identity", resolved);
+          process.exitCode = 1;
+          return;
+        }
         const { validateStateReadOnly } = await import("./shared/state/state.mjs");
         const result = validateStateReadOnly(deckDir, { runDir: resolved });
         const report = { operation: "validate-state", ...result };

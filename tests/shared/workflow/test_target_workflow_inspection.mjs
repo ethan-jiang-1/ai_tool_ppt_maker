@@ -214,8 +214,8 @@ production:
       const inspection = inspectWorkflow({ runDir: value.runDir });
       expect(inspection).toMatchObject({
         posture: "hard-stop",
-        root_cause: { owner: "production-mode", kind: "MODE_SOURCE_IDENTITY_MISMATCH" },
-        primary_action: { action_id: "repair-current-route" },
+        root_cause: { owner: "production-protocol", kind: "current-protocol-invalid" },
+        primary_action: { action_id: "repair-current-protocol-identity", kind: "repair" },
       });
       expect(isWorkflowInspectionSourceReady(inspection)).toBe(false);
       expect(readFileSync(path)).toEqual(before);

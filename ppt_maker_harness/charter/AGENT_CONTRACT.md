@@ -14,6 +14,11 @@ is `03-framed-image XOR 04-pure-image -> 05-delivery -> 06-iteration`.
 | Final projection, PPTX, notes, delivery | `05-delivery` | Notes-only work refreshes delivery lineage without pixel work. |
 | Refresh classification and structural routing | `06-iteration` | Workflow switches and structural edits create a previewed vNext. |
 
+The retained `html-render-runtime` is private to receipt-bound Framed Page
+Image finalization. `03-framed-image` uses that compositor seam only for its
+selected current workflow; `05-delivery` consumes the resulting current final
+manifest and remains the delivery owner.
+
 Any undeclared, corrupt, hybrid, or ambiguous source/state pair is a current-protocol-invalid hard-stop. It is not a
 workflow choice and is never silently rewritten or interpreted as current.
 

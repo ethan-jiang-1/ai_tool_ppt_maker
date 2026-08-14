@@ -31,7 +31,7 @@ function unsupportedFixture(prefix) {
 }
 
 describe("workflow inspection protocol fence", () => {
-  it("returns one stable export hard-stop for an unsupported source", () => {
+  it("returns one stable repair hard-stop for an unsupported source", () => {
     const fixture = unsupportedFixture("workflow-inspect-unit-");
     try {
       const first = inspectWorkflow({ runDir: fixture.runDir });
@@ -40,7 +40,7 @@ describe("workflow inspection protocol fence", () => {
         schema: WORKFLOW_INSPECTION_SCHEMA,
         posture: "hard-stop",
         root_cause: { owner: "production-protocol", kind: "current-protocol-invalid" },
-        primary_action: { action_id: "repair-current-protocol-identity", kind: "export" },
+        primary_action: { action_id: "repair-current-protocol-identity", kind: "repair" },
         observations: [],
       });
       expect(canonicalJson(first)).toBe(canonicalJson(second));

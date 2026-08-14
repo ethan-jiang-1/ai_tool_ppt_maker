@@ -350,7 +350,7 @@ describe("progressive Page Image raw owner", () => {
     }
   });
 
-  it("keeps a v1 plan inspectable but blocks new runtime work under a Task Mandate", async () => {
+  it("keeps a current plan inspectable but blocks new runtime work under a Task Mandate", async () => {
     const { root, runDir } = fixtureRun();
     const plan = fixturePlan(1);
     try {
