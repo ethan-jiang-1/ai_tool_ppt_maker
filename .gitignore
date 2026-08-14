@@ -82,6 +82,20 @@ dpt_rb_*
 
 *.ppt*
 
+# ===== Images (generated/raw — keep out of git) =====
+# 有意的参考图/图标如需提交，用 `git add -f` 强制加入
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+*.bmp
+*.heic
+*.tiff
+
+# raw upstream material (large source images, regenerable)
+**/1_upstream_raw_material/
+
 skills-lock.json
 .agents
 .codewhale/
