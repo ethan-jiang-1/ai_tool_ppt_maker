@@ -1,11 +1,11 @@
 # Harness Signal Cleanup - Progress Plan
 
 > Type: program control sheet | Updated: 2026-08-14
-> Program status: `closing`
+> Program status: `done`
 > Fixed OpenSpec change count: `3`
 > Overall: `3 done / 0 active / 0 queued`
-> Current gate: program tracking closure
-> Next checkbox: record and reconcile the tracking commit
+> Current gate: complete
+> Next checkbox: none
 
 This is the one program-level progress view. OpenSpec artifacts remain the
 authority for each change's WHY, WHAT, HOW, and implementation tasks; current
@@ -16,8 +16,8 @@ main specs remain the accepted behavior authority.
 - [x] **Change 1 of 3** - `converge-active-harness-authority` - `done`
 - [x] **Change 2 of 3** - `retire-historical-protocol-surfaces` - `done` (`22/22` tasks)
 - [x] **Change 3 of 3** - `converge-agent-control-surfaces` - `done` (`21/21` tasks)
-- [ ] **Program closure** - final evidence and Git reconciliation; this is not
-  another OpenSpec change
+- [x] **Program closure** - final evidence and Git reconciliation complete;
+  this was not another OpenSpec change
 
 | Measure | Count |
 | --- | ---: |
@@ -51,7 +51,7 @@ updated plan explaining why Change 3 cannot safely contain the work.
        D. prove reachability, residue, and final coherence
                  |
                  v
-[ ] Program closure - verify, commit, push, reconcile
+[x] Program closure - verified, committed, pushed, and reconciled
 ```
 
 Only one cleanup change may be active at a time. Change 3 is deliberately one
@@ -403,29 +403,29 @@ resolved drift.
 
 ## Final Program Closure - Not A Change
 
-Status: `closing`; all three changes are done. The remaining operation is this
-tracking-record commit and its normal push/reconciliation.
+Status: `done`; all three changes, the tracking record, and final Git
+reconciliation are complete.
 
-- [ ] Changes 1-3 are archived and each has a reconciled closure SHA.
-- [ ] Every P0/P1 finding maps to a closed change or explicit rejection.
-- [ ] Every `delete`/`absorb` row in `deletion-matrix.md` satisfies the deletion
+- [x] Changes 1-3 are archived and each has a reconciled closure SHA.
+- [x] Every P0/P1 finding maps to a closed change or explicit rejection.
+- [x] Every `delete`/`absorb` row in `deletion-matrix.md` satisfies the deletion
   rule; every `decide` row has an accepted outcome.
-- [ ] Active specs, config, guidance, runtime, and tests contain no targeted old
+- [x] Active specs, config, guidance, runtime, and tests contain no targeted old
   term, path, alias, tombstone, or competing authority.
-- [ ] Every retained authority has a named owner, live consumer, and falsifiable
+- [x] Every retained authority has a named owner, live consumer, and falsifiable
   guard or explicit auditable review.
-- [ ] Final `npm test` passes.
-- [ ] Final `npm run test:sweep` passes.
-- [ ] Final `openspec validate --all --strict --no-interactive` passes.
-- [ ] Final `git diff --check` passes.
-- [ ] `openspec list --json` reports no unintended active change.
-- [ ] Final exact-path staged diff and ordinary commit are inspected.
-- [ ] Final ordinary `git push origin master` succeeds.
-- [ ] Final `HEAD`, local `master`, `origin/master`, and remote `master` SHAs are
+- [x] Final `npm test` passes.
+- [x] Final `npm run test:sweep` passes.
+- [x] Final `openspec validate --all --strict --no-interactive` passes.
+- [x] Final `git diff --check` passes.
+- [x] `openspec list --json` reports no unintended active change.
+- [x] Final exact-path staged diff and ordinary commit are inspected.
+- [x] Final ordinary `git push origin master` succeeds.
+- [x] Final `HEAD`, local `master`, `origin/master`, and remote `master` SHAs are
   identical.
-- [ ] Worktree is clean except for separately identified user work.
-- [ ] Move this plan package to the closed-plan location and preserve it as the
-  program operation record.
+- [x] Worktree is clean except for separately identified user work.
+- [x] Retain this plan package at its user-designated location as the program
+  operation record.
 
 ## Evidence Log
 
@@ -450,3 +450,4 @@ tracking-record commit and its normal push/reconciliation.
 | 2026-08-14 | Change 3 / 5.2 | Release gate passed | `npm test`, `npm run test:sweep`, strict active-change validation, strict all validation (`27`), fixed-root scan (`338` text / `102` binary; zero issues), scoped residue audit, and `git diff --check` passed; no unresolved P0/P1 findings |
 | 2026-08-14 | Change 3 / 5.3 | Archived after synchronized-spec revalidation | archive `openspec/changes/archive/2026-08-14-converge-agent-control-surfaces/`; post-archive strict main-spec validation (`26`) and fixed-root scan remained clean; Git closure pending |
 | 2026-08-14 | Change 3 / 5.4 | Ordinary implementation closure commit, normal push, and four-SHA reconciliation completed | closure `2184973`; `HEAD = master = origin/master = remote master = 218497324f18ff92296af95fc99f5aa889c67787` |
+| 2026-08-14 | Program closure | Tracking record commit pushed and reconciled; program plan retained at its user-designated location | tracking closure `c12db7c`; `HEAD = master = origin/master = remote master = c12db7ce981973f44e38273304662bb75c4c5888` |
