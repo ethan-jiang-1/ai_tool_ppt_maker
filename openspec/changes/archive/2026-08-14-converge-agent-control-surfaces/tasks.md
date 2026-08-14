@@ -103,7 +103,7 @@
 - [x] 5.3 Synchronize accepted delta specs, revalidate main specs, archive the
   completed change, and update this checklist plus the program progress plan
   before Git closure.
-- [ ] 5.4 Stage exact paths, inspect the staged diff, create an ordinary commit,
+- [x] 5.4 Stage exact paths, inspect the staged diff, create an ordinary commit,
   fetch, push `master`, and record four-SHA reconciliation in this checklist and
   the program progress plan.
 
@@ -121,3 +121,4 @@
 - [x] `node --input-type=module -e 'import { scanActiveSurfaceResidue } from "./ppt_maker_harness/scripts/contracts/harness_architecture.mjs"; const result = scanActiveSurfaceResidue(); process.stdout.write(JSON.stringify(result) + "\\n");'` - `338` text and `102` binary active files, zero issues.
 - [x] Scoped active-root residue search and `git diff --check` - zero positive legacy control consumers; all remaining literal mentions are owner-issued normative rejection, test negative control, or guard definition, so there are no unresolved P0/P1 findings.
 - [x] `openspec archive "converge-agent-control-surfaces" --yes --skip-specs --json` - archived to `openspec/changes/archive/2026-08-14-converge-agent-control-surfaces/` after pre-synchronized main specs; post-archive `openspec validate --all --strict --no-interactive` passed `26` specs and the active-surface scan remained clean.
+- [x] Closure implementation commit `2184973` (`refactor(harness): converge agent control surfaces`) passed exact-path staged review and `git diff --cached --check`; after a pre-push fetch found zero divergence, ordinary push succeeded. Post-push reconciliation: `HEAD = master = origin/master = remote master = 218497324f18ff92296af95fc99f5aa889c67787`.

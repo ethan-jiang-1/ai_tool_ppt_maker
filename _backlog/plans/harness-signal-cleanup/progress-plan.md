@@ -1,11 +1,11 @@
 # Harness Signal Cleanup - Progress Plan
 
 > Type: program control sheet | Updated: 2026-08-14
-> Program status: `active`
+> Program status: `closing`
 > Fixed OpenSpec change count: `3`
-> Overall: `2 done / 1 active / 0 queued`
-> Current gate: Change 3 Git closure
-> Next checkbox: Change 3 / verify and close / 5.4
+> Overall: `3 done / 0 active / 0 queued`
+> Current gate: program tracking closure
+> Next checkbox: record and reconcile the tracking commit
 
 This is the one program-level progress view. OpenSpec artifacts remain the
 authority for each change's WHY, WHAT, HOW, and implementation tasks; current
@@ -15,7 +15,7 @@ main specs remain the accepted behavior authority.
 
 - [x] **Change 1 of 3** - `converge-active-harness-authority` - `done`
 - [x] **Change 2 of 3** - `retire-historical-protocol-surfaces` - `done` (`22/22` tasks)
-- [ ] **Change 3 of 3** - `converge-agent-control-surfaces` - `active` (`20/21` tasks)
+- [x] **Change 3 of 3** - `converge-agent-control-surfaces` - `done` (`21/21` tasks)
 - [ ] **Program closure** - final evidence and Git reconciliation; this is not
   another OpenSpec change
 
@@ -44,7 +44,7 @@ updated plan explaining why Change 3 cannot safely contain the work.
 [x] Change 2 - retire historical protocol surfaces       <- done: 22/22
                  |
                  v
-[ ] Change 3 - converge remaining Agent control surfaces
+[x] Change 3 - converge remaining Agent control surfaces       <- done: 21/21
        A. remove competing routing/prose surfaces
        B. close Controller metadata grammar
        C. cut over to production identity
@@ -289,8 +289,7 @@ Evidence:
 
 ## Change 3 Of 3 - `converge-agent-control-surfaces`
 
-Status: `active`; dependency: Change 2 is `done` and reconciled. Tasks
-`1.1` through `5.3` are complete (`20/21`); only Git closure remains.
+Status: `done`; archived, committed, pushed, and reconciled (`21/21`).
 
 Terminal invariant: active guidance, Controller metadata, route discovery, and
 persisted production identity form one attributable control model with no
@@ -311,12 +310,12 @@ Lifecycle:
 - [x] `tasks` - `21` implementation/closure tasks
 - [x] `artifact-validation` - strict change plus strict all-spec validation
   passed (`27/27`)
-- [x] `apply` - `20/21`; implementation is complete and the archived checklist is current
+- [x] `apply` - `21/21`; implementation is complete and the archived checklist is current
 - [x] `focused-verification`
 - [x] `baseline-and-residue`
 - [x] `archive`
-- [ ] `commit`
-- [ ] `push-and-reconcile`
+- [x] `commit` - closure implementation commit `2184973`
+- [x] `push-and-reconcile` - implementation closure SHA reconciled
 
 ### Gate 3A - Planning And Decision
 
@@ -390,20 +389,22 @@ failure path, and falsifiable guard are proved and incidental residue in Change
 - [x] `5.1`–`5.2` Pass focused tests, `npm test`, `npm run test:sweep`, strict OpenSpec
   validation, scoped residue searches, and `git diff --check`.
 - [x] `5.3` Sync accepted delta specs, revalidate, and archive Change 3.
-- [ ] `5.4` Stage exact paths, inspect, ordinarily commit, fetch, push, and
+- [x] `5.4` Stage exact paths, inspect, ordinarily commit, fetch, push, and
   reconcile all four master SHAs.
-- [x] Record archive path; closure SHA remains pending Git closure.
+- [x] Archive path and closure implementation SHA recorded: `2184973`.
 
 Ordering note: 4.4 exposed seven positive old declarations in accepted main
 specs. The 5.3 **sync** substep was therefore completed early as a direct
 precondition for 4.5; strict validation and the repository-clean guard passed
-afterward. Archive completed after a second strict validation. Commit, push,
-and 5.4 completion remain pending. No runtime or scan exception masks the
+afterward. Archive completed after a second strict validation. The ordinary
+closure implementation commit was pushed after a zero-divergence fetch, and
+its four-SHA reconciliation passed. No runtime or scan exception masks the
 resolved drift.
 
 ## Final Program Closure - Not A Change
 
-Status: `blocked` until all three changes are `done`.
+Status: `closing`; all three changes are done. The remaining operation is this
+tracking-record commit and its normal push/reconciliation.
 
 - [ ] Changes 1-3 are archived and each has a reconciled closure SHA.
 - [ ] Every P0/P1 finding maps to a closed change or explicit rejection.
@@ -448,3 +449,4 @@ Status: `blocked` until all three changes are `done`.
 | 2026-08-14 | Change 3 / 5.1 | Focused verification passed | Controller/state/Style Master/inspection/CLI/schema suite (`10` files, `70`), env process (`56`), command process (`5`), inactive-write E2E (`1`), and workflow-inspection E2E (`4`) passed; concurrent E2E timeout was eliminated by normal serial reruns |
 | 2026-08-14 | Change 3 / 5.2 | Release gate passed | `npm test`, `npm run test:sweep`, strict active-change validation, strict all validation (`27`), fixed-root scan (`338` text / `102` binary; zero issues), scoped residue audit, and `git diff --check` passed; no unresolved P0/P1 findings |
 | 2026-08-14 | Change 3 / 5.3 | Archived after synchronized-spec revalidation | archive `openspec/changes/archive/2026-08-14-converge-agent-control-surfaces/`; post-archive strict main-spec validation (`26`) and fixed-root scan remained clean; Git closure pending |
+| 2026-08-14 | Change 3 / 5.4 | Ordinary implementation closure commit, normal push, and four-SHA reconciliation completed | closure `2184973`; `HEAD = master = origin/master = remote master = 218497324f18ff92296af95fc99f5aa889c67787` |
