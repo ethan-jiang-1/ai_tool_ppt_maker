@@ -3,9 +3,9 @@
 > Type: program control sheet | Updated: 2026-08-14
 > Program status: `active`
 > Fixed OpenSpec change count: `3`
-> Overall: `2 done / 0 active / 1 queued`
-> Current gate: Change 3 admission
-> Next checkbox: Change 3 / admission
+> Overall: `2 done / 1 ready / 0 queued`
+> Current gate: Change 3 apply
+> Next checkbox: Change 3 / apply / 1.1
 
 This is the one program-level progress view. OpenSpec artifacts remain the
 authority for each change's WHY, WHAT, HOW, and implementation tasks; current
@@ -15,7 +15,7 @@ main specs remain the accepted behavior authority.
 
 - [x] **Change 1 of 3** - `converge-active-harness-authority` - `done`
 - [x] **Change 2 of 3** - `retire-historical-protocol-surfaces` - `done` (`22/22` tasks)
-- [ ] **Change 3 of 3** - `converge-agent-control-surfaces` - `queued`
+- [ ] **Change 3 of 3** - `converge-agent-control-surfaces` - `ready` (`0/19` tasks)
 - [ ] **Program closure** - final evidence and Git reconciliation; this is not
   another OpenSpec change
 
@@ -23,8 +23,8 @@ main specs remain the accepted behavior authority.
 | --- | ---: |
 | Total OpenSpec changes | 3 |
 | Closed | 2 |
-| Active | 0 |
-| Remaining before program closure | 1 |
+| Ready | 1 |
+| Remaining after the ready change | 0 |
 | Additional unplanned changes | 0 |
 
 The count is fixed at three. The former routing cleanup, Controller metadata
@@ -289,7 +289,8 @@ Evidence:
 
 ## Change 3 Of 3 - `converge-agent-control-surfaces`
 
-Status: `queued`; dependency: Change 2 is `done` and reconciled.
+Status: `ready`; dependency: Change 2 is `done` and reconciled. Implementation
+has not started (`0/19`).
 
 Terminal invariant: active guidance, Controller metadata, route discovery, and
 persisted production identity form one attributable control model with no
@@ -301,13 +302,15 @@ This one change absorbs the former Changes 3 and 4 and the conditional Change
 
 Lifecycle:
 
-- [ ] `admission`
-- [ ] `scaffold`
-- [ ] `proposal`
-- [ ] `specs`
-- [ ] `design`
-- [ ] `tasks`
-- [ ] `artifact-validation`
+- [x] `admission` - baseline `dc53149`; `HEAD`, local `master`, tracking
+  `origin/master`, and remote `master` matched before change creation
+- [x] `scaffold` - `openspec new change converge-agent-control-surfaces`
+- [x] `proposal`
+- [x] `specs`
+- [x] `design`
+- [x] `tasks` - `19` implementation/closure tasks
+- [x] `artifact-validation` - strict change plus strict all-spec validation
+  passed (`27/27`)
 - [ ] `apply`
 - [ ] `focused-verification`
 - [ ] `baseline-and-residue`
@@ -317,17 +320,19 @@ Lifecycle:
 
 ### Gate 3A - Planning And Decision
 
-- [ ] Reconfirm the remaining F5-F10 findings against post-Change-2 master.
-- [ ] Enumerate all affected specs, entry surfaces, readers, writers, persisted
+- [x] Reconfirm the remaining F5-F10 findings against post-Change-2 master:
+  F5-F7, F9, and F10 remain in Change 3 scope; F8 was closed by Change 2.
+- [x] Enumerate all affected specs, entry surfaces, readers, writers, persisted
   fields, tests, and guards before locking artifacts.
-- [ ] Decide the Intent Route Catalog as one family; default to deletion unless
-  a distinct authority and live consumer are proven.
-- [ ] Decide `production_mode` inside this change: collapse it only if exact
-  consumer and failure-path evidence proves net concept subtraction; otherwise
-  retain it with a named distinct invariant and guard.
-- [ ] Record the project-owner-approved `production_mode` outcome in this plan
+- [x] Decide the Intent Route Catalog as one family: delete it because its
+  reader has no production consumer and `COMMANDS` plus Controllers/CLI already
+  own the handoff.
+- [x] Decide `production_mode`: collapse its fixed singleton into
+  `production_identity.by_version {workflow, source_epoch}`. Source owns the
+  pipeline/workflow; State owns agreement and the invalidation fence.
+- [x] Record the project-owner-approved no-compatibility outcome in this plan
   package and in Change 3 design/specs before artifact validation.
-- [ ] Complete and strictly validate one coherent Change 3 artifact set.
+- [x] Complete and strictly validate one coherent Change 3 artifact set.
 
 ### Gate 3B - Remove Competing Agent Routes
 
@@ -416,3 +421,5 @@ Status: `blocked` until all three changes are `done`.
 | 2026-08-14 | Change 2 | Full verification, sync assessment, and archive completed | archive `2026-08-14-retire-historical-protocol-surfaces`; `20/22` |
 | 2026-08-14 | Change 2 | Ordinary commit, fast-forward push, and four-SHA reconciliation completed | closure `ac7be51`; `22/22` |
 | 2026-08-14 | Program control | Remaining work consolidated into fixed Change 3; total change count fixed at three | this file + `program.md` |
+| 2026-08-14 | Change 3 | Admitted and scaffolded from clean reconciled master | baseline `dc53149`; `openspec/changes/converge-agent-control-surfaces/` |
+| 2026-08-14 | Change 3 | Proposal, eight capability deltas, design, and 19-task checklist completed; strict validation passed | `openspec/changes/converge-agent-control-surfaces/`; change + all specs `27/27` |
