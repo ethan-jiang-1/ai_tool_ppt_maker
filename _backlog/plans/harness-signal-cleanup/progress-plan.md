@@ -4,8 +4,8 @@
 > Program status: `done`
 > Fixed OpenSpec change count: `3`
 > Overall: `3 done / 0 active / 0 queued`
-> Current gate: program closed; future intake only
-> Next checkbox: no pending cleanup task
+> Current gate: cleanup program closed; independent successor is planned
+> Next checkbox: review `add-real-provider-e2e-acceptance` before explicit apply
 
 This is the one program-level progress view. OpenSpec artifacts remain the
 authority for each change's WHY, WHAT, HOW, and implementation tasks; current
@@ -436,6 +436,21 @@ Do not reopen this closed plan merely to perform another broad historical-term
 search; the active-surface guard and ordinary maintenance verification own that
 steady-state protection.
 
+### Accepted Independent Successor
+
+The project owner approved one successor after the post-closure coverage audit:
+
+- [x] `add-real-provider-e2e-acceptance` - planning complete (`0/12` tasks);
+  this is not Change 4 and does not alter this cleanup program's fixed count.
+- [ ] Apply its test-only implementation after explicit review/request.
+- [ ] Run its chargeable one-submission live acceptance only with separate
+  operator authority and a non-production endpoint.
+
+Its OpenSpec artifacts own scope and tasks:
+`openspec/changes/add-real-provider-e2e-acceptance/`. It reuses the existing
+live-test gate and current CLI/State/Image2 owners; it adds no run-bundle
+contract, production-data scope, or compatibility work.
+
 ## Evidence Log
 
 | Date | Work item | Event | Evidence/path/SHA |
@@ -462,3 +477,4 @@ steady-state protection.
 | 2026-08-14 | Program closure | Tracking record commit pushed and reconciled; program plan retained at its user-designated location | tracking closure `c12db7c`; `HEAD = master = origin/master = remote master = c12db7ce981973f44e38273304662bb75c4c5888` |
 | 2026-08-14 | Program closure | Dashboard counts, invariants, and successor-intake rule reconciled after final closure | no active change; this plan remains the closed operation record |
 | 2026-08-14 | Post-closure readiness | Current Harness entrypoint checked without production work | `node ppt_maker_harness/scripts/ppt_flow.mjs doctor` passed; local Node, dependencies, Chromium, fonts, and offline HTML runtime are ready |
+| 2026-08-14 | Independent successor | Owner accepted a bounded real-provider E2E acceptance lane after coverage audit | `openspec/changes/add-real-provider-e2e-acceptance/`; planning complete, apply and live operator acceptance pending |
