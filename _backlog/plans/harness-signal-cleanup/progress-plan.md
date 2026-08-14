@@ -22,9 +22,9 @@ main specs remain the accepted behavior authority.
 | Measure | Count |
 | --- | ---: |
 | Total OpenSpec changes | 3 |
-| Closed | 1 |
-| Active | 1 |
-| Remaining after the active change | 1 |
+| Closed | 2 |
+| Active | 0 |
+| Remaining before program closure | 1 |
 | Additional unplanned changes | 0 |
 
 The count is fixed at three. The former routing cleanup, Controller metadata
@@ -283,8 +283,9 @@ Evidence:
 - [x] Archive path recorded:
   `openspec/changes/archive/2026-08-14-retire-historical-protocol-surfaces/`
 - [x] Closure implementation commit recorded: `ac7be51`
-- [x] Post-push reconciliation for that closure commit:
-  `HEAD = master = origin/master = remote master = ac7be51aac1adf5bddfefb2683bcb1dfc2453370`
+- [x] Tracking-closure commit recorded: `99716f2`
+- [x] Post-push reconciliation after tracking closure:
+  `HEAD = master = origin/master = remote master = 99716f25587c88ad5397a576a2a43e6145c228fd`
 
 ## Change 3 Of 3 - `converge-agent-control-surfaces`
 
