@@ -133,3 +133,157 @@ Harness 修好后，Deck Agent（本 deck）需要做的后续是：
 2. 重跑 `image2 plan`（provider-free）重建 progressive raw plan。
 3. 走 pilot（4 页：`InfoRev`/`NewPart`/`DeerVal`/`FramAut`）→ authorize → generate → review → expansion → accept → build。
 4. 用 pilot 出图验证「逼近 V1」的效果（字体一致性、文图比、色系、CJK 可读性是否达标）。
+
+---
+
+## OpenSpec 落地 TODO / Tracking（2026-08-15 review 后修订）
+
+> 本节是后续落地的追踪权威，覆盖前文中已经被 review 推翻的实施建议。
+> 特别是：不再把 `4000` 视为全局 Image2 上限；不再保留旧
+> `compiled_provider_input` 授权后发送另一份派生 prompt；不再要求当前完整
+> `page-design-system.md` 在 4K profile 下必然可提交。
+>
+> **Tracking 到核心 change 完成即结束。** 下列阶段 1-5 全部是同一个 OpenSpec
+> change 内部的设计、实施和验收，不是 change 落地后的追加工程。change 完成后不再要求
+> 另一个 Harness change；Deck Agent 直接按正常 provider workflow 使用。
+
+### 状态总览
+
+| 阶段 | 状态 | 完成条件 |
+|---|---|---|
+| 0. 调查与设计收敛 | `done` | 4K/16K 现象、现有 prompt authority 和不可实现验收项已复核 |
+| 1. 创建核心 OpenSpec change | `pending` | change 已由 OpenSpec CLI scaffold，proposal/design/specs/tasks 齐全 |
+| 2. Capability Profile 权威 | `pending` | 非秘密 profile source、schema、选择和 runtime 匹配规则闭合 |
+| 3. Exact compact prompt cutover | `pending` | compact prompt 成为唯一授权和实际提交字节 |
+| 4. Budget admission 与生命周期绑定 | `pending` | profile digest/limit/unit 进入 plan、authorization、attempt preflight |
+| 5. 实施、验证与完成 | `pending` | 回归和 strict validation 通过，change 已同步/归档，可直接交给 Deck Agent |
+
+### 0. 已完成：调查与决策基线
+
+- [x] 调查 micuapi 的 alias、route、group、operation 与 validator 分层；记录在
+  `provider-prompt-limit-investigation.md`。
+- [x] 确认 `gpt-image-2` 是可重定向 alias，模型名本身不能唯一标识 provider capability。
+- [x] 确认现有 32,768 UTF-8 bytes 是本地 compiler safety bound，不是远端 prompt 能力。
+- [x] 复算 v8 25 页：去除内部 metadata 后仍约 5.8K-6.7K 字符；完整
+  `design_system` 自身约 4,215 字符，因此当前 deck 无法仅靠 metadata 清理适配 4K。
+- [x] 确认所有 Harness 行为调整只通过 OpenSpec change 落地，不直接按 backlog plan 改代码。
+- [x] 决定核心修复使用一个原子 OpenSpec change，避免两个不完整中间 contract 和两次
+  compiler cutover。
+
+### 1. 创建一个核心 OpenSpec change
+
+- [ ] 使用 OpenSpec CLI 创建 change；建议名称：
+  `bind-capability-aware-image2-provider-input`。
+- [ ] proposal 明确唯一终态：每次 Image2 provider work 都使用一个显式 capability
+  profile 下、预算已验证、被完整授权的 exact prompt。
+- [ ] proposal 明确至少涉及以下现有 capabilities：
+  `run-bundle-layout`、`run-bundle-management`、`style-master-generation`、
+  `image-generation`、`production-schema-conformance`、`environment-check`；仅在新增或修改
+  direct CLI diagnostic producer contract 时加入 `cli-surface`。
+- [ ] proposal 明确不创建第二套 provider prompt authority、不增加自动探测、自动 fallback、
+  静默截断或未授权 live probe。
+- [ ] design、delta specs 和 tasks 必须在实施前完成并通过 strict validation。
+
+### 2. 关闭 Provider Capability Profile 的权威问题
+
+- [ ] 在 design 中确定一个 Run Bundle 内的非秘密 canonical source of record；不得使用
+  State、inspection、API key、一次远端失败或 Harness 内的 provider/model 常量作为事实源。
+- [ ] 评估并确定 source 位置；当前建议为独立的非秘密
+  `image2-provider-profile.yaml`，而不是把 capability 塞进 `.env`。
+- [ ] profile schema 至少表达：`profile_id`、非秘密 `endpoint_profile`、`route_id`、
+  `model`、`operation`、`prompt_budget.limit`、`prompt_budget.unit` 和 provenance/owner
+  declaration。
+- [ ] `limit` 必须是普通正整数数据；实现不得出现 `if 4000 ... else if 16000 ...`。
+- [ ] `unit` 必须是 closed vocabulary，并定义精确计数算法；至少评估
+  `unicode-code-points`、`utf16-code-units`、`utf8-bytes`，不得只写含糊的 `chars`。
+- [ ] 同一 provider profile 可以按 operation 声明不同预算，至少区分 Style Master text
+  generation 与 Page Image reference-generation request shape。
+- [ ] `.env` 继续只拥有 credential/base URL 和必要的 runtime profile identity；provider-free
+  planning 不得依赖 API key。
+- [ ] provider initialization 前验证 runtime profile identity 与 plan-bound profile 相符；不符时
+  在 grant/attempt/provider call 前 fail-closed。
+- [ ] 缺失、未知、格式错误或 owner 未声明的 profile 不得推断为 4K、16K 或 legacy default。
+
+### 3. 将 compact prompt 设为唯一 exact provider bytes
+
+- [ ] Pure adapter 从 provider prompt 中移除 `generation_profile`、presentation provenance、
+  binding digest、路径和其他 lineage-only facts。
+- [ ] Framed adapter 做独立的 workflow-specific compact compilation；必须保留 exact
+  `FRAMED_EXCLUSIVE_HEADER_RESERVATION_INSTRUCTION`、`subject_restrictions` 和
+  `protected_composition`，不得为了“对称”复制 Pure 的 `page_presentation` shape。
+- [ ] `design_system`、provider-rendered content、visual clauses 和 identity role clause 继续按
+  owning source/raw contract 精确绑定；不得自动摘要或截断。
+- [ ] 新 compact bytes 直接成为 `compiled_provider_input.utf8`；其 SHA-256 继续作为 plan、
+  authorization、attempt 和 invalidation 的 exact provider-input digest。
+- [ ] raw contract、generation profile、presentation/profile lineage 继续留在本地 canonical
+  owners 中，不通过第二份“完整 prompt”重复授权。
+- [ ] shared runtime 和 submitter 保持 opaque exact-byte transport：不重编译、不删字段、不从
+  inspection 取请求、不在 submit 时派生另一份 prompt。
+- [ ] compiler cutover 将旧 prompt shape 的 current plan 判为 stale，保留历史记录并走现有
+  fresh-plan / Generated Image Rebuild 路径，不迁移或补写旧记录。
+
+### 4. Budget admission、binding 与负向路径
+
+- [ ] 保留 32,768 UTF-8 bytes 本地 compiler safety bound，并与远端 capability budget 分层校验。
+- [ ] adapter 对最终 `compiled_provider_input.utf8` 按所选 profile 的 exact unit 计数；不得测
+  source 长度、中间对象或 JSON 之外的估算值。
+- [ ] provider budget 校验发生在 plan publication、authorization、provider initialization、grant
+  和 attempt 之前；本地确定性超限不得写成远端 `known_failure`。
+- [ ] 超限 diagnostic 指向 provider profile 或 source/configuration repair；不得建议静默切换
+  route、自动压缩内容或直接重试。
+- [ ] capability profile digest 进入 Style Master 和 Page Image generation profile、plan identity、
+  authorization scope 及 provider request/attempt binding。
+- [ ] profile、model、operation、limit 或 unit 任一变化都使旧 plan stale，并只通过 fresh plan
+  进入新的授权路径。
+- [ ] tests 使用通用 4,000 与 16,000 profile fixtures 证明数据驱动行为，同时覆盖第三个非特殊
+  数字，防止实现退化为两个硬编码分支。
+- [ ] 用 ASCII、CJK、emoji fixture 锁死各计数单位的边界行为。
+
+### 5. 实施顺序与验证 Tracking
+
+- [ ] 先写 profile source/schema/resolver 和负向 contract tests。
+- [ ] 再让 Style Master 与 Page Image generation profiles 消费同一 selected capability source。
+- [ ] 再修改 Pure/Framed compiler，使 compact bytes 成为唯一 provider bytes authority。
+- [ ] 再接通 plan/authorization/attempt binding、budget preflight 和 compiler-cutover recovery。
+- [ ] 更新生产 schema definitions、derived inspection 和 architecture guards；inspection 仍是
+  non-authoritative projection。
+- [ ] 跑 capability/profile、Style Master、Pure、Framed、progressive raw owner、transport、
+  invalidation 和 CLI diagnostic focused tests。
+- [ ] 跑 `npm test` 与 `npm run test:sweep`，处理全部回归。
+- [ ] 跑 OpenSpec strict validation，确保 proposal/design/delta specs/tasks 与 main specs 一致。
+- [ ] provider-free 地重新测量 v8 25 页最终 compact prompt，记录 code points、UTF-16 units、
+  UTF-8 bytes 和所选 profile budget。
+- [ ] 未经 owner 明确授权，不执行真实 provider generation 或边界探测。
+- [ ] change 完成后才 archive；不得以“代码已写”代替 spec sync、测试和 cutover 验证。
+
+### 核心 change 的 Done Definition
+
+以下条件满足后，本计划直接关闭，不再挂后续 Harness TODO：
+
+- [ ] OpenSpec artifacts、实现、main spec sync、focused tests、全量回归和 strict validation 全部完成。
+- [ ] 4K、16K 和一个第三方任意数字 profile fixture 均证明为同一数据驱动 contract，不存在数字
+  special case。
+- [ ] Pure、Framed 和 Style Master 均绑定 selected capability profile；实际发送的 exact prompt
+  已在 provider work 前完成预算校验。
+- [ ] 旧 plan 只走一次 compiler/profile cutover；历史 evidence 保留，不能从旧 plan 提交。
+- [ ] 现有 Run Bundle 缺少 profile 时返回一个明确、可执行的配置修复动作，Deck Agent 无需理解
+  Harness 内部 schema 或继续开发 Harness。
+- [ ] change 已归档；另一个 Agent 可以从正常 Deck Controller 入口继续工作。
+
+### Change 完成后的立即使用流程（不是 Harness TODO）
+
+另一个 Deck Agent 只需要做正常生产操作：
+
+1. 为 `deck_ai_sdlc_keynote` 选择并记录 owner 已确认的 capability profile；不得从
+   `gpt-image-2` alias 自动猜测。当前完整 v8 prompt 应选择能够容纳它的已确认 profile。
+2. 重跑一次 `image2 plan`，然后按现有流程执行
+   pilot → authorize → generate → review → expansion → accept → build。
+3. 在 Complete Page Review 中判断字体、CJK 可读性、文图比、色系和 identity 一致性。
+
+到这里即完成交接。没有第二个必需 change，也没有 change 落地后的 Harness 清理阶段。
+
+### 不在本计划 Tracking 内
+
+- Provider failure request ID/headers 的诊断增强不影响本次可用性，不在本计划继续追踪。
+- 若未来要求当前 4,215 字符设计系统也必须通过 4K route，那是新的产品语义选择；另行提出时再
+  决定是编辑 deck source，还是创建独立 OpenSpec change。当前 change 不自动摘要、不截断。

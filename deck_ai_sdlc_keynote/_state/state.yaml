@@ -18,7 +18,7 @@ execution_started_at: 2026-08-14T14:43:36.789Z
 run_version: v8
 continuation_target_version: v8
 started_at: 2026-08-14T14:43:36.789Z
-updated_at: 2026-08-15T08:17:13.399Z
+updated_at: 2026-08-15T14:37:55.182Z
 nodes:
   checkpoint-intake:
     status: completed
@@ -52,19 +52,19 @@ page_image_style_master:
       schema: page-image-style-master-selection
       run_version: v8
       workflow: pure
-      plan_sha256: da74d996961d327d3116a1c0a5d1d2ca79fe9de8bf3ba3a05d9a967b3b8f4643
+      plan_sha256: ce1bc35db6fd80fd4f31111f3644469e15c2a71f8bc7dd9c2ce5b3ac2321b491
       candidate_id: local-existing
-      candidate_sha256: 287302d9825ce526dbb1f42073cde1bff76eca405682d6351a999f490dcd667e
-      candidate_media_type: image/png
+      candidate_sha256: 2cd6de3d38cd65b6d46acee669a7e8c1f9f6b8bf77e2fa5c532a2653342c7205
+      candidate_media_type: image/jpeg
       candidate_width: 1536
       candidate_height: 864
-      candidate_provenance_sha256: a96da2eb46530f4a9663fd2143a00995cda4393ad53b6c31ba9925235efbab41
+      candidate_provenance_sha256: 9a3885a87998baf04f9c6436b37e978bf6b1d5bb61989dcdee51bee046a1dfb2
       style_intent_sha256: 9c8aa0a6715e20ece7c3b1ddb18641b04af26811b3e7234d0fc05ca0cd4c0505
       style_context_sha256: 8796264919df07e9720d8107765260e5cbc99158766e7296d4f2a03938e493cd
-      candidate_generation_profile_sha256: e90d58e604ea663cc6ab337d3f4827e15453a66804b602325899cb3c10e8e886
-      previous_selection_sha256: 3922a9632910a325848da016551f9d89e35a8229df8d8a9457fb8cda30c4ebcd
-      review_decision_sha256: ad6401c8a2d9780bdbc0675b938cebbf1b9921e4c9ad6c8154edb008cfe8494e
-      accepted_at: 2026-08-14T20:51:33.385Z
+      candidate_generation_profile_sha256: f15a56edeed8bf2d45d62d91dd73882a779485a2f406fcc19629b07726385c16
+      previous_selection_sha256: ce7d756bd5b6d73aa90340de9ceb63556a4cdf41fc15c93e6525ea16a0ff02db
+      review_decision_sha256: 2961e725c0400f2a0b2df4b71a9d516bb6386b1fe7ce5e0cc7a4cd8b77cb0cb1
+      accepted_at: 2026-08-15T14:35:29.832Z
 page_image_task_mandate:
   by_version:
     3_versions/v8:
@@ -83,7 +83,7 @@ page_image_progressive_handoff:
       source_epoch: 2
       source_receipt_sha256: bd27255c7dcd5d1df4c9121cdcf34c04118fac0906a68005c716879e41f94180
       workflow: pure
-      raw_work_plan_sha256: 970c7d5401636982dae4739174f59d68d8164d903c31be405233a2a7ff136937
+      raw_work_plan_sha256: 698c0e43281749f5ee2ea3e51ae27e6f0628a1b56654e70b7a5cede82f38fd3c
       partial_pilot_decision_sha256: null
       complete_raw_review_sha256: null
       accepted_raw_evidence_sha256: null
