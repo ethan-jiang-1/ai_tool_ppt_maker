@@ -17,7 +17,7 @@
 
 ## 活跃列表
 
-- [identity-role-clause-provider-input.md](identity-role-clause-provider-input.md) — Harness provider-facing identity contract 丢失 exact role_clause；已 review，待 OpenSpec proposal。
+- [provider-prompt-length-budget.md](provider-prompt-length-budget.md) — provider（gpt-image-2）4000 字符 prompt 硬上限；harness 把 `generation_profile`/`page_presentation` 内部元数据当 prompt 发给 provider，撑爆 `design_system`+`identity role_clause`；待 OpenSpec change 实施「compact provider prompt」。
 
 **Next available plan ID: CLS-036**（移入 `_closed_plans/` 时分配；CLS-001…035 已用）
 
