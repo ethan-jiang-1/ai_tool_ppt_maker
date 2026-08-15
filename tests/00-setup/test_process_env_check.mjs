@@ -16,7 +16,30 @@ import {
 import { parseCliErrorLine } from '../../ppt_maker_harness/scripts/shared/cli/cli_error.mjs';
 
 const ENV_CHECK = 'ppt_maker_harness/scripts/00-setup/env-check.mjs';
+const FLOW = 'ppt_maker_harness/scripts/ppt_flow.mjs';
 const REQUIRED = ['@napi-rs/canvas', 'pptxgenjs', 'commander', 'playwright'];
+const CONFIRMED_IMAGE2_PROVIDER_PROFILE = [
+  'schema: pptmaker-image2-provider-profile',
+  'profile_id: doctor-image2-profile',
+  'endpoint_profile: doctor-image2-endpoint',
+  'owner_declaration:',
+  '  authority: deck-author',
+  '  status: confirmed',
+  'operations:',
+  '  style-master-text-generation:',
+  '    route_id: doctor-style-master-route',
+  '    model: doctor-style-master-model',
+  '    prompt_budget:',
+  '      limit: 32768',
+  '      unit: utf8-bytes',
+  '  page-image-reference-generation:',
+  '    route_id: doctor-page-image-route',
+  '    model: doctor-page-image-model',
+  '    prompt_budget:',
+  '      limit: 32768',
+  '      unit: utf8-bytes',
+  '',
+].join('\n');
 
 function runCheck(args = '') {
   try {
@@ -61,6 +84,7 @@ const GIT_ENV = {
   PATH: '/safe/bin',
   IMAGE2_API_KEY: 'secret-key',
   IMAGE2_BASE_URL: 'https://secret.example/v1',
+  IMAGE2_PROVIDER_PROFILE_ID: 'secret-profile',
   PPT_FONT_DIR: '/private/fonts',
   GIT_DIR: '/private/git-dir',
 };
@@ -272,6 +296,7 @@ describe('env-check optional Git public wiring', () => {
             PATH: `${bin}:${process.env.PATH || ''}`,
             IMAGE2_API_KEY: 'test-key',
             IMAGE2_BASE_URL: '',
+            IMAGE2_PROVIDER_PROFILE_ID: 'test-profile',
           },
         });
       } catch (error) {
@@ -362,6 +387,7 @@ describe('00-env-check', () => {
           ...process.env,
           IMAGE2_API_KEY: 'test-only-key',
           IMAGE2_BASE_URL: 'https://json.example/v1',
+          IMAGE2_PROVIDER_PROFILE_ID: 'json-profile',
         },
       });
     } catch (error) {
@@ -594,6 +620,7 @@ describe('env-check Image2 base URL hard fail', () => {
             ...process.env,
             IMAGE2_API_KEY: 'test-only-key',
             IMAGE2_BASE_URL: 'https://first.example.test/v1,https://second.example.test/v1',
+            IMAGE2_PROVIDER_PROFILE_ID: 'test-profile',
             PPTMAKER_IMAGE_PROBE_MARKER: marker,
           },
         });
@@ -633,6 +660,7 @@ describe('env-check --smoke', () => {
               ...process.env,
               IMAGE2_API_KEY: apiKey,
               IMAGE2_BASE_URL: baseUrl,
+              IMAGE2_PROVIDER_PROFILE_ID: 'smoke-profile',
               PPTMAKER_IMAGE_PROBE_MARKER: marker,
             },
           }),
@@ -699,6 +727,7 @@ describe('env-check --smoke', () => {
         ...process.env,
         IMAGE2_API_KEY: 'k',
         IMAGE2_BASE_URL: 'https://example.test/v1',
+        IMAGE2_PROVIDER_PROFILE_ID: 'test-profile',
       },
     });
     const data = JSON.parse(stdout);
@@ -935,6 +964,141 @@ describe('env-check Page Image operation profiles', () => {
       expect(readdirSync(browserCache)).toEqual([]);
     } finally {
       rmSync(browserCache, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('exact-run Image2 doctor profile identity', () => {
+  function createRunFixture() {
+    const root = mkdtempSync(join(tmpdir(), 'doctor-image2-profile-'));
+    const deck = join(root, 'deck_doctor');
+    execFileSync('node', [FLOW, 'init', deck, '--deck-type', 'keynote', '--style', 'dark-executive'], {
+      encoding: 'utf8',
+      timeout: 30_000,
+    });
+    const runDir = join(deck, '3_versions', 'v1');
+    writeFileSync(join(deck, '2_backbone', 'visual-style', 'image2-provider-profile.yaml'), CONFIRMED_IMAGE2_PROVIDER_PROFILE, 'utf8');
+    return { root, runDir };
+  }
+
+  function runExactDoctor(runDir, { profileId, args = [], env = {}, credentials = true } = {}) {
+    const childEnv = { ...process.env, ...env };
+    if (profileId === undefined) delete childEnv.IMAGE2_PROVIDER_PROFILE_ID;
+    else childEnv.IMAGE2_PROVIDER_PROFILE_ID = profileId;
+    if (credentials) {
+      childEnv.IMAGE2_API_KEY = 'doctor-test-key';
+      childEnv.IMAGE2_BASE_URL = 'https://doctor.example.test/v1';
+    } else {
+      delete childEnv.IMAGE2_API_KEY;
+      delete childEnv.IMAGE2_BASE_URL;
+    }
+    return execFileSync('node', [FLOW, 'doctor', '--run-dir', runDir, '--operation', 'raw-generation', ...args], {
+      encoding: 'utf8',
+      timeout: 30_000,
+      env: childEnv,
+    });
+  }
+
+  function failedExactDoctor(runDir, options) {
+    try {
+      runExactDoctor(runDir, options);
+    } catch (error) {
+      return error;
+    }
+    throw new Error('expected exact-run doctor failure');
+  }
+
+  it('accepts a matching confirmed profile without claiming production capability', () => {
+    const { root, runDir } = createRunFixture();
+    try {
+      const stdout = runExactDoctor(runDir, { profileId: 'doctor-image2-profile' });
+      expect(stdout).toContain('READY');
+      expect(stdout).not.toMatch(/prompt fit|route verification|authorization|media compatibility/i);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('loads a matching runtime selector from the selected deck dotenv only', () => {
+    const { root, runDir } = createRunFixture();
+    try {
+      writeFileSync(join(root, 'deck_doctor', '.env'), [
+        'IMAGE2_API_KEY=deck-doctor-key',
+        'IMAGE2_BASE_URL=https://deck-doctor.example.test/v1',
+        'IMAGE2_PROVIDER_PROFILE_ID=doctor-image2-profile',
+        '',
+      ].join('\n'), 'utf8');
+      const stdout = runExactDoctor(runDir, {
+        profileId: undefined,
+        credentials: false,
+      });
+      expect(stdout).toContain('READY');
+      expect(stdout).not.toContain('deck-doctor-key');
+      expect(stdout).not.toContain('deck-doctor.example.test');
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it.each([
+    ['smoke', '--smoke'],
+    ['vendor probe', '--probe-vendors'],
+  ])('fails a mismatched runtime profile before a %s POST and keeps diagnostics secret-safe', (_label, liveFlag) => {
+    const { root, runDir } = createRunFixture();
+    const marker = join(root, 'unexpected-post');
+    const preload = join(process.cwd(), 'tests', 'helpers', 'fixtures', 'mock_image_probe_fetch.mjs');
+    try {
+      let error;
+      try {
+        execFileSync('node', ['--import', preload, FLOW, 'doctor', '--run-dir', runDir, '--operation', 'raw-generation', liveFlag], {
+          encoding: 'utf8',
+          timeout: 30_000,
+          env: {
+            ...process.env,
+            IMAGE2_API_KEY: 'doctor-secret-key',
+            IMAGE2_BASE_URL: 'https://doctor-secret.example.test/v1',
+            IMAGE2_PROVIDER_PROFILE_ID: 'wrong-image2-profile',
+            PPTMAKER_IMAGE_PROBE_MARKER: marker,
+          },
+        });
+      } catch (caught) {
+        error = caught;
+      }
+      expect(error).toBeTruthy();
+      expect(existsSync(marker)).toBe(false);
+      const diagnostic = parseCliErrorLine(error.stderr.trim().split(/\r?\n/).filter(Boolean).at(-1))?.diagnostic;
+      expect(diagnostic).toMatchObject({
+        category: 'environment',
+        operation: 'raw-generation-readiness',
+        reason: { kind: 'image2_provider_profile_id_mismatch' },
+        next: { action: 'repair_environment' },
+      });
+      expect(error.stderr).not.toContain('doctor-secret-key');
+      expect(error.stderr).not.toContain('doctor-secret.example.test');
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('reports a pending profile as source repair before live diagnosis', () => {
+    const root = mkdtempSync(join(tmpdir(), 'doctor-image2-pending-'));
+    const deck = join(root, 'deck_doctor');
+    execFileSync('node', [FLOW, 'init', deck, '--deck-type', 'keynote', '--style', 'dark-executive'], {
+      encoding: 'utf8',
+      timeout: 30_000,
+    });
+    const runDir = join(deck, '3_versions', 'v1');
+    try {
+      const error = failedExactDoctor(runDir, { profileId: 'doctor-image2-profile' });
+      const diagnostic = parseCliErrorLine(error.stderr.trim().split(/\r?\n/).filter(Boolean).at(-1))?.diagnostic;
+      expect(diagnostic).toMatchObject({
+        category: 'source_validation',
+        operation: 'raw-generation-readiness',
+        reason: { kind: 'image2_provider_profile_pending' },
+        next: { action: 'edit_source' },
+      });
+    } finally {
+      rmSync(root, { recursive: true, force: true });
     }
   });
 });

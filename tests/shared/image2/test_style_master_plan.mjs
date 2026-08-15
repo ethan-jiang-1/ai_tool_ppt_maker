@@ -3,7 +3,7 @@ import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, wr
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { decode as decodePng, encode as encodePng } from "fast-png";
 
 const canvasLoaderControls = vi.hoisted(() => ({
@@ -62,7 +62,6 @@ import {
   createStyleMasterProviderRequestRecord,
   normalizeStyleMasterAbandonmentReason,
   styleMasterCanonicalBytes,
-  styleMasterGenerationProfileSha256,
   styleMasterReasonSha256,
   validateStyleMasterAbandonmentRecord,
   validateStyleMasterCandidateAttemptRecord,
@@ -84,7 +83,7 @@ import {
   SLIDE_SPECS_NAME,
   STYLE_MASTER_IMAGE,
   STYLE_MASTER_PROMPT,
-  initBundle,
+  initBundle as initializeBundle,
   styleAsset,
 } from "../../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
 import { pageImageWorkflowPaths } from "../../../ppt_maker_harness/scripts/shared/run-bundle/page_image_paths.mjs";
@@ -96,8 +95,24 @@ import {
   statePath,
   writeState,
 } from "../../../ppt_maker_harness/scripts/shared/state/state.mjs";
+import {
+  testStyleMasterGenerationProfileSha256,
+  writeConfirmedImage2ProviderProfile,
+} from "../../helpers/image2_provider_profile.mjs";
 
 const digest = (value) => createHash("sha256").update(value).digest("hex");
+
+let originalRuntimeProfileId;
+
+beforeEach(() => {
+  originalRuntimeProfileId = process.env.IMAGE2_PROVIDER_PROFILE_ID;
+  process.env.IMAGE2_PROVIDER_PROFILE_ID = "test-image2-profile";
+});
+
+afterEach(() => {
+  if (originalRuntimeProfileId === undefined) delete process.env.IMAGE2_PROVIDER_PROFILE_ID;
+  else process.env.IMAGE2_PROVIDER_PROFILE_ID = originalRuntimeProfileId;
+});
 
 function source(title = "Style Master planning") {
   return `---
@@ -197,11 +212,12 @@ function providerPngWithPrivateCaBX(bytes) {
   return Buffer.concat([source.subarray(0, ihdrEnd), pngChunk("caBX", payload), source.subarray(ihdrEnd)]);
 }
 
-function fixture({ local = false } = {}) {
+function fixture({ local = false, providerProfile = {} } = {}) {
   const root = mkdtempSync(join(tmpdir(), "style-master-plan-"));
   const deck = join(root, "deck_style_master_plan");
   const runDir = join(deck, "3_versions", "v1");
-  initBundle(deck, null, "keynote", "dark-executive");
+  initializeBundle(deck, null, "keynote", "dark-executive");
+  writeConfirmedImage2ProviderProfile(runDir, providerProfile);
   writeFileSync(join(runDir, SLIDE_SPECS_NAME), source(), "utf8");
   writeFileSync(styleAsset(runDir, STYLE_MASTER_PROMPT), "Use a calm editorial visual system with material depth.\n", "utf8");
   if (local) writeFileSync(styleAsset(runDir, STYLE_MASTER_IMAGE), localImageBytes());
@@ -261,7 +277,7 @@ function detachedPlan() {
     previous_selection_sha256: null,
     style_intent_sha256: digest("unreferenced intent"),
     style_context_sha256: digest("unreferenced context"),
-    candidate_generation_profile_sha256: styleMasterGenerationProfileSha256(),
+    candidate_generation_profile_sha256: testStyleMasterGenerationProfileSha256(),
     compiled_prompt_sha256: digest("unreferenced prompt"),
     generated_candidate_count: 1,
     candidates: [{ candidate_id: "candidate-001", kind: "generated" }],
@@ -618,7 +634,7 @@ describe("Style Master candidate planning", () => {
       expect(first).toMatchObject({ published: true, replay: false, max_candidate_submissions: 0 });
       expect(first.plan.candidates).toHaveLength(1);
       expect(first.plan.candidates[0]).toMatchObject({ candidate_id: "local-existing", candidate_media_type: "image/png", candidate_width: 1, candidate_height: 1 });
-      expect(first.plan.candidate_generation_profile_sha256).toBe(styleMasterGenerationProfileSha256());
+      expect(first.plan.candidate_generation_profile_sha256).toMatch(/^[0-9a-f]{64}$/);
       expect(readFileSync(paths.candidate_image)).toEqual(readFileSync(styleAsset(value.runDir, STYLE_MASTER_IMAGE)));
       expect(existsSync(paths.candidate_provenance)).toBe(true);
       expect(CONDITIONS.style_master_accepted(readState(value.deck, { purpose: "observe" }), {
@@ -766,7 +782,9 @@ describe("Style Master candidate planning", () => {
   });
 
   it("stops an oversized provider brief before plan, grant, or provider work", async () => {
-    const value = fixture();
+    const value = fixture({
+      providerProfile: { styleMasterBudget: { limit: 4_000, unit: "utf8-bytes" } },
+    });
     try {
       const stateBefore = readFileSync(statePath(value.deck));
       writeFileSync(styleAsset(value.runDir, STYLE_MASTER_PROMPT), "x".repeat(4_001), "utf8");
@@ -774,7 +792,7 @@ describe("Style Master candidate planning", () => {
       await expect(planStyleMasterCandidates({
         scope: planningScope(value),
         candidateCount: 1,
-      })).rejects.toMatchObject({ code: "style_master_prompt_invalid" });
+      })).rejects.toMatchObject({ code: "image2_prompt_budget_overflow" });
 
       expect(existsSync(join(value.deck, "1_upstream_raw_material", "style-master-iterations"))).toBe(false);
       assertNoPageRawMaterialization(value, stateBefore);
@@ -884,7 +902,7 @@ describe("Style Master candidate planning", () => {
           plan_sha256: planned.plan_sha256,
           generated_candidate_ids: ["candidate-001", "candidate-002"],
           max_submissions: 2,
-          candidate_generation_profile_sha256: styleMasterGenerationProfileSha256(),
+          candidate_generation_profile_sha256: planned.plan.candidate_generation_profile_sha256,
         },
       });
       expect(replay).toMatchObject({ created: false, replay: true, candidate_grant_sha256: authorized.candidate_grant_sha256 });
@@ -919,7 +937,7 @@ describe("Style Master candidate planning", () => {
         plan_sha256: divergentPlan.plan_sha256,
         generated_candidate_ids: ["candidate-002"],
         max_submissions: 1,
-        candidate_generation_profile_sha256: styleMasterGenerationProfileSha256(),
+        candidate_generation_profile_sha256: divergentPlan.plan.candidate_generation_profile_sha256,
       };
       writeFileSync(divergentPaths.candidate_grant, styleMasterCanonicalBytes(malformedGrant));
       const divergentBefore = readFileSync(divergentPaths.candidate_grant);
@@ -932,6 +950,156 @@ describe("Style Master candidate planning", () => {
       rmSync(value.root, { recursive: true, force: true });
       rmSync(localOnly.root, { recursive: true, force: true });
       rmSync(divergent.root, { recursive: true, force: true });
+    }
+  });
+
+  it("binds each confirmed operation profile through Style Master lifecycle evidence", async () => {
+    const value = fixture({
+      providerProfile: {
+        profileId: "test-image2-profile",
+        endpointProfile: "test-image2-endpoint",
+        styleMasterRouteId: "test-style-master-route",
+        styleMasterModel: "test-style-master-model",
+        styleMasterBudget: { limit: 12_347, unit: "unicode-code-points" },
+      },
+    });
+    try {
+      const first = await planStyleMasterCandidates({ scope: planningScope(value), candidateCount: 1 });
+      const firstGrant = await authorizeStyleMasterCandidates({
+        scope: planningScope(value),
+        planSha256: first.plan_sha256,
+      });
+      let firstProfile = null;
+      await generateStyleMasterCandidates({
+        scope: planningScope(value),
+        planSha256: first.plan_sha256,
+        initialize: async ({ candidate_generation_profile }) => {
+          firstProfile = candidate_generation_profile;
+          return Object.freeze({ initialized: true });
+        },
+        submit: async () => nativeGeneratedCandidateBytes(17, 11),
+      });
+      await acceptStyleMasterCandidateReview({
+        scope: planningScope(value),
+        planSha256: first.plan_sha256,
+        decision: "proceed",
+        candidateId: "candidate-001",
+      });
+      const firstSelection = resolveEffectiveStyleMasterSelection(value.deck, { runDir: value.runDir }).record;
+      const firstAttempt = readCandidateAttempt(value.runDir, first.plan_sha256, "candidate-001").record;
+      const firstProvenance = JSON.parse(readFileSync(styleMasterStorePaths(value.runDir, {
+        plan_sha256: first.plan_sha256,
+        candidate_id: "candidate-001",
+        candidate_media_type: "image/png",
+      }).candidate_provenance, "utf8"));
+
+      expect(firstProfile).toMatchObject({
+        provider: {
+          profile_id: "test-image2-profile",
+          endpoint_profile: "test-image2-endpoint",
+          route_id: "test-style-master-route",
+          operation: "style-master-text-generation",
+          model: "test-style-master-model",
+          prompt_budget: { limit: 12_347, unit: "unicode-code-points" },
+        },
+      });
+      for (const record of [first.plan, firstGrant.grant, firstProvenance, firstSelection]) {
+        expect(record.candidate_generation_profile_sha256).toBe(first.plan.candidate_generation_profile_sha256);
+      }
+      expect(firstAttempt.candidate_grant_sha256).toBe(firstGrant.candidate_grant_sha256);
+      expect(firstAttempt.provider_request_sha256).toMatch(/^[0-9a-f]{64}$/);
+
+      writeConfirmedImage2ProviderProfile(value.runDir, {
+        profileId: "test-image2-profile-next",
+        endpointProfile: "test-image2-endpoint-next",
+        styleMasterRouteId: "test-style-master-route-next",
+        styleMasterModel: "test-style-master-model-next",
+        styleMasterBudget: { limit: 4_000, unit: "utf16-code-units" },
+      });
+      process.env.IMAGE2_PROVIDER_PROFILE_ID = "test-image2-profile-next";
+      const successor = await planStyleMasterCandidates({ scope: planningScope(value), candidateCount: 1 });
+      const successorGrant = await authorizeStyleMasterCandidates({
+        scope: planningScope(value),
+        planSha256: successor.plan_sha256,
+      });
+      let successorProfile = null;
+      await generateStyleMasterCandidates({
+        scope: planningScope(value),
+        planSha256: successor.plan_sha256,
+        initialize: async ({ candidate_generation_profile }) => {
+          successorProfile = candidate_generation_profile;
+          return Object.freeze({ initialized: true });
+        },
+        submit: async () => nativeGeneratedCandidateBytes(17, 11),
+      });
+      await acceptStyleMasterCandidateReview({
+        scope: planningScope(value),
+        planSha256: successor.plan_sha256,
+        decision: "proceed",
+        candidateId: "candidate-001",
+      });
+      const successorSelection = resolveEffectiveStyleMasterSelection(value.deck, { runDir: value.runDir }).record;
+      const successorAttempt = readCandidateAttempt(value.runDir, successor.plan_sha256, "candidate-001").record;
+      const successorProvenance = JSON.parse(readFileSync(styleMasterStorePaths(value.runDir, {
+        plan_sha256: successor.plan_sha256,
+        candidate_id: "candidate-001",
+        candidate_media_type: "image/png",
+      }).candidate_provenance, "utf8"));
+
+      expect(successor.plan.candidate_generation_profile_sha256).not.toBe(first.plan.candidate_generation_profile_sha256);
+      expect(successorProfile).toMatchObject({
+        provider: {
+          profile_id: "test-image2-profile-next",
+          endpoint_profile: "test-image2-endpoint-next",
+          route_id: "test-style-master-route-next",
+          model: "test-style-master-model-next",
+          prompt_budget: { limit: 4_000, unit: "utf16-code-units" },
+        },
+      });
+      for (const record of [successor.plan, successorGrant.grant, successorProvenance, successorSelection]) {
+        expect(record.candidate_generation_profile_sha256).toBe(successor.plan.candidate_generation_profile_sha256);
+      }
+      expect(successorAttempt.candidate_grant_sha256).toBe(successorGrant.candidate_grant_sha256);
+      expect(successorAttempt.provider_request_sha256).toMatch(/^[0-9a-f]{64}$/);
+    } finally {
+      rmSync(value.root, { recursive: true, force: true });
+    }
+  });
+
+  it("stops runtime selector and source-profile drift before grants, claims, or provider initialization", async () => {
+    const value = fixture();
+    try {
+      const planned = await planStyleMasterCandidates({ scope: planningScope(value), candidateCount: 1 });
+      const paths = styleMasterStorePaths(value.runDir, { plan_sha256: planned.plan_sha256, candidate_id: "candidate-001" });
+      process.env.IMAGE2_PROVIDER_PROFILE_ID = "different-profile";
+      await expect(authorizeStyleMasterCandidates({
+        scope: planningScope(value),
+        planSha256: planned.plan_sha256,
+      })).rejects.toMatchObject({ code: "IMAGE2_PROVIDER_PROFILE_ID_MISMATCH" });
+      expect(existsSync(paths.candidate_grant)).toBe(false);
+
+      process.env.IMAGE2_PROVIDER_PROFILE_ID = "test-image2-profile";
+      await authorizeStyleMasterCandidates({ scope: planningScope(value), planSha256: planned.plan_sha256 });
+      let initializerCalls = 0;
+      process.env.IMAGE2_PROVIDER_PROFILE_ID = "different-profile";
+      await expect(generateStyleMasterCandidates({
+        scope: planningScope(value),
+        planSha256: planned.plan_sha256,
+        initialize: async () => { initializerCalls += 1; return Object.freeze({ initialized: true }); },
+        submit: async () => nativeGeneratedCandidateBytes(17, 11),
+      })).rejects.toMatchObject({ code: "IMAGE2_PROVIDER_PROFILE_ID_MISMATCH" });
+      expect(initializerCalls).toBe(0);
+      expect(existsSync(paths.candidate_attempt)).toBe(false);
+
+      process.env.IMAGE2_PROVIDER_PROFILE_ID = "test-image2-profile";
+      writeConfirmedImage2ProviderProfile(value.runDir, { styleMasterModel: "changed-style-master-model" });
+      await expect(authorizeStyleMasterCandidates({
+        scope: planningScope(value),
+        planSha256: planned.plan_sha256,
+      })).rejects.toMatchObject({ code: "style_master_plan_stale" });
+      expect(existsSync(paths.candidate_attempt)).toBe(false);
+    } finally {
+      rmSync(value.root, { recursive: true, force: true });
     }
   });
 
@@ -1150,6 +1318,7 @@ describe("Style Master candidate planning", () => {
         candidate_sha256: null,
         candidate_provenance_sha256: null,
       });
+      writeConfirmedImage2ProviderProfile(interrupted.runDir, { styleMasterModel: "drifted-style-master-model" });
       let laterSubmitCalls = 0;
       await expect(generateStyleMasterCandidates({
         scope: planningScope(interrupted),

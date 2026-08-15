@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { createHash } from "node:crypto";
 import { createServer } from "node:http";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -8,6 +9,7 @@ import { createCanvas } from "@napi-rs/canvas";
 
 import {
   STYLE_MASTER_PROMPT,
+  image2ProviderProfileAsset,
   initBundle,
   styleAsset,
 } from "../../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
@@ -16,8 +18,10 @@ import { resolveContentAddressName } from "../../../ppt_maker_harness/scripts/sh
 import { pageImageDerivedPagePaths, pageImageWorkflowPaths } from "../../../ppt_maker_harness/scripts/shared/run-bundle/page_image_paths.mjs";
 import { readProgressiveRawPlanDirectRecords } from "../../../ppt_maker_harness/scripts/shared/image2/page_image_progressive_store.mjs";
 import { readState, writeState } from "../../../ppt_maker_harness/scripts/shared/state/state.mjs";
+import { writeConfirmedImage2ProviderProfile } from "../../../tests/helpers/image2_provider_profile.mjs";
 
 const FLOW = resolve(process.cwd(), "ppt_maker_harness/scripts/ppt_flow.mjs");
+const MOCK_IMAGE2_PROFILE_ID = "mock-target-workflow-profile";
 
 function pngBytes(color) {
   const canvas = createCanvas(2000, 1125);
@@ -66,6 +70,11 @@ function createTargetFixture(prefix, workflow, slides) {
   const deck = join(root, `deck_${workflow}_journey`);
   const runDir = join(deck, "3_versions", "v1");
   initBundle(deck, null, "keynote", "dark-executive");
+  writeConfirmedImage2ProviderProfile(runDir, {
+    profileId: MOCK_IMAGE2_PROFILE_ID,
+    styleMasterModel: "mock-style-master-model",
+    pageImageModel: "mock-page-image-model",
+  });
   writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), pngBytes("#1f4d6e"));
   writeFileSync(styleAsset(runDir, STYLE_MASTER_PROMPT), "Use a clear editorial visual system with clear content hierarchy.\n", "utf8");
   writeFileSync(join(runDir, "slide-specifications.md"), targetSource(workflow, slides));
@@ -156,6 +165,7 @@ async function startMockProvider(bytes, { closeCalls = [] } = {}) {
     env: {
       IMAGE2_API_KEY: "mock-target-workflow-key",
       IMAGE2_BASE_URL: `http://127.0.0.1:${address.port}`,
+      IMAGE2_PROVIDER_PROFILE_ID: MOCK_IMAGE2_PROFILE_ID,
     },
     close: () => new Promise((resolveClosed) => server.close(resolveClosed)),
   };
@@ -396,7 +406,154 @@ async function runStyleMasterLifecycle(runDir, env) {
   return { inspected, planned, reviewed, accepted };
 }
 
+async function runGeneratedStyleMasterLifecycle(runDir, env) {
+  const planned = jsonSuccess(await flow(["style-master", "plan", runDir, "--candidate-count", "1"], env));
+  const authorized = jsonSuccess(await flow([
+    "style-master", "authorize", runDir,
+    "--plan-hash", planned.plan_sha256,
+  ], env));
+  const generated = jsonSuccess(await flow([
+    "style-master", "generate", runDir,
+    "--plan-hash", planned.plan_sha256,
+  ], env));
+  const reviewed = jsonSuccess(await flow([
+    "style-master", "review", runDir,
+    "--plan-hash", planned.plan_sha256,
+  ], env));
+  const accepted = jsonSuccess(await flow([
+    "style-master", "accept", runDir,
+    "--plan-hash", planned.plan_sha256,
+    "--decision", "proceed",
+    "--candidate-id", "candidate-001",
+  ], env));
+  return { planned, authorized, generated, reviewed, accepted };
+}
+
+function sha256Utf8(value) {
+  return createHash("sha256").update(value, "utf8").digest("hex");
+}
+
 describe("mock TARGET workflow journey", () => {
+  it("binds confirmed profile prompts and references through public Style Master, Pure, and Framed calls", async () => {
+    const pureSlides = [{ id: "PureGo", title: "Bound Pure mock request", note: "Pure mock binding." }];
+    const framedSlides = [{ id: "FramGo", title: "Bound Framed mock request", note: "Framed mock binding." }];
+    const pure = createTargetFixture("target-confirmed-pure-", "pure", pureSlides);
+    const framed = createTargetFixture("target-confirmed-framed-", "framed", framedSlides);
+    const profileFailure = createTargetFixture("target-profile-failure-", "pure", pureSlides);
+    const budgetFailure = createTargetFixture("target-budget-failure-", "pure", pureSlides);
+    const runtimeFailure = createTargetFixture("target-runtime-failure-", "pure", pureSlides);
+    const provider = await startMockProvider(pngBytes("#235c76"));
+    try {
+      const generatedStyleMaster = await runGeneratedStyleMasterLifecycle(pure.runDir, provider.env);
+      expect(provider.calls).toHaveLength(1);
+      const styleMasterBody = provider.calls[0].body;
+      expect(styleMasterBody).toMatchObject({ model: "mock-style-master-model", n: 1, size: "2000x1125" });
+      expect(sha256Utf8(styleMasterBody.prompt)).toBe(generatedStyleMaster.planned.plan.compiled_prompt_sha256);
+      expect(styleMasterBody.prompt).not.toContain("candidate_generation_profile");
+      expect(styleMasterBody.prompt).not.toContain("profile_sha256");
+
+      const purePlan = jsonSuccess(await flow(["image2", "plan", pure.runDir], provider.env));
+      const pureInspection = JSON.parse(readFileSync(pageImageWorkflowPaths(pure.runDir).target_provider_request_inspection, "utf8"));
+      const pureRequest = JSON.parse(pureInspection.items[0].prompt);
+      const purePilot = jsonSuccess(await flow([
+        "image2", "pilot", pure.runDir,
+        "--plan-hash", purePlan.plan_hash,
+        "--slide-id", "PureGo",
+      ], provider.env));
+      await authorizeBatch(pure.runDir, provider.env, purePlan.plan_hash, purePilot.batch, "pure");
+      await generateBatch(pure.runDir, provider.env, purePlan.plan_hash, purePilot.batch);
+      expect(provider.calls).toHaveLength(2);
+      const pureBody = provider.calls[1].body;
+      expect(pureBody.model).toBe("mock-page-image-model");
+      expect(pureBody.prompt).toBe(pureRequest.compiled_provider_input.utf8);
+      expect(pureBody.images).toHaveLength(1);
+      expect(pureBody.images[0]).toMatch(/^data:image\/png;base64,/);
+      expect(JSON.parse(pureBody.prompt)).not.toHaveProperty("generation_profile");
+      expect(pureBody.prompt).not.toContain("raw_contract");
+
+      await runStyleMasterLifecycle(framed.runDir, provider.env);
+      const framedPlan = jsonSuccess(await flow(["image2", "plan", framed.runDir], provider.env));
+      const framedInspection = JSON.parse(readFileSync(pageImageWorkflowPaths(framed.runDir).target_provider_request_inspection, "utf8"));
+      const framedRequest = JSON.parse(framedInspection.items[0].prompt);
+      const framedPilot = jsonSuccess(await flow([
+        "image2", "pilot", framed.runDir,
+        "--plan-hash", framedPlan.plan_hash,
+        "--slide-id", "FramGo",
+      ], provider.env));
+      await authorizeBatch(framed.runDir, provider.env, framedPlan.plan_hash, framedPilot.batch, "framed");
+      await generateBatch(framed.runDir, provider.env, framedPlan.plan_hash, framedPilot.batch);
+      expect(provider.calls).toHaveLength(3);
+      const framedBody = provider.calls[2].body;
+      expect(framedBody.model).toBe("mock-page-image-model");
+      expect(framedBody.prompt).toBe(framedRequest.compiled_provider_input.utf8);
+      expect(framedBody.images).toHaveLength(1);
+      expect(JSON.parse(framedBody.prompt)).not.toHaveProperty("generation_profile");
+      expect(JSON.parse(framedBody.prompt)).not.toHaveProperty("page_presentation");
+
+      writeFileSync(image2ProviderProfileAsset(profileFailure.runDir), [
+        "schema: pptmaker-image2-provider-profile",
+        "profile_id: null",
+        "endpoint_profile: null",
+        "owner_declaration:",
+        "  authority: deck-author",
+        "  status: pending",
+        "operations:",
+        "  style-master-text-generation: null",
+        "  page-image-reference-generation: null",
+        "",
+      ].join("\n"), "utf8");
+      const profileBlocked = await flow(["style-master", "plan", profileFailure.runDir, "--candidate-count", "1"], provider.env);
+      expect(jsonFailure(profileBlocked).diagnostic).toMatchObject({
+        category: "source_validation",
+        reason: { kind: "image2_provider_profile_pending" },
+        next: { action: "edit_source" },
+      });
+      expect(provider.calls).toHaveLength(3);
+
+      writeConfirmedImage2ProviderProfile(budgetFailure.runDir, {
+        profileId: MOCK_IMAGE2_PROFILE_ID,
+        styleMasterModel: "mock-style-master-model",
+        pageImageModel: "mock-page-image-model",
+        styleMasterBudget: { limit: 1, unit: "utf8-bytes" },
+      });
+      const budgetBlocked = await flow(["style-master", "plan", budgetFailure.runDir, "--candidate-count", "1"], provider.env);
+      expect(jsonFailure(budgetBlocked).diagnostic).toMatchObject({
+        category: "source_validation",
+        subject: { kind: "image2_prompt_budget", id: "style-master-text-generation", field: "utf8-bytes" },
+        reason: { kind: "image2_prompt_budget_overflow", expected: 1 },
+        next: { action: "edit_source" },
+      });
+      expect(jsonFailure(budgetBlocked).diagnostic).not.toHaveProperty("source");
+      expect(jsonFailure(budgetBlocked).diagnostic.next).not.toHaveProperty("inspect");
+      expect(provider.calls).toHaveLength(3);
+
+      await runStyleMasterLifecycle(runtimeFailure.runDir, provider.env);
+      const runtimePlan = jsonSuccess(await flow(["image2", "plan", runtimeFailure.runDir], provider.env));
+      const runtimePilot = jsonSuccess(await flow([
+        "image2", "pilot", runtimeFailure.runDir,
+        "--plan-hash", runtimePlan.plan_hash,
+        "--slide-id", "PureGo",
+      ], provider.env));
+      positionAuthorizeNode(runtimeFailure.runDir, "pure", runtimePilot.batch);
+      const runtimeBlocked = await flow([
+        "image2", "authorize", runtimeFailure.runDir,
+        "--plan-hash", runtimePlan.plan_hash,
+        "--batch-hash", runtimePilot.batch.batch_hash,
+      ], { ...provider.env, IMAGE2_PROVIDER_PROFILE_ID: "wrong-profile" });
+      expect(jsonFailure(runtimeBlocked).diagnostic).toMatchObject({
+        category: "environment",
+        reason: { kind: "image2_provider_profile_id_mismatch" },
+        next: { action: "repair_environment" },
+      });
+      expect(provider.calls).toHaveLength(3);
+    } finally {
+      await provider.close();
+      for (const fixture of [pure, framed, profileFailure, budgetFailure, runtimeFailure]) {
+        rmSync(fixture.root, { recursive: true, force: true });
+      }
+    }
+  }, 120_000);
+
   it("publishes derived data before public authorization without exposing request text in Human Navigation", async () => {
     const slides = [{ id: "PureGo", title: "Derived public plan heading", note: "Derived plan fixture." }];
     const fixture = createTargetFixture("target-derived-public-plan-", "pure", slides);
@@ -515,7 +672,7 @@ describe("mock TARGET workflow journey", () => {
       expect(JSON.stringify(initial.styleMaster)).not.toMatch(/"pure"|Text Frame/i);
       expect(initial.rawPlan).toMatchObject({ workflow: "framed", source_epoch: 1, ordered_slide_ids: ["FramGo", "BodyMap"] });
       expect(provider.calls).toHaveLength(2);
-      expect(provider.calls.every((call) => call.body?.model === "gpt-image-2")).toBe(true);
+      expect(provider.calls.every((call) => call.body?.model === "mock-page-image-model")).toBe(true);
 
       const paths = pageImageWorkflowPaths(fixture.runDir);
       const framGoImage = pageImageOrdinalImageFilename(1, "FramGo");
@@ -631,7 +788,7 @@ describe("mock TARGET workflow journey", () => {
       });
       expect(lifecycle.accepted.complete_raw_review_sha256).not.toBe(lifecycle.review.complete_raw_review_sha256);
       expect(provider.calls).toHaveLength(slides.length);
-      expect(provider.calls.every((call) => call.body?.model === "gpt-image-2")).toBe(true);
+      expect(provider.calls.every((call) => call.body?.model === "mock-page-image-model")).toBe(true);
 
       const paths = pageImageWorkflowPaths(fixture.runDir);
       const pilotRoot = pilotReviewArtifactRoot(fixture.runDir, lifecycle.pilot.batch.batch_hash);

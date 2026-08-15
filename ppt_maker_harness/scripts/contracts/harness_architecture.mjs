@@ -48,6 +48,8 @@ export const PUBLIC_SHARED_INTERFACES = Object.freeze([
   "shared/page-image/page_image_presentation_envelope.mjs",
   "shared/page-image/page_image_source_receipt.mjs",
   "shared/image2/credentials.mjs",
+  "shared/image2/provider_profile.mjs",
+  "shared/image2/runtime_profile_id.mjs",
   "shared/image2/content_address_store.mjs",
   "shared/image2/page_image_artifacts.mjs",
   "shared/image2/page_image_complete_page_review.mjs",
@@ -157,6 +159,26 @@ const CONTRACT_VALUE = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
 const PAGE_DESIGN_SYSTEM_BINDING_SCHEMA = "page-image-design-system-binding";
 const PAGE_DESIGN_SYSTEM_BINDING_STAGE = "layout-config";
 const PAGE_DESIGN_SYSTEM_BINDING_ROLE = "version-design-system-binding";
+const IMAGE2_PROVIDER_PROFILE_SCHEMA = "pptmaker-image2-provider-profile";
+const IMAGE2_PROVIDER_PROFILE_STAGE = "layout-config";
+const IMAGE2_PROVIDER_PROFILE_ROLE = "image2-provider-capability-source";
+const IMAGE2_PROVIDER_OPERATIONS = Object.freeze([
+  "style-master-text-generation",
+  "page-image-reference-generation",
+]);
+const IMAGE2_PROMPT_BUDGET_UNITS = new Set([
+  "unicode-code-points",
+  "utf16-code-units",
+  "utf8-bytes",
+]);
+const IMAGE2_CAPABILITY_FORBIDDEN_FIELDS = new Set([
+  "api_key",
+  "credential",
+  "credentials",
+  "base_url",
+  "provider_response",
+  "fallback_profile",
+]);
 
 /**
  * Evaluate a parsed serialization-contract snapshot without reading files or
@@ -208,6 +230,16 @@ export function evaluateProductionSchemaConformance(snapshot = {}) {
       code: "page-design-system-binding-declaration-invalid",
       path: "serialization-contracts.yaml",
       message: `${PAGE_DESIGN_SYSTEM_BINDING_SCHEMA} must appear exactly once as ${PAGE_DESIGN_SYSTEM_BINDING_STAGE}/${PAGE_DESIGN_SYSTEM_BINDING_ROLE}`,
+    });
+  }
+  const image2ProfileWireSchemas = wireSchemas.filter((entry) => entry?.value === IMAGE2_PROVIDER_PROFILE_SCHEMA);
+  if (image2ProfileWireSchemas.length !== 1 ||
+    image2ProfileWireSchemas[0]?.stage_ref !== IMAGE2_PROVIDER_PROFILE_STAGE ||
+    image2ProfileWireSchemas[0]?.role !== IMAGE2_PROVIDER_PROFILE_ROLE) {
+    issues.push({
+      code: "image2-provider-profile-declaration-invalid",
+      path: "serialization-contracts.yaml",
+      message: `${IMAGE2_PROVIDER_PROFILE_SCHEMA} must appear exactly once as ${IMAGE2_PROVIDER_PROFILE_STAGE}/${IMAGE2_PROVIDER_PROFILE_ROLE}`,
     });
   }
   for (const entry of stageArtifactEnvelopes) {
@@ -315,6 +347,122 @@ export function evaluateProductionSchemaConformance(snapshot = {}) {
     if (declared.name === "style-master-plan-generation" && marker.scope !== "exact-work-version-workflow") {
       issues.push({ code: "numeric-harness-marker-invalid", path: marker?.location || marker?.field, message: "Style Master plan_generation must be a positive exact Work Version/workflow ordering fact" });
     }
+  }
+  return Object.freeze({ ok: issues.length === 0, issues: Object.freeze(issues) });
+}
+
+function isPlainMapping(value) {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+function sameKeys(value, keys) {
+  return isPlainMapping(value) && Object.keys(value).length === keys.length && keys.every((key) => Object.hasOwn(value, key));
+}
+
+function sha256(value) {
+  return typeof value === "string" && /^[0-9a-f]{64}$/.test(value);
+}
+
+function findForbiddenCapabilityField(value, path = "") {
+  if (!isPlainMapping(value) && !Array.isArray(value)) return null;
+  for (const [key, child] of Object.entries(value)) {
+    const childPath = path ? `${path}.${key}` : key;
+    if (IMAGE2_CAPABILITY_FORBIDDEN_FIELDS.has(key)) return childPath;
+    const nested = findForbiddenCapabilityField(child, childPath);
+    if (nested) return nested;
+  }
+  return null;
+}
+
+function validOperationProfile(operation, value) {
+  return sameKeys(value, ["operation", "route_id", "model", "prompt_budget"]) &&
+    operation === value.operation && typeof value.route_id === "string" && /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/.test(value.route_id) &&
+    typeof value.model === "string" && value.model.length > 0 &&
+    sameKeys(value.prompt_budget, ["limit", "unit"]) && Number.isSafeInteger(value.prompt_budget.limit) && value.prompt_budget.limit > 0 &&
+    IMAGE2_PROMPT_BUDGET_UNITS.has(value.prompt_budget.unit);
+}
+
+/**
+ * Evaluate a synthetic Image2 capability chain. This static seam deliberately
+ * receives only already-bound data; it has no filesystem, YAML, State, or
+ * provider dependency.
+ */
+export function evaluateImage2CapabilityConformance(snapshot = {}) {
+  const issues = [];
+  const profile = snapshot.profile;
+  if (!sameKeys(profile, ["schema", "profile_id", "profile_sha256", "endpoint_profile", "owner_declaration", "operations"]) ||
+    profile.schema !== IMAGE2_PROVIDER_PROFILE_SCHEMA || typeof profile.profile_id !== "string" || !/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/.test(profile.profile_id) ||
+    !sha256(profile.profile_sha256) || typeof profile.endpoint_profile !== "string" || !/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/.test(profile.endpoint_profile) ||
+    !sameKeys(profile.owner_declaration, ["authority", "status"]) || profile.owner_declaration.authority !== "deck-author" || profile.owner_declaration.status !== "confirmed" ||
+    !sameKeys(profile.operations, IMAGE2_PROVIDER_OPERATIONS)) {
+    issues.push({ code: "image2-capability-profile-invalid", path: "profile", message: "profile must be one exact confirmed path-free capability binding" });
+  }
+  const forbiddenProfileField = findForbiddenCapabilityField(profile);
+  if (forbiddenProfileField) {
+    issues.push({ code: "image2-capability-secret-leak", path: forbiddenProfileField, message: "capability bindings cannot contain credentials, base URLs, responses, or fallback profiles" });
+  }
+  if (Object.keys(profile?.operations || {}).some((operation) => !IMAGE2_PROVIDER_OPERATIONS.includes(operation))) {
+    issues.push({ code: "image2-capability-operation-invalid", path: "profile.operations", message: "profile operations must use exactly the closed operation vocabulary" });
+  }
+  if (Object.hasOwn(profile || {}, "fallback_profile")) {
+    issues.push({ code: "image2-capability-fallback-forbidden", path: "profile.fallback_profile", message: "capability profiles cannot declare a fallback" });
+  }
+  for (const operation of IMAGE2_PROVIDER_OPERATIONS) {
+    const declared = profile?.operations?.[operation];
+    if (!validOperationProfile(operation, declared)) {
+      issues.push({ code: "image2-capability-operation-invalid", path: `profile.operations.${operation}`, message: "operation must use the closed vocabulary and one ordinary positive budget" });
+    }
+    if (declared?.prompt_budget && Object.hasOwn(declared.prompt_budget, "kind")) {
+      issues.push({ code: "image2-capability-limit-special-case", path: `profile.operations.${operation}.prompt_budget.kind`, message: "prompt limits are ordinary data and cannot select a profile kind" });
+    }
+  }
+
+  for (const chain of snapshot.chains || []) {
+    const operation = chain?.operation;
+    const declared = profile?.operations?.[operation];
+    const provider = chain?.generation_profile?.provider;
+    if (!IMAGE2_PROVIDER_OPERATIONS.includes(operation) || !isPlainMapping(provider) ||
+      provider.profile_id !== profile?.profile_id || provider.profile_sha256 !== profile?.profile_sha256 ||
+      provider.endpoint_profile !== profile?.endpoint_profile || provider.operation !== operation ||
+      provider.route_id !== declared?.route_id || provider.model !== declared?.model ||
+      JSON.stringify(provider.prompt_budget) !== JSON.stringify(declared?.prompt_budget) || !sha256(chain?.generation_profile_sha256)) {
+      issues.push({ code: "image2-capability-generation-profile-unbound", path: "chains", message: "generation profile must bind the selected full capability projection and digest" });
+      continue;
+    }
+    for (const binding of chain.bindings || []) {
+      if (!sha256(binding) || binding !== chain.generation_profile_sha256) {
+        issues.push({ code: "image2-capability-digest-closure-invalid", path: "chains.bindings", message: "plan, authorization, request, attempt, provenance, selection, and invalidation bindings must close the generation-profile digest" });
+        break;
+      }
+    }
+    const measurement = chain.measurement;
+    const prompt = chain.compiled_prompt;
+    const bytes = typeof prompt === "string" ? Buffer.from(prompt, "utf8") : null;
+    const expectedMeasured = declared?.prompt_budget?.unit === "utf8-bytes" ? bytes?.length :
+      declared?.prompt_budget?.unit === "utf16-code-units" ? prompt?.length :
+        typeof prompt === "string" ? Array.from(prompt).length : null;
+    if (!bytes || !sameKeys(measurement, ["operation", "limit", "unit", "measured"]) ||
+      measurement.operation !== operation || measurement.limit !== declared?.prompt_budget?.limit || measurement.unit !== declared?.prompt_budget?.unit ||
+      measurement.measured !== expectedMeasured || measurement.measured > measurement.limit || bytes.length > 32768) {
+      issues.push({ code: "image2-capability-measurement-invalid", path: "chains.measurement", message: "measurement must be the final compact prompt under the selected exact budget and safety ceiling" });
+    }
+    const promptShape = chain.prompt_shape;
+    const promptLeak = findForbiddenCapabilityField(promptShape);
+    if (promptLeak || ["generation_profile", "raw_contract", "provenance", "origin", "path", "authorization", "attempt"].some((field) => Object.hasOwn(promptShape || {}, field))) {
+      issues.push({ code: "image2-compact-prompt-lineage-leak", path: promptLeak || "chains.prompt_shape", message: "compact prompt shape cannot contain local lineage or capability metadata" });
+    }
+    const transport = chain.transport;
+    if (!sameKeys(transport, ["model", "prompt", "references"]) || transport.model !== declared?.model || transport.prompt !== prompt ||
+      findForbiddenCapabilityField(transport) || Object.hasOwn(transport, "generation_profile") || Object.hasOwn(transport, "raw_contract") || Object.hasOwn(transport, "inspection")) {
+      issues.push({ code: "image2-opaque-transport-invalid", path: "chains.transport", message: "transport must consume only bound model, exact prompt bytes, and separate references" });
+    }
+    if (chain.former_plan === true && transport) {
+      issues.push({ code: "image2-former-plan-submission", path: "chains", message: "former compiler/profile plans cannot submit through the current transport" });
+    }
+  }
+  const stateCapabilityField = Object.keys(snapshot.state || {}).find((key) => ["profile_id", "profile_sha256", "endpoint_profile", "operations", "prompt_budget", "route_id"].includes(key));
+  if (stateCapabilityField || findForbiddenCapabilityField(snapshot.state || {})) {
+    issues.push({ code: "image2-capability-state-leak", path: "state", message: "State cannot become a capability ledger" });
   }
   return Object.freeze({ ok: issues.length === 0, issues: Object.freeze(issues) });
 }
@@ -1131,11 +1279,38 @@ function validatePageImageProviderInputCompilation(files, issues) {
   }
 }
 
+function validateImage2CapabilitySeam(files, issues) {
+  const seam = "shared/image2/provider_profile.mjs";
+  const source = files.get(seam);
+  if (!source) {
+    addIssue(issues, "image2-capability-seam-missing", seam, "the shared provider-profile resolver and budget evaluator are required");
+    return;
+  }
+  const implementations = ["resolveImage2ProviderProfile", "evaluateImage2PromptBudget"];
+  for (const name of implementations) {
+    const declaration = new RegExp(`(?:export\\s+)?function\\s+${name}\\s*\\(`);
+    if (!declaration.test(source)) {
+      addIssue(issues, "image2-capability-seam-incomplete", seam, `${name} must be implemented by the declared shared seam`);
+    }
+    for (const [path, text] of files) {
+      if (path === seam || path.startsWith("tests/") || path.startsWith("tests_e2e/")) continue;
+      if (declaration.test(text)) {
+        addIssue(issues, "image2-capability-seam-duplicate", path, `${name} may be implemented only by ${seam}`);
+      }
+    }
+  }
+  const envCheck = files.get("00-setup/env-check.mjs") || "";
+  if (/from\s*["']yaml["']|parseDocument\s*\(|provider_profile\.mjs/.test(envCheck)) {
+    addIssue(issues, "image2-capability-preinstall-import", "00-setup/env-check.mjs", "direct pre-install environment checking cannot import YAML or the provider-profile seam");
+  }
+}
+
 export function validateArchitectureSnapshot({ files: inputFiles, manifest = null, requireCompleteManifest = true }) {
   const files = new Map(Object.entries(inputFiles instanceof Map ? Object.fromEntries(inputFiles) : inputFiles).map(([path, value]) => [normalized(path), String(value)]));
   const issues = [];
   validatePageImageCoreSeam(files, issues);
   validatePageImageProviderInputCompilation(files, issues);
+  validateImage2CapabilitySeam(files, issues);
   validateSharedWorkflowSemanticBoundaries(files, issues);
   validateSingleDeliveryOwner(files, issues);
   const scriptFiles = new Map([...files].filter(([path]) => !path.startsWith("tests/") && !path.startsWith("tests_e2e/")));

@@ -179,6 +179,8 @@
         "shared/image2/page_image_raw_mechanics.mjs",
         "shared/image2/page_image_target_runtime.mjs",
         "shared/image2/png_raster_projection.mjs",
+        "shared/image2/provider_profile.mjs",
+        "shared/image2/runtime_profile_id.mjs",
         "shared/image2/style_master_plan.mjs",
         "shared/image2/style_master_scope.mjs"
       ],
@@ -194,6 +196,7 @@
         "tests/shared/image2/test_page_image_media_contract.mjs",
         "tests/shared/image2/test_png_raster_projection.mjs",
         "tests/shared/image2/test_progressive_raw_owner.mjs",
+        "tests/shared/image2/test_provider_profile.mjs",
         "tests/shared/image2/test_raw_mechanics.mjs",
         "tests/shared/image2/test_style_master_plan.mjs",
         "tests/shared/image2/test_style_master_raw_binding.mjs",

@@ -8,6 +8,7 @@ import {
   ACTIVE_SURFACE_FILES,
   evaluateActiveSurfaceResidue,
   evaluateFramedCompositionConformance,
+  evaluateImage2CapabilityConformance,
   evaluatePageDesignSystemConformance,
   evaluatePageDerivedPublicationConformance,
   evaluateProductionSchemaConformance,
@@ -29,6 +30,59 @@ const PAGE_IMAGE_PRESENTATION_CONTRACTS = [
   "pptmaker-framed-header-profiles",
 ];
 const PAGE_DESIGN_SYSTEM_BINDING_SCHEMA = "page-image-design-system-binding";
+const IMAGE2_PROVIDER_PROFILE_SCHEMA = "pptmaker-image2-provider-profile";
+
+function image2CapabilitySnapshot({ limit = 16000, unit = "unicode-code-points" } = {}) {
+  const profile_sha256 = "a".repeat(64);
+  const generation_profile_sha256 = "b".repeat(64);
+  const styleMasterOperation = {
+    operation: "style-master-text-generation",
+    route_id: "style-master-route",
+    model: "style-master-model",
+    prompt_budget: { limit: 4000, unit },
+  };
+  const pageImageOperation = {
+    operation: "page-image-reference-generation",
+    route_id: "page-image-route",
+    model: "page-image-model",
+    prompt_budget: { limit, unit },
+  };
+  const compiled_prompt = JSON.stringify({ schema: "page-image-pure-provider-input", slide_id: "PureGo", instruction: "Render the complete page." });
+  const measured = unit === "utf8-bytes" ? Buffer.byteLength(compiled_prompt) :
+    unit === "utf16-code-units" ? compiled_prompt.length : Array.from(compiled_prompt).length;
+  return {
+    profile: {
+      schema: IMAGE2_PROVIDER_PROFILE_SCHEMA,
+      profile_id: "mock-target-workflow-profile",
+      profile_sha256,
+      endpoint_profile: "mock-image2-endpoint",
+      owner_declaration: { authority: "deck-author", status: "confirmed" },
+      operations: {
+        "style-master-text-generation": styleMasterOperation,
+        "page-image-reference-generation": pageImageOperation,
+      },
+    },
+    chains: [{
+      operation: "page-image-reference-generation",
+      generation_profile: {
+        provider: {
+          provider: "image2",
+          profile_id: "mock-target-workflow-profile",
+          profile_sha256,
+          endpoint_profile: "mock-image2-endpoint",
+          ...pageImageOperation,
+        },
+      },
+      generation_profile_sha256,
+      bindings: Array.from({ length: 7 }, () => generation_profile_sha256),
+      compiled_prompt,
+      measurement: { operation: "page-image-reference-generation", limit, unit, measured },
+      prompt_shape: { schema: "page-image-pure-provider-input", slide_id: "PureGo" },
+      transport: { model: "page-image-model", prompt: compiled_prompt, references: [] },
+    }],
+    state: {},
+  };
+}
 
 function walk(root, files = []) {
   for (const name of readdirSync(root)) {
@@ -642,6 +696,15 @@ describe("production schema conformance", () => {
       role: "version-design-system-binding",
       values: [PAGE_DESIGN_SYSTEM_BINDING_SCHEMA],
     });
+    expect(inventory.wire_schema_groups).toContainEqual({
+      stage_ref: "layout-config",
+      role: "image2-provider-capability-source",
+      values: [IMAGE2_PROVIDER_PROFILE_SCHEMA],
+    });
+    expect(inventory.image2_provider_capability).toMatchObject({
+      source_schema: IMAGE2_PROVIDER_PROFILE_SCHEMA,
+      runtime_selector: { environment_variable: "IMAGE2_PROVIDER_PROFILE_ID" },
+    });
     expect(visualLanguage.values).not.toContain("pptmaker-pure-deck-visual-system");
     expect(inventory.selectors).not.toHaveProperty("framed_header_preset");
 
@@ -705,6 +768,55 @@ describe("production schema conformance", () => {
     oversized.provider_input_utf8_bytes = 32769;
     expect(evaluatePageDesignSystemConformance(oversized).issues.map((issue) => issue.code))
       .toContain("page-design-system-provider-size-invalid");
+  });
+
+  it("checks capability-bound compact prompt chains with no filesystem, State, or provider access", () => {
+    for (const unit of ["unicode-code-points", "utf16-code-units", "utf8-bytes"]) {
+      for (const limit of [4000, 16000, 12347]) {
+        expect(evaluateImage2CapabilityConformance(image2CapabilitySnapshot({ limit, unit })).issues).toEqual([]);
+      }
+    }
+
+    const unknownOperation = image2CapabilitySnapshot();
+    unknownOperation.profile.operations["unexpected-operation"] = unknownOperation.profile.operations["page-image-reference-generation"];
+    expect(evaluateImage2CapabilityConformance(unknownOperation).issues.map((issue) => issue.code))
+      .toContain("image2-capability-operation-invalid");
+
+    const invalidLimit = image2CapabilitySnapshot();
+    invalidLimit.profile.operations["page-image-reference-generation"].prompt_budget.limit = 0;
+    invalidLimit.profile.operations["page-image-reference-generation"].prompt_budget.kind = "legacy-4k";
+    expect(evaluateImage2CapabilityConformance(invalidLimit).issues.map((issue) => issue.code))
+      .toEqual(expect.arrayContaining(["image2-capability-operation-invalid", "image2-capability-limit-special-case"]));
+
+    const secretLeak = image2CapabilitySnapshot();
+    secretLeak.profile.base_url = "https://provider.invalid";
+    expect(evaluateImage2CapabilityConformance(secretLeak).issues.map((issue) => issue.code))
+      .toContain("image2-capability-secret-leak");
+
+    const promptLeak = image2CapabilitySnapshot();
+    promptLeak.chains[0].prompt_shape.generation_profile = {};
+    expect(evaluateImage2CapabilityConformance(promptLeak).issues.map((issue) => issue.code))
+      .toContain("image2-compact-prompt-lineage-leak");
+
+    const projectedTransport = image2CapabilitySnapshot();
+    projectedTransport.chains[0].transport.prompt = JSON.stringify({ derived: "different bytes" });
+    expect(evaluateImage2CapabilityConformance(projectedTransport).issues.map((issue) => issue.code))
+      .toContain("image2-opaque-transport-invalid");
+
+    const fallback = image2CapabilitySnapshot();
+    fallback.profile.fallback_profile = "second-provider";
+    expect(evaluateImage2CapabilityConformance(fallback).issues.map((issue) => issue.code))
+      .toContain("image2-capability-fallback-forbidden");
+
+    const stateLedger = image2CapabilitySnapshot();
+    stateLedger.state.profile_id = "mock-target-workflow-profile";
+    expect(evaluateImage2CapabilityConformance(stateLedger).issues.map((issue) => issue.code))
+      .toContain("image2-capability-state-leak");
+
+    const formerSubmission = image2CapabilitySnapshot();
+    formerSubmission.chains[0].former_plan = true;
+    expect(evaluateImage2CapabilityConformance(formerSubmission).issues.map((issue) => issue.code))
+      .toContain("image2-former-plan-submission");
   });
 
   it("rejects an emitted local binding schema without its dedicated inventory declaration", () => {

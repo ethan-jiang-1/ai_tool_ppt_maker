@@ -12,7 +12,7 @@ import {
   validatePureRawContract,
 } from "../../ppt_maker_harness/scripts/04-pure-image/index.mjs";
 import {
-  initBundle,
+  initBundle as initializeBundle,
   PAGE_DESIGN_SYSTEM_FILE,
   pureDeckVisualSystemAsset,
 } from "../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
@@ -20,6 +20,12 @@ import { pageImageDerivedPagePaths, pageImageWorkflowPaths } from "../../ppt_mak
 import { inspectProgressiveRawLifecycle } from "../../ppt_maker_harness/scripts/shared/image2/page_image_progressive_raw_owner.mjs";
 import { statePath } from "../../ppt_maker_harness/scripts/shared/state/state.mjs";
 import { acceptLocalStyleMasterFixture } from "../helpers/accepted_style_master.mjs";
+import { writeConfirmedImage2ProviderProfile } from "../helpers/image2_provider_profile.mjs";
+
+function initBundle(...args) {
+  initializeBundle(...args);
+  writeConfirmedImage2ProviderProfile(join(args[0], "3_versions", "v1"));
+}
 
 const SOURCE = `---
 identity:
@@ -229,13 +235,19 @@ describe("Pure Page Image Core adapter", () => {
       });
       const serialized = JSON.stringify(contract);
       expect(contract.page_presentation.binding_sha256).toBe(coreSlide.page_presentation_sha256);
-      expect(JSON.parse(request.compiled_provider_input.utf8).page_presentation).toEqual(contract.page_presentation);
+      expect(JSON.parse(request.compiled_provider_input.utf8).page_presentation).toEqual({
+        profile: contract.page_presentation.profile,
+      });
       const providerInput = JSON.parse(request.compiled_provider_input.utf8);
       expect(providerInput.schema).toBe("page-image-pure-provider-input");
       expect(providerInput.design_system).toBe(designSystem);
       expect(providerInput).not.toHaveProperty("page_design_system_sha256");
       expect(providerInput).not.toHaveProperty("page_design_system_path");
       expect(providerInput).not.toHaveProperty("page_design_system_origin");
+      expect(providerInput.page_presentation).not.toHaveProperty("page_class");
+      expect(providerInput.page_presentation).not.toHaveProperty("profile_id");
+      expect(providerInput.page_presentation).not.toHaveProperty("binding_sha256");
+      expect(providerInput.page_presentation).not.toHaveProperty("provenance");
       expect(providerInput).not.toHaveProperty("protected_composition");
       expect(providerInput).not.toHaveProperty("reserved_header");
       expect(providerInput).not.toHaveProperty("body_safe");
@@ -295,8 +307,12 @@ describe("Pure Page Image Core adapter", () => {
       expect(second.provider_input_binding.page_design_system_sha256).toBeNull();
       expect(firstInput.design_system).toBeNull();
       expect(secondInput.design_system).toBeNull();
-      expect(firstInput.page_presentation).toMatchObject({ page_class: "standard", profile_id: "standard" });
-      expect(secondInput.page_presentation).toMatchObject({ page_class: "opening", profile_id: "opening" });
+      expect(firstInput.page_presentation).toEqual({
+        profile: firstRequest.raw_contract.page_presentation.profile,
+      });
+      expect(secondInput.page_presentation).toEqual({
+        profile: secondRequest.raw_contract.page_presentation.profile,
+      });
       expect(firstRequest.raw_contract.page_presentation).not.toEqual(secondRequest.raw_contract.page_presentation);
       expect(firstRequest.raw_contract.provider_rendered_content).not.toEqual(secondRequest.raw_contract.provider_rendered_content);
       expect(firstRequest.raw_contract.visual_language).not.toEqual(secondRequest.raw_contract.visual_language);

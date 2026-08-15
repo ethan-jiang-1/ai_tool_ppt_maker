@@ -1,8 +1,8 @@
 schema: visual-style-candidates
 kind: record
 scope: version
-purpose: "Preserve Style Master candidate lineage, review decisions, and the selected candidate for a workflow."
-answers: "Which visual-style candidates existed, how were they reviewed, and which one is selected?"
+purpose: "Preserve Style Master candidate lineage, profile-bound generation facts, review decisions, and the selected candidate for a workflow."
+answers: "Which visual-style candidates existed, which selected Image2 text-generation capability bound them, how were they reviewed, and which one is selected?"
 owner: "ppt_maker_harness/scripts/shared/image2/style_master_schema.mjs"
 producer_status: materialized
 inputs:
@@ -12,8 +12,8 @@ outputs:
   - page-generation-spec
   - image-generation-plan
 provenance:
-  source: "Candidate plans, grants, attempts, generated and local provenance, review decisions, and the candidate head."
-  requirement: "Records are append-only and use the current serialized identifiers declared in serialization-contracts.yaml."
+  source: "Candidate plans, grants, attempts, profile-bound generation profiles, generated and local provenance, review decisions, and the candidate head."
+  requirement: "Records are append-only and use the current serialized identifiers declared in serialization-contracts.yaml; candidate_generation_profile_sha256 closes the selected Style Master operation through every durable record."
 downstream_consumers:
   - page-generation-spec
   - image-generation-plan
@@ -21,6 +21,7 @@ downstream_consumers:
 does_not_contain:
   - "Per-page source copy, a provider request for a page, or a final page list."
   - "A mutable replacement for prior candidate evidence."
+  - "Credentials, base URL, a State capability ledger, a second prompt authority, or a profile fallback."
 fields:
   candidate_lineage:
     type: append-only record chain
@@ -46,3 +47,11 @@ fields:
       means: "Downstream pages cannot prove which visual style they inherited."
       ask: "Which selected visual style should each planned page inherit?"
       never: "Never reuse a style selection digest after the selected candidate changes."
+  candidate_generation_profile:
+    type: dynamic Style Master operation profile
+    description: "The path-free profile projection containing profile identity/digest, endpoint profile, route, model, style-master-text-generation operation, and positive exact prompt budget."
+    rule: "Its canonical digest must be carried by the plan, grant, provider request, attempt, generated provenance, and selection without rewriting immutable historical evidence."
+    on_violation:
+      means: "Candidate lineage cannot attribute its provider operation or exact prompt admission."
+      ask: "Create a fresh current Style Master plan from the confirmed profile."
+      never: "Never patch a former plan, infer a model or route, or submit a stale candidate."

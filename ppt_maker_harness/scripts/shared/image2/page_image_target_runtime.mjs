@@ -68,6 +68,12 @@ import {
   resolveCurrentTargetPageImageSourceState,
   validateTargetAcceptedRawEvidenceLocalComposeRebind,
 } from "../state/state.mjs";
+import {
+  evaluateImage2PromptBudget,
+  resolveImage2ProviderProfile,
+  selectImage2ProviderOperation,
+} from "./provider_profile.mjs";
+import { requireMatchingImage2RuntimeProfileId } from "./runtime_profile_id.mjs";
 
 export const TARGET_RAW_REVIEW_SCHEMA = "page-image-complete-page-review";
 export const TARGET_RAW_REVIEW_CONTRIBUTION_SCHEMA = "page-image-target-raw-review-contribution";
@@ -247,6 +253,19 @@ function requireSafeProviderRequestInspectionTransport(request, providerProfileS
   return Object.freeze({ model: profile.provider.model, size: PAGE_IMAGE_REQUEST_SIZE });
 }
 
+function promptMeasurementForRequest(request) {
+  const profile = request?.generation_profile;
+  const operationProfile = profile?.provider;
+  try {
+    return evaluateImage2PromptBudget({
+      prompt: request?.compiled_provider_input?.utf8,
+      operationProfile,
+    }).measurement;
+  } catch {
+    throw new PageImageTargetRuntimeError("target_provider_request_inspection_invalid", "provider request inspection requires one exact measured prompt budget");
+  }
+}
+
 /**
  * Materialize a provider-free diagnostic view of the exact selected-adapter
  * request. This sidecar is deliberately not read by authorization, submission,
@@ -301,6 +320,7 @@ export function writeTargetProviderRequestInspection(context, {
       raw_contract_sha256: item.raw_contract_sha256,
       provider_input_binding: binding,
       provider_request_sha256: canonicalJsonSha256(request),
+      prompt_budget: promptMeasurementForRequest(request),
       prompt: canonicalJson(request),
     });
   });
@@ -661,6 +681,10 @@ function readTargetRawReviewRecord(paths) {
 
 /** Compile provider-only facts from the current accepted immutable style selection. */
 export function buildTargetRawGenerationProfile({ runDir, deckDir, receipt } = {}) {
+  const operationProfile = selectImage2ProviderOperation(
+    resolveImage2ProviderProfile(runDir),
+    "page-image-reference-generation",
+  );
   let styleMaster;
   try {
     styleMaster = resolveAcceptedStyleMasterReference({ runDir, deckDir, receipt });
@@ -682,7 +706,16 @@ export function buildTargetRawGenerationProfile({ runDir, deckDir, receipt } = {
   const identitySelected = receipt.slides.some((slide) => slide.visual_language?.identity_reference?.provider_reference?.path);
   const profile = {
     schema: "page-image-target-raw-generation-profile",
-    provider: { provider: "image2", model: "gpt-image-2", api_revision: "page-image-workflow" },
+    provider: {
+      provider: "image2",
+      profile_id: operationProfile.profile_id,
+      profile_sha256: operationProfile.profile_sha256,
+      endpoint_profile: operationProfile.endpoint_profile,
+      route_id: operationProfile.route_id,
+      operation: operationProfile.operation,
+      model: operationProfile.model,
+      prompt_budget: operationProfile.prompt_budget,
+    },
     output: PAGE_IMAGE_NATIVE_RAW_PNG,
     reference_transport: { style_master: "image-reference", identity_reference: identitySelected ? "image-reference" : "none" },
     effective_style_master: {
@@ -1105,9 +1138,50 @@ function assertPlanHash(plan, planHash) {
   return checked;
 }
 
+/** Check the bound Page Image capability and exact bytes without credentials or writes. */
+export function preflightTargetRawProviderWork(rawWorkPlan, { providerRequestsBySlide } = {}) {
+  const plan = validateRawWorkPlanProviderInputBindings(rawWorkPlan);
+  if (!plan.ok) throw new PageImageTargetRuntimeError(plan.code, plan.message);
+  let boundRequests;
+  try {
+    boundRequests = validateBoundPageImageProviderRequests({ plan: rawWorkPlan, providerRequestsBySlide });
+  } catch (error) {
+    throw new PageImageTargetRuntimeError(
+      "target_provider_requests_invalid",
+      error?.message || "selected adapter provider requests must match the current raw plan",
+    );
+  }
+  let profileId = null;
+  for (const slideId of rawWorkPlan.ordered_slide_ids) {
+    const request = boundRequests.requests_by_slide[slideId].request;
+    const profile = request.generation_profile;
+    if (!profile?.provider || canonicalJsonSha256(profile) !== rawWorkPlan.provider_profile_sha256 ||
+      profile.provider.operation !== "page-image-reference-generation") {
+      throw new PageImageTargetRuntimeError(
+        "target_provider_profile_invalid",
+        "selected adapter requests must bind the current Page Image provider profile",
+      );
+    }
+    evaluateImage2PromptBudget({
+      prompt: request.compiled_provider_input.utf8,
+      operationProfile: profile.provider,
+    });
+    if (profileId !== null && profileId !== profile.provider.profile_id) {
+      throw new PageImageTargetRuntimeError(
+        "target_provider_profile_invalid",
+        "selected adapter requests must use one Page Image provider profile",
+      );
+    }
+    profileId = profile.provider.profile_id;
+  }
+  requireMatchingImage2RuntimeProfileId({ expectedProfileId: profileId });
+  return Object.freeze({ profile_id: profileId });
+}
+
 /** Record the target's exact nonzero provider authorization. */
-export function authorizeTargetRawWork(context, rawWorkPlan, { planHash } = {}) {
+export function authorizeTargetRawWork(context, rawWorkPlan, { planHash, providerRequestsBySlide } = {}) {
   assertPlanHash(rawWorkPlan, planHash);
+  preflightTargetRawProviderWork(rawWorkPlan, { providerRequestsBySlide });
   const result = recordPageImageRawProviderAuthorization(context.deck_dir, {
     runDir: context.run_dir,
     rawWorkPlan,
@@ -1132,6 +1206,7 @@ export async function generateTargetRawWork(context, rawWorkPlan, { planHash, pr
       error?.message || "selected adapter provider requests must match the current raw plan",
     );
   }
+  preflightTargetRawProviderWork(rawWorkPlan, { providerRequestsBySlide });
   const submitted = await submitAuthorizedRawWorkPlan({
     deckDir: context.deck_dir,
     runDir: context.run_dir,

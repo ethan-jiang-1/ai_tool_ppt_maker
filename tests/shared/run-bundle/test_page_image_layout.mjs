@@ -13,6 +13,7 @@ import {
   PAGE_CLASS_CATALOG_FILE,
   PAGE_IMAGE_DECK_DEFAULTS_FILE,
   PAGE_DESIGN_SYSTEM_FILE,
+  IMAGE2_PROVIDER_PROFILE_FILE,
   PAGE_IMAGE_PRESENTATION_FILES,
   PAGE_IMAGE_PRESENTATION_SUBDIR,
   PAGE_IMAGE_WORKFLOW_PATHS,
@@ -21,6 +22,8 @@ import {
   checkStyleMasterPresentationJpeg,
   checkStyleMasterHistoryLayout,
   createVersion,
+  image2ProviderProfileAsset,
+  image2ProviderProfileOverrideAsset,
   initBundle,
   pageImageWorkflowPaths,
   pageImageDerivedPagePaths,
@@ -89,6 +92,7 @@ describe("Page Image bundle layout", () => {
       expect(renderTree()).toContain("page-render-model.json");
       expect(renderTree()).toContain(PURE_DECK_VISUAL_SYSTEM_FILE);
       expect(renderTree()).toContain(PAGE_DESIGN_SYSTEM_FILE);
+      expect(renderTree()).toContain(IMAGE2_PROVIDER_PROFILE_FILE);
       expect(renderTree()).not.toContain("html_production");
       expect(renderTree()).toContain("page-image-style-master-iterations");
       expect(renderTree()).toContain("scopes/vN/{framed,pure}/head.json");
@@ -107,6 +111,7 @@ describe("Page Image bundle layout", () => {
       const presentationPath = join(deck, "2_backbone", "visual-style", PAGE_IMAGE_PRESENTATION_SUBDIR);
       const pureDeckVisualSystemPath = join(presentationPath, PURE_DECK_VISUAL_SYSTEM_FILE);
       const pageDesignSystemPath = join(deck, "2_backbone", "visual-style", PAGE_DESIGN_SYSTEM_FILE);
+      const providerProfilePath = join(deck, "2_backbone", "visual-style", IMAGE2_PROVIDER_PROFILE_FILE);
       expect(source).toContain("pipeline: page-image-workflow");
       expect(source).not.toMatch(/^  workflow:/m);
       expect(source).not.toContain("page_image_default");
@@ -118,6 +123,17 @@ describe("Page Image bundle layout", () => {
       expect(existsSync(pageImageWorkflowPaths(runDir).root)).toBe(false);
       expect(existsSync(pureDeckVisualSystemPath)).toBe(true);
       expect(readFileSync(pageDesignSystemPath, "utf8")).toBe("");
+      expect(readFileSync(providerProfilePath, "utf8")).toBe(
+        "schema: pptmaker-image2-provider-profile\n" +
+        "profile_id: null\n" +
+        "endpoint_profile: null\n" +
+        "owner_declaration:\n" +
+        "  authority: deck-author\n" +
+        "  status: pending\n" +
+        "operations:\n" +
+        "  style-master-text-generation: null\n" +
+        "  page-image-reference-generation: null\n",
+      );
       expect(PAGE_IMAGE_PRESENTATION_FILES.map((filename) => existsSync(join(presentationPath, filename)))).toEqual([true, true, true, true]);
       expect(readFileSync(join(presentationPath, PAGE_CLASS_CATALOG_FILE), "utf8")).toContain("pptmaker-page-image-class-catalog");
       expect(readFileSync(join(presentationPath, PAGE_IMAGE_DECK_DEFAULTS_FILE), "utf8")).toContain("pptmaker-page-image-deck-defaults");
@@ -384,6 +400,33 @@ describe("Page Image bundle layout", () => {
     }
   });
 
+  it("recognizes Image2 provider-profile sources without resolving capability at layout time", () => {
+    const root = mkdtempSync(join(tmpdir(), "image2-provider-profile-layout-"));
+    try {
+      const deck = join(root, "deck_current");
+      initBundle(deck, null, "keynote", "dark-executive");
+      const runDir = join(deck, "3_versions", "v1");
+      const backbonePath = image2ProviderProfileAsset(runDir);
+      const overridePath = image2ProviderProfileOverrideAsset(runDir);
+      const statePath = join(deck, "_state", "state.yaml");
+      const stateBefore = readFileSync(statePath);
+      const sourceBefore = readFileSync(backbonePath);
+
+      expect(backbonePath).toBe(join(deck, "2_backbone", "visual-style", IMAGE2_PROVIDER_PROFILE_FILE));
+      expect(overridePath).toBe(join(runDir, "overrides", "visual-style", IMAGE2_PROVIDER_PROFILE_FILE));
+      expect(checkBundle(runDir, false)).toEqual([PAGE_IMAGE_WORKFLOW_SELECTION_REQUIRED_MESSAGE]);
+      expect(readFileSync(statePath)).toEqual(stateBefore);
+      expect(readFileSync(backbonePath)).toEqual(sourceBefore);
+
+      rmSync(backbonePath);
+      expect(checkBundle(runDir, false)).toEqual([PAGE_IMAGE_WORKFLOW_SELECTION_REQUIRED_MESSAGE]);
+      expect(existsSync(backbonePath)).toBe(false);
+      expect(readFileSync(statePath)).toEqual(stateBefore);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("copies a presentation override into a clean successor without any generated evidence", () => {
     const root = mkdtempSync(join(tmpdir(), "presentation-clean-successor-"));
     try {
@@ -392,9 +435,11 @@ describe("Page Image bundle layout", () => {
       const runDir = join(deck, "3_versions", "v1");
       const override = join(runDir, "overrides", "visual-style", PAGE_IMAGE_PRESENTATION_SUBDIR, PURE_DECK_VISUAL_SYSTEM_FILE);
       const designSystemOverride = join(runDir, "overrides", "visual-style", PAGE_DESIGN_SYSTEM_FILE);
+      const providerProfileOverride = join(runDir, "overrides", "visual-style", IMAGE2_PROVIDER_PROFILE_FILE);
       mkdirSync(join(override, ".."), { recursive: true });
       writeFileSync(override, "schema: replacement\n", "utf8");
       writeFileSync(designSystemOverride, "Use one restrained editorial system.\n", "utf8");
+      writeFileSync(providerProfileOverride, "schema: pptmaker-image2-provider-profile\n", "utf8");
       mkdirSync(join(runDir, "_generated", "page_image_workflow", "raw"), { recursive: true });
       writeFileSync(join(runDir, "_generated", "page_image_workflow", "raw", "plan-manifest.json"), "old evidence", "utf8");
 
@@ -403,6 +448,8 @@ describe("Page Image bundle layout", () => {
         .toBe("schema: replacement\n");
       expect(readFileSync(join(successor, "overrides", "visual-style", PAGE_DESIGN_SYSTEM_FILE), "utf8"))
         .toBe("Use one restrained editorial system.\n");
+      expect(readFileSync(join(successor, "overrides", "visual-style", IMAGE2_PROVIDER_PROFILE_FILE), "utf8"))
+        .toBe("schema: pptmaker-image2-provider-profile\n");
       expect(existsSync(join(successor, "_generated", "page_image_workflow", "raw", "plan-manifest.json"))).toBe(false);
     } finally {
       rmSync(root, { recursive: true, force: true });

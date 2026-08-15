@@ -7,7 +7,6 @@ import { canonicalJsonSha256 } from "../../../ppt_maker_harness/scripts/shared/i
 import {
   STYLE_MASTER_CANDIDATE_ABANDONMENT_SCHEMA,
   STYLE_MASTER_GENERATED_PROVENANCE_SCHEMA,
-  STYLE_MASTER_GENERATION_PROFILE,
   STYLE_MASTER_LOCAL_PROVENANCE_SCHEMA,
   STYLE_MASTER_SELECTION_SCHEMA,
   createStyleMasterCandidateAttemptRecord,
@@ -44,6 +43,10 @@ import {
   writeStyleMasterScopeHeadCas,
 } from "../../../ppt_maker_harness/scripts/shared/image2/style_master_store.mjs";
 import { initBundle } from "../../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
+import {
+  testStyleMasterGenerationProfile,
+  testStyleMasterGenerationProfileSha256,
+} from "../../helpers/image2_provider_profile.mjs";
 
 const digest = (letter) => letter.repeat(64);
 
@@ -57,7 +60,7 @@ function planIdentity(overrides = {}) {
     previous_selection_sha256: null,
     style_intent_sha256: digest("a"),
     style_context_sha256: digest("b"),
-    candidate_generation_profile_sha256: styleMasterGenerationProfileSha256(),
+    candidate_generation_profile_sha256: testStyleMasterGenerationProfileSha256(),
     compiled_prompt_sha256: digest("c"),
     generated_candidate_count: 1,
     candidates: [{ candidate_id: "candidate-001", kind: "generated" }],
@@ -108,17 +111,15 @@ describe("Style Master schema and immutable storage", () => {
       candidates: [],
     })).toMatchObject({ ok: false });
     expect(validateStyleMasterPlanIdentity({ ...identity, created_at: "2026-08-01T00:00:00.000Z" })).toMatchObject({ ok: false });
-    expect(validateStyleMasterPlanIdentity({ ...identity, candidate_generation_profile_sha256: digest("f") })).toMatchObject({
-      ok: false,
-      code: "style_master_profile_invalid",
-    });
-    expect(validateStyleMasterGenerationProfile(STYLE_MASTER_GENERATION_PROFILE)).toMatchObject({
+    expect(validateStyleMasterPlanIdentity({ ...identity, candidate_generation_profile_sha256: digest("f") })).toMatchObject({ ok: true });
+    const generationProfile = testStyleMasterGenerationProfile();
+    expect(validateStyleMasterGenerationProfile(generationProfile)).toMatchObject({
       ok: true,
-      candidate_generation_profile_sha256: styleMasterGenerationProfileSha256(),
+      candidate_generation_profile_sha256: testStyleMasterGenerationProfileSha256(),
     });
     expect(validateStyleMasterGenerationProfile({
-      ...STYLE_MASTER_GENERATION_PROFILE,
-      output: { ...STYLE_MASTER_GENERATION_PROFILE.output, width: 1999 },
+      ...generationProfile,
+      output: { ...generationProfile.output, width: 1999 },
     })).toMatchObject({ ok: false, code: "style_master_profile_invalid" });
   });
 
@@ -230,7 +231,7 @@ describe("Style Master schema and immutable storage", () => {
       plan_sha256: digest("a"),
       candidate_id: "candidate-001",
       compiled_prompt_sha256: digest("b"),
-      candidate_generation_profile_sha256: styleMasterGenerationProfileSha256(),
+      candidate_generation_profile_sha256: testStyleMasterGenerationProfileSha256(),
       provider_request_sha256: digest("c"),
       candidate_sha256: digest("d"),
       candidate_media_type: "image/png",
@@ -250,7 +251,7 @@ describe("Style Master schema and immutable storage", () => {
       candidate_provenance_sha256: digest("c"),
       style_intent_sha256: digest("d"),
       style_context_sha256: digest("e"),
-      candidate_generation_profile_sha256: styleMasterGenerationProfileSha256(),
+      candidate_generation_profile_sha256: testStyleMasterGenerationProfileSha256(),
       previous_selection_sha256: null,
       review_decision_sha256: digest("f"),
       accepted_at: "2026-08-01T00:00:00.000Z",
@@ -265,15 +266,9 @@ describe("Style Master schema and immutable storage", () => {
     expect(validateStyleMasterGeneratedProvenance({ ...generated, candidate_width: 1999, candidate_height: 1111 })).toMatchObject({ ok: true });
     expect(validateStyleMasterGeneratedProvenance({ ...generated, candidate_width: 0 })).toMatchObject({ ok: false });
     expect(validateStyleMasterLocalProvenance({ ...local, plan_sha256: digest("f") })).toMatchObject({ ok: false });
-    expect(validateStyleMasterGeneratedProvenance({ ...generated, candidate_generation_profile_sha256: digest("f") })).toMatchObject({
-      ok: false,
-      code: "style_master_profile_invalid",
-    });
+    expect(validateStyleMasterGeneratedProvenance({ ...generated, candidate_generation_profile_sha256: digest("f") })).toMatchObject({ ok: true });
     expect(validateStyleMasterSelectionRecord({ ...selection, accepted_at: "soon" })).toMatchObject({ ok: false });
-    expect(validateStyleMasterSelectionRecord({ ...selection, candidate_generation_profile_sha256: digest("f") })).toMatchObject({
-      ok: false,
-      code: "style_master_profile_invalid",
-    });
+    expect(validateStyleMasterSelectionRecord({ ...selection, candidate_generation_profile_sha256: digest("f") })).toMatchObject({ ok: true });
   });
 
   it("publishes only a validated staged plan and CASes the one scope head", () => {

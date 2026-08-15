@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -6,6 +6,18 @@ import { join } from "node:path";
 import { createCanvas, loadImage } from "@napi-rs/canvas";
 
 const framedResolverControls = vi.hoisted(() => ({ tamper_identity_clause: false }));
+
+let originalRuntimeProfileId;
+
+beforeEach(() => {
+  originalRuntimeProfileId = process.env.IMAGE2_PROVIDER_PROFILE_ID;
+  process.env.IMAGE2_PROVIDER_PROFILE_ID = "test-image2-profile";
+});
+
+afterEach(() => {
+  if (originalRuntimeProfileId === undefined) delete process.env.IMAGE2_PROVIDER_PROFILE_ID;
+  else process.env.IMAGE2_PROVIDER_PROFILE_ID = originalRuntimeProfileId;
+});
 
 vi.mock("../../ppt_maker_harness/scripts/02-visual-system/index.mjs", async (importOriginal) => {
   const actual = await importOriginal();
@@ -77,7 +89,7 @@ import { STANDARD_FRAMED_PRESENTATION_PROFILE } from "../helpers/framed_presenta
 import { targetPageImageSubmitFactory } from "../../ppt_maker_harness/scripts/ppt_flow.mjs";
 import {
   FRAMED_HEADER_PROFILES_FILE,
-  initBundle,
+  initBundle as initializeBundle,
   pageImagePresentationAsset,
 } from "../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
 import { pageImageDerivedPagePaths, pageImageWorkflowPaths } from "../../ppt_maker_harness/scripts/shared/run-bundle/page_image_paths.mjs";
@@ -89,6 +101,7 @@ import {
   readProgressiveRawPlanDirectRecords,
 } from "../../ppt_maker_harness/scripts/shared/image2/page_image_progressive_store.mjs";
 import { acceptLocalStyleMasterFixture } from "../helpers/accepted_style_master.mjs";
+import { writeConfirmedImage2ProviderProfile } from "../helpers/image2_provider_profile.mjs";
 import {
   TEST_IDENTITY_REFERENCE,
   allowTestIdentitySubjectClass,
@@ -97,6 +110,11 @@ import {
 
 const digest = (letter) => letter.repeat(64);
 const STANDARD_PRESENTATION_PROFILE = STANDARD_FRAMED_PRESENTATION_PROFILE;
+
+function initBundle(...args) {
+  initializeBundle(...args);
+  writeConfirmedImage2ProviderProfile(join(args[0], "3_versions", "v1"));
+}
 
 function framedProviderInputBinding(compiled = "a") {
   return {
@@ -314,6 +332,10 @@ ${DEFAULT_VISUAL_BRIEF}
       const legacyInputUtf8 = canonicalJson({
         ...identityInput,
         visual: { ...identityInput.visual, identity: identityContract.visual_identity },
+        generation_profile: {
+          provider: { provider: "image2", model: "former-fixed-page-image-model" },
+          raw_contract: identityContract,
+        },
       });
       const legacyBindings = Object.fromEntries(plan.raw_work_plan.items.map((item) => [
         item.slide_id,
@@ -445,13 +467,11 @@ ${DEFAULT_VISUAL_BRIEF}
       const lineageUtf8 = canonicalJson(withLineage);
       expect(validateFramedProviderInputContract({
         rawContract: identityContract,
-        generationProfile: identityRequest.generation_profile,
         compiledProviderInput: {
           schema: identityRequest.compiled_provider_input.schema,
           utf8: lineageUtf8,
           sha256: sha256Bytes(Buffer.from(lineageUtf8, "utf8")),
         },
-        maxUtf8Bytes: PAGE_IMAGE_PROVIDER_INPUT_MAX_UTF8_BYTES,
       })).toMatchObject({ ok: false, code: "framed_provider_input_contract_invalid" });
 
       const withoutClause = structuredClone(identityInput);
@@ -459,13 +479,11 @@ ${DEFAULT_VISUAL_BRIEF}
       const withoutClauseUtf8 = canonicalJson(withoutClause);
       expect(validateFramedProviderInputContract({
         rawContract: identityContract,
-        generationProfile: identityRequest.generation_profile,
         compiledProviderInput: {
           schema: identityRequest.compiled_provider_input.schema,
           utf8: withoutClauseUtf8,
           sha256: sha256Bytes(Buffer.from(withoutClauseUtf8, "utf8")),
         },
-        maxUtf8Bytes: PAGE_IMAGE_PROVIDER_INPUT_MAX_UTF8_BYTES,
       })).toMatchObject({ ok: false, code: "framed_provider_input_contract_invalid" });
     } finally {
       rmSync(root, { recursive: true, force: true });
@@ -638,9 +656,7 @@ relationship: causal-flow`,
       expect(weakenedInput.sha256).not.toBe(plan.provider_requests_by_slide.DeckGo.compiled_provider_input.sha256);
       expect(validateFramedProviderInputContract({
         rawContract,
-        generationProfile: plan.provider_requests_by_slide.DeckGo.generation_profile,
         compiledProviderInput: weakenedInput,
-        maxUtf8Bytes: PAGE_IMAGE_PROVIDER_INPUT_MAX_UTF8_BYTES,
       })).toMatchObject({
         ok: false,
         code: "framed_provider_input_contract_invalid",
@@ -652,9 +668,7 @@ relationship: causal-flow`,
       };
       expect(validateFramedProviderInputContract({
         rawContract,
-        generationProfile: plan.provider_requests_by_slide.DeckGo.generation_profile,
         compiledProviderInput: nonCanonicalInput,
-        maxUtf8Bytes: PAGE_IMAGE_PROVIDER_INPUT_MAX_UTF8_BYTES,
       })).toMatchObject({
         ok: false,
         code: "framed_provider_input_contract_invalid",

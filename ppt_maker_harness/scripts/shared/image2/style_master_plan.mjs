@@ -21,7 +21,6 @@ import {
 } from "../state/state.mjs";
 import { resolveStyleMasterScopeContext } from "./style_master_scope.mjs";
 import {
-  STYLE_MASTER_GENERATION_PROFILE,
   STYLE_MASTER_CANDIDATE_ABANDONMENT_SCHEMA,
   STYLE_MASTER_GENERATED_PROVENANCE_SCHEMA,
   STYLE_MASTER_LOCAL_PROVENANCE_SCHEMA,
@@ -29,6 +28,7 @@ import {
   STYLE_MASTER_REVIEW_DECISIONS,
   STYLE_MASTER_SELECTION_SCHEMA,
   StyleMasterSchemaError,
+  createStyleMasterGenerationProfile,
   createStyleMasterCandidateAttemptRecord,
   createStyleMasterCandidateGrantRecord,
   createStyleMasterHeadRecord,
@@ -51,6 +51,12 @@ import {
   validateStyleMasterSelectionRecord,
 } from "./style_master_schema.mjs";
 import {
+  evaluateImage2PromptBudget,
+  resolveImage2ProviderProfile,
+  selectImage2ProviderOperation,
+} from "./provider_profile.mjs";
+import { requireMatchingImage2RuntimeProfileId } from "./runtime_profile_id.mjs";
+import {
   cleanupStyleMasterStagingDirectory,
   createOrExactMatchStyleMasterRecord,
   createStyleMasterStagingDirectory,
@@ -69,7 +75,6 @@ const MAX_GENERATION_CAS_RETRIES = 8;
 const MAX_SELECTION_CAS_RETRIES = 8;
 const COMPILED_PROMPT_SCHEMA = "page-image-style-master-provider-brief";
 const COMPILED_PROMPT_INSTRUCTION = "Generate one visual style reference image with no readable text or labels.";
-const MAX_COMPILED_PROMPT_BYTES = 4_000;
 
 export class StyleMasterPlanError extends Error {
   constructor(code, message, details = null) {
@@ -304,16 +309,13 @@ export function compileStyleMasterProviderPrompt({ styleIntent, styleContext } =
   }
   const prompt = {
     schema: COMPILED_PROMPT_SCHEMA,
-    prompt_contract: STYLE_MASTER_GENERATION_PROFILE.prompt_contract,
+    prompt_contract: "style-master-no-readable-text",
     output_instruction: COMPILED_PROMPT_INSTRUCTION,
     style_intent: styleIntent,
     global_visual_summary: compactProviderBriefSummary(styleContext),
   };
   const bytes = Buffer.from(canonicalJson(prompt), "utf8");
   if (bytes.length === 0) fail("style_master_prompt_invalid", "Style Master compiled prompt must not be empty");
-  if (bytes.length > MAX_COMPILED_PROMPT_BYTES) {
-    fail("style_master_prompt_invalid", "Style Master provider brief exceeds the fixed 4,000 UTF-8 byte limit");
-  }
   return Object.freeze({ bytes, compiled_prompt_sha256: sha256Bytes(bytes) });
 }
 
@@ -468,9 +470,25 @@ async function compilePlanInputs(scope, candidateCount) {
   if (!Number.isInteger(candidateCount) || candidateCount < 0 || candidateCount > 4) {
     fail("style_master_candidate_count_invalid", "Style Master candidateCount must be an explicit integer from 0 through 4");
   }
+  const candidate_generation_profile = createStyleMasterGenerationProfile(
+    selectImage2ProviderOperation(
+      resolveImage2ProviderProfile(scope.run_dir),
+      "style-master-text-generation",
+    ),
+  );
   const intent = readStyleIntent(scope);
   const visual = styleContextFromCandidate(scope);
   const prompt = compileStyleMasterProviderPrompt({ styleIntent: intent.text, styleContext: visual.context });
+  try {
+    evaluateImage2PromptBudget({
+      prompt: prompt.bytes,
+      operationProfile: candidate_generation_profile.provider,
+    });
+  } catch (error) {
+    fail(error?.code || "style_master_prompt_budget_invalid", "Style Master provider brief does not fit the selected Image2 operation budget", {
+      ...(error?.measurement ? { measurement: error.measurement } : {}),
+    });
+  }
   const local = await localCandidateFromScope(scope);
   if (candidateCount === 0 && local === null) {
     fail("style_master_zero_candidate_invalid", "zero generated candidates require one valid local-existing Style Master candidate");
@@ -478,7 +496,8 @@ async function compilePlanInputs(scope, candidateCount) {
   return Object.freeze({
     style_intent_sha256: intent.style_intent_sha256,
     style_context_sha256: visual.style_context_sha256,
-    candidate_generation_profile_sha256: styleMasterGenerationProfileSha256(),
+    candidate_generation_profile,
+    candidate_generation_profile_sha256: styleMasterGenerationProfileSha256(candidate_generation_profile),
     compiled_prompt_sha256: prompt.compiled_prompt_sha256,
     compiled_prompt_bytes: Buffer.from(prompt.bytes),
     generated_candidate_count: candidateCount,
@@ -532,6 +551,12 @@ function planInputProjection(inputs) {
     generated_candidate_count: inputs.generated_candidate_count,
     local_candidate: inputs.local?.candidate || null,
   };
+}
+
+function requireCurrentStyleMasterRuntimeProfile(inputs) {
+  return requireMatchingImage2RuntimeProfileId({
+    expectedProfileId: inputs?.candidate_generation_profile?.provider?.profile_id,
+  });
 }
 
 function readCurrentHead(scope) {
@@ -956,7 +981,6 @@ async function readCurrentGenerationContext(scope, planSha256, refreshScope) {
   if (current.plan.generated_candidate_count === 0) {
     fail("style_master_generate_inapplicable", "zero-generated Style Master plans do not have candidate submissions");
   }
-  const inputContext = await assertCurrentPlanInputs(resolvedScope, current);
   const records = directPlanRecords(resolvedScope, current);
   if (!records.grant) {
     fail("style_master_grant_missing", "Style Master generation requires the immutable current candidate grant");
@@ -967,10 +991,15 @@ async function readCurrentGenerationContext(scope, planSha256, refreshScope) {
     attempts: records.attempts.map((attempt) => attempt.record),
   });
   const terminality = inspectPlanTerminality(resolvedScope, current);
+  // A submitted request has an irreversible cost boundary. Its exact
+  // reconciliation/abandonment path takes precedence over new source input.
+  const inputContext = terminality.terminal || terminality.unresolved_submitted
+    ? null
+    : await assertCurrentPlanInputs(resolvedScope, current);
   return Object.freeze({
     scope: resolvedScope,
     current,
-    inputs: inputContext.inputs,
+    inputs: inputContext?.inputs || null,
     records,
     grant: records.grant,
     grant_progress: grantProgress,
@@ -1284,11 +1313,12 @@ export async function authorizeStyleMasterCandidates({ scope, planSha256, refres
   if (current.plan.generated_candidate_count === 0) {
     fail("style_master_grant_inapplicable", "zero-generated Style Master plans do not require candidate authorization");
   }
-  await assertCurrentPlanInputs(initialScope, current);
   const terminality = inspectPlanTerminality(initialScope, current);
   if (terminality.terminal || terminality.unresolved_submitted) {
     fail("style_master_plan_not_authorizable", "Style Master authorization requires a current nonterminal plan without an unresolved submission");
   }
+  const currentInputs = await assertCurrentPlanInputs(initialScope, current);
+  requireCurrentStyleMasterRuntimeProfile(currentInputs.inputs);
 
   const grant = createStyleMasterCandidateGrantRecord(current.plan);
   const grantPaths = styleMasterStorePaths(initialScope.run_dir, { plan_sha256: current.plan.plan_sha256 });
@@ -1309,11 +1339,12 @@ export async function authorizeStyleMasterCandidates({ scope, planSha256, refres
     !equalBytes(refreshed.head_bytes, current.head_bytes)) {
     fail("style_master_plan_not_current", "Style Master scope head changed while candidate authorization was being recorded");
   }
-  await assertCurrentPlanInputs(refreshedScope, refreshed);
   const refreshedTerminality = inspectPlanTerminality(refreshedScope, refreshed);
   if (refreshedTerminality.terminal || refreshedTerminality.unresolved_submitted) {
     fail("style_master_plan_not_authorizable", "Style Master plan changed before candidate authorization could become current");
   }
+  const refreshedInputs = await assertCurrentPlanInputs(refreshedScope, refreshed);
+  requireCurrentStyleMasterRuntimeProfile(refreshedInputs.inputs);
   return Object.freeze({
     plan: refreshed.plan,
     plan_sha256: refreshed.plan.plan_sha256,
@@ -1359,6 +1390,8 @@ export async function generateStyleMasterCandidates({
     }
     if (initialTarget.kind === "complete") return initialProjection;
 
+    requireCurrentStyleMasterRuntimeProfile(context.inputs);
+
     let claimed = initialTarget.attempt;
     if (initialTarget.kind === "pending") {
       const claim = createStyleMasterCandidateAttemptRecord({
@@ -1390,7 +1423,7 @@ export async function generateStyleMasterCandidates({
         run_dir: context.scope.run_dir,
         plan_sha256: context.current.plan.plan_sha256,
         candidate_id: claimed.record.candidate_id,
-        candidate_generation_profile: STYLE_MASTER_GENERATION_PROFILE,
+        candidate_generation_profile: context.inputs.candidate_generation_profile,
       }));
 
     // Initialization may take time. Rebuild every exact pre-submit fact and
@@ -1407,6 +1440,7 @@ export async function generateStyleMasterCandidates({
       currentScope = beforeSubmit.scope;
       continue;
     }
+    requireCurrentStyleMasterRuntimeProfile(beforeSubmit.inputs);
     if (typeof submit !== "function") {
       fail("style_master_provider_submit_required", "Style Master provider submission requires the existing Image2 transport owner");
     }
@@ -1452,7 +1486,7 @@ export async function generateStyleMasterCandidates({
         provider_request: providerRequest,
         provider_request_sha256: checkedRequest.provider_request_sha256,
         compiled_prompt_bytes: Buffer.from(beforeSubmit.inputs.compiled_prompt_bytes),
-        candidate_generation_profile: STYLE_MASTER_GENERATION_PROFILE,
+        candidate_generation_profile: beforeSubmit.inputs.candidate_generation_profile,
         transport,
       }));
     } catch (error) {
@@ -2345,7 +2379,14 @@ export function resolveAcceptedStyleMasterReference({ runDir, deckDir = null, re
   const styleContext = styleContextFromCandidate(scope);
   if (replay.selection.style_intent_sha256 !== intent.style_intent_sha256 ||
     replay.selection.style_context_sha256 !== styleContext.style_context_sha256 ||
-    replay.selection.candidate_generation_profile_sha256 !== styleMasterGenerationProfileSha256()) {
+    replay.selection.candidate_generation_profile_sha256 !== styleMasterGenerationProfileSha256(
+      createStyleMasterGenerationProfile(
+        selectImage2ProviderOperation(
+          resolveImage2ProviderProfile(resolvedRunDir),
+          "style-master-text-generation",
+        ),
+      ),
+    )) {
     fail("style_master_selection_stale", "Style Master selection intent, context, or generation profile is no longer current");
   }
   return Object.freeze({

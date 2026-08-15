@@ -15,6 +15,7 @@ import {
   initializeTargetPageImageState,
   resolveRunProductionAdapter,
 } from "../../ppt_maker_harness/scripts/shared/state/state.mjs";
+import { writeConfirmedImage2ProviderProfile } from "../helpers/image2_provider_profile.mjs";
 
 const FLOW = "ppt_maker_harness/scripts/ppt_flow.mjs";
 
@@ -82,6 +83,7 @@ describe("current Page Image CLI surface", () => {
     image.getContext("2d").fillRect(0, 0, 2000, 1125);
     try {
       initBundle(deck, null, "keynote", "dark-executive");
+      writeConfirmedImage2ProviderProfile(runDir);
       writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
       writeFileSync(styleAsset(runDir, STYLE_MASTER_PROMPT), "Use a clear editorial visual system with no readable text.\n", "utf8");
       writeFileSync(join(runDir, "slide-specifications.md"), `---

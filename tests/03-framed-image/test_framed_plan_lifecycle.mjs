@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -20,6 +20,18 @@ const renderControls = vi.hoisted(() => ({
   proof_stale_slide_id: null,
   header_region_drift: false,
 }));
+
+let originalRuntimeProfileId;
+
+beforeEach(() => {
+  originalRuntimeProfileId = process.env.IMAGE2_PROVIDER_PROFILE_ID;
+  process.env.IMAGE2_PROVIDER_PROFILE_ID = "test-image2-profile";
+});
+
+afterEach(() => {
+  if (originalRuntimeProfileId === undefined) delete process.env.IMAGE2_PROVIDER_PROFILE_ID;
+  else process.env.IMAGE2_PROVIDER_PROFILE_ID = originalRuntimeProfileId;
+});
 const framedResolverControls = vi.hoisted(() => ({ null_provider_clauses: false }));
 const framedProviderInputControls = vi.hoisted(() => ({ weakened_reservation: false }));
 
@@ -144,15 +156,22 @@ import { sha256Bytes } from "../../ppt_maker_harness/scripts/shared/identity/byt
 import { PAGE_IMAGE_PROVIDER_INPUT_MAX_UTF8_BYTES } from "../../ppt_maker_harness/scripts/shared/page-image/page_image_core.mjs";
 import { resolveContentAddressName } from "../../ppt_maker_harness/scripts/shared/image2/content_address_store.mjs";
 import { pageImageOrdinalImageFilename } from "../../ppt_maker_harness/scripts/shared/image2/page_image_artifacts.mjs";
+import { evaluateImage2PromptBudget } from "../../ppt_maker_harness/scripts/shared/image2/provider_profile.mjs";
 import { pageImageWorkflowPaths } from "../../ppt_maker_harness/scripts/shared/run-bundle/page_image_paths.mjs";
 import {
   STYLE_MASTER_IMAGE,
-  initBundle,
+  initBundle as initializeBundle,
   PAGE_DESIGN_SYSTEM_FILE,
   styleAsset,
 } from "../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
 import { readState } from "../../ppt_maker_harness/scripts/shared/state/state.mjs";
 import { acceptLocalStyleMasterFixture } from "../helpers/accepted_style_master.mjs";
+import { writeConfirmedImage2ProviderProfile } from "../helpers/image2_provider_profile.mjs";
+
+function initBundle(...args) {
+  initializeBundle(...args);
+  writeConfirmedImage2ProviderProfile(join(args[0], "3_versions", "v1"));
+}
 
 function errorWithCode(code, message) {
   const error = new Error(message);
@@ -703,9 +722,7 @@ describe("Framed proof-before-materialization lifecycle", () => {
       ]) {
         expect(validateFramedProviderInputContract({
           rawContract,
-          generationProfile: providerRequest.generation_profile,
           compiledProviderInput: compiledFor(value),
-          maxUtf8Bytes: PAGE_IMAGE_PROVIDER_INPUT_MAX_UTF8_BYTES,
         })).toMatchObject({ ok: false, code: "framed_provider_input_contract_invalid" });
       }
 
@@ -719,10 +736,12 @@ describe("Framed proof-before-materialization lifecycle", () => {
       expect(Buffer.byteLength(atLimitInput.utf8, "utf8")).toBe(PAGE_IMAGE_PROVIDER_INPUT_MAX_UTF8_BYTES);
       expect(validateFramedProviderInputContract({
         rawContract: atLimitRawContract,
-        generationProfile: providerRequest.generation_profile,
         compiledProviderInput: atLimitInput,
-        maxUtf8Bytes: PAGE_IMAGE_PROVIDER_INPUT_MAX_UTF8_BYTES,
       })).toMatchObject({ ok: true });
+      expect(evaluateImage2PromptBudget({
+        prompt: atLimitInput.utf8,
+        operationProfile: providerRequest.generation_profile.provider,
+      })).toMatchObject({ utf8_bytes: PAGE_IMAGE_PROVIDER_INPUT_MAX_UTF8_BYTES });
       const overLimitText = `${atLimitText}x`;
       const overLimitDigest = sha256Bytes(Buffer.from(overLimitText, "utf8"));
       const overLimitRawContract = structuredClone(atLimitRawContract);
@@ -730,10 +749,12 @@ describe("Framed proof-before-materialization lifecycle", () => {
       overLimitRawContract.page_image_core.page_design_system_sha256 = overLimitDigest;
       expect(validateFramedProviderInputContract({
         rawContract: overLimitRawContract,
-        generationProfile: providerRequest.generation_profile,
         compiledProviderInput: compiledFor({ ...providerInput, design_system: overLimitText }),
-        maxUtf8Bytes: PAGE_IMAGE_PROVIDER_INPUT_MAX_UTF8_BYTES,
-      })).toMatchObject({ ok: false, code: "framed_provider_input_contract_invalid" });
+      })).toMatchObject({ ok: true });
+      expect(() => evaluateImage2PromptBudget({
+        prompt: compiledFor({ ...providerInput, design_system: overLimitText }).utf8,
+        operationProfile: providerRequest.generation_profile.provider,
+      })).toThrow(expect.objectContaining({ code: "image2_prompt_safety_overflow" }));
 
       const stateBeforeDrift = readFileSync(join(fixture.deck, "_state", "state.yaml"));
       const changedDesignSystem = `${designSystem} Avoid decorative labels.`;

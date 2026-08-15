@@ -125,7 +125,7 @@ produces: [target-page-image-visual-language]
 entry: []
 exit: [visual_preset_seeded]
 ```
-**Step 1 — MD**: Maintain the closed visual-language and reference registries before page grouping. Framed-specific Header Rendering Policy facts remain owned by the selected Framed workflow.
+**Step 1 — MD**: Maintain the closed visual-language and reference registries before page grouping. Before Style Master or Page Image provider-facing planning, obtain the Deck Author's one confirmed non-secret `image2-provider-profile.yaml` declaration in this existing visual-system source work and match the environment-owned `IMAGE2_PROVIDER_PROFILE_ID`; Page Design System, presentation profiles, credentials, inspection, and Complete Page Review remain distinct owners. A pending/invalid source, runtime mismatch, budget overflow, or stale plan follows the producer-issued diagnostic action after repairing only its owning source/environment and rerunning the same checkpoint. Smoke/probe is connectivity-only and never confirms capability, prompt fit, authorization, or review. Framed-specific Header Rendering Policy facts remain owned by the selected Framed workflow.
 
 ### author-target-page-image-content
 ```yaml

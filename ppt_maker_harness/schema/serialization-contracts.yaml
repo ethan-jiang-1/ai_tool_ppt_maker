@@ -11,6 +11,32 @@ selectors:
   production_adapter: page-image-workflow
   identity_scheme: mnemonic
 
+image2_provider_capability:
+  source_schema: pptmaker-image2-provider-profile
+  source_locations:
+    backbone: 2_backbone/visual-style/image2-provider-profile.yaml
+    version_override: 3_versions/vN/overrides/visual-style/image2-provider-profile.yaml
+  owner: deck-author
+  resolver: scripts/shared/image2/provider_profile.mjs
+  operations:
+    - style-master-text-generation
+    - page-image-reference-generation
+  prompt_budget_units:
+    - unicode-code-points
+    - utf16-code-units
+    - utf8-bytes
+  limit_rule: positive-safe-integer-data
+  runtime_selector:
+    environment_variable: IMAGE2_PROVIDER_PROFILE_ID
+    owner: environment
+    rule: exact-match-resolved-profile-id
+  does_not_contain:
+    - credential
+    - api-key
+    - base-url
+    - state-capability-ledger
+    - provider-response
+
 current_state_shape:
   name: md-controller-execution-state
   storage: _state/state.yaml
@@ -225,6 +251,10 @@ wire_schema_groups:
     role: version-design-system-binding
     values:
       - page-image-design-system-binding
+  - stage_ref: layout-config
+    role: image2-provider-capability-source
+    values:
+      - pptmaker-image2-provider-profile
   - stage_ref: page-source-receipt
     role: parsed-source
     values:
@@ -488,3 +518,5 @@ implementation_invariants:
   - name: Page Class materializes source facts, four layout-config contracts, and in-memory per-page presentation bindings; the derived publication exposes only the current provider-free per-page inspection projection.
   - name: Subject restrictions are declared on both workflow receipts, while Framed alone publishes selected-profile header_region and exact normalized protected_composition lineage; current Framed requests omit local header literals, header-derived context, and protected_geometry.
   - name: The static conformance sweep classifies YAML parser configuration and exact-scope Style Master plan ordering through semantic_exclusions, never by identifier-prefix allowlist.
+  - name: The one resolved Image2 provider profile supplies both operation capability projections; selected generation-profile digests close profile ID, full profile digest, endpoint profile, route, model, operation, and prompt budget through existing plan, authorization, request, attempt, provenance, selection, and invalidation bindings.
+  - name: Page Image and Style Master provider transport consumes only the bound model and exact compiled UTF-8 prompt bytes, with reference media in separate fields; inspection projects bound operation and measurement facts but cannot authorize or reconstruct a prompt.

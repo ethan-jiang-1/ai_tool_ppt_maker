@@ -29,13 +29,13 @@ import {
 } from "../02-visual-system/index.mjs";
 import {
   PageImageCoreError,
-  PAGE_IMAGE_PROVIDER_INPUT_MAX_UTF8_BYTES,
   createPageImageCoreFacts,
   createPageImageProviderInputBinding,
   normalizePageImageHeaderPolicy,
   normalizePageImageProviderContent,
 } from "../shared/page-image/page_image_core.mjs";
 import { evaluatePageImageInvalidation } from "../shared/page-image/page_image_invalidation.mjs";
+import { evaluateImage2PromptBudget } from "../shared/image2/provider_profile.mjs";
 import {
   authorizeTargetRawWork,
   buildTargetRawGenerationProfile,
@@ -44,6 +44,7 @@ import {
   decideTargetRawReview,
   generateTargetRawWork,
   materializeTargetSourceCandidateContext,
+  preflightTargetRawProviderWork,
   prepareTargetRawReview,
   readTargetAcceptedRawWork,
   readTargetFinalWork,
@@ -736,10 +737,10 @@ function pureRawContract(slide, coreSlide, pageDesignSystem) {
 }
 
 /** Compile Pure's complete provider-visible page input from its selected adapter facts. */
-function compilePureProviderInput({ slideId, rawContract, generationProfile } = {}) {
+function compilePureProviderInput({ slideId, rawContract } = {}) {
   const contract = validatePureRawContract(rawContract);
-  if (!contract.ok || rawContract.slide_id !== slideId || !generationProfile || typeof generationProfile !== "object") {
-    throw new PureImageWorkflowError("pure_provider_input_invalid", "Pure provider input requires one valid selected raw contract and generation profile");
+  if (!contract.ok || rawContract.slide_id !== slideId) {
+    throw new PureImageWorkflowError("pure_provider_input_invalid", "Pure provider input requires one valid selected raw contract");
   }
   const utf8 = canonicalJson({
     schema: "page-image-pure-provider-input",
@@ -754,15 +755,8 @@ function compilePureProviderInput({ slideId, rawContract, generationProfile } = 
       relationship: rawContract.provider_clauses.relationship || null,
       identity: buildPureProviderIdentity(rawContract),
     },
-    page_presentation: rawContract.page_presentation,
-    generation_profile: generationProfile,
+    page_presentation: { profile: rawContract.page_presentation.profile },
   });
-  if (Buffer.byteLength(utf8, "utf8") > PAGE_IMAGE_PROVIDER_INPUT_MAX_UTF8_BYTES) {
-    throw new PureImageWorkflowError(
-      "pure_provider_input_too_large",
-      `Pure canonical provider input exceeds ${PAGE_IMAGE_PROVIDER_INPUT_MAX_UTF8_BYTES} UTF-8 bytes`,
-    );
-  }
   return Object.freeze({
     schema: TARGET_COMPILED_PROVIDER_INPUT_SCHEMA,
     utf8,
@@ -792,8 +786,17 @@ function compilePureTargetRawPlanCandidate(context) {
     const compiledProviderInput = compilePureProviderInput({
       slideId: slide.slide_id,
       rawContract,
-      generationProfile: generation.profile,
     });
+    try {
+      evaluateImage2PromptBudget({
+        prompt: compiledProviderInput.utf8,
+        operationProfile: generation.profile.provider,
+      });
+    } catch (error) {
+      const failure = new PureImageWorkflowError(error?.code || "pure_provider_input_budget_invalid", "Pure canonical provider input does not fit the selected Image2 operation budget");
+      if (error?.measurement) failure.measurement = error.measurement;
+      throw failure;
+    }
     providerRequestsBySlide[slide.slide_id] = createTargetProviderRequest({
       slideId: slide.slide_id,
       rawContract,
@@ -859,7 +862,10 @@ export function pureTargetRawPlanProjection(plan) {
 export function authorizePureTargetRawPlan(runDir, { planHash } = {}) {
   preflightPureMutation(runDir);
   const plan = readPureTargetStoredPlanContext(runDir);
-  return authorizeTargetRawWork(plan, plan.raw_work_plan, { planHash });
+  return authorizeTargetRawWork(plan, plan.raw_work_plan, {
+    planHash,
+    providerRequestsBySlide: plan.provider_requests_by_slide,
+  });
 }
 
 export async function generatePureTargetRawPlan(runDir, { planHash, submit } = {}) {
@@ -1066,12 +1072,15 @@ export async function planPureTargetExpansion(runDir, { planHash } = {}) {
 export async function authorizePureProgressiveRawBatch(runDir, { planHash, batchHash } = {}) {
   preflightPureMutation(runDir);
   const plan = readPureProgressiveTargetStoredPlanContext(runDir);
+  preflightTargetRawProviderWork(plan.raw_work_plan, { providerRequestsBySlide: plan.provider_requests_by_slide });
   return authorizeProgressiveRawBatch({ runDir: plan.run_dir, workflow: PURE_IMAGE_WORKFLOW, plan_hash: planHash, batch_hash: batchHash, expected_plan: plan.progressive_raw_work_plan, task_mandate: plan.progressive_raw_task_mandate });
 }
 
 export async function generatePureProgressiveRawItem(runDir, { planHash, batchHash, preflight = null, submit } = {}) {
   preflightPureMutation(runDir);
+  assertNoUnresolvedProgressiveRawSubmission({ runDir, workflow: PURE_IMAGE_WORKFLOW });
   const plan = readPureProgressiveTargetStoredPlanContext(runDir);
+  preflightTargetRawProviderWork(plan.raw_work_plan, { providerRequestsBySlide: plan.provider_requests_by_slide });
   return generateProgressiveRawItem({
     runDir: plan.run_dir,
     workflow: PURE_IMAGE_WORKFLOW,
@@ -1079,7 +1088,14 @@ export async function generatePureProgressiveRawItem(runDir, { planHash, batchHa
     batch_hash: batchHash,
     expected_plan: plan.progressive_raw_work_plan,
     provider_requests_by_slide: plan.provider_requests_by_slide,
-    preflight,
+    preflight: async (input) => {
+      const current = readPureProgressiveTargetStoredPlanContext(runDir);
+      if (current.progressive_raw_work_plan.sha256 !== planHash) {
+        throw new PureImageWorkflowError("progressive_raw_plan_stale", "Page Image source or provider profile changed before the attempt claim");
+      }
+      preflightTargetRawProviderWork(current.raw_work_plan, { providerRequestsBySlide: current.provider_requests_by_slide });
+      if (preflight) await preflight(input);
+    },
     submit,
     task_mandate: plan.progressive_raw_task_mandate,
   });

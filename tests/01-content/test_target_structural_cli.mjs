@@ -5,7 +5,7 @@ import { spawnSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
 
 import { initBundle } from "../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
-import { styleMasterGenerationProfileSha256 } from "../../ppt_maker_harness/scripts/shared/image2/style_master_schema.mjs";
+import { testStyleMasterGenerationProfileSha256 } from "../helpers/image2_provider_profile.mjs";
 import {
   createInitialState,
   readState,
@@ -71,7 +71,7 @@ function targetSelection() {
     candidate_provenance_sha256: "c".repeat(64),
     style_intent_sha256: "d".repeat(64),
     style_context_sha256: "e".repeat(64),
-    candidate_generation_profile_sha256: styleMasterGenerationProfileSha256(),
+    candidate_generation_profile_sha256: testStyleMasterGenerationProfileSha256(),
     previous_selection_sha256: null,
     review_decision_sha256: "0".repeat(64),
     accepted_at: "2026-08-01T00:00:00.000Z",

@@ -22,7 +22,7 @@ import "./shared/cli/cli_bootstrap.mjs?entry=ppt_flow.mjs";
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync, statSync,
          rmSync, renameSync, realpathSync } from "node:fs";
-import { join, resolve, basename, dirname, relative, sep } from "node:path";
+import { isAbsolute, join, resolve, basename, dirname, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Command } from "commander";
 import { decode as decodePng } from "fast-png";
@@ -729,9 +729,50 @@ async function commandDoctor({ image2 = false, smoke = false, probeVendors = fal
     emitUsage("ppt_flow.doctor.image2", "--image2 is no longer a public doctor flag", "Use --operation raw-generation when raw Image2 readiness is required.");
     return null;
   }
+  let route = null;
   if (runDir) {
-    const route = await resolveRunAdapter(runDir, "ppt_flow.doctor.run-dir");
+    route = await resolveRunAdapter(runDir, "ppt_flow.doctor.run-dir");
     if (!route) return null;
+  }
+  if (route && (operation === "raw-generation" || operation === "full-build" || smoke || probeVendors)) {
+    try {
+      const { resolveImage2ProviderProfile } = await import("./shared/image2/provider_profile.mjs");
+      const { requireMatchingImage2RuntimeProfileId } = await import("./shared/image2/runtime_profile_id.mjs");
+      const profile = resolveImage2ProviderProfile(route.run_dir);
+      loadDotenv(route.deck_dir);
+      loadDotenv(process.cwd());
+      requireMatchingImage2RuntimeProfileId({ expectedProfileId: profile.profile_id });
+    } catch (error) {
+      const reason = pageImageDiagnosticReasonKind(error?.code);
+      const sourceFailure = isImage2ProviderProfileSourceFailure(reason);
+      const sourcePath = sourceFailure && error?.source
+        ? join(route.deck_dir, ...String(error.source).split("/"))
+        : null;
+      emitCliError({
+        code: CLI_ERROR_CODES.FAILED,
+        message: sourceFailure
+          ? "The selected Image2 provider profile source is not ready."
+          : "IMAGE2_PROVIDER_PROFILE_ID does not match the selected Image2 provider profile.",
+        hint: sourceFailure
+          ? "Repair the selected non-secret provider profile source, then rerun this exact readiness check."
+          : "Repair IMAGE2_PROVIDER_PROFILE_ID for this environment, then rerun this exact readiness check.",
+        where: "ppt_flow.doctor.profile",
+        diagnostic: {
+          schema: CLI_DIAGNOSTIC_SCHEMA,
+          category: sourceFailure ? "source_validation" : "environment",
+          operation: "raw-generation-readiness",
+          ...(sourcePath ? { source: { path: sourcePath } } : {}),
+          reason: { kind: sourceFailure ? reason : "image2_provider_profile_id_mismatch" },
+          next: createCliNext(sourceFailure ? "edit_source" : "repair_environment", {
+            ...(sourcePath ? { inspect: [{ path: sourcePath }] } : {}),
+            default: sourceFailure
+              ? "Repair the selected provider profile source, then rerun this exact readiness check."
+              : "Repair IMAGE2_PROVIDER_PROFILE_ID for the selected provider profile, then rerun this exact readiness check.",
+          }),
+        },
+      });
+      return null;
+    }
   }
   if (smoke) args.push("--smoke");
   if (probeVendors) args.push("--probe-vendors");
@@ -1569,6 +1610,90 @@ function isTargetProviderFailure(code) {
     || code === "target_raw_bytes_invalid";
 }
 
+function isImage2ProviderProfileSourceFailure(reason) {
+  return reason.startsWith("image2_provider_profile_") && !isImage2RuntimeProfileFailure(reason);
+}
+
+function isImage2RuntimeProfileFailure(reason) {
+  return reason === "image2_provider_profile_id_missing" ||
+    reason === "image2_provider_profile_id_invalid" ||
+    reason === "image2_provider_profile_id_mismatch";
+}
+
+function isImage2PromptBudgetFailure(reason) {
+  return reason === "image2_prompt_budget_overflow" || reason === "image2_prompt_safety_overflow";
+}
+
+function image2ProfileSourceLocator(route, error) {
+  if (typeof error?.source !== "string" || !error.source || typeof route?.deck_dir !== "string") return null;
+  const candidate = resolve(route.deck_dir, ...error.source.split("/"));
+  const relation = relative(route.deck_dir, candidate);
+  if (!relation || relation === ".." || relation.startsWith(`..${sep}`) || isAbsolute(relation)) return null;
+  return { path: candidate };
+}
+
+function image2CapabilityFailureDiagnostic({ common, route, error, reason, operation }) {
+  if (isImage2ProviderProfileSourceFailure(reason)) {
+    const source = image2ProfileSourceLocator(route, error);
+    return {
+      code: CLI_ERROR_CODES.FAILED,
+      message: "The selected Image2 provider profile source is not ready.",
+      hint: "Repair the selected non-secret provider profile source, then rerun this exact checkpoint.",
+      diagnostic: {
+        ...common,
+        category: "source_validation",
+        ...(source ? { source } : {}),
+        next: createCliNext("edit_source", {
+          ...(source ? { inspect: [source] } : {}),
+          default: "Repair the selected provider profile source through its source owner, then rerun this exact checkpoint.",
+        }),
+      },
+    };
+  }
+  if (isImage2RuntimeProfileFailure(reason)) {
+    return {
+      code: CLI_ERROR_CODES.FAILED,
+      message: "IMAGE2_PROVIDER_PROFILE_ID does not match the selected Image2 provider profile.",
+      hint: "Repair the environment-owned runtime profile selection, then rerun this exact checkpoint.",
+      diagnostic: {
+        ...common,
+        category: "environment",
+        next: createCliNext("repair_environment", {
+          default: "Repair IMAGE2_PROVIDER_PROFILE_ID for the selected provider profile, then rerun this exact checkpoint.",
+        }),
+      },
+    };
+  }
+  if (isImage2PromptBudgetFailure(reason)) {
+    const measurement = error?.measurement;
+    const operationId = typeof measurement?.operation === "string" ? measurement.operation : operation;
+    const unit = typeof measurement?.unit === "string" ? measurement.unit : undefined;
+    return {
+      code: CLI_ERROR_CODES.FAILED,
+      message: "The exact Image2 provider prompt exceeds its local admitted budget.",
+      hint: "Repair the contributing source or confirmed capability declaration, then rerun the same provider-free plan checkpoint.",
+      diagnostic: {
+        ...common,
+        category: "source_validation",
+        subject: {
+          kind: "image2_prompt_budget",
+          ...(operationId ? { id: operationId } : {}),
+          ...(unit ? { field: unit } : {}),
+        },
+        reason: {
+          kind: reason,
+          ...(Number.isSafeInteger(measurement?.measured) ? { actual: measurement.measured } : {}),
+          ...(Number.isSafeInteger(measurement?.limit) ? { expected: measurement.limit } : {}),
+        },
+        next: createCliNext("edit_source", {
+          default: "Repair the contributing source or confirmed capability declaration, then rerun the same provider-free plan checkpoint.",
+        }),
+      },
+    };
+  }
+  return null;
+}
+
 function targetPageImageFailure(operation, route, error) {
   const reason = pageImageDiagnosticReasonKind(error?.code);
   const common = {
@@ -1577,6 +1702,9 @@ function targetPageImageFailure(operation, route, error) {
     reason: { kind: reason },
   };
   const source = { path: join(route.run_dir, SLIDE_SPECS_NAME) };
+
+  const capabilityFailure = image2CapabilityFailureDiagnostic({ common, route, error, reason, operation: `target-page-image-${operation}` });
+  if (capabilityFailure) return capabilityFailure;
 
   if (reason.startsWith("progressive_raw")) {
     if (reason === "progressive_raw_attempt_chain_invalid") {
@@ -2353,12 +2481,12 @@ export function targetPageImageSubmitFactory(plan, {
 }
 
 /** Resolve the one remote Image2 credential pair before the raw owner may write an attempt. */
-async function targetPageImageGenerateCredentials(runDir) {
+async function targetPageImageGenerateCredentials(runDir, { expectedProfileId } = {}) {
   try {
     loadDotenv(deckRoot(runDir));
     loadDotenv(process.cwd());
     const { resolveImage2Credentials } = await import("./shared/image2/credentials.mjs");
-    return resolveImage2Credentials();
+    return resolveImage2Credentials({ expectedProfileId });
   } catch {
     const error = new Error("Target Page Image provider credentials are unavailable");
     error.code = "PAGE_IMAGE_PROVIDER_CREDENTIALS_UNAVAILABLE";
@@ -2366,12 +2494,12 @@ async function targetPageImageGenerateCredentials(runDir) {
   }
 }
 
-async function initializeStyleMasterImage2Transport({ run_dir: runDir } = {}) {
+async function initializeStyleMasterImage2Transport({ run_dir: runDir, candidate_generation_profile: profile } = {}) {
   try {
     loadDotenv(deckRoot(runDir));
     loadDotenv(process.cwd());
     const { resolveImage2Credentials } = await import("./shared/image2/credentials.mjs");
-    return resolveImage2Credentials();
+    return resolveImage2Credentials({ expectedProfileId: profile?.provider?.profile_id });
   } catch {
     const error = new Error("Style Master provider credentials are unavailable");
     error.code = "style_master_provider_credentials_unavailable";
@@ -2392,7 +2520,7 @@ function styleMasterProviderBytesFromPayload(payload) {
   }
 }
 
-/** Submit one fixed Style Master candidate request through the existing Image2 transport. */
+/** Submit one plan-bound Style Master candidate request through the existing Image2 transport. */
 export function styleMasterSubmitFactory({
   fetchImpl = fetch,
   now = () => Date.now(),
@@ -2405,7 +2533,7 @@ export function styleMasterSubmitFactory({
   return async ({ compiled_prompt_bytes: compiledPromptBytes, candidate_generation_profile: profile, transport }) => {
     if (!Buffer.isBuffer(compiledPromptBytes) || compiledPromptBytes.length === 0 ||
       !profile?.provider?.model || !transport?.base_url || !transport?.api_key) {
-      const error = new Error("Style Master provider request is not bound to its fixed candidate profile");
+      const error = new Error("Style Master provider request is not bound to its plan generation profile");
       error.code = "style_master_provider_request_invalid";
       error.style_master_known_failure = true;
       throw error;
@@ -2909,8 +3037,10 @@ async function commandTargetPageImageImage2(operation, route, opts = {}) {
       output = await operations.generate(route.run_dir, {
         planHash,
         batchHash,
-        preflight: async () => {
-          credentials = await targetPageImageGenerateCredentials(route.run_dir);
+        preflight: async ({ request }) => {
+          credentials = await targetPageImageGenerateCredentials(route.run_dir, {
+            expectedProfileId: request?.generation_profile?.provider?.profile_id,
+          });
         },
         submit: targetPageImageSubmitFactory(plan, {
           credentialResolver: () => {
@@ -3036,6 +3166,9 @@ function styleMasterFailure(operation, route, error) {
       : Object.freeze({ kind: reason }),
   };
   const source = { path: join(route.run_dir, SLIDE_SPECS_NAME) };
+
+  const capabilityFailure = image2CapabilityFailureDiagnostic({ common, route, error, reason, operation: `style-master-${operation}` });
+  if (capabilityFailure) return capabilityFailure;
 
   if (reason === "style_master_presentation_jpeg_projection_failed" &&
     error?.subject?.kind === "style_master_selection" && STYLE_MASTER_PLAN_HASH_RE.test(error?.replay?.plan_sha256 || "") &&
@@ -3173,6 +3306,21 @@ function styleMasterFailure(operation, route, error) {
         category: "artifact",
         next: createCliNext("review", {
           default: "Review the current Style Master candidates and selection before recording another visual-direction decision.",
+        }),
+      },
+    };
+  }
+
+  if (reason === "style_master_plan_stale") {
+    return {
+      code: CLI_ERROR_CODES.FAILED,
+      message: "The Style Master plan no longer matches the current confirmed compiler or capability profile.",
+      hint: "Preserve the historical plan and publish its existing provider-free successor before continuing.",
+      diagnostic: {
+        ...common,
+        category: "artifact",
+        next: createCliNext("plan_style_master_successor", {
+          default: "Publish the current Style Master successor plan, then complete its existing review and selection path.",
         }),
       },
     };

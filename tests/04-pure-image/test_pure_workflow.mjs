@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -10,6 +10,18 @@ const pureResolverControls = vi.hoisted(() => ({
   null_provider_clauses: false,
   tamper_identity_clause: false,
 }));
+
+let originalRuntimeProfileId;
+
+beforeEach(() => {
+  originalRuntimeProfileId = process.env.IMAGE2_PROVIDER_PROFILE_ID;
+  process.env.IMAGE2_PROVIDER_PROFILE_ID = "test-image2-profile";
+});
+
+afterEach(() => {
+  if (originalRuntimeProfileId === undefined) delete process.env.IMAGE2_PROVIDER_PROFILE_ID;
+  else process.env.IMAGE2_PROVIDER_PROFILE_ID = originalRuntimeProfileId;
+});
 
 vi.mock("../../ppt_maker_harness/scripts/02-visual-system/index.mjs", async (importOriginal) => {
   const actual = await importOriginal();
@@ -69,7 +81,7 @@ import {
   validatePureRawContract,
 } from "../../ppt_maker_harness/scripts/04-pure-image/index.mjs";
 import {
-  initBundle,
+  initBundle as initializeBundle,
   PAGE_DESIGN_SYSTEM_FILE,
 } from "../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
 import { pageImageDerivedPagePaths, pageImageWorkflowPaths } from "../../ppt_maker_harness/scripts/shared/run-bundle/page_image_paths.mjs";
@@ -82,6 +94,7 @@ import {
   readProgressiveRawPlanDirectRecords,
 } from "../../ppt_maker_harness/scripts/shared/image2/page_image_progressive_store.mjs";
 import { acceptLocalStyleMasterFixture } from "../helpers/accepted_style_master.mjs";
+import { writeConfirmedImage2ProviderProfile } from "../helpers/image2_provider_profile.mjs";
 import {
   TEST_IDENTITY_REFERENCE,
   allowTestIdentitySubjectClass,
@@ -89,6 +102,11 @@ import {
 } from "../helpers/page_image_identity_reference_fixture.mjs";
 
 const digest = (letter) => letter.repeat(64);
+
+function initBundle(...args) {
+  initializeBundle(...args);
+  writeConfirmedImage2ProviderProfile(join(args[0], "3_versions", "v1"));
+}
 
 function pureProviderInputBinding(compiled = "a") {
   return {
@@ -244,6 +262,12 @@ negative_constraints:
       expect(providerInput).not.toHaveProperty("page_design_system_path");
       const planBytes = readFileSync(paths.target_raw_plan);
       const stateBeforeDrift = readFileSync(join(deck, "_state", "state.yaml"));
+
+      process.env.IMAGE2_PROVIDER_PROFILE_ID = "wrong-runtime-profile";
+      expect(() => authorizePureTargetRawPlan(runDir, { planHash: initial.raw_work_plan.sha256 }))
+        .toThrow(expect.objectContaining({ code: "IMAGE2_PROVIDER_PROFILE_ID_MISMATCH" }));
+      expect(readFileSync(join(deck, "_state", "state.yaml"))).toEqual(stateBeforeDrift);
+      process.env.IMAGE2_PROVIDER_PROFILE_ID = "test-image2-profile";
 
       const formerPlan = structuredClone(initial.raw_work_plan);
       for (const item of formerPlan.items) delete item.provider_input_binding.page_design_system_sha256;
@@ -472,7 +496,7 @@ negative_constraints:
         }
         throw new Error("expected one-byte Pure provider-input overflow to fail");
       })();
-      expect(overflow).toMatchObject({ code: "pure_provider_input_too_large" });
+      expect(overflow).toMatchObject({ code: "image2_prompt_safety_overflow" });
       expect(existsSync(paths.target_raw_plan)).toBe(false);
     } finally {
       rmSync(root, { recursive: true, force: true });
@@ -673,6 +697,10 @@ negative_constraints:
       const legacyInputUtf8 = canonicalJson({
         ...identityInput,
         visual: { ...identityInput.visual, identity: identityContract.visual_identity },
+        generation_profile: {
+          provider: { provider: "image2", model: "former-fixed-page-image-model" },
+          raw_contract: identityContract,
+        },
       });
       const legacyBindings = Object.fromEntries(plan.raw_work_plan.items.map((item) => [
         item.slide_id,
@@ -1021,6 +1049,169 @@ negative_constraints:
     }
   });
 
+  it("stops progressive runtime and source drift before grants, claims, or credential preflight", async () => {
+    const root = mkdtempSync(join(tmpdir(), "pure-progressive-provider-preflight-"));
+    const deck = join(root, "deck_pure_progressive_provider_preflight");
+    const runDir = join(deck, "3_versions", "v1");
+    const image = createCanvas(2000, 1125);
+    image.getContext("2d").fillRect(0, 0, 2000, 1125);
+    const source = (title) => `---
+identity:
+  scheme: mnemonic
+production:
+  pipeline: page-image-workflow
+  workflow: pure
+---
+
+## Slide 01: \`DeckGo\`
+
+**TITLE**: ${title}
+**VISUAL BRIEF**:
+\`\`\`yaml
+recipe: editorial-systems
+composition: centered-constellation
+motifs: []
+negative_constraints:
+  - no-logo
+\`\`\`
+`;
+    try {
+      initBundle(deck, null, "keynote", "dark-executive");
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+      writeFileSync(join(runDir, "slide-specifications.md"), source("Initial progressive provider preflight"));
+      await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir));
+
+      const plan = buildPureProgressiveTargetRawPlan(runDir);
+      const planHash = plan.progressive_raw_work_plan.sha256;
+      const pilot = await planPureTargetPilot(runDir, { planHash, slideIds: ["DeckGo"] });
+      const records = () => readProgressiveRawPlanDirectRecords(runDir, { plan_sha256: planHash });
+
+      process.env.IMAGE2_PROVIDER_PROFILE_ID = "different-runtime-profile";
+      await expect(authorizePureProgressiveRawBatch(runDir, {
+        planHash,
+        batchHash: pilot.batch.batch_hash,
+      })).rejects.toMatchObject({ code: "IMAGE2_PROVIDER_PROFILE_ID_MISMATCH" });
+      expect(records()).toMatchObject({ grants: [], attempts: [] });
+
+      process.env.IMAGE2_PROVIDER_PROFILE_ID = "test-image2-profile";
+      await authorizePureProgressiveRawBatch(runDir, { planHash, batchHash: pilot.batch.batch_hash });
+      let credentialPreflightCalls = 0;
+      let submitCalls = 0;
+      process.env.IMAGE2_PROVIDER_PROFILE_ID = "different-runtime-profile";
+      await expect(generatePureProgressiveRawItem(runDir, {
+        planHash,
+        batchHash: pilot.batch.batch_hash,
+        preflight: async () => { credentialPreflightCalls += 1; },
+        submit: async () => { submitCalls += 1; return NATIVE_PROVIDER_PNG; },
+      })).rejects.toMatchObject({ code: "IMAGE2_PROVIDER_PROFILE_ID_MISMATCH" });
+      expect(credentialPreflightCalls).toBe(0);
+      expect(submitCalls).toBe(0);
+      expect(records().attempts).toEqual([]);
+
+      process.env.IMAGE2_PROVIDER_PROFILE_ID = "test-image2-profile";
+      writeConfirmedImage2ProviderProfile(runDir, { pageImageModel: "drifted-page-image-model" });
+      await expect(generatePureProgressiveRawItem(runDir, {
+        planHash,
+        batchHash: pilot.batch.batch_hash,
+        preflight: async () => { credentialPreflightCalls += 1; },
+        submit: async () => { submitCalls += 1; return NATIVE_PROVIDER_PNG; },
+      })).rejects.toMatchObject({ code: "target_style_master_stale" });
+      expect(credentialPreflightCalls).toBe(0);
+      expect(submitCalls).toBe(0);
+      expect(records().attempts).toEqual([]);
+
+      writeConfirmedImage2ProviderProfile(runDir, { pageImageBudget: { limit: 1, unit: "utf8-bytes" } });
+      await expect(generatePureProgressiveRawItem(runDir, {
+        planHash,
+        batchHash: pilot.batch.batch_hash,
+        preflight: async () => { credentialPreflightCalls += 1; },
+        submit: async () => { submitCalls += 1; return NATIVE_PROVIDER_PNG; },
+      })).rejects.toThrow();
+      expect(credentialPreflightCalls).toBe(0);
+      expect(submitCalls).toBe(0);
+      expect(records().attempts).toEqual([]);
+
+      writeConfirmedImage2ProviderProfile(runDir);
+      writeFileSync(join(runDir, "slide-specifications.md"), source("Drifted progressive provider preflight"));
+      await expect(generatePureProgressiveRawItem(runDir, {
+        planHash,
+        batchHash: pilot.batch.batch_hash,
+        preflight: async () => { credentialPreflightCalls += 1; },
+        submit: async () => { submitCalls += 1; return NATIVE_PROVIDER_PNG; },
+      })).rejects.toMatchObject({ code: "target_source_receipt_stale" });
+      expect(credentialPreflightCalls).toBe(0);
+      expect(submitCalls).toBe(0);
+      expect(records().attempts).toEqual([]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps submitted progressive reconciliation ahead of later source drift", async () => {
+    const root = mkdtempSync(join(tmpdir(), "pure-progressive-submitted-precedence-"));
+    const deck = join(root, "deck_pure_progressive_submitted_precedence");
+    const runDir = join(deck, "3_versions", "v1");
+    const image = createCanvas(2000, 1125);
+    image.getContext("2d").fillRect(0, 0, 2000, 1125);
+    const source = (title) => `---
+identity:
+  scheme: mnemonic
+production:
+  pipeline: page-image-workflow
+  workflow: pure
+---
+
+## Slide 01: \`DeckGo\`
+
+**TITLE**: ${title}
+**VISUAL BRIEF**:
+\`\`\`yaml
+recipe: editorial-systems
+composition: centered-constellation
+motifs: []
+negative_constraints:
+  - no-logo
+\`\`\`
+`;
+    try {
+      initBundle(deck, null, "keynote", "dark-executive");
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+      writeFileSync(join(runDir, "slide-specifications.md"), source("Submitted attempt precedence"));
+      await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir));
+
+      const plan = buildPureProgressiveTargetRawPlan(runDir);
+      const planHash = plan.progressive_raw_work_plan.sha256;
+      const pilot = await planPureTargetPilot(runDir, { planHash, slideIds: ["DeckGo"] });
+      await authorizePureProgressiveRawBatch(runDir, { planHash, batchHash: pilot.batch.batch_hash });
+      let submitCalls = 0;
+      await expect(generatePureProgressiveRawItem(runDir, {
+        planHash,
+        batchHash: pilot.batch.batch_hash,
+        submit: async () => {
+          submitCalls += 1;
+          throw new Error("transport interrupted");
+        },
+      })).rejects.toMatchObject({ code: "progressive_raw_provider_outcome_unresolved" });
+      expect(submitCalls).toBe(1);
+
+      writeFileSync(join(runDir, "slide-specifications.md"), source("Source changed after submitted attempt"));
+      let credentialPreflightCalls = 0;
+      await expect(generatePureProgressiveRawItem(runDir, {
+        planHash,
+        batchHash: pilot.batch.batch_hash,
+        preflight: async () => { credentialPreflightCalls += 1; },
+        submit: async () => {
+          submitCalls += 1;
+          return NATIVE_PROVIDER_PNG;
+        },
+      })).rejects.toMatchObject({ code: "progressive_raw_reconciliation_required" });
+      expect(credentialPreflightCalls).toBe(0);
+      expect(submitCalls).toBe(1);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("writes a current Pure provider-request inspection sidecar without provider work", async () => {
     const root = mkdtempSync(join(tmpdir(), "pure-provider-request-inspection-"));
     const deck = join(root, "deck_pure_provider_request_inspection");
@@ -1083,6 +1274,12 @@ negative_constraints:
         raw_contract_sha256: initial.progressive_raw_work_plan.items[0].raw_contract_sha256,
         provider_input_binding: initial.raw_work_plan.items[0].provider_input_binding,
         provider_request_sha256: canonicalJsonSha256(initialRequest),
+        prompt_budget: {
+          operation: "page-image-reference-generation",
+          limit: 32768,
+          unit: "utf8-bytes",
+          measured: expect.any(Number),
+        },
         prompt: canonicalJson(initialRequest),
       }]);
       expect(JSON.stringify(initialInspection)).not.toMatch(/data:image|authorization|api[_-]?key/i);
@@ -1110,6 +1307,12 @@ negative_constraints:
       expect(replacementInspection.items[0]).toMatchObject({
         provider_input_binding: replacement.raw_work_plan.items[0].provider_input_binding,
         provider_request_sha256: canonicalJsonSha256(replacement.provider_requests_by_slide.DeckGo),
+        prompt_budget: expect.objectContaining({
+          operation: "page-image-reference-generation",
+          limit: 32768,
+          unit: "utf8-bytes",
+          measured: expect.any(Number),
+        }),
         prompt: canonicalJson(replacement.provider_requests_by_slide.DeckGo),
       });
       expect(replacementInspection.items[0].prompt).toContain("Replacement Pure inspection prompt");

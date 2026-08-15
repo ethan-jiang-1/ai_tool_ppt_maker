@@ -61,6 +61,10 @@ function canonicalSnapshot() {
       (path.startsWith("05-iteration/") ? `import "../../index.mjs";\n` : "");
   }
   files["ppt_flow.mjs"] = `import "./shared/cli/cli_bootstrap.mjs?entry=ppt_flow.mjs";\nimport("./00-setup/index.mjs");\n`;
+  files["shared/image2/provider_profile.mjs"] = [
+    "export function resolveImage2ProviderProfile() {}",
+    "export function evaluateImage2PromptBudget() {}",
+  ].join("\n");
   const grouped = new Map();
   for (const path of interfaces) {
     const owner = ownerFor(path);
@@ -230,6 +234,20 @@ describe("Harness architecture contract", () => {
     expect(issueCodes(validateArchitectureSnapshot(rootAssembly))).toContain("root-page-image-prompt-assembly");
   });
 
+  it("keeps Image2 capability resolution and budget evaluation in the registered shared seam", () => {
+    const duplicate = canonicalSnapshot();
+    duplicate.files["04-pure-image/index.mjs"] += "\nfunction evaluateImage2PromptBudget() {}\n";
+    expect(issueCodes(validateArchitectureSnapshot(duplicate))).toContain("image2-capability-seam-duplicate");
+
+    const preinstallYaml = canonicalSnapshot();
+    preinstallYaml.files["00-setup/env-check.mjs"] += "\nimport { parseDocument } from 'yaml';\n";
+    expect(issueCodes(validateArchitectureSnapshot(preinstallYaml))).toContain("image2-capability-preinstall-import");
+
+    const missing = canonicalSnapshot();
+    missing.files["shared/image2/provider_profile.mjs"] = "export const importSafe = true;\n";
+    expect(issueCodes(validateArchitectureSnapshot(missing))).toContain("image2-capability-seam-incomplete");
+  });
+
   it("allows iteration to use target public interfaces but rejects target sibling internals", () => {
     const allowed = canonicalSnapshot();
     allowed.files["06-iteration/index.mjs"] = [
@@ -284,6 +302,7 @@ describe("Harness architecture contract", () => {
       selectors: [{ value: "page-image-workflow" }],
       wire_schemas: [
         { value: "page-image-design-system-binding", stage_ref: "layout-config", role: "version-design-system-binding" },
+        { value: "pptmaker-image2-provider-profile", stage_ref: "layout-config", role: "image2-provider-capability-source" },
         { value: "page-source-receipt", stage_ref: "page-source-receipt", role: "parsed-source" },
       ],
       stage_artifact_envelopes: [{

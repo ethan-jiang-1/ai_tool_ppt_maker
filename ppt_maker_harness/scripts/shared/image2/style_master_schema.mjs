@@ -17,17 +17,18 @@ export const STYLE_MASTER_WORKFLOWS = Object.freeze(["framed", "pure"]);
 export const STYLE_MASTER_MEDIA_TYPES = Object.freeze(["image/png", "image/jpeg"]);
 export const STYLE_MASTER_ATTEMPT_STATUSES = Object.freeze(["claimed", "submitted", "succeeded", "failed", "unknown"]);
 export const STYLE_MASTER_REVIEW_DECISIONS = Object.freeze(["proceed", "repair", "redirect"]);
-export const STYLE_MASTER_GENERATION_PROFILE = Object.freeze({
-  schema: STYLE_MASTER_GENERATION_PROFILE_SCHEMA,
-  provider: Object.freeze({ provider: "image2", model: "gpt-image-2", api_revision: "page-image-workflow" }),
-  output: Object.freeze({ format: "png", width: 2000, height: 1125 }),
-  prompt_contract: "style-master-no-readable-text",
-});
-
 const SHA256_RE = /^[0-9a-f]{64}$/;
 const RUN_VERSION_RE = /^v[1-9][0-9]*$/;
 const GENERATED_CANDIDATE_ID_RE = /^candidate-([0-9]{3})$/;
 const ISO_TIMESTAMP_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
+const LOWER_KEBAB_ID_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+// This schema validates only the persisted vocabulary. Resolution and exact
+// prompt measurement remain owned by provider_profile.mjs.
+const PROMPT_BUDGET_UNITS = new Set([
+  "unicode-code-points",
+  "utf16-code-units",
+  "utf8-bytes",
+]);
 
 export class StyleMasterSchemaError extends Error {
   constructor(code, message) {
@@ -60,13 +61,6 @@ function assertExactKeys(value, keys, label) {
 
 function assertSha256(value, label) {
   if (!SHA256_RE.test(value || "")) fail("style_master_digest_invalid", `${label} must be a lowercase SHA-256`);
-}
-
-function assertFixedGenerationProfileSha256(value, label) {
-  assertSha256(value, label);
-  if (value !== styleMasterGenerationProfileSha256()) {
-    fail("style_master_profile_invalid", `${label} must match the fixed Style Master generation profile`);
-  }
 }
 
 function assertNullableSha256(value, label) {
@@ -136,18 +130,57 @@ export function parseStyleMasterCanonicalBytes(bytes, label = "Style Master reco
   return value;
 }
 
-export function styleMasterGenerationProfileSha256() {
-  return canonicalJsonSha256(STYLE_MASTER_GENERATION_PROFILE);
-}
-
 export function validateStyleMasterGenerationProfile(profile) {
   return validation(() => {
     assertExactKeys(profile, ["schema", "provider", "output", "prompt_contract"], "candidate generation profile");
-    if (canonicalJson(profile) !== canonicalJson(STYLE_MASTER_GENERATION_PROFILE)) {
-      fail("style_master_profile_invalid", "candidate generation profile must match the fixed Style Master profile");
+    if (profile.schema !== STYLE_MASTER_GENERATION_PROFILE_SCHEMA ||
+      !exactKeys(profile.provider, ["provider", "profile_id", "profile_sha256", "endpoint_profile", "route_id", "operation", "model", "prompt_budget"]) ||
+      profile.provider.provider !== "image2" ||
+      !LOWER_KEBAB_ID_RE.test(profile.provider.profile_id || "") ||
+      !SHA256_RE.test(profile.provider.profile_sha256 || "") ||
+      !LOWER_KEBAB_ID_RE.test(profile.provider.endpoint_profile || "") ||
+      !LOWER_KEBAB_ID_RE.test(profile.provider.route_id || "") ||
+      profile.provider.operation !== "style-master-text-generation" ||
+      typeof profile.provider.model !== "string" || !profile.provider.model.trim() ||
+      !exactKeys(profile.provider.prompt_budget, ["limit", "unit"]) ||
+      !Number.isSafeInteger(profile.provider.prompt_budget.limit) || profile.provider.prompt_budget.limit <= 0 ||
+      !PROMPT_BUDGET_UNITS.has(profile.provider.prompt_budget.unit) ||
+      !exactKeys(profile.output, ["format", "width", "height"]) ||
+      profile.output.format !== "png" || profile.output.width !== 2000 || profile.output.height !== 1125 ||
+      profile.prompt_contract !== "style-master-no-readable-text") {
+      fail("style_master_profile_invalid", "candidate generation profile must bind one confirmed Style Master operation");
     }
-    return { candidate_generation_profile_sha256: styleMasterGenerationProfileSha256() };
+    return { candidate_generation_profile_sha256: canonicalJsonSha256(profile) };
   });
+}
+
+export function createStyleMasterGenerationProfile(operationProfile) {
+  const profile = {
+    schema: STYLE_MASTER_GENERATION_PROFILE_SCHEMA,
+    provider: {
+      provider: "image2",
+      profile_id: operationProfile?.profile_id,
+      profile_sha256: operationProfile?.profile_sha256,
+      endpoint_profile: operationProfile?.endpoint_profile,
+      route_id: operationProfile?.route_id,
+      operation: operationProfile?.operation,
+      model: operationProfile?.model,
+      prompt_budget: operationProfile?.prompt_budget
+        ? { limit: operationProfile.prompt_budget.limit, unit: operationProfile.prompt_budget.unit }
+        : null,
+    },
+    output: { format: "png", width: 2000, height: 1125 },
+    prompt_contract: "style-master-no-readable-text",
+  };
+  const checked = validateStyleMasterGenerationProfile(profile);
+  if (!checked.ok) throw new StyleMasterSchemaError(checked.code, checked.message);
+  return freeze(profile);
+}
+
+export function styleMasterGenerationProfileSha256(profile) {
+  const checked = validateStyleMasterGenerationProfile(profile);
+  if (!checked.ok) throw new StyleMasterSchemaError(checked.code, checked.message);
+  return checked.candidate_generation_profile_sha256;
 }
 
 function validatePlanCandidate(candidate, generatedIndex) {
@@ -196,7 +229,7 @@ export function validateStyleMasterPlanIdentity(identity) {
     for (const field of ["style_intent_sha256", "style_context_sha256", "compiled_prompt_sha256"]) {
       assertSha256(identity[field], field);
     }
-    assertFixedGenerationProfileSha256(identity.candidate_generation_profile_sha256, "candidate_generation_profile_sha256");
+    assertSha256(identity.candidate_generation_profile_sha256, "candidate_generation_profile_sha256");
     if (!Number.isInteger(identity.generated_candidate_count) || identity.generated_candidate_count < 0 || identity.generated_candidate_count > 4) {
       fail("style_master_plan_invalid", "generated_candidate_count must be an integer from 0 through 4");
     }
@@ -304,7 +337,7 @@ export function validateStyleMasterCandidateGrantRecord(grant, { plan = null } =
     assertRunVersion(grant.run_version);
     assertWorkflow(grant.workflow);
     assertSha256(grant.plan_sha256, "plan_sha256");
-    assertFixedGenerationProfileSha256(grant.candidate_generation_profile_sha256, "candidate_generation_profile_sha256");
+    assertSha256(grant.candidate_generation_profile_sha256, "candidate_generation_profile_sha256");
     if (!Array.isArray(grant.generated_candidate_ids) || grant.generated_candidate_ids.length === 0 ||
       grant.generated_candidate_ids.some((id) => !GENERATED_CANDIDATE_ID_RE.test(id || "")) ||
       new Set(grant.generated_candidate_ids).size !== grant.generated_candidate_ids.length) {
@@ -362,7 +395,7 @@ export function validateStyleMasterProviderRequestRecord(request, { plan = null,
     assertSha256(request.plan_sha256, "plan_sha256");
     assertGeneratedCandidateId(request.candidate_id);
     assertSha256(request.compiled_prompt_sha256, "compiled_prompt_sha256");
-    assertFixedGenerationProfileSha256(request.candidate_generation_profile_sha256, "candidate_generation_profile_sha256");
+    assertSha256(request.candidate_generation_profile_sha256, "candidate_generation_profile_sha256");
     if (candidateId && request.candidate_id !== candidateId) fail("style_master_request_invalid", "provider request candidate does not match its attempt");
     if (plan) {
       const checkedPlan = validateStyleMasterPlanRecord(plan);
@@ -530,7 +563,7 @@ export function validateStyleMasterGeneratedProvenance(record, { plan = null, at
     for (const field of ["plan_sha256", "compiled_prompt_sha256", "provider_request_sha256", "candidate_sha256"]) {
       assertSha256(record[field], field);
     }
-    assertFixedGenerationProfileSha256(record.candidate_generation_profile_sha256, "candidate_generation_profile_sha256");
+    assertSha256(record.candidate_generation_profile_sha256, "candidate_generation_profile_sha256");
     assertGeneratedCandidateId(record.candidate_id);
     if (record.candidate_media_type !== "image/png") {
       fail("style_master_provenance_invalid", "generated candidate must be a PNG");
@@ -669,7 +702,7 @@ export function validateStyleMasterSelectionRecord(record, { plan = null, decisi
       "plan_sha256", "candidate_sha256", "candidate_provenance_sha256", "style_intent_sha256", "style_context_sha256",
       "review_decision_sha256",
     ]) assertSha256(record[field], field);
-    assertFixedGenerationProfileSha256(record.candidate_generation_profile_sha256, "candidate_generation_profile_sha256");
+    assertSha256(record.candidate_generation_profile_sha256, "candidate_generation_profile_sha256");
     assertNullableSha256(record.previous_selection_sha256, "previous_selection_sha256");
     assertCandidateId(record.candidate_id);
     assertMedia(record.candidate_media_type);

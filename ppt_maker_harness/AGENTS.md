@@ -19,9 +19,15 @@ guidance; they do not introduce another protocol or workflow value.
    current snapshot. Structural work requires preview plus its exact plan hash.
 4. Treat `_generated/` as rebuildable output. It is never hand-edited and is
    never source evidence for a new operation.
-5. Obtain explicit user authorization before remote raw generation. Local
+5. Before Style Master or Page Image provider-facing planning, obtain the Deck
+   Author's one confirmed non-secret Image2 route-capability declaration in
+   `2_backbone/visual-style/image2-provider-profile.yaml` (or its matching
+   current-version override) and match it with environment-owned
+   `IMAGE2_PROVIDER_PROFILE_ID`. A smoke/probe is connectivity-only and does
+   not confirm profile capability, prompt fit, or authorization.
+6. Obtain explicit user authorization before remote raw generation. Local
    Framed composition and notes work do not require provider credentials.
-6. Follow `03-framed-image XOR 04-pure-image -> 05-delivery -> 06-iteration`:
+7. Follow `03-framed-image XOR 04-pure-image -> 05-delivery -> 06-iteration`:
    the selected workflow publishes the final-slide manifest and shared delivery
    owns final projection, PPTX, notes, and delivery review.
 

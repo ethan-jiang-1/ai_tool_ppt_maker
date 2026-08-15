@@ -118,6 +118,7 @@ deck_{NAME}/
 │       ├── style-master-prompt.md      ← current Style Master intent source
 │       ├── style_master.jpg
 │       ├── page-image-visual-language.yaml ← current shared Page Image visual-language source
+│       ├── image2-provider-profile.yaml ← Deck Author's non-secret route-capability declaration; never credential, State, or authorization
 │       └── page-image-presentation/
 │           └── pure-deck-visual-system.yaml ← Pure-only source; version override mirrors this relative path
 │
@@ -125,7 +126,7 @@ deck_{NAME}/
     ├── v1/                               ← --run-dir (one design iteration = downstream delta)
     │   ├── slide-specifications.md       ← Page Image source; stable IDs + one current version workflow
     │   ├── overrides/                    ← only what THIS version changes vs backbone; empty = inherit
-    │   │   ├── visual-style/           ←   (optional) this version's visual tweaks
+    │   │   ├── visual-style/           ←   (optional) this version's visual tweaks, including matching image2-provider-profile.yaml override
     │   │   └── manuscript/               ←   (optional) this version's script tweaks
     │   ├── _generated/                    ← GENERATED · rm -rf & rerun · never hand-edit
     │   │   ├── page_image_workflow/receipts/source-receipt.json

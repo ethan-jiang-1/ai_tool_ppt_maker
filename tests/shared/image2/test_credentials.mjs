@@ -3,6 +3,10 @@ import {
   normalizeImage2BaseUrl,
   resolveImage2Credentials,
 } from "../../../ppt_maker_harness/scripts/shared/image2/credentials.mjs";
+import {
+  requireMatchingImage2RuntimeProfileId,
+  resolveImage2RuntimeProfileId,
+} from "../../../ppt_maker_harness/scripts/shared/image2/runtime_profile_id.mjs";
 
 describe("shared Image2 credentials", () => {
   it("uses the current endpoint override precedence", () => {
@@ -28,5 +32,27 @@ describe("shared Image2 credentials", () => {
       extraBaseUrls: [commaList],
       env: { IMAGE2_API_KEY: "test-key", IMAGE2_BASE_URL: "https://env.example.test/v1" },
     })).toThrow(/comma-separated/i);
+  });
+
+  it("keeps the non-secret runtime profile selector independent from credentials", () => {
+    const runtimeOnly = { IMAGE2_PROVIDER_PROFILE_ID: "test-image2-profile" };
+    expect(resolveImage2RuntimeProfileId({ env: runtimeOnly })).toBe("test-image2-profile");
+    expect(requireMatchingImage2RuntimeProfileId({
+      expectedProfileId: "test-image2-profile",
+      env: runtimeOnly,
+    })).toBe("test-image2-profile");
+
+    const env = {
+      ...runtimeOnly,
+      IMAGE2_API_KEY: "test-key",
+      IMAGE2_BASE_URL: "https://env.example.test/v1/",
+    };
+    expect(resolveImage2Credentials({ env, expectedProfileId: "test-image2-profile" })).toEqual({
+      base_url: "https://env.example.test/v1",
+      api_key: "test-key",
+      profile_id: "test-image2-profile",
+    });
+    expect(() => resolveImage2Credentials({ env, expectedProfileId: "another-profile" }))
+      .toThrow(/does not match/);
   });
 });

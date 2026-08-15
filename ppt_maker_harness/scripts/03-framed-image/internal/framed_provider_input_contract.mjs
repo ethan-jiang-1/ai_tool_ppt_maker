@@ -15,7 +15,6 @@ const REQUEST_KEYS = Object.freeze([
   "subject_restrictions",
   "protected_composition",
   "visual",
-  "generation_profile",
 ]);
 const PAGE_DESIGN_SYSTEM_KEYS = Object.freeze(["text", "sha256"]);
 const SHA256_RE = /^[0-9a-f]{64}$/;
@@ -75,20 +74,15 @@ export function buildFramedProviderIdentity(rawContract) {
 /** Validate Framed's provider-free canonical input before plan publication. */
 export function validateFramedProviderInputContract({
   rawContract,
-  generationProfile,
   compiledProviderInput,
-  maxUtf8Bytes,
 } = {}) {
   try {
     if (!rawContract || typeof rawContract !== "object" ||
-      !generationProfile || typeof generationProfile !== "object" ||
-      !Number.isInteger(maxUtf8Bytes) || maxUtf8Bytes <= 0 ||
       !hasExactKeys(compiledProviderInput, COMPILED_INPUT_KEYS) ||
       compiledProviderInput.schema !== "page-image-compiled-provider-input" ||
       typeof compiledProviderInput.utf8 !== "string" || !compiledProviderInput.utf8 ||
       typeof compiledProviderInput.sha256 !== "string" ||
       compiledProviderInput.sha256 !== sha256Bytes(Buffer.from(compiledProviderInput.utf8, "utf8")) ||
-      Buffer.byteLength(compiledProviderInput.utf8, "utf8") > maxUtf8Bytes ||
       !hasValidPageDesignSystemBinding(rawContract)) {
       throw new Error("Framed compiled provider input is not an exact canonical byte record");
     }
@@ -116,8 +110,7 @@ export function validateFramedProviderInputContract({
         motifs: rawContract.provider_clauses?.motifs,
         relationship: rawContract.provider_clauses?.relationship || null,
         identity: buildFramedProviderIdentity(rawContract),
-      }) ||
-      !sameCanonical(request.generation_profile, generationProfile)) {
+      })) {
       throw new Error("Framed compiled provider input does not retain the exclusive header reservation contract");
     }
 

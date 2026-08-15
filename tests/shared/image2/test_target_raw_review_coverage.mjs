@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { createCanvas } from "@napi-rs/canvas";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
   authorizePureTargetRawPlan,
@@ -33,6 +33,18 @@ import { acceptLocalStyleMasterFixture } from "../../helpers/accepted_style_mast
 import { pageImageProviderInputBinding } from "../../helpers/page_image_provider_input_binding.mjs";
 
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
+
+let originalRuntimeProfileId;
+
+beforeEach(() => {
+  originalRuntimeProfileId = process.env.IMAGE2_PROVIDER_PROFILE_ID;
+  process.env.IMAGE2_PROVIDER_PROFILE_ID = "test-image2-profile";
+});
+
+afterEach(() => {
+  if (originalRuntimeProfileId === undefined) delete process.env.IMAGE2_PROVIDER_PROFILE_ID;
+  else process.env.IMAGE2_PROVIDER_PROFILE_ID = originalRuntimeProfileId;
+});
 
 function source() {
   return `---

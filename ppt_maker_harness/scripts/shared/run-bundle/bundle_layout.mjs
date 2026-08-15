@@ -222,6 +222,7 @@ export const STYLE_MASTER_PROMPT = 'style-master-prompt.md';
 export const STYLE_MASTER_IMAGE = 'style_master.jpg';
 export const PAGE_IMAGE_VISUAL_LANGUAGE_FILE = 'page-image-visual-language.yaml';
 export const PAGE_DESIGN_SYSTEM_FILE = 'page-design-system.md';
+export const IMAGE2_PROVIDER_PROFILE_FILE = 'image2-provider-profile.yaml';
 export const PAGE_IMAGE_PRESENTATION_SUBDIR = 'page-image-presentation';
 export const PAGE_IMAGE_CLASSES = Object.freeze(['standard', 'opening', 'transition', 'closing']);
 export const PAGE_CLASS_CATALOG_FILE = 'page-class-catalog.yaml';
@@ -428,6 +429,7 @@ export const VISUAL_STYLE_FILES = Object.freeze([
     STYLE_MASTER_IMAGE,
     PAGE_IMAGE_VISUAL_LANGUAGE_FILE,
     PAGE_DESIGN_SYSTEM_FILE,
+    IMAGE2_PROVIDER_PROFILE_FILE,
     PAGE_IMAGE_PRESENTATION_SUBDIR,
 ]);
 
@@ -503,6 +505,14 @@ export function resolveBackboneAsset(runDir, relpath) {
 
 export function styleAsset(runDir, filename) {
     return resolveBackboneAsset(runDir, `${BACKBONE_STYLE_SUBDIR}/${filename}`);
+}
+
+export function image2ProviderProfileAsset(runDir) {
+    return styleAsset(runDir, IMAGE2_PROVIDER_PROFILE_FILE);
+}
+
+export function image2ProviderProfileOverrideAsset(runDir) {
+    return path.join(path.resolve(runDir), OVERRIDES_SUBDIR, BACKBONE_STYLE_SUBDIR, IMAGE2_PROVIDER_PROFILE_FILE);
 }
 
 /** Resolve the Pure deck visual-system source through normal version overrides. */
@@ -1413,6 +1423,7 @@ const _DIR_READMES = {
         '**这里放什么:**\n' +
         '- `page-image-visual-language.yaml` — current recipe, composition, motif, and frame inputs\n' +
         '- `page-design-system.md` — optional shared Page Image provider design guidance for both Pure and Framed; a version may override it only at `overrides/visual-style/page-design-system.md`\n' +
+        '- `image2-provider-profile.yaml` — Deck Author confirmed non-secret Image2 route capability; a version may override it only at `overrides/visual-style/image2-provider-profile.yaml`\n' +
         '- `page-image-presentation/` — Page Class catalog, deck defaults, Pure profiles, and Framed header profiles; version overrides use the matching `overrides/visual-style/page-image-presentation/` path\n' +
         '- `style-master-prompt.md` — Style Master intent input; `style_master.jpg` — derived presentation JPEG after acceptance\n' +
         '- `assets/asset-manifest.yaml` — verified local references\n\n' +
@@ -1629,6 +1640,17 @@ function initBundleForDraft(deckDir, harnessDir = null, deckType = null, style =
     _writeIfAbsent(
         path.join(deckDir, BACKBONE_DIR, BACKBONE_STYLE_SUBDIR, PAGE_DESIGN_SYSTEM_FILE),
         '');
+    _writeIfAbsent(
+        path.join(deckDir, BACKBONE_DIR, BACKBONE_STYLE_SUBDIR, IMAGE2_PROVIDER_PROFILE_FILE),
+        'schema: pptmaker-image2-provider-profile\n' +
+        'profile_id: null\n' +
+        'endpoint_profile: null\n' +
+        'owner_declaration:\n' +
+        '  authority: deck-author\n' +
+        '  status: pending\n' +
+        'operations:\n' +
+        '  style-master-text-generation: null\n' +
+        '  page-image-reference-generation: null\n');
     _writeIfAbsent(path.join(deckDir, presentationBase, PAGE_CLASS_CATALOG_FILE), PAGE_CLASS_CATALOG_SEED);
     _writeIfAbsent(path.join(deckDir, presentationBase, PAGE_IMAGE_DECK_DEFAULTS_FILE), PAGE_IMAGE_DECK_DEFAULTS_SEED);
     _writeIfAbsent(path.join(deckDir, presentationBase, PURE_DECK_VISUAL_SYSTEM_FILE), PURE_DECK_VISUAL_SYSTEM_SEED);
@@ -1742,6 +1764,7 @@ deck_\${NAME}/
 │       ├── ${STYLE_MASTER_IMAGE}            ← override-first/backbone-default JPEG presentation JPEG projection only
 │       ├── ${PAGE_IMAGE_VISUAL_LANGUAGE_FILE}
 │       ├── ${PAGE_DESIGN_SYSTEM_FILE}          ← optional shared Pure/Framed provider design guidance
+│       ├── ${IMAGE2_PROVIDER_PROFILE_FILE}    ← Deck Author declared non-secret Image2 capability
 │       ├── ${PURE_DECK_VISUAL_SYSTEM_FILE}  ← Pure-only version-resolved source contract
 │       └── ${BACKBONE_ASSETS_SUBDIR}/                   ← optional Page Image reference registry
 │           ├── ${ASSET_MANIFEST_FILE}
@@ -1812,7 +1835,7 @@ export function selfCheck() {
     }
 
     const tree = renderTree();
-    for (const n of [UPSTREAM_DIR, BACKBONE_DIR, VERSIONS_DIR, GENERATED_SUBDIR, SCRATCH_SUBDIR, SLIDE_SPECS_NAME, STATE_DIR, LESSONS_DIR, BACKBONE_STORY_OUTLINE, BACKBONE_ASSETS_SUBDIR, ASSET_MANIFEST_FILE, PAGE_DESIGN_SYSTEM_FILE]) {
+    for (const n of [UPSTREAM_DIR, BACKBONE_DIR, VERSIONS_DIR, GENERATED_SUBDIR, SCRATCH_SUBDIR, SLIDE_SPECS_NAME, STATE_DIR, LESSONS_DIR, BACKBONE_STORY_OUTLINE, BACKBONE_ASSETS_SUBDIR, ASSET_MANIFEST_FILE, PAGE_DESIGN_SYSTEM_FILE, IMAGE2_PROVIDER_PROFILE_FILE]) {
         if (!tree.includes(n)) {
             problems.push(`renderTree() is missing canonical entry ${JSON.stringify(n)} (stale hardcoded literal?)`);
         }

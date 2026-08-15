@@ -14,8 +14,8 @@ outputs:
   - image-generation-record
   - page-review-decision
 provenance:
-  source: "The current source receipt, selected workflow, selected style master, generation profile, optional Page Design System binding, and per-page request bindings."
-  requirement: "Retain the plan digest, ordered stable page identities, source epoch, and matching nullable Page Design System digest."
+  source: "The current source receipt, selected workflow, selected style master, profile-bound generation profile, optional Page Design System binding, and per-page request bindings."
+  requirement: "Retain the plan digest, ordered stable page identities, source epoch, matching nullable Page Design System digest, and existing generation-profile digest closure over the selected Image2 operation capability."
 downstream_consumers:
   - provider submission
   - image-generation-record
@@ -23,6 +23,7 @@ downstream_consumers:
 does_not_contain:
   - "Provider response bytes, paid attempt evidence, or a review decision."
   - "Permission to submit without a separate exact authorization."
+  - "Credentials, base URL, a second capability authorization, or a replacement provider prompt."
 fields:
   planned_page_scope:
     type: ordered list of stable page identities
@@ -56,3 +57,11 @@ fields:
       means: "The planned provider request is not exactly bound to its current shared design-system source."
       ask: "Recompile a fresh provider-free plan from the current source and follow the existing exact authorization path."
       never: "Never patch a retained plan, reuse historical raw evidence as current, or locally refresh around a changed shared design-system digest."
+  generation_profile_binding:
+    type: dynamic capability-bound generation profile
+    description: "The selected operation projection carrying profile identity and full digest, endpoint profile, route, model, operation, and positive prompt-budget limit/unit."
+    rule: "Its canonical digest must close those current capability facts into the existing raw plan, authorization, request, attempt, provenance, invalidation, and Style Master selection chains."
+    on_violation:
+      means: "The plan cannot prove that its exact provider bytes were admitted for the selected operation."
+      ask: "Rebuild a fresh provider-free plan from the current confirmed profile and source."
+      never: "Never patch a retained plan, duplicate capability fields into State, or infer a fallback operation."

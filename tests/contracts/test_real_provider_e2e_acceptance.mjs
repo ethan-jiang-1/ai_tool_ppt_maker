@@ -3,7 +3,7 @@ import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { createRequire } from "node:module";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { resolveImage2Credentials } from "../../ppt_maker_harness/scripts/shared/image2/credentials.mjs";
 import { readProgressiveRawPlanDirectRecords } from "../../ppt_maker_harness/scripts/shared/image2/page_image_progressive_store.mjs";
@@ -16,6 +16,18 @@ import {
   readSafePptFlowJson,
   REAL_PROVIDER_SLIDE_ID,
 } from "../../tests_e2e/shared/real-provider/real_provider_e2e_fixture.mjs";
+
+let originalRuntimeProfileId;
+
+beforeEach(() => {
+  originalRuntimeProfileId = process.env.IMAGE2_PROVIDER_PROFILE_ID;
+  process.env.IMAGE2_PROVIDER_PROFILE_ID = "test-image2-profile";
+});
+
+afterEach(() => {
+  if (originalRuntimeProfileId === undefined) delete process.env.IMAGE2_PROVIDER_PROFILE_ID;
+  else process.env.IMAGE2_PROVIDER_PROFILE_ID = originalRuntimeProfileId;
+});
 
 const require = createRequire(import.meta.url);
 const FLOW = "ppt_maker_harness/scripts/ppt_flow.mjs";

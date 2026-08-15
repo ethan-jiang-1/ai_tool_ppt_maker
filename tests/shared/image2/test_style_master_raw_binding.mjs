@@ -18,20 +18,28 @@ import {
 } from "../../../ppt_maker_harness/scripts/ppt_flow.mjs";
 import { canonicalJsonSha256 } from "../../../ppt_maker_harness/scripts/shared/identity/canonical_json.mjs";
 import { buildTargetRawGenerationProfile } from "../../../ppt_maker_harness/scripts/shared/image2/page_image_target_runtime.mjs";
-import { STYLE_MASTER_GENERATION_PROFILE } from "../../../ppt_maker_harness/scripts/shared/image2/style_master_schema.mjs";
 import { styleMasterStorePaths } from "../../../ppt_maker_harness/scripts/shared/image2/style_master_store.mjs";
 import {
   STYLE_MASTER_IMAGE,
   STYLE_MASTER_PROMPT,
-  initBundle,
+  initBundle as initializeBundle,
   pureDeckVisualSystemAsset,
   styleAsset,
 } from "../../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
 import { pageImageWorkflowPaths } from "../../../ppt_maker_harness/scripts/shared/run-bundle/page_image_paths.mjs";
 import { readState, statePath } from "../../../ppt_maker_harness/scripts/shared/state/state.mjs";
 import { acceptLocalStyleMasterFixture } from "../../helpers/accepted_style_master.mjs";
+import {
+  testStyleMasterGenerationProfile,
+  writeConfirmedImage2ProviderProfile,
+} from "../../helpers/image2_provider_profile.mjs";
 
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
+
+function initBundle(...args) {
+  initializeBundle(...args);
+  writeConfirmedImage2ProviderProfile(join(args[0], "3_versions", "v1"));
+}
 
 function localImageBytes(variant = 0) {
   return Buffer.from(variant === 0
@@ -62,7 +70,7 @@ function providerJsonResponse(payload, status = 200) {
 function styleMasterTransportRequest() {
   return {
     compiled_prompt_bytes: Buffer.from("One bounded visual style brief.", "utf8"),
-    candidate_generation_profile: STYLE_MASTER_GENERATION_PROFILE,
+    candidate_generation_profile: testStyleMasterGenerationProfile(),
     transport: { base_url: "https://image.example", api_key: "test-key" },
   };
 }
@@ -200,6 +208,55 @@ describe("accepted Style Master raw binding", () => {
       expect(providerBody.image).not.toContain(localImageBytes(1).toString("base64"));
       expect(providerIdempotencyKey).toBe(`page-image-workflow-${"a".repeat(64)}`);
       expect(providerCalls).toBe(1);
+    } finally {
+      rmSync(value.root, { recursive: true, force: true });
+    }
+  });
+
+  it("submits only bound prompts, models, and separate reference media", async () => {
+    const value = await fixture({ accepted: true });
+    try {
+      const plan = buildPureTargetRawPlan(value.runDir);
+      const pageRequest = plan.provider_requests_by_slide.DeckGo;
+      let pageBody = null;
+      const pageSubmit = targetPageImageSubmitFactory(plan, {
+        credentialResolver: () => ({ base_url: "https://image.example", api_key: "test-key" }),
+        fetchImpl: async (_url, options) => {
+          pageBody = JSON.parse(options.body);
+          return providerJsonResponse({ data: [{ b64_json: VALID_PROVIDER_PNG.toString("base64") }] });
+        },
+      });
+      await pageSubmit({
+        request: pageRequest,
+        item: { slide_id: "DeckGo" },
+        provider_idempotency_key: `page-image-workflow-${"9".repeat(64)}`,
+      });
+
+      expect(Object.keys(pageBody).sort()).toEqual(["image", "image_urls", "images", "model", "n", "prompt", "size"]);
+      expect(pageBody.model).toBe(pageRequest.generation_profile.provider.model);
+      expect(pageBody.prompt).toBe(pageRequest.compiled_provider_input.utf8);
+      expect(pageBody.images).toEqual([
+        `data:image/png;base64,${plan.style_master_reference.bytes.toString("base64")}`,
+      ]);
+      expect(JSON.parse(pageBody.prompt)).not.toEqual(expect.objectContaining({ generation_profile: expect.anything() }));
+      expect(pageBody.prompt).not.toContain("raw_contract");
+      expect(pageBody.prompt).not.toContain("provider_profile_sha256");
+
+      const styleRequest = styleMasterTransportRequest();
+      let styleBody = null;
+      const styleSubmit = styleMasterSubmitFactory({
+        fetchImpl: async (_url, options) => {
+          styleBody = JSON.parse(options.body);
+          return providerJsonResponse({ data: [{ b64_json: VALID_STYLE_MASTER_PNG.toString("base64") }] });
+        },
+      });
+      await styleSubmit(styleRequest);
+
+      expect(Object.keys(styleBody).sort()).toEqual(["model", "n", "prompt", "size"]);
+      expect(styleBody.model).toBe(styleRequest.candidate_generation_profile.provider.model);
+      expect(styleBody.prompt).toBe(styleRequest.compiled_prompt_bytes.toString("utf8"));
+      expect(styleBody.prompt).not.toContain("candidate_generation_profile");
+      expect(styleBody.prompt).not.toContain("profile_sha256");
     } finally {
       rmSync(value.root, { recursive: true, force: true });
     }

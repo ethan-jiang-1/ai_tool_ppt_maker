@@ -3,7 +3,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "no
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createCanvas } from "@napi-rs/canvas";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
   acceptPureProgressiveRawReview,
@@ -47,6 +47,18 @@ import { styleMasterStorePaths } from "../../ppt_maker_harness/scripts/shared/im
 import { acceptLocalStyleMasterFixture } from "../helpers/accepted_style_master.mjs";
 
 const FLOW = "ppt_maker_harness/scripts/ppt_flow.mjs";
+
+let originalRuntimeProfileId;
+
+beforeEach(() => {
+  originalRuntimeProfileId = process.env.IMAGE2_PROVIDER_PROFILE_ID;
+  process.env.IMAGE2_PROVIDER_PROFILE_ID = "test-image2-profile";
+});
+
+afterEach(() => {
+  if (originalRuntimeProfileId === undefined) delete process.env.IMAGE2_PROVIDER_PROFILE_ID;
+  else process.env.IMAGE2_PROVIDER_PROFILE_ID = originalRuntimeProfileId;
+});
 
 function flow(args) {
   return spawnSync(process.execPath, [FLOW, ...args], { encoding: "utf8", timeout: 30_000 });

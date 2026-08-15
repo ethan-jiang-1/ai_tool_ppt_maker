@@ -12,7 +12,7 @@ import {
   publishProgressiveRawWorkPlan,
 } from "../../../ppt_maker_harness/scripts/shared/image2/page_image_progressive_raw_owner.mjs";
 import { readProgressiveRawPlanDirectRecords } from "../../../ppt_maker_harness/scripts/shared/image2/page_image_progressive_store.mjs";
-import { styleMasterGenerationProfileSha256 } from "../../../ppt_maker_harness/scripts/shared/image2/style_master_schema.mjs";
+import { testStyleMasterGenerationProfileSha256 } from "../../helpers/image2_provider_profile.mjs";
 import { canonicalJsonSha256 } from "../../../ppt_maker_harness/scripts/shared/identity/canonical_json.mjs";
 import { initBundle } from "../../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
 import {
@@ -123,7 +123,7 @@ function styleSelection(workflow = "pure", runVersion = "v1") {
     candidate_provenance_sha256: digest("c"),
     style_intent_sha256: digest("d"),
     style_context_sha256: digest("e"),
-    candidate_generation_profile_sha256: styleMasterGenerationProfileSha256(),
+    candidate_generation_profile_sha256: testStyleMasterGenerationProfileSha256(),
     previous_selection_sha256: null,
     review_decision_sha256: digest("0"),
     accepted_at: "2026-08-01T00:00:00.000Z",

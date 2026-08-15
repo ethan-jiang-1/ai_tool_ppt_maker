@@ -1,8 +1,8 @@
 schema: image2-request
 kind: derived
 scope: version-page
-purpose: "Represent the exact canonical request bytes prepared for the selected image provider."
-answers: "What exact bytes will image2 receive for this page?"
+purpose: "Represent the one exact compact canonical prompt prepared by the selected adapter for the selected Image2 operation."
+answers: "What exact compact bytes will Image2 receive for this page, and which bound operation budget admitted them?"
 owner: "scripts/shared/image2/page_derived_data.mjs materializes selected adapter bytes"
 producer_status: materialized
 publication:
@@ -17,8 +17,8 @@ outputs:
   - image-generation-plan
   - image-generation-record
 provenance:
-  source: "One selected adapter's compiled provider input and its binding to core page facts, including the optional shared Page Design System digest."
-  requirement: "Retain the canonical UTF-8 bytes and sha256 digest selected by the adapter for provider submission."
+  source: "One selected adapter's compact compiled provider input, its binding to core page facts, optional shared Page Design System digest, and profile-bound operation measurement."
+  requirement: "Retain the canonical UTF-8 bytes and sha256 digest selected by the adapter for opaque provider submission; profile and raw-contract lineage stay outside those bytes."
 downstream_consumers:
   - image-generation-plan
   - image-generation-record
@@ -26,15 +26,24 @@ downstream_consumers:
 does_not_contain:
   - "A human review decision, delivery artifact, or a replacement source document."
   - "Local Framed header HTML as a duplicate provider payload."
+  - "Generation profiles, profile identifiers or digests, raw contracts, paths, provenance, authorization/lifecycle facts, or a second derived prompt authority."
 fields:
   canonical_utf8:
     type: UTF-8 bytes
     description: "The exact canonical request serialization prepared by the selected adapter."
-    rule: "Must be canonicalized before its digest or submission is used and must not exceed 32768 UTF-8 bytes."
+    rule: "Must be the selected adapter's compact canonical serialization before its digest or submission is used, must not exceed 32768 UTF-8 bytes, and must contain only the declared Pure or Framed semantic shape."
     on_violation:
       means: "The provider request cannot be reproduced or compared reliably."
       ask: "Which approved generation choices should be sent exactly as planned?"
       never: "Never edit a prepared request after its plan has been reviewed."
+  prompt_budget_measurement:
+    type: operation measurement projection
+    description: "The non-authoritative { operation, limit, unit, measured } projection over canonical_utf8 after safety admission."
+    rule: "Operation is one of style-master-text-generation or page-image-reference-generation; limit is an ordinary positive safe integer; unit is unicode-code-points, utf16-code-units, or utf8-bytes; measured must be at or below limit."
+    on_violation:
+      means: "The exact bytes cannot be shown to fit their selected operation budget."
+      ask: "Repair the owning source or confirmed capability declaration, then rerun the same provider-free plan checkpoint."
+      never: "Never measure source prose, token estimates, an HTTP body, or a transport rewrite instead of canonical_utf8."
   request_digest:
     type: sha256 digest
     description: "The digest that binds the submitted bytes to the page generation facts."
@@ -67,3 +76,11 @@ fields:
       means: "The request cannot prove the current local-header/provider boundary or exact Framed raw lineage."
       ask: "Repair the selected source or Framed profile, then rebuild the current provider-free plan."
       never: "Never copy local header literals into the request, reinterpret matching provider content as header context, or add an unverified provider primitive."
+  opaque_transport:
+    type: bound model and exact prompt consumer
+    description: "Submission takes the selected generation-profile model and canonical_utf8 byte-for-byte while Style Master and identity references remain separate media fields."
+    rule: "Transport may not read a profile source, raw contract, inspection record, or source file to derive or extend prompt bytes."
+    on_violation:
+      means: "A competing provider-prompt authority could submit bytes that were not planned."
+      ask: "Repair the selected adapter or transport binding and rebuild the exact plan."
+      never: "Never compile, project, truncate, inject metadata, or reroute a prompt during submission."

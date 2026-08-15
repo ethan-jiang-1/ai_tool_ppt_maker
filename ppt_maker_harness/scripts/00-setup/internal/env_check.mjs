@@ -24,6 +24,7 @@ import {
 } from '../../shared/cli/cli_error.mjs';
 import { HTML_RUNTIME_PROFILE } from './html_runtime_profile.mjs';
 import { normalizeImage2BaseUrl } from '../../shared/image2/credentials.mjs';
+import { isImage2ProviderProfileId } from '../../shared/image2/runtime_profile_id.mjs';
 
 import { execFileSync, execSync } from 'node:child_process';
 import { readFileSync, existsSync, statSync, readdirSync } from 'node:fs';
@@ -48,7 +49,7 @@ export const BASE_CHECK_NAMES = Object.freeze([
   'nodejs', 'npm', '@napi-rs/canvas', 'pptxgenjs', 'commander', 'playwright',
   'chromium', 'html_fonts', 'framed_render_profile', 'html_runtime_smoke', 'fonts', 'disk_space', 'git',
 ]);
-export const IMAGE2_CHECK_NAMES = Object.freeze(['api_key', 'image_base_url', 'page_image_raw_generator']);
+export const IMAGE2_CHECK_NAMES = Object.freeze(['api_key', 'image_base_url', 'image2_provider_profile_id', 'page_image_raw_generator']);
 export const LIVE_CHECK_NAMES = Object.freeze(['image_smoke', 'image_probe_vendors']);
 export const PAGE_IMAGE_DOCTOR_PROFILES = Object.freeze(['framed-runtime', 'image2-raw']);
 export const PAGE_IMAGE_DOCTOR_OPERATIONS = Object.freeze([
@@ -399,6 +400,17 @@ function checkBaseUrl() {
   };
 }
 
+function checkImage2ProviderProfileId() {
+  const value = String(process.env.IMAGE2_PROVIDER_PROFILE_ID || '').trim();
+  const ok = isImage2ProviderProfileId(value);
+  return {
+    check: 'image2_provider_profile_id',
+    status: ok ? 'ok' : 'fail',
+    detail: value ? (ok ? 'found (IMAGE2_PROVIDER_PROFILE_ID)' : 'invalid (must be lower-kebab)') : 'not set',
+    fix: ok ? null : 'Set IMAGE2_PROVIDER_PROFILE_ID to the confirmed Image2 provider profile ID, then rerun the selected raw-generation readiness check.',
+  };
+}
+
 function checkFonts() {
   const bundled = resolve(__dirname, '..', '..', 'fonts');
   const searchDirs = [
@@ -655,8 +667,9 @@ async function runAllChecks({ includeImage2 = false, profile = 'common+html', st
   if (includeImage2) {
     const apiKey = checkApiKey();
     const baseUrl = checkBaseUrl();
+    const profileId = checkImage2ProviderProfileId();
     const generator = checkPageImageRawGenerator();
-    results.push(apiKey, baseUrl, generator);
+    results.push(apiKey, baseUrl, profileId, generator);
   }
 
   const allPass = results.every(r => r.status !== 'fail');
@@ -899,6 +912,7 @@ export {
   runAllChecks,
   checkApiKey,
   checkBaseUrl,
+  checkImage2ProviderProfileId,
   checkPageImageRawGenerator,
   probeGitSafetyForTest,
 };
@@ -1015,7 +1029,7 @@ function pageImageProfileReports(results, { activeProfiles, deferredProfiles }) 
   ]);
   const rawChecks = new Set([
     'nodejs', 'npm', '@napi-rs/canvas', 'pptxgenjs', 'commander',
-    'api_key', 'image_base_url', 'page_image_raw_generator',
+    'api_key', 'image_base_url', 'image2_provider_profile_id', 'page_image_raw_generator',
   ]);
   const reports = [];
   for (const id of [...activeProfiles, ...deferredProfiles]) {
@@ -1104,7 +1118,7 @@ export async function runEnvCheckCli(argv = process.argv, { providerApi = null }
   const profiles = pageImageProfileReports(results, { activeProfiles, deferredProfiles });
   const deferredChecks = new Set(
     deferredProfiles.includes('image2-raw')
-      ? ['api_key', 'image_base_url', 'page_image_raw_generator']
+      ? ['api_key', 'image_base_url', 'image2_provider_profile_id', 'page_image_raw_generator']
       : []
   );
   const allPass = results.filter((result) => !deferredChecks.has(result.check)).every((result) => result.status !== 'fail');

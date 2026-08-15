@@ -28,6 +28,7 @@ function runDoctorJson(args = []) {
         ...process.env,
         IMAGE2_API_KEY: 'guidance-test-key',
         IMAGE2_BASE_URL: 'https://guidance.invalid/v1',
+        IMAGE2_PROVIDER_PROFILE_ID: 'guidance-profile',
       },
       stdio: ['ignore', 'pipe', 'pipe'],
     }));
