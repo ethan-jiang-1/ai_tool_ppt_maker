@@ -202,6 +202,12 @@ describe("Harness architecture contract", () => {
     const illegal = canonicalSnapshot();
     illegal.files["shared/image2/page_image_target_runtime.mjs"] = `import "../page-image/page_image_core.mjs";`;
     expect(issueCodes(validateArchitectureSnapshot(illegal))).toContain("page-image-core-illegal-consumer");
+
+    const framedPrivateValidator = canonicalSnapshot();
+    framedPrivateValidator.files["03-framed-image/internal/framed_provider_input_contract.mjs"] =
+      ["im", "port \"../../shared/page-image/page_image_core.mjs\";"].join("");
+    expect(issueCodes(validateArchitectureSnapshot(framedPrivateValidator)))
+      .toContain("page-image-core-illegal-consumer");
   });
 
   it("confines Page Image provider-input compilation to selected adapters", () => {
@@ -273,10 +279,13 @@ describe("Harness architecture contract", () => {
 
   it("evaluates serialization declarations without file or YAML access", () => {
     const valid = {
-      stage_names: ["page-source-receipt"],
+      stage_names: ["layout-config", "page-source-receipt"],
       anchors: ["scripts/01-content/internal/page_image_source.mjs#PAGE_IMAGE_WORKFLOW_SOURCE_RECEIPT_SCHEMA"],
       selectors: [{ value: "page-image-workflow" }],
-      wire_schemas: [{ value: "page-source-receipt", stage_ref: "page-source-receipt", role: "parsed-source" }],
+      wire_schemas: [
+        { value: "page-image-design-system-binding", stage_ref: "layout-config", role: "version-design-system-binding" },
+        { value: "page-source-receipt", stage_ref: "page-source-receipt", role: "parsed-source" },
+      ],
       stage_artifact_envelopes: [{
         stage_ref: "page-source-receipt",
         artifact_role: "parsed-source",

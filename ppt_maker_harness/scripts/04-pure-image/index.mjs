@@ -24,10 +24,12 @@ import {
   createPageImageSourceResolver,
   loadPageImagePresentationPackage,
   loadPageImageVisualLanguage,
+  resolvePageDesignSystemBinding,
   resolvePageImagePresentation,
 } from "../02-visual-system/index.mjs";
 import {
   PageImageCoreError,
+  PAGE_IMAGE_PROVIDER_INPUT_MAX_UTF8_BYTES,
   createPageImageCoreFacts,
   createPageImageProviderInputBinding,
   normalizePageImageHeaderPolicy,
@@ -179,10 +181,16 @@ const PURE_RAW_CONTRACT_KEYS = Object.freeze([
   "visual_scene",
   "visual_identity",
   "page_presentation",
+  "page_design_system",
   "page_image_core",
   "provider_rendered_content",
 ]);
-const PURE_RAW_CONTRACT_CORE_KEYS = Object.freeze(["schema", "canonical_semantic_sha256"]);
+const PURE_RAW_CONTRACT_CORE_KEYS = Object.freeze([
+  "schema",
+  "canonical_semantic_sha256",
+  "page_design_system_sha256",
+]);
+const PAGE_DESIGN_SYSTEM_KEYS = Object.freeze(["text", "sha256"]);
 const PURE_PAGE_PRESENTATION_KEYS = Object.freeze(["page_class", "profile_id", "binding_sha256", "provenance", "profile"]);
 const PURE_PROVIDER_RENDERED_CONTENT_KEYS = Object.freeze(["header", "items"]);
 const PURE_HEADER_KEYS = Object.freeze(["kicker", "title", "subtitle"]);
@@ -221,6 +229,19 @@ function hasValidIdentityFacts(rawContract) {
     sha256Bytes(Buffer.from(roleClause, "utf8")) === projection.role_clause_sha256;
 }
 
+function hasValidPageDesignSystemFacts(rawContract) {
+  const binding = rawContract.page_design_system;
+  const coreDigest = rawContract.page_image_core?.page_design_system_sha256;
+  if (!hasExactKeys(binding, PAGE_DESIGN_SYSTEM_KEYS) ||
+    (binding.text === null) !== (binding.sha256 === null)) {
+    return false;
+  }
+  if (binding.text === null) return coreDigest === null;
+  return typeof binding.text === "string" && binding.text.trim().length > 0 &&
+    SHA256_RE.test(binding.sha256 || "") && coreDigest === binding.sha256 &&
+    sha256Bytes(Buffer.from(binding.text, "utf8")) === binding.sha256;
+}
+
 function buildPureProviderIdentity(rawContract) {
   const projection = rawContract.visual_identity;
   if (projection === null) return null;
@@ -253,6 +274,7 @@ export function validatePureRawContract(rawContract) {
       !hasExactKeys(rawContract.page_image_core, PURE_RAW_CONTRACT_CORE_KEYS) ||
       rawContract.page_image_core.schema !== "page-image-core-slide-facts" ||
       !SHA256_RE.test(rawContract.page_image_core.canonical_semantic_sha256 || "") ||
+      !hasValidPageDesignSystemFacts(rawContract) ||
       !hasExactKeys(rawContract.provider_rendered_content, PURE_PROVIDER_RENDERED_CONTENT_KEYS) ||
       !hasExactKeys(rawContract.provider_rendered_content.header, PURE_HEADER_KEYS) ||
       !Array.isArray(rawContract.provider_rendered_content.items)) {
@@ -643,7 +665,7 @@ function coreStyleMasterSelection(workflow, styleMasterReference) {
   });
 }
 
-function createPureCoreFacts(context, generation) {
+function createPureCoreFacts(context, generation, pageDesignSystemSha256) {
   try {
     return createPageImageCoreFacts({
       sourceReceipt: context.receipt,
@@ -654,6 +676,7 @@ function createPureCoreFacts(context, generation) {
       styleMasterSelection: coreStyleMasterSelection(PURE_IMAGE_WORKFLOW, generation.style_master_reference),
       generationProfile: generation.profile,
       headerRenderingPolicy: { workflow: PURE_IMAGE_WORKFLOW, policy: "provider-visible" },
+      pageDesignSystemSha256,
     });
   } catch (error) {
     if (error instanceof PageImageCoreError) {
@@ -663,7 +686,7 @@ function createPureCoreFacts(context, generation) {
   }
 }
 
-function pureRawContract(slide, coreSlide) {
+function pureRawContract(slide, coreSlide, pageDesignSystem) {
   const visualLanguage = coreSlide?.visual_selection?.projection;
   if (!visualLanguage || typeof visualLanguage !== "object") {
     throw new PureImageWorkflowError("pure_visual_language_required", `Pure visual language is unresolved for ${slide.slide_id}`);
@@ -696,9 +719,14 @@ function pureRawContract(slide, coreSlide) {
       provenance: presentation.provenance,
       profile: presentation.profile,
     },
+    page_design_system: {
+      text: pageDesignSystem?.text,
+      sha256: pageDesignSystem?.sha256,
+    },
     page_image_core: {
       schema: coreSlide.schema,
       canonical_semantic_sha256: coreSlide.canonical_semantic_sha256,
+      page_design_system_sha256: coreSlide.page_design_system_sha256,
     },
     provider_rendered_content: {
       header: { ...coreSlide.header_policy.provider_visible },
@@ -717,6 +745,7 @@ function compilePureProviderInput({ slideId, rawContract, generationProfile } = 
     schema: "page-image-pure-provider-input",
     slide_id: slideId,
     instruction: "Render one complete premium keynote page. Render every header literal and provider-rendered content item as readable integrated page typography; preserve exact literals unless an item explicitly allows presentation adaptation.",
+    design_system: rawContract.page_design_system.text,
     provider_rendered_content: rawContract.provider_rendered_content,
     visual: {
       recipe: rawContract.provider_clauses.recipe,
@@ -728,6 +757,12 @@ function compilePureProviderInput({ slideId, rawContract, generationProfile } = 
     page_presentation: rawContract.page_presentation,
     generation_profile: generationProfile,
   });
+  if (Buffer.byteLength(utf8, "utf8") > PAGE_IMAGE_PROVIDER_INPUT_MAX_UTF8_BYTES) {
+    throw new PureImageWorkflowError(
+      "pure_provider_input_too_large",
+      `Pure canonical provider input exceeds ${PAGE_IMAGE_PROVIDER_INPUT_MAX_UTF8_BYTES} UTF-8 bytes`,
+    );
+  }
   return Object.freeze({
     schema: TARGET_COMPILED_PROVIDER_INPUT_SCHEMA,
     utf8,
@@ -737,19 +772,20 @@ function compilePureProviderInput({ slideId, rawContract, generationProfile } = 
 
 /** Compile a selected Pure current raw-plan candidate without materializing state. */
 function compilePureTargetRawPlanCandidate(context) {
+  const pageDesignSystem = resolvePageDesignSystemBinding(context.run_dir);
   const generation = buildTargetRawGenerationProfile({
     runDir: context.run_dir,
     deckDir: context.deck_dir,
     receipt: context.receipt,
   });
-  const coreFacts = createPureCoreFacts(context, generation);
+  const coreFacts = createPureCoreFacts(context, generation, pageDesignSystem.sha256);
   const coreSlidesById = new Map(coreFacts.slides.map((slide) => [slide.slide_id, slide]));
   const rawContractsBySlide = {};
   const providerInputBindingsBySlide = {};
   const providerRequestsBySlide = {};
   for (const slide of context.receipt.slides) {
     const coreSlide = coreSlidesById.get(slide.slide_id);
-    const rawContract = pureRawContract(slide, coreSlide);
+    const rawContract = pureRawContract(slide, coreSlide, pageDesignSystem);
     const rawContractValidation = validatePureRawContract(rawContract);
     if (!rawContractValidation.ok) throw new PureImageWorkflowError(rawContractValidation.code, rawContractValidation.message);
     rawContractsBySlide[slide.slide_id] = rawContractValidation.raw_contract_sha256;

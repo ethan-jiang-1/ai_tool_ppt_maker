@@ -41,6 +41,7 @@ vi.mock("../../ppt_maker_harness/scripts/02-visual-system/index.mjs", async (imp
 });
 import { canonicalJson, canonicalJsonSha256 } from "../../ppt_maker_harness/scripts/shared/identity/canonical_json.mjs";
 import { sha256Bytes } from "../../ppt_maker_harness/scripts/shared/identity/byte_hash.mjs";
+import { PAGE_IMAGE_PROVIDER_INPUT_MAX_UTF8_BYTES } from "../../ppt_maker_harness/scripts/shared/page-image/page_image_core.mjs";
 import { prepareFramedProgressivePilotReview } from "../../ppt_maker_harness/scripts/03-framed-image/index.mjs";
 import {
   classifyPureRefresh,
@@ -67,7 +68,10 @@ import {
   resolvePureStyleMasterScope,
   validatePureRawContract,
 } from "../../ppt_maker_harness/scripts/04-pure-image/index.mjs";
-import { initBundle } from "../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
+import {
+  initBundle,
+  PAGE_DESIGN_SYSTEM_FILE,
+} from "../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
 import { pageImageDerivedPagePaths, pageImageWorkflowPaths } from "../../ppt_maker_harness/scripts/shared/run-bundle/page_image_paths.mjs";
 import { readState } from "../../ppt_maker_harness/scripts/shared/state/state.mjs";
 import { targetPageImageSubmitFactory } from "../../ppt_maker_harness/scripts/ppt_flow.mjs";
@@ -95,6 +99,7 @@ function pureProviderInputBinding(compiled = "a") {
     generation_profile_sha256: digest("e"),
     header_policy_sha256: digest("f"),
     page_presentation_sha256: digest("9"),
+    page_design_system_sha256: null,
     local_header_profile_sha256: null,
     protected_composition_sha256: null,
   };
@@ -178,6 +183,302 @@ describe("Pure target workflow", () => {
 
   it("classifies visible-text source changes as raw rebuild debt", () => {
     expect(classifyPureRefresh({ previousReceipt: receipt("a"), nextReceipt: receipt("b") })).toMatchObject({ kind: "rebuild_raw", provider_required: true });
+  });
+
+  it("binds shared Page Design System text into Pure requests and stops selected-source drift before submit", async () => {
+    const root = mkdtempSync(join(tmpdir(), "pure-page-design-system-drift-"));
+    const deck = join(root, "deck_pure_page_design_system_drift");
+    const runDir = join(deck, "3_versions", "v1");
+    const image = createCanvas(2000, 1125);
+    image.getContext("2d").fillRect(0, 0, 2000, 1125);
+    const sourceText = `---
+identity:
+  scheme: mnemonic
+production:
+  pipeline: page-image-workflow
+  workflow: pure
+---
+
+## Slide 01: \`DeckGo\`
+
+**TITLE**: A source-bound Pure page
+**VISUAL BRIEF**:
+\`\`\`yaml
+recipe: editorial-systems
+composition: centered-constellation
+motifs: []
+negative_constraints:
+  - no-logo
+\`\`\`
+
+## Slide 02: \`FlowGo\`
+
+**TITLE**: A second source-bound Pure page
+**VISUAL BRIEF**:
+\`\`\`yaml
+recipe: editorial-systems
+composition: centered-constellation
+motifs: []
+negative_constraints:
+  - no-logo
+\`\`\`
+`;
+    const designSystem = "Use a crisp information hierarchy with deliberately restrained color and generous negative space.";
+    try {
+      initBundle(deck, null, "keynote", "dark-executive");
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+      writeFileSync(join(deck, "2_backbone", "visual-style", PAGE_DESIGN_SYSTEM_FILE), designSystem);
+      writeFileSync(join(runDir, "slide-specifications.md"), sourceText);
+      await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir));
+
+      const initial = buildPureTargetRawPlan(runDir);
+      const paths = pageImageWorkflowPaths(runDir);
+      const rawContract = initial.provider_requests_by_slide.DeckGo.raw_contract;
+      const providerInput = JSON.parse(initial.provider_requests_by_slide.DeckGo.compiled_provider_input.utf8);
+      expect(rawContract.page_design_system).toMatchObject({
+        text: designSystem,
+        sha256: initial.page_image_core.page_design_system_sha256,
+      });
+      expect(providerInput.design_system).toBe(designSystem);
+      expect(providerInput).not.toHaveProperty("page_design_system_sha256");
+      expect(providerInput).not.toHaveProperty("page_design_system_path");
+      const planBytes = readFileSync(paths.target_raw_plan);
+      const stateBeforeDrift = readFileSync(join(deck, "_state", "state.yaml"));
+
+      const formerPlan = structuredClone(initial.raw_work_plan);
+      for (const item of formerPlan.items) delete item.provider_input_binding.page_design_system_sha256;
+      const formerPlanBytes = Buffer.from(JSON.stringify(formerPlan), "utf8");
+      const formerPlanHash = canonicalJsonSha256(formerPlan);
+      writeFileSync(paths.target_raw_plan, formerPlanBytes);
+      const readFormer = (() => {
+        try {
+          readPureTargetStoredPlanContext(runDir);
+        } catch (error) {
+          return error;
+        }
+        throw new Error("expected the former Pure plan to require rebuild");
+      })();
+      expect(readFormer).toMatchObject({
+        code: "target_raw_plan_stale",
+        next_action: "rebuild_target_raw_plan",
+      });
+      const authorizeFormer = (() => {
+        try {
+          authorizePureTargetRawPlan(runDir, { planHash: formerPlanHash });
+        } catch (error) {
+          return error;
+        }
+        throw new Error("expected former Pure authorization to require rebuild");
+      })();
+      expect(authorizeFormer).toMatchObject({
+        code: "target_raw_plan_stale",
+      });
+      let formerSubmitCalls = 0;
+      await expect(generatePureTargetRawPlan(runDir, {
+        planHash: formerPlanHash,
+        submit: async () => {
+          formerSubmitCalls += 1;
+          return NATIVE_PROVIDER_PNG;
+        },
+      })).rejects.toMatchObject({ code: "target_raw_plan_stale" });
+      expect(formerSubmitCalls).toBe(0);
+      expect(readFileSync(paths.target_raw_plan)).toEqual(formerPlanBytes);
+      expect(readFileSync(join(deck, "_state", "state.yaml"))).toEqual(stateBeforeDrift);
+
+      const mixedPlan = structuredClone(initial.raw_work_plan);
+      delete mixedPlan.items[0].provider_input_binding.page_design_system_sha256;
+      const mixedPlanBytes = Buffer.from(JSON.stringify(mixedPlan), "utf8");
+      writeFileSync(paths.target_raw_plan, mixedPlanBytes);
+      expect(() => readPureTargetStoredPlanContext(runDir)).toThrow(expect.objectContaining({
+        code: "raw_plan_provider_input_binding_invalid",
+      }));
+      let mixedSubmitCalls = 0;
+      await expect(generatePureTargetRawPlan(runDir, {
+        planHash: canonicalJsonSha256(mixedPlan),
+        submit: async () => {
+          mixedSubmitCalls += 1;
+          return NATIVE_PROVIDER_PNG;
+        },
+      })).rejects.toMatchObject({ code: "raw_plan_provider_input_binding_invalid" });
+      expect(mixedSubmitCalls).toBe(0);
+      expect(readFileSync(paths.target_raw_plan)).toEqual(mixedPlanBytes);
+
+      const corruptedPlan = structuredClone(initial.raw_work_plan);
+      corruptedPlan.items[0].unexpected_compiler_fact = "not-a-cutover-shape";
+      const corruptedPlanBytes = Buffer.from(JSON.stringify(corruptedPlan), "utf8");
+      writeFileSync(paths.target_raw_plan, corruptedPlanBytes);
+      expect(() => readPureTargetStoredPlanContext(runDir)).toThrow(expect.objectContaining({
+        code: "raw_plan_invalid",
+      }));
+      let corruptedSubmitCalls = 0;
+      await expect(generatePureTargetRawPlan(runDir, {
+        planHash: canonicalJsonSha256(corruptedPlan),
+        submit: async () => {
+          corruptedSubmitCalls += 1;
+          return NATIVE_PROVIDER_PNG;
+        },
+      })).rejects.toMatchObject({ code: "raw_plan_invalid" });
+      expect(corruptedSubmitCalls).toBe(0);
+      expect(readFileSync(paths.target_raw_plan)).toEqual(corruptedPlanBytes);
+      writeFileSync(paths.target_raw_plan, planBytes);
+
+      const changedDesignSystem = `${designSystem} Keep Chinese text legible at presentation distance.`;
+      writeFileSync(join(deck, "2_backbone", "visual-style", PAGE_DESIGN_SYSTEM_FILE), changedDesignSystem);
+      const readStale = (() => {
+        try {
+          readPureTargetStoredPlanContext(runDir);
+        } catch (error) {
+          return error;
+        }
+        throw new Error("expected the changed Page Design System to stale the stored plan");
+      })();
+      expect(readStale).toMatchObject({
+        code: "target_raw_plan_stale",
+        next_action: "rebuild_target_raw_plan",
+      });
+      const authorizeStale = (() => {
+        try {
+          authorizePureTargetRawPlan(runDir, { planHash: initial.raw_work_plan.sha256 });
+        } catch (error) {
+          return error;
+        }
+        throw new Error("expected stale authorization to fail");
+      })();
+      expect(authorizeStale)
+        .toMatchObject({ code: "target_raw_plan_stale" });
+      let staleSubmitCalls = 0;
+      await expect(generatePureTargetRawPlan(runDir, {
+        planHash: initial.raw_work_plan.sha256,
+        submit: async () => {
+          staleSubmitCalls += 1;
+          return NATIVE_PROVIDER_PNG;
+        },
+      })).rejects.toMatchObject({ code: "target_raw_plan_stale" });
+      expect(staleSubmitCalls).toBe(0);
+      expect(readFileSync(paths.target_raw_plan)).toEqual(planBytes);
+      expect(readFileSync(join(deck, "_state", "state.yaml"))).toEqual(stateBeforeDrift);
+
+      const rebuilt = buildPureTargetRawPlan(runDir);
+      expect(rebuilt.source_epoch).toBe(1);
+      expect(rebuilt.raw_work_plan.sha256).not.toBe(initial.raw_work_plan.sha256);
+      await authorizePureTargetRawPlan(runDir, { planHash: rebuilt.raw_work_plan.sha256 });
+      const submittedRequests = {};
+      const lateEditDesignSystem = `${changedDesignSystem} This edit lands only after current-plan preflight.`;
+      let sourceEditedAfterPreflight = false;
+      await generatePureTargetRawPlan(runDir, {
+        planHash: rebuilt.raw_work_plan.sha256,
+        submit: async ({ item, request }) => {
+          if (!sourceEditedAfterPreflight) {
+            writeFileSync(join(deck, "2_backbone", "visual-style", PAGE_DESIGN_SYSTEM_FILE), lateEditDesignSystem);
+            sourceEditedAfterPreflight = true;
+          }
+          submittedRequests[item.slide_id] = request;
+          return NATIVE_PROVIDER_PNG;
+        },
+      });
+      expect(submittedRequests.DeckGo.compiled_provider_input.utf8)
+        .toBe(rebuilt.provider_requests_by_slide.DeckGo.compiled_provider_input.utf8);
+      expect(JSON.parse(submittedRequests.DeckGo.compiled_provider_input.utf8).design_system).toBe(changedDesignSystem);
+      expect(JSON.parse(submittedRequests.FlowGo.compiled_provider_input.utf8).design_system).toBe(changedDesignSystem);
+      let lateSubmitCalls = 0;
+      await expect(generatePureTargetRawPlan(runDir, {
+        planHash: rebuilt.raw_work_plan.sha256,
+        submit: async () => {
+          lateSubmitCalls += 1;
+          return NATIVE_PROVIDER_PNG;
+        },
+      })).rejects.toMatchObject({ code: "target_raw_plan_stale" });
+      expect(lateSubmitCalls).toBe(0);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("accepts a Pure canonical input at 32 KiB and rejects one extra UTF-8 byte before plan publication", async () => {
+    const root = mkdtempSync(join(tmpdir(), "pure-provider-input-size-"));
+    const deck = join(root, "deck_pure_provider_input_size");
+    const runDir = join(deck, "3_versions", "v1");
+    let atLimitRoot = null;
+    let overflowRoot = null;
+    const image = createCanvas(2000, 1125);
+    image.getContext("2d").fillRect(0, 0, 2000, 1125);
+    const sourceText = `---
+identity:
+  scheme: mnemonic
+production:
+  pipeline: page-image-workflow
+  workflow: pure
+---
+
+## Slide 01: \`DeckGo\`
+
+**TITLE**: Bound request bytes
+**VISUAL BRIEF**:
+\`\`\`yaml
+recipe: editorial-systems
+composition: centered-constellation
+motifs: []
+negative_constraints:
+  - no-logo
+\`\`\`
+`;
+    const originalClause = "architectural editorial scene, layered amber and cobalt light, quiet depth";
+    try {
+      initBundle(deck, null, "keynote", "dark-executive");
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+      writeFileSync(join(runDir, "slide-specifications.md"), sourceText);
+      const registryPath = join(deck, "2_backbone", "visual-style", "page-image-visual-language.yaml");
+      const originalRegistry = readFileSync(registryPath, "utf8");
+      await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir));
+      const baseline = buildPureTargetRawPlan(runDir);
+      const baselineUtf8 = baseline.provider_requests_by_slide.DeckGo.compiled_provider_input.utf8;
+      const atLimitClause = "x".repeat(
+        originalClause.length + PAGE_IMAGE_PROVIDER_INPUT_MAX_UTF8_BYTES - Buffer.byteLength(baselineUtf8, "utf8"),
+      );
+      const createSizedFixture = async (prefix, registry) => {
+        const sizedRoot = mkdtempSync(join(tmpdir(), prefix));
+        const sizedDeck = join(sizedRoot, "deck_pure_provider_input_size");
+        const sizedRunDir = join(sizedDeck, "3_versions", "v1");
+        const sizedImage = createCanvas(2000, 1125);
+        sizedImage.getContext("2d").fillRect(0, 0, 2000, 1125);
+        initBundle(sizedDeck, null, "keynote", "dark-executive");
+        writeFileSync(join(sizedDeck, "2_backbone", "visual-style", "style_master.jpg"), sizedImage.toBuffer("image/png"));
+        writeFileSync(join(sizedRunDir, "slide-specifications.md"), sourceText);
+        writeFileSync(join(sizedDeck, "2_backbone", "visual-style", "page-image-visual-language.yaml"), registry);
+        await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(sizedRunDir));
+        return { root: sizedRoot, runDir: sizedRunDir };
+      };
+
+      const atLimitFixture = await createSizedFixture(
+        "pure-provider-input-size-",
+        originalRegistry.replace(originalClause, atLimitClause),
+      );
+      atLimitRoot = atLimitFixture.root;
+      const atLimit = buildPureTargetRawPlan(atLimitFixture.runDir);
+      expect(Buffer.byteLength(atLimit.provider_requests_by_slide.DeckGo.compiled_provider_input.utf8, "utf8"))
+        .toBe(PAGE_IMAGE_PROVIDER_INPUT_MAX_UTF8_BYTES);
+
+      const overflowFixture = await createSizedFixture(
+        "pure-provider-input-size-",
+        originalRegistry.replace(originalClause, `${atLimitClause}x`),
+      );
+      overflowRoot = overflowFixture.root;
+      const paths = pageImageWorkflowPaths(overflowFixture.runDir);
+      const overflow = (() => {
+        try {
+          buildPureTargetRawPlan(overflowFixture.runDir);
+        } catch (error) {
+          return error;
+        }
+        throw new Error("expected one-byte Pure provider-input overflow to fail");
+      })();
+      expect(overflow).toMatchObject({ code: "pure_provider_input_too_large" });
+      expect(existsSync(paths.target_raw_plan)).toBe(false);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+      if (atLimitRoot) rmSync(atLimitRoot, { recursive: true, force: true });
+      if (overflowRoot) rmSync(overflowRoot, { recursive: true, force: true });
+    }
   });
 
   it("validates the canonical Pure clause shape and preserves its digest in the plan", async () => {

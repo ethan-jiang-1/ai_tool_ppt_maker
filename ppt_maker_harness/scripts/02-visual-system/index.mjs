@@ -40,3 +40,10 @@ export {
   loadPageImagePresentationPackage,
   resolvePageImagePresentation,
 } from "./internal/page_image_presentation.mjs";
+
+export {
+  PAGE_DESIGN_SYSTEM_BINDING_SCHEMA,
+  PAGE_DESIGN_SYSTEM_MAX_SOURCE_UTF8_BYTES,
+  PageDesignSystemError,
+  resolvePageDesignSystemBinding,
+} from "./internal/page_design_system.mjs";

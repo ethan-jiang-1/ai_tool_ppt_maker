@@ -1513,6 +1513,20 @@ const FRAMED_SOURCE_VALIDATION_CODES = new Set([
   "target_source_receipt_invalid",
 ]);
 
+const PAGE_DESIGN_SYSTEM_SOURCE_VALIDATION_CODES = new Set([
+  "page_design_system_source_unavailable",
+  "page_design_system_source_invalid",
+  "page_design_system_source_escape",
+  "page_design_system_source_unreadable",
+  "page_design_system_source_too_large",
+  "page_design_system_source_utf8_invalid",
+]);
+
+const PAGE_IMAGE_PROVIDER_INPUT_SIZE_CODES = new Set([
+  "pure_provider_input_too_large",
+  "framed_provider_input_too_large",
+]);
+
 const FRAMED_ENVIRONMENT_CODES = new Set([
   "font_render_inventory_invalid",
   "framed_font_asset_missing",
@@ -1612,6 +1626,42 @@ function targetPageImageFailure(operation, route, error) {
           default: ownerAction?.action_id
             ? `Run the raw owner's ${ownerAction.action_id} action after re-reading exact current owner facts.`
             : "Inspect the exact progressive raw owner facts and run its one current action.",
+        }),
+      },
+    };
+  }
+
+  if (PAGE_DESIGN_SYSTEM_SOURCE_VALIDATION_CODES.has(reason)) {
+    const exactSourcePath = typeof error?.details?.source === "string" && error.details.source
+      ? resolve(error.details.source)
+      : null;
+    const exactSource = exactSourcePath ? { path: exactSourcePath } : null;
+    return {
+      code: CLI_ERROR_CODES.FAILED,
+      message: "The selected Page Design System source is invalid or cannot be read safely.",
+      hint: "Repair the exact selected Page Design System source, then rerun the same image2 checkpoint.",
+      diagnostic: {
+        ...common,
+        category: "source_validation",
+        ...(exactSource ? { source: exactSource } : {}),
+        next: createCliNext("edit_source", {
+          ...(exactSource ? { inspect: [exactSource] } : {}),
+          default: "Repair the exact selected Page Design System source through its source owner, then rerun the same image2 checkpoint.",
+        }),
+      },
+    };
+  }
+
+  if (PAGE_IMAGE_PROVIDER_INPUT_SIZE_CODES.has(reason)) {
+    return {
+      code: CLI_ERROR_CODES.FAILED,
+      message: "The selected Page Image canonical provider input exceeds its local size bound.",
+      hint: "Reduce the contributing source or visual configuration, then rebuild the current Page Image plan.",
+      diagnostic: {
+        ...common,
+        category: "source_validation",
+        next: createCliNext("edit_source", {
+          default: "Reduce the contributing Page Image source or visual configuration, then rerun image2 plan.",
         }),
       },
     };

@@ -9,19 +9,31 @@ import {
 } from "../../../ppt_maker_harness/scripts/shared/image2/page_image_artifacts.mjs";
 import { canonicalJson, canonicalJsonSha256 } from "../../../ppt_maker_harness/scripts/shared/identity/canonical_json.mjs";
 import {
+  PROGRESSIVE_ACCEPTED_RAW_EVIDENCE_SCHEMA,
+  PROGRESSIVE_RAW_BATCH_GRANT_SCHEMA,
+  PROGRESSIVE_RAW_BATCH_SCHEMA,
+  PROGRESSIVE_RAW_COMPLETE_REVIEW_SCHEMA,
+  PROGRESSIVE_RAW_ITEM_ATTEMPT_SCHEMA,
+  PROGRESSIVE_RAW_MATERIALIZATION_PROVENANCE_SCHEMA,
+  PROGRESSIVE_RAW_SCOPE_HEAD_SCHEMA,
   createProgressiveRawBatch,
   createProgressiveRawItemAttempt,
   createProgressiveRawMaterializationProvenance,
   createProgressiveRawScopeHead,
   createProgressiveRawWorkPlan,
+  progressiveRawAttemptKey,
+  progressiveRawIdempotencyKey,
   validateProgressiveRawBatch,
   validateProgressiveRawWorkPlan,
 } from "../../../ppt_maker_harness/scripts/shared/image2/page_image_progressive_schema.mjs";
 import { sha256Bytes } from "../../../ppt_maker_harness/scripts/shared/identity/byte_hash.mjs";
 import {
+  findProgressiveRawCompleteReviewBySha,
+  findProgressiveRawMaterializationByProvenance,
   publishProgressiveRawMaterialization,
   publishProgressiveRawStagedPlan,
   progressiveRawStorePaths,
+  readHistoricalCutoverProgressiveRawPlanDirectRecords,
   readProgressiveRawPlanDirectRecords,
   readProgressiveRawScopeHead,
   stageProgressiveRawPlanContainer,
@@ -103,6 +115,7 @@ function fixturePlan(count = 1, {
   effective_style_master_sha256 = digest("c"),
   source_execution_sha256 = digest("d"),
   task_mandate_sha256 = undefined,
+  pageDesignSystem = null,
 } = {}) {
   const ids = Array.from({ length: count }, (_value, index) => `Slide${String(index + 1).padStart(2, "0")}`);
   const generationProfile = fixtureGenerationProfile(profile_token);
@@ -125,7 +138,7 @@ function fixturePlan(count = 1, {
         slide_id,
         raw_contract_sha256: canonicalJsonSha256(rawContract),
         provider_input_binding: {
-          ...pageImageProviderInputBinding({ workflow }),
+          ...pageImageProviderInputBinding({ workflow, pageDesignSystem }),
           compiled_provider_input_sha256: compiledProviderInput.sha256,
           generation_profile_sha256: provider_profile_sha256,
         },
@@ -149,6 +162,195 @@ function fixtureRun() {
   const runDir = join(deck, "3_versions", "v1");
   mkdirSync(runDir, { recursive: true });
   return { root, deck, runDir };
+}
+
+function canonicalRecordBytes(record) {
+  return Buffer.from(`${canonicalJson(record)}\n`, "utf8");
+}
+
+function withFixtureSha(record) {
+  Object.defineProperty(record, "sha256", {
+    value: canonicalJsonSha256(record),
+    enumerable: false,
+    configurable: false,
+    writable: false,
+  });
+  return Object.freeze(record);
+}
+
+function formerPlanFromCurrent(currentPlan) {
+  const plan = structuredClone(currentPlan);
+  for (const item of plan.items) delete item.provider_input_binding.page_design_system_sha256;
+  return withFixtureSha(plan);
+}
+
+function formerPlanBinding(plan) {
+  return {
+    plan_sha256: plan.sha256,
+    run_version: plan.run_version,
+    source_receipt_sha256: plan.source_receipt_sha256,
+    source_epoch: plan.source_epoch,
+    workflow: plan.workflow,
+    provider_profile_sha256: plan.provider_profile_sha256,
+    effective_style_master_sha256: plan.effective_style_master_sha256,
+    source_execution_sha256: plan.source_execution_sha256,
+  };
+}
+
+function writeCanonicalRecord(pathname, record) {
+  mkdirSync(dirname(pathname), { recursive: true });
+  const bytes = canonicalRecordBytes(record);
+  writeFileSync(pathname, bytes);
+  return bytes;
+}
+
+function seedFormerProgressiveHead(runDir, {
+  count = 1,
+  withAcceptedEvidence = false,
+  withSubmittedAttempt = false,
+} = {}) {
+  const plan = formerPlanFromCurrent(fixturePlan(count));
+  const planPaths = progressiveRawStorePaths(runDir, { plan_sha256: plan.sha256 });
+  const planBytes = writeCanonicalRecord(planPaths.work_plan, plan);
+  const head = withFixtureSha({
+    schema: PROGRESSIVE_RAW_SCOPE_HEAD_SCHEMA,
+    run_version: plan.run_version,
+    workflow: plan.workflow,
+    plan_sha256: plan.sha256,
+    plan_generation: 1,
+    previous_plan_sha256: null,
+  });
+  const headPaths = progressiveRawStorePaths(runDir, { workflow: plan.workflow });
+  const headBytes = writeCanonicalRecord(headPaths.scope_head, head);
+  const seeded = { plan, head, planBytes, headBytes, records: [] };
+
+  if (withAcceptedEvidence) {
+    const bytes = Buffer.from("former accepted raw bytes");
+    const provenance = withFixtureSha({
+      schema: PROGRESSIVE_RAW_MATERIALIZATION_PROVENANCE_SCHEMA,
+      kind: "reuse",
+      ...formerPlanBinding(plan),
+      slide_id: plan.items[0].slide_id,
+      raw_contract_sha256: plan.items[0].raw_contract_sha256,
+      raw_sha256: sha256Bytes(bytes),
+      batch_sha256: null,
+      grant_sha256: null,
+      attempt_key_sha256: null,
+      reused_from_provenance_sha256: digest("9"),
+    });
+    const materializationPaths = progressiveRawStorePaths(runDir, {
+      plan_sha256: plan.sha256,
+      provenance_sha256: provenance.sha256,
+    });
+    writeCanonicalRecord(materializationPaths.materialization_provenance, provenance);
+    writeFileSync(materializationPaths.materialization_bytes, bytes);
+    const coverage = plan.items.map((item) => ({
+      slide_id: item.slide_id,
+      raw_contract_sha256: item.raw_contract_sha256,
+      raw_sha256: provenance.raw_sha256,
+      materialization_provenance_sha256: provenance.sha256,
+    }));
+    const prepared = withFixtureSha({
+      schema: PROGRESSIVE_RAW_COMPLETE_REVIEW_SCHEMA,
+      ...formerPlanBinding(plan),
+      ordered_slide_ids: [...plan.ordered_slide_ids],
+      items: coverage,
+      workflow_evidence_sha256: digest("7"),
+      projection_sha256: digest("8"),
+      decision: null,
+      previous_review_sha256: null,
+      retained_from_complete_raw_review_sha256: null,
+    });
+    const decided = withFixtureSha({
+      ...structuredClone(prepared),
+      decision: "proceed",
+      previous_review_sha256: prepared.sha256,
+    });
+    const accepted = withFixtureSha({
+      schema: PROGRESSIVE_ACCEPTED_RAW_EVIDENCE_SCHEMA,
+      raw_work_plan_sha256: plan.sha256,
+      run_version: plan.run_version,
+      source_receipt_sha256: plan.source_receipt_sha256,
+      source_epoch: plan.source_epoch,
+      workflow: plan.workflow,
+      provider_profile_sha256: plan.provider_profile_sha256,
+      effective_style_master_sha256: plan.effective_style_master_sha256,
+      source_execution_sha256: plan.source_execution_sha256,
+      complete_raw_review_sha256: decided.sha256,
+      ordered_slide_ids: [...plan.ordered_slide_ids],
+      items: coverage,
+    });
+    for (const review of [prepared, decided]) {
+      writeCanonicalRecord(join(planPaths.complete_reviews_root, `${review.sha256.slice(0, 8)}.json`), review);
+    }
+    writeCanonicalRecord(join(planPaths.accepted_evidence_root, `${accepted.sha256.slice(0, 8)}.json`), accepted);
+    seeded.materialization = { provenance, bytes };
+    seeded.review = { prepared, decided, accepted };
+  }
+
+  if (withSubmittedAttempt) {
+    const item = plan.items[0];
+    const batch = withFixtureSha({
+      schema: PROGRESSIVE_RAW_BATCH_SCHEMA,
+      ...formerPlanBinding(plan),
+      kind: "pilot",
+      batch_generation: 1,
+      previous_batch_sha256: null,
+      ordered_slide_ids: [item.slide_id],
+      items: [item],
+      review_sample_slide_ids: [item.slide_id],
+      paid_submission_slide_ids: [item.slide_id],
+      maximum_submissions: 1,
+      is_partial_pilot: false,
+    });
+    const grant = withFixtureSha({
+      schema: PROGRESSIVE_RAW_BATCH_GRANT_SCHEMA,
+      ...formerPlanBinding(plan),
+      batch_sha256: batch.sha256,
+      ordered_slide_ids: [item.slide_id],
+      items: [item],
+      maximum_submissions: 1,
+    });
+    const attemptKey = progressiveRawAttemptKey({
+      plan_sha256: plan.sha256,
+      batch_sha256: batch.sha256,
+      slide_id: item.slide_id,
+      raw_contract_sha256: item.raw_contract_sha256,
+    });
+    const claimed = withFixtureSha({
+      schema: PROGRESSIVE_RAW_ITEM_ATTEMPT_SCHEMA,
+      attempt_key_sha256: attemptKey,
+      ...formerPlanBinding(plan),
+      batch_sha256: batch.sha256,
+      grant_sha256: grant.sha256,
+      slide_id: item.slide_id,
+      raw_contract_sha256: item.raw_contract_sha256,
+      status: "claimed",
+      previous_attempt_sha256: null,
+      provider_request_sha256: null,
+      provider_idempotency_key: null,
+      materialization_provenance_sha256: null,
+    });
+    const submitted = withFixtureSha({
+      ...structuredClone(claimed),
+      status: "submitted",
+      previous_attempt_sha256: claimed.sha256,
+      provider_request_sha256: digest("6"),
+      provider_idempotency_key: progressiveRawIdempotencyKey({ attempt_key_sha256: attemptKey }),
+    });
+    const batchPaths = progressiveRawStorePaths(runDir, { plan_sha256: plan.sha256, batch_sha256: batch.sha256 });
+    writeCanonicalRecord(batchPaths.batch, batch);
+    writeCanonicalRecord(batchPaths.grant, grant);
+    for (const attempt of [claimed, submitted]) {
+      const attemptPaths = progressiveRawStorePaths(runDir, { plan_sha256: plan.sha256, attempt_sha256: attempt.sha256 });
+      seeded.records.push({ path: attemptPaths.attempt, bytes: writeCanonicalRecord(attemptPaths.attempt, attempt) });
+    }
+    seeded.batch = batch;
+    seeded.grant = grant;
+    seeded.claimed = claimed;
+    seeded.submitted = submitted;
+  }
+  return Object.freeze(seeded);
 }
 
 function appendTerminalAttemptSibling(runDir, { plan, batch_hash, slide_id = null, status }) {
@@ -251,9 +453,259 @@ describe("progressive Page Image raw owner", () => {
       ok: false,
       code: "progressive_raw_invalid_digest",
     });
+    expect(validateProgressiveRawWorkPlan(fixturePlan(1, { pageDesignSystem: "8" }))).toMatchObject({ ok: true });
+    const missingPageDesignSystem = structuredClone(plan);
+    delete missingPageDesignSystem.items[0].provider_input_binding.page_design_system_sha256;
+    expect(validateProgressiveRawWorkPlan(missingPageDesignSystem)).toMatchObject({
+      ok: false,
+      code: "progressive_raw_invalid_provider_input_binding",
+    });
+    const extraPageDesignSystem = structuredClone(plan);
+    extraPageDesignSystem.items[0].provider_input_binding.page_design_system_origin = "backbone";
+    expect(validateProgressiveRawWorkPlan(extraPageDesignSystem)).toMatchObject({
+      ok: false,
+      code: "progressive_raw_invalid_provider_input_binding",
+    });
+    const malformedPageDesignSystem = structuredClone(plan);
+    malformedPageDesignSystem.items[0].provider_input_binding.page_design_system_sha256 = "D".repeat(64);
+    expect(validateProgressiveRawWorkPlan(malformedPageDesignSystem)).toMatchObject({
+      ok: false,
+      code: "progressive_raw_invalid_digest",
+    });
     expect(validateProgressiveRawBatch(batch, { plan })).toMatchObject({ ok: true, sha256: batch.sha256 });
     expect(validateProgressiveRawBatch({ ...batch, provider_profile_sha256: digest("9") }, { plan }))
       .toMatchObject({ ok: false, code: "progressive_raw_cross_bound" });
+  });
+
+  it("advances an exact former head to a fresh current plan without reusing historical evidence", async () => {
+    const { root, runDir } = fixtureRun();
+    try {
+      const former = seedFormerProgressiveHead(runDir, { withAcceptedEvidence: true });
+      const formerDirectBefore = readHistoricalCutoverProgressiveRawPlanDirectRecords(runDir, {
+        plan_sha256: former.plan.sha256,
+      });
+      expect(inspectProgressiveRawLifecycle({ runDir, workflow: "pure" })).toMatchObject({
+        ok: false,
+        code: "progressive_raw_plan_stale",
+        next_action: { action_id: "rebuild_progressive_raw_work" },
+      });
+      await expect(planProgressiveRawPilot({
+        runDir,
+        workflow: "pure",
+        plan_hash: former.plan.sha256,
+        slide_ids: ["Slide01"],
+      })).rejects.toMatchObject({
+        code: "progressive_raw_plan_stale",
+        next_action: { action_id: "rebuild_progressive_raw_work" },
+      });
+
+      const successor = fixturePlan(1, {
+        source_receipt_sha256: digest("e"),
+        source_execution_sha256: digest("f"),
+      });
+      const publication = publishProgressiveRawWorkPlan({
+        runDir,
+        plan: successor,
+        reuse_current_materializations: true,
+        retain_current_complete_review: true,
+      });
+      expect(publication).toMatchObject({
+        plan_hash: successor.sha256,
+        reused_slide_ids: [],
+        head: {
+          plan_generation: 2,
+          previous_plan_sha256: former.plan.sha256,
+        },
+      });
+      expect(publication.retained_complete_raw_review_sha256).toBeUndefined();
+      expect(readProgressiveRawScopeHead(runDir, { workflow: "pure", plan: successor }).record)
+        .toMatchObject({ plan_sha256: successor.sha256, previous_plan_sha256: former.plan.sha256 });
+      expect(readFileSync(progressiveRawStorePaths(runDir, { plan_sha256: former.plan.sha256 }).work_plan))
+        .toEqual(former.planBytes);
+      expect(readHistoricalCutoverProgressiveRawPlanDirectRecords(runDir, { plan_sha256: former.plan.sha256 }))
+        .toEqual(formerDirectBefore);
+
+      const successorDirect = readProgressiveRawPlanDirectRecords(runDir, { plan_sha256: successor.sha256 });
+      expect(successorDirect).toMatchObject({
+        batches: [],
+        grants: [],
+        attempts: [],
+        materializations: [],
+        complete_reviews: [],
+        accepted_evidence: [],
+      });
+      expect(findProgressiveRawMaterializationByProvenance(runDir, {
+        provenance_sha256: former.materialization.provenance.sha256,
+      })).toBeNull();
+      expect(findProgressiveRawCompleteReviewBySha(runDir, {
+        complete_raw_review_sha256: former.review.decided.sha256,
+      })).toBeNull();
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("reconciles an exact former submitted attempt without resubmission before successor publication", async () => {
+    const { root, runDir } = fixtureRun();
+    try {
+      const former = seedFormerProgressiveHead(runDir, { withSubmittedAttempt: true });
+      expect(inspectProgressiveRawLifecycle({ runDir, workflow: "pure" })).toMatchObject({
+        ok: false,
+        code: "progressive_raw_reconciliation_required",
+        next_action: {
+          action_id: "reconcile_progressive_raw_attempt",
+          plan_hash: former.plan.sha256,
+          attempt_sha256: former.submitted.sha256,
+        },
+      });
+      const successor = fixturePlan(1, {
+        source_receipt_sha256: digest("e"),
+        source_execution_sha256: digest("f"),
+      });
+      expect(() => publishProgressiveRawWorkPlan({ runDir, plan: successor }))
+        .toThrow(/submitted attempt blocks successor publication/i);
+      await expect(planProgressiveRawPilot({
+        runDir,
+        workflow: "pure",
+        plan_hash: former.plan.sha256,
+        slide_ids: ["Slide01"],
+      })).rejects.toMatchObject({ code: "progressive_raw_reconciliation_required" });
+
+      const lookup = vi.fn(async () => ({ outcome: "known_failure" }));
+      const reconciled = await reconcileProgressiveRawAttempt({
+        runDir,
+        workflow: "pure",
+        plan_hash: former.plan.sha256,
+        attempt_sha256: former.submitted.sha256,
+        lookup,
+      });
+      expect(lookup).toHaveBeenCalledTimes(1);
+      expect(reconciled).toMatchObject({
+        replay: false,
+        outcome: "known_failure",
+        next_action: { action_id: "rebuild_progressive_raw_work" },
+      });
+      const direct = readHistoricalCutoverProgressiveRawPlanDirectRecords(runDir, {
+        plan_sha256: former.plan.sha256,
+      });
+      expect(direct.attempts).toHaveLength(3);
+      expect(direct.attempts.filter((entry) => entry.record.status === "known_failure")).toHaveLength(1);
+      expect(readFileSync(progressiveRawStorePaths(runDir, { plan_sha256: former.plan.sha256 }).work_plan))
+        .toEqual(former.planBytes);
+      for (const retained of former.records) expect(readFileSync(retained.path)).toEqual(retained.bytes);
+
+      const replay = await reconcileProgressiveRawAttempt({
+        runDir,
+        workflow: "pure",
+        plan_hash: former.plan.sha256,
+        attempt_sha256: former.submitted.sha256,
+        lookup,
+      });
+      expect(replay).toMatchObject({ replay: true, outcome: "known_failure" });
+      expect(lookup).toHaveBeenCalledTimes(1);
+
+      expect(publishProgressiveRawWorkPlan({ runDir, plan: successor })).toMatchObject({
+        head: { previous_plan_sha256: former.plan.sha256, plan_generation: 2 },
+        reused_slide_ids: [],
+      });
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps mixed former/current shapes and corrupted former containers fail-closed", () => {
+    const scenarios = [
+      {
+        name: "mixed binding keys",
+        mutate(runDir, former) {
+          const mixed = structuredClone(former.plan);
+          mixed.items[0].provider_input_binding.page_design_system_sha256 = null;
+          writeFileSync(
+            progressiveRawStorePaths(runDir, { plan_sha256: former.plan.sha256 }).work_plan,
+            canonicalRecordBytes(mixed),
+          );
+        },
+      },
+      {
+        name: "malformed direct record",
+        mutate(runDir, former) {
+          const paths = progressiveRawStorePaths(runDir, { plan_sha256: former.plan.sha256 });
+          writeCanonicalRecord(join(paths.attempts_root, "aaaaaaaa.json"), {});
+        },
+      },
+      {
+        name: "noncanonical plan bytes",
+        mutate(runDir, former) {
+          writeFileSync(
+            progressiveRawStorePaths(runDir, { plan_sha256: former.plan.sha256 }).work_plan,
+            Buffer.from(JSON.stringify(former.plan), "utf8"),
+          );
+        },
+      },
+      {
+        name: "content-address mismatch",
+        mutate(runDir, former) {
+          const other = formerPlanFromCurrent(fixturePlan(1, { source_receipt_sha256: digest("e") }));
+          writeFileSync(
+            progressiveRawStorePaths(runDir, { plan_sha256: former.plan.sha256 }).work_plan,
+            canonicalRecordBytes(other),
+          );
+        },
+      },
+    ];
+    for (const scenario of scenarios) {
+      const { root, runDir } = fixtureRun();
+      try {
+        const former = seedFormerProgressiveHead(runDir, { count: 2 });
+        scenario.mutate(runDir, former);
+        const result = inspectProgressiveRawLifecycle({ runDir, workflow: "pure" });
+        expect(result, scenario.name).toMatchObject({
+          ok: false,
+          next_action: { action_id: "report_internal" },
+        });
+        expect(() => publishProgressiveRawWorkPlan({ runDir, plan: fixturePlan(2) }), scenario.name)
+          .toThrow();
+      } finally {
+        rmSync(root, { recursive: true, force: true });
+      }
+    }
+  });
+
+  it("rejects a stale scope-head CAS after a former-head race", () => {
+    const { root, runDir } = fixtureRun();
+    try {
+      const former = seedFormerProgressiveHead(runDir);
+      const successor = fixturePlan(1, {
+        source_receipt_sha256: digest("e"),
+        source_execution_sha256: digest("f"),
+      });
+      const desiredHead = createProgressiveRawScopeHead({
+        run_version: successor.run_version,
+        workflow: successor.workflow,
+        plan_sha256: successor.sha256,
+        plan_generation: 2,
+        previous_plan_sha256: former.plan.sha256,
+      }, { plan: successor });
+      const racedHead = {
+        schema: PROGRESSIVE_RAW_SCOPE_HEAD_SCHEMA,
+        run_version: former.plan.run_version,
+        workflow: former.plan.workflow,
+        plan_sha256: former.plan.sha256,
+        plan_generation: 2,
+        previous_plan_sha256: digest("9"),
+      };
+      const scopePath = progressiveRawStorePaths(runDir, { workflow: "pure" }).scope_head;
+      writeCanonicalRecord(scopePath, racedHead);
+      expect(() => writeProgressiveRawScopeHeadCas(runDir, {
+        workflow: "pure",
+        head: desiredHead,
+        plan: successor,
+        expected_bytes: former.headBytes,
+      })).toThrow(/scope head changed before compare-and-swap/i);
+      expect(readFileSync(scopePath)).toEqual(canonicalRecordBytes(racedHead));
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 
   it("requires a matching current Task Mandate before a new batch grant or provider attempt", async () => {

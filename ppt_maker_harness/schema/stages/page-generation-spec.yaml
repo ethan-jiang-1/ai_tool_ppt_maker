@@ -15,12 +15,13 @@ inputs:
   - page-source-receipt
   - page-layout
   - visual-language
+  - page-image-design-system-binding
 outputs:
   - image2-request
   - image-generation-plan
 provenance:
-  source: "The normalized source receipt, selected visual language, generation profile, style-master selection, and resolved layout."
-  requirement: "Retain canonical semantic digests for the page facts, all selected configuration, and the Core binding copied into the derived publication."
+  source: "The normalized source receipt, selected visual language, generation profile, style-master selection, resolved layout, and optional Page Design System binding."
+  requirement: "Retain canonical semantic digests for the page facts, all selected configuration, the nullable Page Design System digest, and the Core binding copied into the derived publication."
 downstream_consumers:
   - image2-request
   - image-generation-plan
@@ -52,3 +53,11 @@ fields:
       means: "The provider instruction could be compiled from unrelated configuration."
       ask: "Which approved visual and presentation choices should this page use?"
       never: "Never bind unselected sibling configuration to the page."
+  page_design_system_sha256:
+    type: nullable sha256 digest
+    description: "The digest of the selected shared Page Design System text, or null when the optional source is absent or blank."
+    rule: "Must exactly match the selected adapter raw contract and ordinary/progressive plan binding for both workflows."
+    on_violation:
+      means: "The page semantics cannot prove which shared provider-design source they compile from."
+      ask: "Repair the selected page-design-system.md source or its direct resolver binding, then rebuild the current raw plan."
+      never: "Never read prose from a provider request, borrow a previous digest, or treat a null/non-null transition as style-only refresh."

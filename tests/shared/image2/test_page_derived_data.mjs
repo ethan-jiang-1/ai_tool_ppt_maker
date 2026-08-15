@@ -33,6 +33,7 @@ function fixtureRun(name) {
 
 function inputFor(workflow, { ids = ["StoryGo", "ChartUp"], requestSuffix = "" } = {}) {
   const sourceSha = fixedDigest("a");
+  const pageDesignSystemSha256 = null;
   const generationProfile = { provider: { model: "mock" }, output: { format: "png" } };
   const profileSha = canonicalJsonSha256(generationProfile);
   const pages = ids.map((slide_id, index) => {
@@ -104,6 +105,7 @@ function inputFor(workflow, { ids = ["StoryGo", "ChartUp"], requestSuffix = "" }
     generation_profile_sha256: profileSha,
     header_policy_sha256: fixedDigest(hexAt(index + 4)),
     page_presentation_sha256: page.visual_language.presentation.binding_sha256,
+    page_design_system_sha256: pageDesignSystemSha256,
     subject_restrictions: page.subject_restrictions,
     provider_content: page.provider_content,
     header_policy: page.header_policy,
@@ -117,6 +119,7 @@ function inputFor(workflow, { ids = ["StoryGo", "ChartUp"], requestSuffix = "" }
     generation_profile_sha256: profileSha,
     header_policy_sha256: coreSlides[index].header_policy_sha256,
     page_presentation_sha256: coreSlides[index].page_presentation_sha256,
+    page_design_system_sha256: pageDesignSystemSha256,
     local_header_profile_sha256: workflow === "framed" ? fixedDigest(hexAt(index + 5)) : null,
     protected_composition_sha256: workflow === "framed" ? canonicalJsonSha256(page.visual_language.presentation.protected_composition) : null,
   }));
@@ -148,7 +151,13 @@ function inputFor(workflow, { ids = ["StoryGo", "ChartUp"], requestSuffix = "" }
     receipt,
     raw_work_plan: raw,
     progressive_raw_work_plan: progressive,
-    page_image_core: { schema: "page-image-core-facts", workflow, source_receipt_sha256: sourceSha, slides: coreSlides },
+    page_image_core: {
+      schema: "page-image-core-facts",
+      workflow,
+      source_receipt_sha256: sourceSha,
+      page_design_system_sha256: pageDesignSystemSha256,
+      slides: coreSlides,
+    },
     provider_requests_by_slide: Object.fromEntries(pages.map((page, index) => [page.slide_id, {
       schema: "page-image-target-raw-provider-request",
       slide_id: page.slide_id,

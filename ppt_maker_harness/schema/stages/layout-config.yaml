@@ -1,18 +1,20 @@
 schema: layout-config
 kind: source
 scope: version
-purpose: "Resolve a closed page class into isolated framed or pure presentation profiles with inheritance provenance."
-answers: "Which class and workflow-specific profile govern this page's presentation treatment?"
-owner: "scripts/shared/run-bundle/bundle_layout.mjs (locations and seeds); scripts/02-visual-system/internal/page_image_presentation.mjs (validation and resolution)"
+purpose: "Resolve a closed page class into isolated framed or pure presentation profiles with inheritance provenance, plus one optional shared Page Design System source binding."
+answers: "Which class and workflow-specific profile govern this page's presentation treatment, and which optional shared provider-design text is selected?"
+owner: "scripts/shared/run-bundle/bundle_layout.mjs (locations and seeds); scripts/02-visual-system/internal/page_image_presentation.mjs (presentation validation and resolution); scripts/02-visual-system/internal/page_design_system.mjs (opaque shared design-system binding)"
 producer_status: materialized
 inputs:
   - page-source
   - version visual-style/page-image-presentation source package
+  - optional version-resolved visual-style/page-design-system.md source
 outputs:
   - in-memory page-layout projection
+  - in-memory page-image-design-system-binding
 provenance:
-  source: "Override-first/backbone-default page-class catalog, deck defaults, Pure profiles, and Framed header profiles."
-  requirement: "Validate all four source contracts before resolution; bind each page only to its selected class/profile/default values and their provenance."
+  source: "Override-first/backbone-default page-class catalog, deck defaults, Pure profiles, Framed header profiles, and optional opaque Page Design System prose."
+  requirement: "Validate all four presentation source contracts before class resolution; bind each page only to its selected class/profile/default values and their provenance. Resolve the optional Page Design System as a separate local text/digest binding."
 downstream_consumers:
   - page-layout
   - page-generation-spec
@@ -20,6 +22,7 @@ downstream_consumers:
 does_not_contain:
   - "Per-page copy, a provider prompt, or provider transport bytes."
   - "A shared profile that mixes Pure facts with Framed header facts, a generated projection, or lifecycle evidence."
+  - "A provider-facing path, selection origin, authorization, review, or lifecycle fact for the Page Design System."
 fields:
   page_class:
     type: enum
@@ -62,3 +65,11 @@ fields:
       means: "The selected profile cannot produce one exact provider-facing composition lineage."
       ask: "Repair the selected profile or its declared canvas, then rerun the same resolution checkpoint."
       never: "Never infer composition from a slide, derived output, prior plan, or Pure projection."
+  page_design_system_binding:
+    type: "local page-image-design-system-binding: { schema, text, sha256 }"
+    description: "One immutable optional opaque UTF-8 design-system source binding shared by Pure and Framed adapters."
+    rule: "The selected override-first source is a regular confined file. Its exact nonblank text and lowercase SHA-256 appear together, or both text and sha256 are null; its source bytes are at most 8192 before UTF-8 decoding."
+    on_violation:
+      means: "The selected shared provider-design source is unsafe, malformed, or cannot be attributed exactly."
+      ask: "Repair the selected page-design-system.md source and rerun the same provider-free planning checkpoint."
+      never: "Never parse prose as a visual-language record, fall back from an invalid existing override, use a generated or historical value, or expose source path/origin to a provider."

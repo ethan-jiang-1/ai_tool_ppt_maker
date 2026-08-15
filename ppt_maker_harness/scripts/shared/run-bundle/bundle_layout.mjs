@@ -34,7 +34,8 @@
  *     │   └── visual-style/
  *     │       ├── style-master-prompt.md   the prompt that GENERATES style_master
  *     │       ├── style_master.jpg
- *     │       └── page-image-visual-language.yaml
+ *     │       ├── page-image-visual-language.yaml
+ *     │       └── page-design-system.md    optional shared provider design guidance
  *     │
  *     └── 3_versions/
  *         └── v1/                        DOWNSTREAM delta · one design iteration · --run-dir
@@ -220,6 +221,7 @@ export const BACKBONE_STYLE_SUBDIR = 'visual-style';
 export const STYLE_MASTER_PROMPT = 'style-master-prompt.md';
 export const STYLE_MASTER_IMAGE = 'style_master.jpg';
 export const PAGE_IMAGE_VISUAL_LANGUAGE_FILE = 'page-image-visual-language.yaml';
+export const PAGE_DESIGN_SYSTEM_FILE = 'page-design-system.md';
 export const PAGE_IMAGE_PRESENTATION_SUBDIR = 'page-image-presentation';
 export const PAGE_IMAGE_CLASSES = Object.freeze(['standard', 'opening', 'transition', 'closing']);
 export const PAGE_CLASS_CATALOG_FILE = 'page-class-catalog.yaml';
@@ -422,7 +424,11 @@ export const BACKBONE_SUBDIRS = Object.freeze([BACKBONE_MANUSCRIPT_SUBDIR, BACKB
 export const BACKBONE_OPTIONAL = new Set(['visual-style.md']);
 
 export const VISUAL_STYLE_FILES = Object.freeze([
-    STYLE_MASTER_PROMPT, STYLE_MASTER_IMAGE, PAGE_IMAGE_VISUAL_LANGUAGE_FILE, PAGE_IMAGE_PRESENTATION_SUBDIR,
+    STYLE_MASTER_PROMPT,
+    STYLE_MASTER_IMAGE,
+    PAGE_IMAGE_VISUAL_LANGUAGE_FILE,
+    PAGE_DESIGN_SYSTEM_FILE,
+    PAGE_IMAGE_PRESENTATION_SUBDIR,
 ]);
 
 export const VISUAL_STYLE_OPTIONAL = new Set([
@@ -1406,6 +1412,7 @@ const _DIR_READMES = {
         '# 视觉主干\n\n' +
         '**这里放什么:**\n' +
         '- `page-image-visual-language.yaml` — current recipe, composition, motif, and frame inputs\n' +
+        '- `page-design-system.md` — optional shared Page Image provider design guidance for both Pure and Framed; a version may override it only at `overrides/visual-style/page-design-system.md`\n' +
         '- `page-image-presentation/` — Page Class catalog, deck defaults, Pure profiles, and Framed header profiles; version overrides use the matching `overrides/visual-style/page-image-presentation/` path\n' +
         '- `style-master-prompt.md` — Style Master intent input; `style_master.jpg` — derived presentation JPEG after acceptance\n' +
         '- `assets/asset-manifest.yaml` — verified local references\n\n' +
@@ -1448,6 +1455,7 @@ const _DIR_READMES = {
         '# 这一版的覆盖(overrides)\n\n' +
         '**这里放什么:** 只放这一版**偏离 backbone** 的东西。空着 = 完全继承 backbone。\n' +
         '- 要这版单独改视觉 → `overrides/visual-style/`(放改动的那几个文件)\n' +
+        '- 要这版关闭或改写共享 provider design guidance → `overrides/visual-style/page-design-system.md`\n' +
         '- 要这版单独改讲稿 → `overrides/manuscript/`\n\n' +
         '管线取件规则:这里有 → 用这里的;没有 → 回退 backbone。\n'
     ),
@@ -1473,7 +1481,7 @@ production identity, node, gates, and recovery actions always come from state/st
 |---|---|
 | Slide text, structure, layout family, and notes | \`${VERSIONS_DIR}/vN/${SLIDE_SPECS_NAME}\` |
 | Narrative, formula, and design constraints | \`${BACKBONE_DIR}/\` |
-| Visual system and local assets | \`${BACKBONE_DIR}/${BACKBONE_STYLE_SUBDIR}/\` |
+| Visual language, shared Page Image design guidance, presentation package, and local assets | \`${BACKBONE_DIR}/${BACKBONE_STYLE_SUBDIR}/\` |
 | Research material | \`${UPSTREAM_DIR}/\` |
 
 Never hand-edit \`${VERSIONS_DIR}/vN/${GENERATED_SUBDIR}/\`; edit its source and rerun the
@@ -1618,6 +1626,9 @@ function initBundleForDraft(deckDir, harnessDir = null, deckType = null, style =
     _writeIfAbsent(
         path.join(deckDir, BACKBONE_DIR, BACKBONE_STYLE_SUBDIR, PAGE_IMAGE_VISUAL_LANGUAGE_FILE),
         PAGE_IMAGE_VISUAL_LANGUAGE_SEED);
+    _writeIfAbsent(
+        path.join(deckDir, BACKBONE_DIR, BACKBONE_STYLE_SUBDIR, PAGE_DESIGN_SYSTEM_FILE),
+        '');
     _writeIfAbsent(path.join(deckDir, presentationBase, PAGE_CLASS_CATALOG_FILE), PAGE_CLASS_CATALOG_SEED);
     _writeIfAbsent(path.join(deckDir, presentationBase, PAGE_IMAGE_DECK_DEFAULTS_FILE), PAGE_IMAGE_DECK_DEFAULTS_SEED);
     _writeIfAbsent(path.join(deckDir, presentationBase, PURE_DECK_VISUAL_SYSTEM_FILE), PURE_DECK_VISUAL_SYSTEM_SEED);
@@ -1730,6 +1741,7 @@ deck_\${NAME}/
 │       ├── ${STYLE_MASTER_PROMPT}
 │       ├── ${STYLE_MASTER_IMAGE}            ← override-first/backbone-default JPEG presentation JPEG projection only
 │       ├── ${PAGE_IMAGE_VISUAL_LANGUAGE_FILE}
+│       ├── ${PAGE_DESIGN_SYSTEM_FILE}          ← optional shared Pure/Framed provider design guidance
 │       ├── ${PURE_DECK_VISUAL_SYSTEM_FILE}  ← Pure-only version-resolved source contract
 │       └── ${BACKBONE_ASSETS_SUBDIR}/                   ← optional Page Image reference registry
 │           ├── ${ASSET_MANIFEST_FILE}
@@ -1800,7 +1812,7 @@ export function selfCheck() {
     }
 
     const tree = renderTree();
-    for (const n of [UPSTREAM_DIR, BACKBONE_DIR, VERSIONS_DIR, GENERATED_SUBDIR, SCRATCH_SUBDIR, SLIDE_SPECS_NAME, STATE_DIR, LESSONS_DIR, BACKBONE_STORY_OUTLINE, BACKBONE_ASSETS_SUBDIR, ASSET_MANIFEST_FILE]) {
+    for (const n of [UPSTREAM_DIR, BACKBONE_DIR, VERSIONS_DIR, GENERATED_SUBDIR, SCRATCH_SUBDIR, SLIDE_SPECS_NAME, STATE_DIR, LESSONS_DIR, BACKBONE_STORY_OUTLINE, BACKBONE_ASSETS_SUBDIR, ASSET_MANIFEST_FILE, PAGE_DESIGN_SYSTEM_FILE]) {
         if (!tree.includes(n)) {
             problems.push(`renderTree() is missing canonical entry ${JSON.stringify(n)} (stale hardcoded literal?)`);
         }

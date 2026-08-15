@@ -154,6 +154,9 @@ function addIssue(issues, code, path, message) {
 
 const VERSION_SUFFIX = /-v[1-9][0-9]*\b/;
 const CONTRACT_VALUE = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
+const PAGE_DESIGN_SYSTEM_BINDING_SCHEMA = "page-image-design-system-binding";
+const PAGE_DESIGN_SYSTEM_BINDING_STAGE = "layout-config";
+const PAGE_DESIGN_SYSTEM_BINDING_ROLE = "version-design-system-binding";
 
 /**
  * Evaluate a parsed serialization-contract snapshot without reading files or
@@ -196,6 +199,16 @@ export function evaluateProductionSchemaConformance(snapshot = {}) {
     if (!stageNames.has(entry?.stage_ref) || typeof entry?.role !== "string" || !entry.role.trim()) {
       issues.push({ code: "wire-stage-role-invalid", path: entry?.location || "wire schema", message: `${entry?.value || "wire schema"} must reference one declared stage and role` });
     }
+  }
+  const pageDesignSystemWireSchemas = wireSchemas.filter((entry) => entry?.value === PAGE_DESIGN_SYSTEM_BINDING_SCHEMA);
+  if (pageDesignSystemWireSchemas.length !== 1 ||
+    pageDesignSystemWireSchemas[0]?.stage_ref !== PAGE_DESIGN_SYSTEM_BINDING_STAGE ||
+    pageDesignSystemWireSchemas[0]?.role !== PAGE_DESIGN_SYSTEM_BINDING_ROLE) {
+    issues.push({
+      code: "page-design-system-binding-declaration-invalid",
+      path: "serialization-contracts.yaml",
+      message: `${PAGE_DESIGN_SYSTEM_BINDING_SCHEMA} must appear exactly once as ${PAGE_DESIGN_SYSTEM_BINDING_STAGE}/${PAGE_DESIGN_SYSTEM_BINDING_ROLE}`,
+    });
   }
   for (const entry of stageArtifactEnvelopes) {
     const stage = entry?.stage_ref;
@@ -706,6 +719,147 @@ export function evaluateFramedCompositionConformance(snapshot = {}) {
   }
   if (framedCompositionContainsField({ presentation, raw_contract: snapshot.raw_contract, provider_input_binding: snapshot.provider_input_binding }, new Set(["protected_geometry"]))) {
     issue("framed-composition-legacy-geometry", "framed-lineage", "Framed current lineage must not retain protected_geometry");
+  }
+  return Object.freeze({ ok: issues.length === 0, issues: Object.freeze(issues) });
+}
+
+const PAGE_DESIGN_SYSTEM_SHA256 = /^[0-9a-f]{64}$/;
+const PAGE_DESIGN_SYSTEM_PROVIDER_INPUT_MAX_UTF8_BYTES = 32768;
+const PAGE_DESIGN_SYSTEM_PROVIDER_LINEAGE_FIELDS = new Set([
+  "page_design_system",
+  "page_design_system_sha256",
+  "design_system_sha256",
+  "design_system_path",
+  "design_system_origin",
+  "design_system_plan_id",
+  "design_system_authorization",
+  "design_system_grant",
+  "design_system_attempt",
+  "design_system_review",
+  "design_system_lifecycle",
+]);
+const PAGE_DESIGN_SYSTEM_PURE_FORBIDDEN_FIELDS = new Set([
+  "header_region",
+  "protected_composition",
+  "protected_composition_sha256",
+  "reserved_header",
+  "body_safe",
+  "local_header",
+  "subject_restrictions",
+]);
+const PAGE_DESIGN_SYSTEM_FRAMED_FORBIDDEN_FIELDS = new Set([
+  "deck_visual_system",
+  "deck_visual_system_sha256",
+  "pure_zones",
+]);
+
+function pageDesignSystemExactKeys(value, keys) {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value)) &&
+    Object.keys(value).length === keys.length && keys.every((key) => Object.hasOwn(value, key));
+}
+
+function pageDesignSystemTextDigestPair(value, { schema = false } = {}) {
+  const keys = schema ? ["schema", "text", "sha256"] : ["text", "sha256"];
+  if (!pageDesignSystemExactKeys(value, keys) || (schema && value.schema !== PAGE_DESIGN_SYSTEM_BINDING_SCHEMA)) return false;
+  if ((value.text === null) !== (value.sha256 === null)) return false;
+  return value.text === null ||
+    (typeof value.text === "string" && value.text.trim().length > 0 && PAGE_DESIGN_SYSTEM_SHA256.test(value.sha256));
+}
+
+function pageDesignSystemSamePair(left, right) {
+  return left?.text === right?.text && left?.sha256 === right?.sha256;
+}
+
+function pageDesignSystemNullableDigest(value) {
+  return value === null || PAGE_DESIGN_SYSTEM_SHA256.test(value || "");
+}
+
+function pageDesignSystemContainsField(value, fields) {
+  if (Array.isArray(value)) return value.some((entry) => pageDesignSystemContainsField(entry, fields));
+  if (!value || typeof value !== "object") return false;
+  return Object.entries(value).some(([key, entry]) => fields.has(key) || pageDesignSystemContainsField(entry, fields));
+}
+
+function pageDesignSystemProviderLineagePaths(value, path = "provider_request", paths = []) {
+  if (Array.isArray(value)) {
+    value.forEach((entry, index) => pageDesignSystemProviderLineagePaths(entry, `${path}[${index}]`, paths));
+    return paths;
+  }
+  if (!value || typeof value !== "object") return paths;
+  for (const [key, entry] of Object.entries(value)) {
+    const childPath = `${path}.${key}`;
+    if (PAGE_DESIGN_SYSTEM_PROVIDER_LINEAGE_FIELDS.has(key)) paths.push(childPath);
+    if (key !== "design_system") pageDesignSystemProviderLineagePaths(entry, childPath, paths);
+  }
+  return paths;
+}
+
+/**
+ * Evaluate synthetic Page Design System facts without reading source files,
+ * constructing request bytes, or invoking runtime validators. It checks the
+ * declared cross-boundary shape only; the resolver and selected adapters own
+ * exact source bytes, digest computation, and request compilation at runtime.
+ */
+export function evaluatePageDesignSystemConformance(snapshot = {}) {
+  const issues = [];
+  const issue = (code, path, message) => issues.push({ code, path, message });
+  const workflow = snapshot?.workflow;
+  const wireSchemas = snapshot?.wire_schemas;
+  if (!Array.isArray(wireSchemas) || !["framed", "pure"].includes(workflow)) {
+    return Object.freeze({ ok: false, issues: Object.freeze([{
+      code: "page-design-system-snapshot-invalid",
+      path: "snapshot",
+      message: "workflow and wire_schemas are required for static Page Design System conformance",
+    }]) });
+  }
+
+  const declarations = wireSchemas.filter((entry) => entry?.value === PAGE_DESIGN_SYSTEM_BINDING_SCHEMA);
+  if (declarations.length !== 1 || declarations[0]?.stage_ref !== PAGE_DESIGN_SYSTEM_BINDING_STAGE ||
+    declarations[0]?.role !== PAGE_DESIGN_SYSTEM_BINDING_ROLE) {
+    issue("page-design-system-binding-declaration-invalid", "wire_schemas", "the local binding must be declared exactly once as layout-config/version-design-system-binding");
+  }
+
+  const localBinding = snapshot?.page_design_system_binding;
+  if (!pageDesignSystemTextDigestPair(localBinding, { schema: true })) {
+    issue("page-design-system-local-binding-invalid", "page_design_system_binding", "the local binding must have exactly schema, text, and sha256 with null symmetry");
+  }
+
+  const rawBinding = snapshot?.raw_contract?.page_design_system;
+  if (!pageDesignSystemTextDigestPair(rawBinding) || !pageDesignSystemSamePair(rawBinding, localBinding)) {
+    issue("page-design-system-raw-binding-invalid", "raw_contract.page_design_system", "the adapter raw contract must project the exact local text/digest pair without extra facts");
+  }
+
+  for (const [name, binding] of [
+    ["core_facts", snapshot?.core_facts],
+    ["ordinary_plan_binding", snapshot?.ordinary_plan_binding],
+    ["progressive_plan_binding", snapshot?.progressive_plan_binding],
+    ["provider_input_binding", snapshot?.provider_input_binding],
+  ]) {
+    const digest = binding?.page_design_system_sha256;
+    if (!pageDesignSystemNullableDigest(digest) || digest !== rawBinding?.sha256) {
+      issue("page-design-system-digest-binding-invalid", `${name}.page_design_system_sha256`, `${name} must carry the raw-contract nullable Page Design System digest exactly`);
+    }
+  }
+
+  const request = snapshot?.provider_request;
+  if (!request || typeof request !== "object" || Array.isArray(request) || !Object.hasOwn(request, "design_system") ||
+    (request.design_system !== null && typeof request.design_system !== "string") ||
+    request.design_system !== rawBinding?.text) {
+    issue("page-design-system-provider-field-invalid", "provider_request.design_system", "the provider request must retain one top-level text-or-null design_system field equal to the raw contract text");
+  }
+  const leakedPaths = pageDesignSystemProviderLineagePaths(request);
+  if (leakedPaths.length) {
+    issue("page-design-system-provider-lineage-leak", leakedPaths.join(", "), "the provider-facing design_system representation must not expose local path, origin, digest, plan, authorization, or lifecycle facts");
+  }
+
+  const inputBytes = snapshot?.provider_input_utf8_bytes;
+  if (!Number.isInteger(inputBytes) || inputBytes < 0 || inputBytes > PAGE_DESIGN_SYSTEM_PROVIDER_INPUT_MAX_UTF8_BYTES) {
+    issue("page-design-system-provider-size-invalid", "provider_input_utf8_bytes", `the declared full canonical provider input must be an integer no greater than ${PAGE_DESIGN_SYSTEM_PROVIDER_INPUT_MAX_UTF8_BYTES} UTF-8 bytes`);
+  }
+
+  const crossWorkflowFields = workflow === "pure" ? PAGE_DESIGN_SYSTEM_PURE_FORBIDDEN_FIELDS : PAGE_DESIGN_SYSTEM_FRAMED_FORBIDDEN_FIELDS;
+  if (pageDesignSystemContainsField({ raw_contract: snapshot?.raw_contract, provider_request: request }, crossWorkflowFields)) {
+    issue("page-design-system-cross-workflow-leak", workflow, "the shared binding may not transfer workflow-specific provider facts across the Pure/Framed boundary");
   }
   return Object.freeze({ ok: issues.length === 0, issues: Object.freeze(issues) });
 }

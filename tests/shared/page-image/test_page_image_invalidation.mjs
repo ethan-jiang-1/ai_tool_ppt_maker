@@ -196,6 +196,7 @@ describe("Page Image invalidation", () => {
       ["generation_profile_sha256", "generation_profile_drift", "9"],
       ["header_policy_sha256", "header_policy_drift", "9"],
       ["page_presentation_sha256", "page_presentation_drift", "8"],
+      ["page_design_system_sha256", "page_design_system_drift", "8"],
       ["local_header_profile_sha256", "local_header_profile_drift", "9"],
       ["protected_composition_sha256", "protected_composition_drift", "9"],
     ];
@@ -241,6 +242,28 @@ describe("Page Image invalidation", () => {
       next_action: "authorize_and_rebuild_pure_raw",
     });
     expect(historicalEvidence).toEqual(evidenceBefore);
+  });
+
+  it("treats Page Design System null transitions as raw rebuild debt", () => {
+    const currentReceipt = receipt({ workflow: "pure", source: "a" });
+    const previousPlan = rawPlan(currentReceipt);
+    const nextPlan = rawPlan(currentReceipt, {
+      binding: { page_design_system_sha256: digest("8") },
+    });
+
+    expect(evaluatePageImageInvalidation({
+      previousReceipt: currentReceipt,
+      nextReceipt: currentReceipt,
+      previousRawWorkPlan: previousPlan,
+      nextRawWorkPlan: nextPlan,
+      acceptedRawEvidence: acceptedEvidence(previousPlan),
+    })).toMatchObject({
+      workflow: "pure",
+      kind: "raw_rebuild",
+      provider_required: true,
+      reason: "page_design_system_drift",
+      next_action: "authorize_and_rebuild_pure_raw",
+    });
   });
 
   it("keeps Pure source changes on raw rebuild while routing explicit notes-only work to delivery", () => {

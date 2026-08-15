@@ -16,6 +16,7 @@ export const PAGE_IMAGE_CORE_CONTENT_ROLES = Object.freeze([
   "supporting_copy",
 ]);
 export const PAGE_IMAGE_CORE_COPY_POLICIES = Object.freeze(["exact", "presentation_adaptable"]);
+export const PAGE_IMAGE_PROVIDER_INPUT_MAX_UTF8_BYTES = 32768;
 
 const SHA256_RE = /^[0-9a-f]{64}$/;
 const WORKFLOWS = new Set(["framed", "pure"]);
@@ -217,6 +218,7 @@ export function createPageImageCoreFacts({
   styleMasterSelection,
   generationProfile,
   headerRenderingPolicy,
+  pageDesignSystemSha256,
 } = {}) {
   const source = requireCurrentReceipt(sourceReceipt, headerRenderingPolicy);
   if (!isPlainObject(styleMasterSelection)) {
@@ -230,6 +232,7 @@ export function createPageImageCoreFacts({
   }
   assertJsonValue(styleMasterSelection, "styleMasterSelection");
   assertJsonValue(generationProfile, "generationProfile");
+  assertSha256(pageDesignSystemSha256, "pageDesignSystemSha256", { nullable: true });
   const visuals = normalizeVisualSelections(sourceReceipt, visualSelections);
   const visualById = new Map(visuals.map((entry) => [entry.slide_id, entry.selection]));
   const styleMasterSelectionSha256 = canonicalJsonSha256(styleMasterSelection);
@@ -251,6 +254,7 @@ export function createPageImageCoreFacts({
       visual_selection: visualById.get(slide.slide_id),
       visual_selection_sha256: canonicalJsonSha256(visualById.get(slide.slide_id)),
       page_presentation_sha256: visualById.get(slide.slide_id).presentation.binding_sha256,
+      page_design_system_sha256: pageDesignSystemSha256,
       style_master_selection_sha256: styleMasterSelectionSha256,
       generation_profile_sha256: generationProfileSha256,
       header_rendering_policy_sha256: headerRenderingPolicySha256,
@@ -272,6 +276,7 @@ export function createPageImageCoreFacts({
     style_master_selection_sha256: styleMasterSelectionSha256,
     generation_profile_sha256: generationProfileSha256,
     header_rendering_policy_sha256: headerRenderingPolicySha256,
+    page_design_system_sha256: pageDesignSystemSha256,
     slides,
   };
   const canonicalFactsJson = canonicalJson(facts);
@@ -307,6 +312,7 @@ export function createPageImageProviderInputBinding({
     assertSha256(coreSlide[field], `coreSlide.${field}`);
   }
   assertSha256(coreSlide.page_presentation_sha256, "coreSlide.page_presentation_sha256");
+  assertSha256(coreSlide.page_design_system_sha256, "coreSlide.page_design_system_sha256", { nullable: true });
   assertSha256(compiledProviderInputSha256, "compiledProviderInputSha256");
   assertSha256(localHeaderProfileSha256, "localHeaderProfileSha256", { nullable: true });
   assertSha256(protectedCompositionSha256, "protectedCompositionSha256", { nullable: true });
@@ -324,6 +330,7 @@ export function createPageImageProviderInputBinding({
     generation_profile_sha256: coreSlide.generation_profile_sha256,
     header_policy_sha256: coreSlide.header_policy_sha256,
     page_presentation_sha256: coreSlide.page_presentation_sha256,
+    page_design_system_sha256: coreSlide.page_design_system_sha256,
     local_header_profile_sha256: localHeaderProfileSha256,
     protected_composition_sha256: protectedCompositionSha256,
   });

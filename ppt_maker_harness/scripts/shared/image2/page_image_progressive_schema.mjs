@@ -29,9 +29,15 @@ const PROVIDER_INPUT_BINDING_KEYS = Object.freeze([
   "generation_profile_sha256",
   "header_policy_sha256",
   "page_presentation_sha256",
+  "page_design_system_sha256",
   "local_header_profile_sha256",
   "protected_composition_sha256",
 ]);
+const FORMER_PROVIDER_INPUT_BINDING_KEYS = Object.freeze(
+  PROVIDER_INPUT_BINDING_KEYS.filter((field) => field !== "page_design_system_sha256"),
+);
+const CURRENT_BINDING_KIND = "current";
+const FORMER_BINDING_KIND = "former_page_design_system_binding";
 
 export class ProgressiveRawSchemaError extends Error {
   constructor(code, message) {
@@ -102,17 +108,20 @@ function rawPlanItemShape(item) {
   return exactKeys(item, ["slide_id", "raw_contract_sha256", "provider_input_binding"]);
 }
 
-function assertProviderInputBinding(binding, workflow) {
-  if (!exactKeys(binding, PROVIDER_INPUT_BINDING_KEYS)) {
+function assertProviderInputBinding(binding, bindingKind = CURRENT_BINDING_KIND) {
+  const keys = bindingKind === FORMER_BINDING_KIND
+    ? FORMER_PROVIDER_INPUT_BINDING_KEYS
+    : PROVIDER_INPUT_BINDING_KEYS;
+  if (!exactKeys(binding, keys)) {
     fail("progressive_raw_invalid_provider_input_binding", "provider input binding has an invalid shape");
   }
-  for (const field of PROVIDER_INPUT_BINDING_KEYS.slice(0, 7)) assertDigest(binding[field], field);
-  for (const field of PROVIDER_INPUT_BINDING_KEYS.slice(7)) {
+  for (const field of keys.slice(0, 7)) assertDigest(binding[field], field);
+  for (const field of keys.slice(7)) {
     if (binding[field] !== null) assertDigest(binding[field], field);
   }
 }
 
-function assertItems(items, ids, { plan = null, workflow = null } = {}) {
+function assertItems(items, ids, { plan = null, bindingKind = CURRENT_BINDING_KIND } = {}) {
   if (!Array.isArray(items) || items.length !== ids.length) {
     fail("progressive_raw_invalid_items", "items must cover ordered_slide_ids exactly");
   }
@@ -123,7 +132,7 @@ function assertItems(items, ids, { plan = null, workflow = null } = {}) {
     }
     assertSlideId(item.slide_id);
     assertDigest(item.raw_contract_sha256, "raw_contract_sha256");
-    assertProviderInputBinding(item.provider_input_binding, workflow);
+    assertProviderInputBinding(item.provider_input_binding, bindingKind);
     actualIds.push(item.slide_id);
   }
   if (!sameOrder(actualIds, ids)) fail("progressive_raw_invalid_items", "item order must equal ordered_slide_ids");
@@ -139,7 +148,7 @@ function assertItems(items, ids, { plan = null, workflow = null } = {}) {
   }
 }
 
-function commonPlanBinding(record, { plan = null } = {}) {
+function commonPlanBinding(record, { plan = null, bindingKind = CURRENT_BINDING_KIND } = {}) {
   assertDigest(record.plan_sha256, "plan_sha256");
   assertRunVersion(record.run_version);
   assertDigest(record.source_receipt_sha256, "source_receipt_sha256");
@@ -151,7 +160,7 @@ function commonPlanBinding(record, { plan = null } = {}) {
   assertDigest(record.effective_style_master_sha256, "effective_style_master_sha256");
   assertDigest(record.source_execution_sha256, "source_execution_sha256");
   if (plan) {
-    const checked = validateProgressiveRawWorkPlan(plan);
+    const checked = validateProgressiveRawWorkPlanWithBindingKind(plan, bindingKind);
     if (!checked.ok || checked.sha256 !== record.plan_sha256 ||
       plan.run_version !== record.run_version ||
       plan.source_receipt_sha256 !== record.source_receipt_sha256 ||
@@ -206,7 +215,7 @@ function create(record, validator, options = undefined) {
   return withSha(record, checked.sha256);
 }
 
-export function validateProgressiveRawWorkPlan(plan) {
+function validateProgressiveRawWorkPlanWithBindingKind(plan, bindingKind) {
   return result(() => {
     const hasTaskMandate = Object.hasOwn(plan || {}, "task_mandate_sha256");
     const keys = [
@@ -227,9 +236,17 @@ export function validateProgressiveRawWorkPlan(plan) {
     assertDigest(plan.source_execution_sha256, "source_execution_sha256");
     if (hasTaskMandate) assertDigest(plan.task_mandate_sha256, "task_mandate_sha256");
     assertOrderedIds(plan.ordered_slide_ids);
-    assertItems(plan.items, plan.ordered_slide_ids, { workflow: plan.workflow });
+    assertItems(plan.items, plan.ordered_slide_ids, { bindingKind });
     return plan;
   });
+}
+
+export function validateProgressiveRawWorkPlan(plan) {
+  return validateProgressiveRawWorkPlanWithBindingKind(plan, CURRENT_BINDING_KIND);
+}
+
+export function validateFormerProgressiveRawWorkPlan(plan) {
+  return validateProgressiveRawWorkPlanWithBindingKind(plan, FORMER_BINDING_KIND);
 }
 
 export function createProgressiveRawWorkPlan(input = {}) {
@@ -250,7 +267,7 @@ export function createProgressiveRawWorkPlan(input = {}) {
   }, validateProgressiveRawWorkPlan);
 }
 
-export function validateProgressiveRawScopeHead(head, { plan = null } = {}) {
+function validateProgressiveRawScopeHeadWithBindingKind(head, { plan = null } = {}, bindingKind) {
   return result(() => {
     if (!exactKeys(head, ["schema", "run_version", "workflow", "plan_sha256", "plan_generation", "previous_plan_sha256"]) ||
       head.schema !== PROGRESSIVE_RAW_SCOPE_HEAD_SCHEMA) {
@@ -265,13 +282,21 @@ export function validateProgressiveRawScopeHead(head, { plan = null } = {}) {
     assertDigest(head.previous_plan_sha256, "previous_plan_sha256", { nullable: true });
     if (head.previous_plan_sha256 === head.plan_sha256) fail("progressive_raw_head_invalid", "a scope head cannot point to itself as predecessor");
     if (plan) {
-      const checked = validateProgressiveRawWorkPlan(plan);
+      const checked = validateProgressiveRawWorkPlanWithBindingKind(plan, bindingKind);
       if (!checked.ok || checked.sha256 !== head.plan_sha256 || plan.run_version !== head.run_version || plan.workflow !== head.workflow) {
         fail("progressive_raw_cross_bound", "scope head does not bind the referenced raw work plan");
       }
     }
     return head;
   });
+}
+
+export function validateProgressiveRawScopeHead(head, options = {}) {
+  return validateProgressiveRawScopeHeadWithBindingKind(head, options, CURRENT_BINDING_KIND);
+}
+
+export function validateFormerProgressiveRawScopeHead(head, options = {}) {
+  return validateProgressiveRawScopeHeadWithBindingKind(head, options, FORMER_BINDING_KIND);
 }
 
 export function createProgressiveRawScopeHead(input = {}, options = undefined) {
@@ -285,7 +310,7 @@ export function createProgressiveRawScopeHead(input = {}, options = undefined) {
   }, validateProgressiveRawScopeHead, options);
 }
 
-export function validateProgressiveRawBatch(batch, { plan = null } = {}) {
+function validateProgressiveRawBatchWithBindingKind(batch, { plan = null } = {}, bindingKind) {
   return result(() => {
     if (!exactKeys(batch, [
       "schema", "plan_sha256", "run_version", "source_receipt_sha256", "source_epoch", "workflow",
@@ -295,7 +320,7 @@ export function validateProgressiveRawBatch(batch, { plan = null } = {}) {
     ]) || batch.schema !== PROGRESSIVE_RAW_BATCH_SCHEMA) {
       fail("progressive_raw_batch_invalid", "batch projection has an invalid shape");
     }
-    commonPlanBinding(batch, { plan });
+    commonPlanBinding(batch, { plan, bindingKind });
     if (!PROGRESSIVE_RAW_BATCH_KINDS.includes(batch.kind)) fail("progressive_raw_batch_invalid", "batch kind must be pilot | expansion");
     if (typeof batch.is_partial_pilot !== "boolean" || (batch.kind !== "pilot" && batch.is_partial_pilot)) {
       fail("progressive_raw_batch_invalid", "only a Pilot batch may be marked partial");
@@ -303,7 +328,7 @@ export function validateProgressiveRawBatch(batch, { plan = null } = {}) {
     if (!Number.isInteger(batch.batch_generation) || batch.batch_generation <= 0) fail("progressive_raw_batch_invalid", "batch_generation must be positive");
     assertDigest(batch.previous_batch_sha256, "previous_batch_sha256", { nullable: true });
     assertOrderedIds(batch.ordered_slide_ids);
-    assertItems(batch.items, batch.ordered_slide_ids, { plan, workflow: batch.workflow });
+    assertItems(batch.items, batch.ordered_slide_ids, { plan, bindingKind });
     assertOrderedIds(batch.review_sample_slide_ids, "review_sample_slide_ids");
     assertOrderedIds(batch.paid_submission_slide_ids, "paid_submission_slide_ids");
     assertSubset(batch.review_sample_slide_ids, batch.ordered_slide_ids, "review_sample_slide_ids");
@@ -314,6 +339,14 @@ export function validateProgressiveRawBatch(batch, { plan = null } = {}) {
     }
     return batch;
   });
+}
+
+export function validateProgressiveRawBatch(batch, options = {}) {
+  return validateProgressiveRawBatchWithBindingKind(batch, options, CURRENT_BINDING_KIND);
+}
+
+export function validateFormerProgressiveRawBatch(batch, options = {}) {
+  return validateProgressiveRawBatchWithBindingKind(batch, options, FORMER_BINDING_KIND);
 }
 
 export function createProgressiveRawBatch(input = {}, options = undefined) {
@@ -339,7 +372,7 @@ export function createProgressiveRawBatch(input = {}, options = undefined) {
   }, validateProgressiveRawBatch, options);
 }
 
-export function validateProgressiveRawBatchGrant(grant, { plan = null, batch = null } = {}) {
+function validateProgressiveRawBatchGrantWithBindingKind(grant, { plan = null, batch = null } = {}, bindingKind) {
   return result(() => {
     if (!exactKeys(grant, [
       "schema", "plan_sha256", "batch_sha256", "run_version", "source_receipt_sha256", "source_epoch",
@@ -348,15 +381,15 @@ export function validateProgressiveRawBatchGrant(grant, { plan = null, batch = n
     ]) || grant.schema !== PROGRESSIVE_RAW_BATCH_GRANT_SCHEMA) {
       fail("progressive_raw_grant_invalid", "batch grant has an invalid shape");
     }
-    commonPlanBinding(grant, { plan });
+    commonPlanBinding(grant, { plan, bindingKind });
     assertDigest(grant.batch_sha256, "batch_sha256");
     assertOrderedIds(grant.ordered_slide_ids);
-    assertItems(grant.items, grant.ordered_slide_ids, { plan, workflow: grant.workflow });
+    assertItems(grant.items, grant.ordered_slide_ids, { plan, bindingKind });
     if (!Number.isInteger(grant.maximum_submissions) || grant.maximum_submissions <= 0) {
       fail("progressive_raw_grant_invalid", "maximum_submissions must be positive");
     }
     if (batch) {
-      const checked = validateProgressiveRawBatch(batch, { plan });
+      const checked = validateProgressiveRawBatchWithBindingKind(batch, { plan }, bindingKind);
       if (!checked.ok || checked.sha256 !== grant.batch_sha256 ||
         !sameOrder(batch.paid_submission_slide_ids, grant.ordered_slide_ids) ||
         batch.maximum_submissions !== grant.maximum_submissions ||
@@ -366,6 +399,14 @@ export function validateProgressiveRawBatchGrant(grant, { plan = null, batch = n
     }
     return grant;
   });
+}
+
+export function validateProgressiveRawBatchGrant(grant, options = {}) {
+  return validateProgressiveRawBatchGrantWithBindingKind(grant, options, CURRENT_BINDING_KIND);
+}
+
+export function validateFormerProgressiveRawBatchGrant(grant, options = {}) {
+  return validateProgressiveRawBatchGrantWithBindingKind(grant, options, FORMER_BINDING_KIND);
 }
 
 export function createProgressiveRawBatchGrant(input = {}, options = undefined) {
@@ -399,7 +440,11 @@ export function progressiveRawIdempotencyKey({ attempt_key_sha256 } = {}) {
   return `page-image-workflow-${attempt_key_sha256}`;
 }
 
-export function validateProgressiveRawItemAttempt(attempt, { plan = null, batch = null, grant = null } = {}) {
+function validateProgressiveRawItemAttemptWithBindingKind(
+  attempt,
+  { plan = null, batch = null, grant = null } = {},
+  bindingKind,
+) {
   return result(() => {
     if (!exactKeys(attempt, [
       "schema", "attempt_key_sha256", "plan_sha256", "batch_sha256", "grant_sha256", "run_version",
@@ -410,7 +455,7 @@ export function validateProgressiveRawItemAttempt(attempt, { plan = null, batch 
     ]) || attempt.schema !== PROGRESSIVE_RAW_ITEM_ATTEMPT_SCHEMA) {
       fail("progressive_raw_attempt_invalid", "item attempt has an invalid shape");
     }
-    commonPlanBinding(attempt, { plan });
+    commonPlanBinding(attempt, { plan, bindingKind });
     assertDigest(attempt.attempt_key_sha256, "attempt_key_sha256");
     assertDigest(attempt.batch_sha256, "batch_sha256");
     assertDigest(attempt.grant_sha256, "grant_sha256");
@@ -447,7 +492,7 @@ export function validateProgressiveRawItemAttempt(attempt, { plan = null, batch 
       }
     }
     if (batch) {
-      const checked = validateProgressiveRawBatch(batch, { plan });
+      const checked = validateProgressiveRawBatchWithBindingKind(batch, { plan }, bindingKind);
       if (!checked.ok || checked.sha256 !== attempt.batch_sha256 ||
         !batch.paid_submission_slide_ids.includes(attempt.slide_id) ||
         batch.items.find((item) => item.slide_id === attempt.slide_id)?.raw_contract_sha256 !== attempt.raw_contract_sha256) {
@@ -455,7 +500,7 @@ export function validateProgressiveRawItemAttempt(attempt, { plan = null, batch 
       }
     }
     if (grant) {
-      const checked = validateProgressiveRawBatchGrant(grant, { plan, batch });
+      const checked = validateProgressiveRawBatchGrantWithBindingKind(grant, { plan, batch }, bindingKind);
       if (!checked.ok || checked.sha256 !== attempt.grant_sha256 ||
         !grant.ordered_slide_ids.includes(attempt.slide_id) ||
         grant.items.find((item) => item.slide_id === attempt.slide_id)?.raw_contract_sha256 !== attempt.raw_contract_sha256) {
@@ -464,6 +509,14 @@ export function validateProgressiveRawItemAttempt(attempt, { plan = null, batch 
     }
     return attempt;
   });
+}
+
+export function validateProgressiveRawItemAttempt(attempt, options = {}) {
+  return validateProgressiveRawItemAttemptWithBindingKind(attempt, options, CURRENT_BINDING_KIND);
+}
+
+export function validateFormerProgressiveRawItemAttempt(attempt, options = {}) {
+  return validateProgressiveRawItemAttemptWithBindingKind(attempt, options, FORMER_BINDING_KIND);
 }
 
 export function createProgressiveRawItemAttempt(input = {}, options = undefined) {
@@ -491,6 +544,37 @@ export function createProgressiveRawItemAttempt(input = {}, options = undefined)
   }, validateProgressiveRawItemAttempt, options);
 }
 
+export function createHistoricalCutoverProgressiveRawItemAttempt(input = {}, options = undefined) {
+  if (!["succeeded", "known_failure", "unknown"].includes(input.status)) {
+    throw new ProgressiveRawSchemaError(
+      "progressive_raw_attempt_invalid",
+      "historical-cutover attempt creation is limited to reconciliation-owned terminal outcomes",
+    );
+  }
+  const attemptKey = input.attempt_key_sha256 || progressiveRawAttemptKey(input);
+  return create({
+    schema: PROGRESSIVE_RAW_ITEM_ATTEMPT_SCHEMA,
+    attempt_key_sha256: attemptKey,
+    plan_sha256: input.plan_sha256,
+    batch_sha256: input.batch_sha256,
+    grant_sha256: input.grant_sha256,
+    run_version: input.run_version,
+    source_receipt_sha256: input.source_receipt_sha256,
+    source_epoch: input.source_epoch,
+    workflow: input.workflow,
+    provider_profile_sha256: input.provider_profile_sha256,
+    effective_style_master_sha256: input.effective_style_master_sha256,
+    source_execution_sha256: input.source_execution_sha256,
+    slide_id: input.slide_id,
+    raw_contract_sha256: input.raw_contract_sha256,
+    status: input.status,
+    previous_attempt_sha256: input.previous_attempt_sha256 ?? null,
+    provider_request_sha256: input.provider_request_sha256 ?? null,
+    provider_idempotency_key: input.provider_idempotency_key ?? null,
+    materialization_provenance_sha256: input.materialization_provenance_sha256 ?? null,
+  }, validateFormerProgressiveRawItemAttempt, options);
+}
+
 export function validateProgressiveRawAttemptTransition(previous, next) {
   return result(() => {
     const prior = validateProgressiveRawItemAttempt(previous);
@@ -510,7 +594,11 @@ export function validateProgressiveRawAttemptTransition(previous, next) {
   });
 }
 
-export function validateProgressiveRawMaterializationProvenance(provenance, { plan = null, batch = null, grant = null, attempt = null } = {}) {
+function validateProgressiveRawMaterializationProvenanceWithBindingKind(
+  provenance,
+  { plan = null, batch = null, grant = null, attempt = null } = {},
+  bindingKind,
+) {
   return result(() => {
     if (!exactKeys(provenance, [
       "schema", "kind", "plan_sha256", "run_version", "source_receipt_sha256", "source_epoch", "workflow",
@@ -520,7 +608,7 @@ export function validateProgressiveRawMaterializationProvenance(provenance, { pl
     ]) || provenance.schema !== PROGRESSIVE_RAW_MATERIALIZATION_PROVENANCE_SCHEMA) {
       fail("progressive_raw_provenance_invalid", "materialization provenance has an invalid shape");
     }
-    commonPlanBinding(provenance, { plan });
+    commonPlanBinding(provenance, { plan, bindingKind });
     if (!["provider", "reuse"].includes(provenance.kind)) fail("progressive_raw_provenance_invalid", "provenance kind must be provider | reuse");
     assertSlideId(provenance.slide_id);
     assertDigest(provenance.raw_contract_sha256, "raw_contract_sha256");
@@ -546,7 +634,7 @@ export function validateProgressiveRawMaterializationProvenance(provenance, { pl
       fail("progressive_raw_cross_bound", "provenance does not bind its grant");
     }
     if (attempt) {
-      const checked = validateProgressiveRawItemAttempt(attempt, { plan, batch, grant });
+      const checked = validateProgressiveRawItemAttemptWithBindingKind(attempt, { plan, batch, grant }, bindingKind);
       if (!checked.ok || attempt.attempt_key_sha256 !== provenance.attempt_key_sha256 || attempt.status !== "succeeded" ||
         attempt.materialization_provenance_sha256 !== canonicalJsonSha256(provenance)) {
         fail("progressive_raw_cross_bound", "provenance does not bind the terminal succeeded attempt");
@@ -554,6 +642,22 @@ export function validateProgressiveRawMaterializationProvenance(provenance, { pl
     }
     return provenance;
   });
+}
+
+export function validateProgressiveRawMaterializationProvenance(provenance, options = {}) {
+  return validateProgressiveRawMaterializationProvenanceWithBindingKind(
+    provenance,
+    options,
+    CURRENT_BINDING_KIND,
+  );
+}
+
+export function validateFormerProgressiveRawMaterializationProvenance(provenance, options = {}) {
+  return validateProgressiveRawMaterializationProvenanceWithBindingKind(
+    provenance,
+    options,
+    FORMER_BINDING_KIND,
+  );
 }
 
 export function createProgressiveRawMaterializationProvenance(input = {}, options = undefined) {
@@ -578,8 +682,30 @@ export function createProgressiveRawMaterializationProvenance(input = {}, option
   }, validateProgressiveRawMaterializationProvenance, options);
 }
 
-function validatePilotCoverage(record, { plan = null, batch = null } = {}) {
-  commonPlanBinding(record, { plan });
+export function createHistoricalCutoverProgressiveRawMaterializationProvenance(input = {}, options = undefined) {
+  return create({
+    schema: PROGRESSIVE_RAW_MATERIALIZATION_PROVENANCE_SCHEMA,
+    kind: input.kind,
+    plan_sha256: input.plan_sha256,
+    run_version: input.run_version,
+    source_receipt_sha256: input.source_receipt_sha256,
+    source_epoch: input.source_epoch,
+    workflow: input.workflow,
+    provider_profile_sha256: input.provider_profile_sha256,
+    effective_style_master_sha256: input.effective_style_master_sha256,
+    source_execution_sha256: input.source_execution_sha256,
+    slide_id: input.slide_id,
+    raw_contract_sha256: input.raw_contract_sha256,
+    raw_sha256: input.raw_sha256,
+    batch_sha256: input.batch_sha256 ?? null,
+    grant_sha256: input.grant_sha256 ?? null,
+    attempt_key_sha256: input.attempt_key_sha256 ?? null,
+    reused_from_provenance_sha256: input.reused_from_provenance_sha256 ?? null,
+  }, validateFormerProgressiveRawMaterializationProvenance, options);
+}
+
+function validatePilotCoverage(record, { plan = null, batch = null } = {}, bindingKind) {
+  commonPlanBinding(record, { plan, bindingKind });
   assertDigest(record.batch_sha256, "batch_sha256");
   assertDigest(record.workflow_evidence_sha256, "workflow_evidence_sha256");
   assertDigest(record.projection_sha256, "projection_sha256");
@@ -591,7 +717,11 @@ function validatePilotCoverage(record, { plan = null, batch = null } = {}) {
   coverageItems(record.items, record.ordered_slide_ids, { plan });
 }
 
-export function validateProgressiveRawPilotEvidence(evidence, { plan = null, batch = null } = {}) {
+function validateProgressiveRawPilotEvidenceWithBindingKind(
+  evidence,
+  { plan = null, batch = null } = {},
+  bindingKind,
+) {
   return result(() => {
     if (!exactKeys(evidence, [
       "schema", "plan_sha256", "batch_sha256", "run_version", "source_receipt_sha256", "source_epoch", "workflow",
@@ -600,9 +730,17 @@ export function validateProgressiveRawPilotEvidence(evidence, { plan = null, bat
     ]) || evidence.schema !== PROGRESSIVE_RAW_PILOT_EVIDENCE_SCHEMA) {
       fail("progressive_raw_pilot_evidence_invalid", "Pilot evidence has an invalid shape");
     }
-    validatePilotCoverage(evidence, { plan, batch });
+    validatePilotCoverage(evidence, { plan, batch }, bindingKind);
     return evidence;
   });
+}
+
+export function validateProgressiveRawPilotEvidence(evidence, options = {}) {
+  return validateProgressiveRawPilotEvidenceWithBindingKind(evidence, options, CURRENT_BINDING_KIND);
+}
+
+export function validateFormerProgressiveRawPilotEvidence(evidence, options = {}) {
+  return validateProgressiveRawPilotEvidenceWithBindingKind(evidence, options, FORMER_BINDING_KIND);
 }
 
 export function createProgressiveRawPilotEvidence(input = {}, options = undefined) {
@@ -624,7 +762,11 @@ export function createProgressiveRawPilotEvidence(input = {}, options = undefine
   }, validateProgressiveRawPilotEvidence, options);
 }
 
-export function validateProgressiveRawPilotDecision(decision, { plan = null, batch = null, evidence = null } = {}) {
+function validateProgressiveRawPilotDecisionWithBindingKind(
+  decision,
+  { plan = null, batch = null, evidence = null } = {},
+  bindingKind,
+) {
   return result(() => {
     if (!exactKeys(decision, [
       "schema", "plan_sha256", "batch_sha256", "pilot_evidence_sha256", "run_version", "source_receipt_sha256",
@@ -632,17 +774,25 @@ export function validateProgressiveRawPilotDecision(decision, { plan = null, bat
     ]) || decision.schema !== PROGRESSIVE_RAW_PILOT_DECISION_SCHEMA) {
       fail("progressive_raw_pilot_decision_invalid", "Pilot decision has an invalid shape");
     }
-    commonPlanBinding(decision, { plan });
+    commonPlanBinding(decision, { plan, bindingKind });
     assertDigest(decision.batch_sha256, "batch_sha256");
     assertDigest(decision.pilot_evidence_sha256, "pilot_evidence_sha256");
     if (!PROGRESSIVE_RAW_PILOT_REVIEW_DECISIONS.includes(decision.decision)) fail("progressive_raw_pilot_decision_invalid", "Pilot decision is invalid");
     if (batch && (batch.sha256 || canonicalJsonSha256(batch)) !== decision.batch_sha256) fail("progressive_raw_cross_bound", "Pilot decision does not bind the batch");
     if (evidence) {
-      const checked = validateProgressiveRawPilotEvidence(evidence, { plan, batch });
+      const checked = validateProgressiveRawPilotEvidenceWithBindingKind(evidence, { plan, batch }, bindingKind);
       if (!checked.ok || checked.sha256 !== decision.pilot_evidence_sha256) fail("progressive_raw_cross_bound", "Pilot decision does not bind current Pilot evidence");
     }
     return decision;
   });
+}
+
+export function validateProgressiveRawPilotDecision(decision, options = {}) {
+  return validateProgressiveRawPilotDecisionWithBindingKind(decision, options, CURRENT_BINDING_KIND);
+}
+
+export function validateFormerProgressiveRawPilotDecision(decision, options = {}) {
+  return validateProgressiveRawPilotDecisionWithBindingKind(decision, options, FORMER_BINDING_KIND);
 }
 
 export function createProgressiveRawPilotDecision(input = {}, options = undefined) {
@@ -662,7 +812,7 @@ export function createProgressiveRawPilotDecision(input = {}, options = undefine
   }, validateProgressiveRawPilotDecision, options);
 }
 
-export function validateProgressiveRawCompleteReview(review, { plan = null } = {}) {
+function validateProgressiveRawCompleteReviewWithBindingKind(review, { plan = null } = {}, bindingKind) {
   return result(() => {
     const keys = [
       "schema", "plan_sha256", "run_version", "source_receipt_sha256", "source_epoch", "workflow",
@@ -673,7 +823,7 @@ export function validateProgressiveRawCompleteReview(review, { plan = null } = {
     if (!(exactKeys(review, keys) || exactKeys(review, retainedKeys)) || review.schema !== PROGRESSIVE_RAW_COMPLETE_REVIEW_SCHEMA) {
       fail("progressive_raw_complete_review_invalid", "complete raw review has an invalid shape");
     }
-    commonPlanBinding(review, { plan });
+    commonPlanBinding(review, { plan, bindingKind });
     assertOrderedIds(review.ordered_slide_ids);
     if (plan && !sameOrder(plan.ordered_slide_ids, review.ordered_slide_ids)) {
       fail("progressive_raw_cross_bound", "complete review does not cover the full plan in order");
@@ -690,6 +840,14 @@ export function validateProgressiveRawCompleteReview(review, { plan = null } = {
     }
     return review;
   });
+}
+
+export function validateProgressiveRawCompleteReview(review, options = {}) {
+  return validateProgressiveRawCompleteReviewWithBindingKind(review, options, CURRENT_BINDING_KIND);
+}
+
+export function validateFormerProgressiveRawCompleteReview(review, options = {}) {
+  return validateProgressiveRawCompleteReviewWithBindingKind(review, options, FORMER_BINDING_KIND);
 }
 
 export function createProgressiveRawCompleteReview(input = {}, options = undefined) {
@@ -713,7 +871,11 @@ export function createProgressiveRawCompleteReview(input = {}, options = undefin
   }, validateProgressiveRawCompleteReview, options);
 }
 
-export function validateProgressiveAcceptedRawEvidence(evidence, { plan = null, completeReview = null } = {}) {
+function validateProgressiveAcceptedRawEvidenceWithBindingKind(
+  evidence,
+  { plan = null, completeReview = null } = {},
+  bindingKind,
+) {
   return result(() => {
     if (!exactKeys(evidence, [
       "schema", "raw_work_plan_sha256", "run_version", "source_receipt_sha256", "source_epoch", "workflow",
@@ -723,7 +885,7 @@ export function validateProgressiveAcceptedRawEvidence(evidence, { plan = null, 
       fail("progressive_raw_accepted_evidence_invalid", "accepted raw evidence has an invalid shape");
     }
     const planBinding = { ...evidence, plan_sha256: evidence.raw_work_plan_sha256 };
-    commonPlanBinding(planBinding, { plan });
+    commonPlanBinding(planBinding, { plan, bindingKind });
     assertDigest(evidence.complete_raw_review_sha256, "complete_raw_review_sha256");
     assertOrderedIds(evidence.ordered_slide_ids);
     if (plan && !sameOrder(plan.ordered_slide_ids, evidence.ordered_slide_ids)) {
@@ -731,7 +893,7 @@ export function validateProgressiveAcceptedRawEvidence(evidence, { plan = null, 
     }
     coverageItems(evidence.items, evidence.ordered_slide_ids, { plan });
     if (completeReview) {
-      const checked = validateProgressiveRawCompleteReview(completeReview, { plan });
+      const checked = validateProgressiveRawCompleteReviewWithBindingKind(completeReview, { plan }, bindingKind);
       if (!checked.ok || checked.sha256 !== evidence.complete_raw_review_sha256 || completeReview.decision !== "proceed" ||
         !sameOrder(completeReview.items, evidence.items)) {
         fail("progressive_raw_cross_bound", "accepted raw evidence requires the exact complete review proceed record");
@@ -739,6 +901,14 @@ export function validateProgressiveAcceptedRawEvidence(evidence, { plan = null, 
     }
     return evidence;
   });
+}
+
+export function validateProgressiveAcceptedRawEvidence(evidence, options = {}) {
+  return validateProgressiveAcceptedRawEvidenceWithBindingKind(evidence, options, CURRENT_BINDING_KIND);
+}
+
+export function validateFormerProgressiveAcceptedRawEvidence(evidence, options = {}) {
+  return validateProgressiveAcceptedRawEvidenceWithBindingKind(evidence, options, FORMER_BINDING_KIND);
 }
 
 export function createProgressiveAcceptedRawEvidence(input = {}, options = undefined) {

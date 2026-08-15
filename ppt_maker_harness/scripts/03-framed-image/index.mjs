@@ -31,10 +31,12 @@ import {
   createPageImageSourceResolver,
   loadPageImagePresentationPackage,
   loadPageImageVisualLanguage,
+  resolvePageDesignSystemBinding,
   resolvePageImagePresentation,
 } from "../02-visual-system/index.mjs";
 import {
   PageImageCoreError,
+  PAGE_IMAGE_PROVIDER_INPUT_MAX_UTF8_BYTES,
   createPageImageCoreFacts,
   createPageImageProviderInputBinding,
   normalizePageImageHeaderPolicy,
@@ -190,11 +192,17 @@ const FRAMED_RAW_CONTRACT_KEYS = Object.freeze([
   "visual_identity_role_clause",
   "visual_scene",
   "visual_identity",
+  "page_design_system",
   "page_image_core",
   "provider_rendered_content",
   "framed",
 ]);
-const FRAMED_RAW_CONTRACT_CORE_KEYS = Object.freeze(["schema", "canonical_semantic_sha256"]);
+const FRAMED_RAW_CONTRACT_CORE_KEYS = Object.freeze([
+  "schema",
+  "canonical_semantic_sha256",
+  "page_design_system_sha256",
+]);
+const PAGE_DESIGN_SYSTEM_KEYS = Object.freeze(["text", "sha256"]);
 const FRAMED_PROVIDER_RENDERED_CONTENT_KEYS = Object.freeze(["items"]);
 const FRAMED_RAW_CONTRACT_FRAME_KEYS = Object.freeze([
   "profile_id",
@@ -243,6 +251,19 @@ function hasValidIdentityFacts(rawContract) {
     sha256Bytes(Buffer.from(roleClause, "utf8")) === projection.role_clause_sha256;
 }
 
+function hasValidPageDesignSystemFacts(rawContract) {
+  const binding = rawContract.page_design_system;
+  const coreDigest = rawContract.page_image_core?.page_design_system_sha256;
+  if (!hasExactKeys(binding, PAGE_DESIGN_SYSTEM_KEYS) ||
+    (binding.text === null) !== (binding.sha256 === null)) {
+    return false;
+  }
+  if (binding.text === null) return coreDigest === null;
+  return typeof binding.text === "string" && binding.text.trim().length > 0 &&
+    SHA256_RE.test(binding.sha256 || "") && coreDigest === binding.sha256 &&
+    sha256Bytes(Buffer.from(binding.text, "utf8")) === binding.sha256;
+}
+
 function isNormalizedRectangle(value) {
   return Boolean(value && typeof value === "object" && !Array.isArray(value)) &&
     hasExactKeys(value, ["x", "y", "width", "height"]) &&
@@ -279,6 +300,7 @@ function validateFramedRawContractAgainstProfile(rawContract, renderProfile) {
       !hasExactKeys(rawContract.page_image_core, FRAMED_RAW_CONTRACT_CORE_KEYS) ||
       rawContract.page_image_core.schema !== "page-image-core-slide-facts" ||
       !SHA256_RE.test(rawContract.page_image_core.canonical_semantic_sha256 || "") ||
+      !hasValidPageDesignSystemFacts(rawContract) ||
       !hasExactKeys(rawContract.provider_rendered_content, FRAMED_PROVIDER_RENDERED_CONTENT_KEYS) ||
       !Array.isArray(rawContract.provider_rendered_content.items) ||
       !hasExactKeys(rawContract.framed, FRAMED_RAW_CONTRACT_FRAME_KEYS)) {
@@ -821,7 +843,7 @@ function coreStyleMasterSelection(workflow, styleMasterReference) {
   });
 }
 
-function createFramedCoreFacts(context, generation) {
+function createFramedCoreFacts(context, generation, pageDesignSystemSha256) {
   try {
     return createPageImageCoreFacts({
       sourceReceipt: context.receipt,
@@ -832,6 +854,7 @@ function createFramedCoreFacts(context, generation) {
       styleMasterSelection: coreStyleMasterSelection(FRAMED_IMAGE_WORKFLOW, generation.style_master_reference),
       generationProfile: generation.profile,
       headerRenderingPolicy: { workflow: FRAMED_IMAGE_WORKFLOW, policy: "local-transparent-overlay" },
+      pageDesignSystemSha256,
     });
   } catch (error) {
     if (error instanceof PageImageCoreError) {
@@ -841,7 +864,7 @@ function createFramedCoreFacts(context, generation) {
   }
 }
 
-function framedRawContract(slide, frame, coreSlide) {
+function framedRawContract(slide, frame, coreSlide, pageDesignSystem) {
   const visualLanguage = coreSlide?.visual_selection?.projection;
   if (!visualLanguage || typeof visualLanguage !== "object") {
     throw new FramedImageWorkflowError("framed_visual_language_required", `Framed visual language is unresolved for ${slide.slide_id}`);
@@ -870,9 +893,14 @@ function framedRawContract(slide, frame, coreSlide) {
     visual_identity_role_clause: identityRoleClause,
     visual_scene: null,
     visual_identity: coreSlide.visual_selection?.identity_reference?.projection || null,
+    page_design_system: {
+      text: pageDesignSystem?.text,
+      sha256: pageDesignSystem?.sha256,
+    },
     page_image_core: {
       schema: coreSlide.schema,
       canonical_semantic_sha256: coreSlide.canonical_semantic_sha256,
+      page_design_system_sha256: coreSlide.page_design_system_sha256,
     },
     provider_rendered_content: {
       items: coreSlide.provider_content.items.map((item) => ({ ...item })),
@@ -898,6 +926,7 @@ function compileFramedProviderInput({ slideId, rawContract, generationProfile } 
     schema: "page-image-framed-provider-input",
     slide_id: slideId,
     instruction: FRAMED_EXCLUSIVE_HEADER_RESERVATION_INSTRUCTION,
+    design_system: rawContract.page_design_system.text,
     provider_rendered_content: rawContract.provider_rendered_content,
     subject_restrictions: rawContract.framed.subject_restrictions,
     protected_composition: rawContract.framed.protected_composition,
@@ -910,6 +939,12 @@ function compileFramedProviderInput({ slideId, rawContract, generationProfile } 
     },
     generation_profile: generationProfile,
   });
+  if (Buffer.byteLength(utf8, "utf8") > PAGE_IMAGE_PROVIDER_INPUT_MAX_UTF8_BYTES) {
+    throw new FramedImageWorkflowError(
+      "framed_provider_input_too_large",
+      `Framed canonical provider input exceeds ${PAGE_IMAGE_PROVIDER_INPUT_MAX_UTF8_BYTES} UTF-8 bytes`,
+    );
+  }
   const compiledProviderInput = Object.freeze({
     schema: TARGET_COMPILED_PROVIDER_INPUT_SCHEMA,
     utf8,
@@ -919,6 +954,7 @@ function compileFramedProviderInput({ slideId, rawContract, generationProfile } 
     rawContract,
     generationProfile,
     compiledProviderInput,
+    maxUtf8Bytes: PAGE_IMAGE_PROVIDER_INPUT_MAX_UTF8_BYTES,
   });
   if (!validation.ok) {
     throw new FramedImageWorkflowError(validation.code, validation.message);
@@ -928,13 +964,14 @@ function compileFramedProviderInput({ slideId, rawContract, generationProfile } 
 
 /** Compile a selected Framed current raw-plan candidate without artifact writes. */
 function compileFramedTargetRawPlanCandidate(context) {
+  const pageDesignSystem = resolvePageDesignSystemBinding(context.run_dir);
   const framesById = new Map(context.receipt.slides.map((slide) => [slide.slide_id, describeFramedSlide(slide)]));
   const generation = buildTargetRawGenerationProfile({
     runDir: context.run_dir,
     deckDir: context.deck_dir,
     receipt: context.receipt,
   });
-  const coreFacts = createFramedCoreFacts(context, generation);
+  const coreFacts = createFramedCoreFacts(context, generation, pageDesignSystem.sha256);
   const coreSlidesById = new Map(coreFacts.slides.map((slide) => [slide.slide_id, slide]));
   const rawContractsBySlide = {};
   const providerInputBindingsBySlide = {};
@@ -942,7 +979,7 @@ function compileFramedTargetRawPlanCandidate(context) {
   for (const slide of context.receipt.slides) {
     const frame = framesById.get(slide.slide_id);
     const coreSlide = coreSlidesById.get(slide.slide_id);
-    const rawContract = framedRawContract(slide, frame, coreSlide);
+    const rawContract = framedRawContract(slide, frame, coreSlide, pageDesignSystem);
     const rawContractValidation = validateFramedRawContractAgainstProfile(rawContract, frame.render_profile);
     if (!rawContractValidation.ok) throw new FramedImageWorkflowError(rawContractValidation.code, rawContractValidation.message);
     rawContractsBySlide[slide.slide_id] = rawContractValidation.raw_contract_sha256;

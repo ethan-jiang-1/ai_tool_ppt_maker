@@ -6,6 +6,8 @@ import { PAGE_IMAGE_NATIVE_RAW_PNG } from "./page_image_media_contract.mjs";
 import { validateBoundPageImageProviderRequests } from "./page_image_provider_request_binding.mjs";
 import {
   PROGRESSIVE_ACCEPTED_RAW_EVIDENCE_SCHEMA,
+  createHistoricalCutoverProgressiveRawItemAttempt,
+  createHistoricalCutoverProgressiveRawMaterializationProvenance,
   createProgressiveAcceptedRawEvidence,
   createProgressiveRawBatch,
   createProgressiveRawBatchGrant,
@@ -19,6 +21,9 @@ import {
   progressiveRawAttemptKey,
   progressiveRawIdempotencyKey,
   validateProgressiveAcceptedRawEvidence,
+  validateFormerProgressiveRawBatchGrant,
+  validateFormerProgressiveRawItemAttempt,
+  validateFormerProgressiveRawMaterializationProvenance,
   validateProgressiveRawAttemptTransition,
   validateProgressiveRawBatch,
   validateProgressiveRawBatchGrant,
@@ -34,12 +39,16 @@ import {
   ProgressiveRawStoreError,
   findProgressiveRawCompleteReviewBySha,
   findProgressiveRawMaterializationByProvenance,
+  publishHistoricalCutoverProgressiveRawMaterialization,
   publishProgressiveRawMaterialization,
   publishProgressiveRawStagedPlan,
+  readHistoricalCutoverProgressiveRawPlanDirectRecords,
+  readHistoricalCutoverProgressiveRawScopeHead,
   readProgressiveRawPlanDirectRecords,
   readProgressiveRawScopeHead,
   stageProgressiveRawPlanContainer,
   withProgressiveRawPlanLock,
+  writeHistoricalCutoverProgressiveRawItemAttempt,
   writeProgressiveAcceptedRawEvidence,
   writeProgressiveRawBatch,
   writeProgressiveRawBatchGrant,
@@ -218,13 +227,19 @@ function directRecordMap(records, label) {
   return map;
 }
 
-function validateAttemptState(plan, batches, grants, attempts) {
+function validateAttemptState(plan, batches, grants, attempts, { historicalCutover = false } = {}) {
+  const grantValidator = historicalCutover
+    ? validateFormerProgressiveRawBatchGrant
+    : validateProgressiveRawBatchGrant;
+  const attemptValidator = historicalCutover
+    ? validateFormerProgressiveRawItemAttempt
+    : validateProgressiveRawItemAttempt;
   const batchBySha = directRecordMap(batches, "batch records");
   const grantByBatch = new Map();
   for (const grant of grants) {
     const batch = batchBySha.get(grant.record.batch_sha256);
     if (!batch) fail("progressive_raw_cross_bound", "batch grant references an unavailable batch");
-    checked(grant.record, "batch grant", validateProgressiveRawBatchGrant, { plan, batch: batch.record });
+    checked(grant.record, "batch grant", grantValidator, { plan, batch: batch.record });
     if (grantByBatch.has(grant.record.batch_sha256)) fail("progressive_raw_record_conflict", "one batch may have only one immutable grant");
     grantByBatch.set(grant.record.batch_sha256, grant);
   }
@@ -237,7 +252,7 @@ function validateAttemptState(plan, batches, grants, attempts) {
     if (!batch || !grant || grant.sha256 !== attempt.record.grant_sha256) {
       fail("progressive_raw_cross_bound", "attempt references an unavailable or mismatched batch grant");
     }
-    checked(attempt.record, "item attempt", validateProgressiveRawItemAttempt, { plan, batch: batch.record, grant: grant.record });
+    checked(attempt.record, "item attempt", attemptValidator, { plan, batch: batch.record, grant: grant.record });
     const entries = byKey.get(attempt.record.attempt_key_sha256) || [];
     entries.push(attempt);
     byKey.set(attempt.record.attempt_key_sha256, entries);
@@ -645,13 +660,126 @@ function loadPlanByHash(runDir, planHash) {
   return createProgressiveRawSnapshotResolver(runDir).load(planHash);
 }
 
-function loadPlanByHead(runDir, workflow) {
+function historicalCutoverAction(snapshot) {
+  const submitted = snapshot.attempt_state.live.find((entry) => entry.record.status === "submitted") || null;
+  return submitted
+    ? action("reconcile_progressive_raw_attempt", {
+      kind: "repair",
+      plan_hash: snapshot.historical_plan.sha256,
+      attempt_sha256: submitted.sha256,
+      summary: "A former-compiler submitted provider attempt must reconcile without resubmission.",
+    })
+    : action("rebuild_progressive_raw_work", {
+      kind: "guide",
+      plan_hash: snapshot.historical_plan.sha256,
+      summary: "Publish a fresh current progressive raw plan across the provider-input compiler cutover.",
+    });
+}
+
+function historicalCutoverSnapshotFromDirectRecords(direct, head) {
+  const historicalPlan = { ...direct.plan.record };
+  Object.defineProperty(historicalPlan, "sha256", {
+    value: direct.plan.sha256,
+    enumerable: false,
+    configurable: false,
+    writable: false,
+  });
+  Object.freeze(historicalPlan);
+  const attemptState = validateAttemptState(
+    historicalPlan,
+    direct.batches,
+    direct.grants,
+    direct.attempts,
+    { historicalCutover: true },
+  );
+  validateBatchLineage(direct.batches, attemptState);
+  const orphanedByAttemptKey = new Map();
+  const materializations = new Map();
+  for (const materialization of direct.materializations) {
+    const provenance = materialization.provenance;
+    if (provenance.record.kind !== "provider") continue;
+    const batch = attemptState.batch_by_sha.get(provenance.record.batch_sha256) || null;
+    const grant = attemptState.grant_by_batch.get(provenance.record.batch_sha256) || null;
+    const attempt = attemptState.current_by_key.get(provenance.record.attempt_key_sha256) || null;
+    if (!batch || !grant || !attempt) {
+      fail("progressive_raw_materialization_invalid", "historical-cutover provider materialization has no exact direct lineage");
+    }
+    checked(
+      provenance.record,
+      "historical-cutover provider materialization",
+      validateFormerProgressiveRawMaterializationProvenance,
+      { plan: historicalPlan, batch: batch.record, grant: grant.record },
+    );
+    if (attempt.record.status === "succeeded") {
+      checked(
+        provenance.record,
+        "historical-cutover provider materialization",
+        validateFormerProgressiveRawMaterializationProvenance,
+        { plan: historicalPlan, batch: batch.record, grant: grant.record, attempt: attempt.record },
+      );
+      if (materializations.has(provenance.record.slide_id)) {
+        fail("progressive_raw_materialization_ambiguous", "historical-cutover slide has multiple terminal materializations");
+      }
+      materializations.set(provenance.record.slide_id, materialization);
+      continue;
+    }
+    if (attempt.record.status !== "submitted") {
+      fail("progressive_raw_materialization_invalid", "historical-cutover materialization may await only its exact submitted attempt");
+    }
+    if (orphanedByAttemptKey.has(attempt.record.attempt_key_sha256)) {
+      fail("progressive_raw_materialization_ambiguous", "historical-cutover submitted attempt has multiple materializations");
+    }
+    orphanedByAttemptKey.set(attempt.record.attempt_key_sha256, materialization);
+  }
+  return Object.freeze({
+    kind: "historical_cutover",
+    head,
+    historical_plan: historicalPlan,
+    direct,
+    attempt_state: attemptState,
+    materializations,
+    orphaned_materializations: orphanedByAttemptKey,
+    progress: progressProjection(historicalPlan, materializations, attemptState),
+  });
+}
+
+function loadScopeHeadState(runDir, workflow) {
   const rawHead = readProgressiveRawScopeHead(runDir, { workflow });
   if (!rawHead) return null;
   const resolver = createProgressiveRawSnapshotResolver(runDir);
-  const snapshot = resolver.load(rawHead.record.plan_sha256, { head: rawHead });
-  checked(rawHead.record, "scope head", validateProgressiveRawScopeHead, { plan: snapshot.plan });
-  return snapshot;
+  try {
+    const snapshot = resolver.load(rawHead.record.plan_sha256, { head: rawHead });
+    checked(rawHead.record, "scope head", validateProgressiveRawScopeHead, { plan: snapshot.plan });
+    return Object.freeze({ kind: "current", snapshot });
+  } catch (currentError) {
+    try {
+      const direct = readHistoricalCutoverProgressiveRawPlanDirectRecords(runDir, {
+        plan_sha256: rawHead.record.plan_sha256,
+      });
+      const historicalHead = readHistoricalCutoverProgressiveRawScopeHead(runDir, {
+        workflow,
+        plan: direct.plan.record,
+      });
+      return historicalCutoverSnapshotFromDirectRecords(direct, historicalHead);
+    } catch {
+      throw currentError;
+    }
+  }
+}
+
+function loadPlanByHead(runDir, workflow) {
+  const state = loadScopeHeadState(runDir, workflow);
+  if (state?.kind === "historical_cutover") {
+    const nextAction = historicalCutoverAction(state);
+    fail(
+      nextAction.action_id === "reconcile_progressive_raw_attempt"
+        ? "progressive_raw_reconciliation_required"
+        : "progressive_raw_plan_stale",
+      "the current progressive head uses the former provider-input compiler binding",
+      { nextAction },
+    );
+  }
+  return state?.snapshot || null;
 }
 
 function requireCurrentPlan(snapshot, planHash, expectedPlan = null) {
@@ -1040,7 +1168,15 @@ export function createProgressiveRawWorkPlanFromTarget({ runDir, source_epoch, r
 
 /** Check paid irreversible history before a source/profile successor can materialize. */
 export function assertNoUnresolvedProgressiveRawSubmission({ runDir, workflow } = {}) {
-  const snapshot = loadPlanByHead(runDir, workflow);
+  const state = loadScopeHeadState(runDir, workflow);
+  if (state?.kind === "historical_cutover") {
+    const nextAction = historicalCutoverAction(state);
+    if (nextAction.action_id === "reconcile_progressive_raw_attempt") {
+      fail("progressive_raw_reconciliation_required", "a former-compiler submitted attempt must reconcile before successor planning", { nextAction });
+    }
+    return state;
+  }
+  const snapshot = state?.snapshot || null;
   const unresolved = unresolvedAction(snapshot);
   if (unresolved) fail("progressive_raw_reconciliation_required", "a persisted submitted provider attempt must reconcile before any successor plan or batch", { nextAction: unresolved });
   return snapshot;
@@ -1060,13 +1196,21 @@ export function publishProgressiveRawWorkPlan({
   if (retain_current_complete_review && !reuse_current_materializations) {
     fail("progressive_raw_local_rebind_invalid", "retained complete review requires explicit provider-free reuse evaluation");
   }
-  const existing = loadPlanByHead(runDir, plan.workflow);
+  const existingState = loadScopeHeadState(runDir, plan.workflow);
+  const historical = existingState?.kind === "historical_cutover" ? existingState : null;
+  const existing = existingState?.kind === "current" ? existingState.snapshot : null;
+  if (historical) {
+    const nextAction = historicalCutoverAction(historical);
+    if (nextAction.action_id === "reconcile_progressive_raw_attempt") {
+      fail("progressive_raw_reconciliation_required", "a former-compiler submitted attempt blocks successor publication", { nextAction });
+    }
+  }
   const unresolved = unresolvedAction(existing);
   if (unresolved) fail("progressive_raw_reconciliation_required", "a submitted attempt blocks full-plan head advancement", { nextAction: unresolved });
   if (existing?.plan.sha256 === checkedPlan.sha256) {
     return Object.freeze({ plan, plan_hash: checkedPlan.sha256, replay: true, head: existing.head.record });
   }
-  const reuse = reuse_current_materializations
+  const reuse = !historical && reuse_current_materializations
     ? deriveCurrentProviderFreeReuse(plan, existing)
     : Object.freeze([]);
   const staged = stageProgressiveRawPlanContainer(runDir, { plan });
@@ -1082,24 +1226,37 @@ export function publishProgressiveRawWorkPlan({
     }, { plan });
     publishProgressiveRawMaterialization(runDir, { plan, provenance, bytes: source.bytes });
   }
-  const retained = retain_current_complete_review
+  const retained = !historical && retain_current_complete_review
     ? retainCurrentCompleteReviewForProviderFreeReuse(runDir, plan, existing)
     : null;
-  const generation = existing ? existing.head.record.plan_generation + 1 : 1;
+  const predecessorHead = historical?.head || existing?.head || null;
+  const predecessorPlanSha256 = historical?.historical_plan.sha256 || existing?.plan.sha256 || null;
+  const generation = predecessorHead ? predecessorHead.record.plan_generation + 1 : 1;
   const head = createProgressiveRawScopeHead({
     run_version: plan.run_version,
     workflow: plan.workflow,
     plan_sha256: checkedPlan.sha256,
     plan_generation: generation,
-    previous_plan_sha256: existing?.plan.sha256 || null,
+    previous_plan_sha256: predecessorPlanSha256,
   }, { plan });
   const cas = writeProgressiveRawScopeHeadCas(runDir, {
     workflow: plan.workflow,
     head,
     plan,
-    expected_bytes: existing?.head.bytes || null,
+    expected_bytes: predecessorHead?.bytes || null,
     validate_advance: () => {
-      const current = loadPlanByHead(runDir, plan.workflow);
+      const lockedState = loadScopeHeadState(runDir, plan.workflow);
+      if (lockedState?.kind === "historical_cutover") {
+        const lockedAction = historicalCutoverAction(lockedState);
+        if (lockedAction.action_id === "reconcile_progressive_raw_attempt") {
+          fail("progressive_raw_reconciliation_required", "a former-compiler submitted attempt blocks head advancement", { nextAction: lockedAction });
+        }
+        if (lockedState.historical_plan.sha256 !== predecessorPlanSha256) {
+          fail("progressive_raw_head_conflict", "historical-cutover predecessor changed before head advancement");
+        }
+        return;
+      }
+      const current = lockedState?.snapshot || null;
       const currentUnresolved = unresolvedAction(current);
       if (currentUnresolved) fail("progressive_raw_reconciliation_required", "a submitted attempt blocks full-plan head advancement", { nextAction: currentUnresolved });
     },
@@ -1488,6 +1645,122 @@ export async function generateProgressiveRawItem({ runDir, workflow, plan_hash, 
   });
 }
 
+async function reconcileHistoricalCutoverAttempt({
+  runDir,
+  workflow,
+  snapshot,
+  plan_hash,
+  attempt_sha256,
+  lookup,
+}) {
+  if (snapshot.historical_plan.sha256 !== plan_hash || snapshot.historical_plan.workflow !== workflow) {
+    fail("progressive_raw_cross_bound", "historical-cutover reconciliation requires the exact current scope head");
+  }
+  const attempt = snapshot.attempt_state.by_sha.get(attempt_sha256) || null;
+  if (!attempt || attempt.record.status !== "submitted") {
+    fail("progressive_raw_reconcile_invalid", "historical-cutover reconcile accepts only an exact persisted submitted attempt", {
+      nextAction: historicalCutoverAction(snapshot),
+    });
+  }
+  const effectiveTerminal = snapshot.attempt_state.current_by_key.get(attempt.record.attempt_key_sha256) || null;
+  if (effectiveTerminal?.record.status !== "submitted") {
+    return Object.freeze({
+      plan_hash,
+      attempt_sha256,
+      reconciled: true,
+      replay: true,
+      outcome: effectiveTerminal.record.status,
+      prior_plan: false,
+      progress: snapshot.progress,
+      next_action: action("rebuild_progressive_raw_work", { plan_hash }),
+    });
+  }
+  const batch = snapshot.attempt_state.batch_by_sha.get(attempt.record.batch_sha256) || null;
+  const grant = snapshot.attempt_state.grant_by_batch.get(attempt.record.batch_sha256) || null;
+  if (!batch || !grant) fail("progressive_raw_cross_bound", "historical-cutover submitted attempt lost its batch or grant lineage");
+  const persisted = snapshot.orphaned_materializations.get(attempt.record.attempt_key_sha256) || null;
+  let outcome = null;
+  if (!persisted && typeof lookup === "function") {
+    outcome = await lookup(Object.freeze({
+      plan_hash,
+      attempt_sha256,
+      provider_request_sha256: attempt.record.provider_request_sha256,
+      provider_idempotency_key: attempt.record.provider_idempotency_key,
+      item: Object.freeze({
+        slide_id: attempt.record.slide_id,
+        raw_contract_sha256: attempt.record.raw_contract_sha256,
+      }),
+    }));
+  }
+
+  let terminal;
+  if (persisted) {
+    terminal = createHistoricalCutoverProgressiveRawItemAttempt({
+      ...attempt.record,
+      status: "succeeded",
+      previous_attempt_sha256: attempt.sha256,
+      materialization_provenance_sha256: persisted.provenance.sha256,
+    }, { plan: snapshot.historical_plan, batch: batch.record, grant: grant.record });
+  } else if (outcome && (Buffer.isBuffer(outcome) || outcome instanceof Uint8Array)) {
+    const bytes = Buffer.from(outcome);
+    if (!bytes.length) fail("progressive_raw_reconcile_invalid", "historical-cutover reconciliation lookup returned empty bytes");
+    const provenance = createHistoricalCutoverProgressiveRawMaterializationProvenance({
+      plan_sha256: snapshot.historical_plan.sha256,
+      run_version: snapshot.historical_plan.run_version,
+      source_receipt_sha256: snapshot.historical_plan.source_receipt_sha256,
+      source_epoch: snapshot.historical_plan.source_epoch,
+      workflow: snapshot.historical_plan.workflow,
+      provider_profile_sha256: snapshot.historical_plan.provider_profile_sha256,
+      effective_style_master_sha256: snapshot.historical_plan.effective_style_master_sha256,
+      source_execution_sha256: snapshot.historical_plan.source_execution_sha256,
+      kind: "provider",
+      slide_id: attempt.record.slide_id,
+      raw_contract_sha256: attempt.record.raw_contract_sha256,
+      raw_sha256: sha256Bytes(bytes),
+      batch_sha256: batch.sha256,
+      grant_sha256: grant.sha256,
+      attempt_key_sha256: attempt.record.attempt_key_sha256,
+    }, { plan: snapshot.historical_plan });
+    publishHistoricalCutoverProgressiveRawMaterialization(runDir, {
+      plan: snapshot.historical_plan,
+      provenance,
+      bytes,
+    });
+    terminal = createHistoricalCutoverProgressiveRawItemAttempt({
+      ...attempt.record,
+      status: "succeeded",
+      previous_attempt_sha256: attempt.sha256,
+      materialization_provenance_sha256: provenance.sha256,
+    }, { plan: snapshot.historical_plan, batch: batch.record, grant: grant.record });
+  } else {
+    terminal = createHistoricalCutoverProgressiveRawItemAttempt({
+      ...attempt.record,
+      status: outcome?.outcome === "known_failure" ? "known_failure" : "unknown",
+      previous_attempt_sha256: attempt.sha256,
+    }, { plan: snapshot.historical_plan, batch: batch.record, grant: grant.record });
+  }
+  writeHistoricalCutoverProgressiveRawItemAttempt(runDir, {
+    plan: snapshot.historical_plan,
+    batch: batch.record,
+    grant: grant.record,
+    attempt: terminal,
+  });
+  const after = loadScopeHeadState(runDir, workflow);
+  if (after?.kind !== "historical_cutover" || after.historical_plan.sha256 !== plan_hash) {
+    fail("progressive_raw_head_conflict", "historical-cutover head changed during reconciliation");
+  }
+  return Object.freeze({
+    plan_hash,
+    attempt_sha256,
+    reconciled: true,
+    replay: false,
+    outcome: terminal.status,
+    prior_plan: false,
+    progress: after.progress,
+    next_action: historicalCutoverAction(after),
+  });
+}
+
 /** Reconcile exactly one persisted submitted attempt without ever resubmitting it. */
 export async function reconcileProgressiveRawAttempt({ runDir, workflow, plan_hash, attempt_sha256, expected_plan = null, lookup = null } = {}) {
   digest(plan_hash, "plan_hash");
@@ -1495,8 +1768,19 @@ export async function reconcileProgressiveRawAttempt({ runDir, workflow, plan_ha
   return withProgressiveRawPlanLock(runDir, {
     plan_sha256: plan_hash,
     action: async () => {
-      const currentHead = loadPlanByHead(runDir, workflow);
-      if (!currentHead) fail("progressive_raw_plan_missing", "prior-plan reconciliation requires a current selected scope head");
+      const headState = loadScopeHeadState(runDir, workflow);
+      if (!headState) fail("progressive_raw_plan_missing", "prior-plan reconciliation requires a current selected scope head");
+      if (headState.kind === "historical_cutover") {
+        return reconcileHistoricalCutoverAttempt({
+          runDir,
+          workflow,
+          snapshot: headState,
+          plan_hash,
+          attempt_sha256,
+          lookup,
+        });
+      }
+      const currentHead = headState.snapshot;
       const current = expected_plan
         ? requireCurrentPlan(currentHead, currentHead.plan.sha256, expected_plan)
         : currentHead;

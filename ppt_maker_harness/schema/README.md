@@ -26,6 +26,17 @@ stage reference and role in `serialization-contracts.yaml`. Every stage and
 flow transformation names its current owner; this directory does not track
 delivery routes, future work, or implementation progress.
 
+## Shared Page Design System Binding
+
+The local `page-image-design-system-binding` is declared under
+`layout-config` with role `version-design-system-binding`. Visual Config
+resolves exact optional source text and its nullable digest; Page Image Core,
+ordinary/progressive plans, invalidation, and derived request inspection carry
+only the declared binding facts. Pure and Framed provider inputs expose only
+top-level `design_system: string | null`, never a source path, selection origin,
+digest, authorization, or lifecycle fact. The declaration is not a durable
+shared contract, stage artifact publication, runtime resolver, or review gate.
+
 ## Current Framed Composition Terms
 
 `SUBJECT RESTRICTIONS` is a closed parser-owned page fact on both workflows.

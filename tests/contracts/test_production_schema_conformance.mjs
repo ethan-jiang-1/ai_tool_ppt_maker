@@ -8,6 +8,7 @@ import {
   ACTIVE_SURFACE_FILES,
   evaluateActiveSurfaceResidue,
   evaluateFramedCompositionConformance,
+  evaluatePageDesignSystemConformance,
   evaluatePageDerivedPublicationConformance,
   evaluateProductionSchemaConformance,
   evaluateRetiredControlSurfaceReachability,
@@ -27,6 +28,7 @@ const PAGE_IMAGE_PRESENTATION_CONTRACTS = [
   "pptmaker-pure-deck-visual-system",
   "pptmaker-framed-header-profiles",
 ];
+const PAGE_DESIGN_SYSTEM_BINDING_SCHEMA = "page-image-design-system-binding";
 
 function walk(root, files = []) {
   for (const name of readdirSync(root)) {
@@ -410,6 +412,29 @@ function framedCompositionSnapshot(workflow = "framed") {
   };
 }
 
+function pageDesignSystemSnapshot(workflow = "pure") {
+  const text = "Use one restrained editorial design system.\n";
+  const sha256 = "b".repeat(64);
+  return {
+    workflow,
+    wire_schemas: currentSnapshot().wire_schemas,
+    page_design_system_binding: {
+      schema: PAGE_DESIGN_SYSTEM_BINDING_SCHEMA,
+      text,
+      sha256,
+    },
+    raw_contract: {
+      page_design_system: { text, sha256 },
+    },
+    core_facts: { page_design_system_sha256: sha256 },
+    ordinary_plan_binding: { page_design_system_sha256: sha256 },
+    progressive_plan_binding: { page_design_system_sha256: sha256 },
+    provider_input_binding: { page_design_system_sha256: sha256 },
+    provider_request: { design_system: text },
+    provider_input_utf8_bytes: 1024,
+  };
+}
+
 function createActiveSurfaceFixture() {
   const root = mkdtempSync(join(tmpdir(), "pptmaker-active-surface-"));
   const write = (path, content) => {
@@ -606,10 +631,17 @@ describe("production schema conformance", () => {
   it("declares presentation contracts only as materialized layout config", () => {
     const inventory = yaml(join(SCHEMA_HOME, "serialization-contracts.yaml"));
     const layoutConfig = inventory.wire_schema_groups.find((group) => group.stage_ref === "layout-config");
+    const designSystemBinding = inventory.wire_schema_groups.find((group) =>
+      group.stage_ref === "layout-config" && group.role === "version-design-system-binding");
     const visualLanguage = inventory.wire_schema_groups.find((group) => group.stage_ref === "visual-language");
 
     expect(layoutConfig).toMatchObject({ role: "version-presentation-source" });
     expect(layoutConfig.values).toEqual(PAGE_IMAGE_PRESENTATION_CONTRACTS);
+    expect(designSystemBinding).toEqual({
+      stage_ref: "layout-config",
+      role: "version-design-system-binding",
+      values: [PAGE_DESIGN_SYSTEM_BINDING_SCHEMA],
+    });
     expect(visualLanguage.values).not.toContain("pptmaker-pure-deck-visual-system");
     expect(inventory.selectors).not.toHaveProperty("framed_header_preset");
 
@@ -618,6 +650,71 @@ describe("production schema conformance", () => {
       expect(definition).toMatchObject({ schema: stage, producer_status: "materialized" });
       expect(definition).not.toHaveProperty("route_ref");
     }
+  });
+
+  it("checks declared Page Design System chains statically without runtime source access", () => {
+    expect(evaluatePageDesignSystemConformance(pageDesignSystemSnapshot("pure")).issues).toEqual([]);
+    expect(evaluatePageDesignSystemConformance(pageDesignSystemSnapshot("framed")).issues).toEqual([]);
+
+    const missingRaw = pageDesignSystemSnapshot();
+    delete missingRaw.raw_contract.page_design_system;
+    expect(evaluatePageDesignSystemConformance(missingRaw).issues.map((issue) => issue.code))
+      .toContain("page-design-system-raw-binding-invalid");
+
+    const extraRaw = pageDesignSystemSnapshot();
+    extraRaw.raw_contract.page_design_system.origin = "backbone";
+    expect(evaluatePageDesignSystemConformance(extraRaw).issues.map((issue) => issue.code))
+      .toContain("page-design-system-raw-binding-invalid");
+
+    const asymmetric = pageDesignSystemSnapshot();
+    asymmetric.page_design_system_binding = {
+      schema: PAGE_DESIGN_SYSTEM_BINDING_SCHEMA,
+      text: null,
+      sha256: "b".repeat(64),
+    };
+    expect(evaluatePageDesignSystemConformance(asymmetric).issues.map((issue) => issue.code))
+      .toContain("page-design-system-local-binding-invalid");
+
+    const missingDeclaration = pageDesignSystemSnapshot();
+    missingDeclaration.wire_schemas = missingDeclaration.wire_schemas.filter((entry) => entry.value !== PAGE_DESIGN_SYSTEM_BINDING_SCHEMA);
+    expect(evaluatePageDesignSystemConformance(missingDeclaration).issues.map((issue) => issue.code))
+      .toContain("page-design-system-binding-declaration-invalid");
+
+    const misclassifiedDeclaration = pageDesignSystemSnapshot();
+    misclassifiedDeclaration.wire_schemas = misclassifiedDeclaration.wire_schemas.map((entry) =>
+      entry.value === PAGE_DESIGN_SYSTEM_BINDING_SCHEMA ? { ...entry, role: "version-presentation-source" } : entry);
+    expect(evaluatePageDesignSystemConformance(misclassifiedDeclaration).issues.map((issue) => issue.code))
+      .toContain("page-design-system-binding-declaration-invalid");
+
+    const lineageLeak = pageDesignSystemSnapshot();
+    lineageLeak.provider_request.design_system_path = "2_backbone/visual-style/page-design-system.md";
+    expect(evaluatePageDesignSystemConformance(lineageLeak).issues.map((issue) => issue.code))
+      .toContain("page-design-system-provider-lineage-leak");
+
+    const pureLeak = pageDesignSystemSnapshot("pure");
+    pureLeak.provider_request.protected_composition = {};
+    expect(evaluatePageDesignSystemConformance(pureLeak).issues.map((issue) => issue.code))
+      .toContain("page-design-system-cross-workflow-leak");
+
+    const framedLeak = pageDesignSystemSnapshot("framed");
+    framedLeak.raw_contract.deck_visual_system_sha256 = "a".repeat(64);
+    expect(evaluatePageDesignSystemConformance(framedLeak).issues.map((issue) => issue.code))
+      .toContain("page-design-system-cross-workflow-leak");
+
+    const oversized = pageDesignSystemSnapshot();
+    oversized.provider_input_utf8_bytes = 32769;
+    expect(evaluatePageDesignSystemConformance(oversized).issues.map((issue) => issue.code))
+      .toContain("page-design-system-provider-size-invalid");
+  });
+
+  it("rejects an emitted local binding schema without its dedicated inventory declaration", () => {
+    const snapshot = currentSnapshot();
+    snapshot.wire_schemas = snapshot.wire_schemas.filter((entry) => entry.value !== PAGE_DESIGN_SYSTEM_BINDING_SCHEMA);
+    snapshot.contract_fields.push({ field: "schema", value: PAGE_DESIGN_SYSTEM_BINDING_SCHEMA, location: "synthetic-page-design-system-source" });
+    expect(evaluateProductionSchemaConformance(snapshot).issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "page-design-system-binding-declaration-invalid" }),
+      expect.objectContaining({ code: "contract-field-undeclared", path: "synthetic-page-design-system-source" }),
+    ]));
   });
 
   it("evaluates Framed and Pure derived-publication chains without becoming a runtime validator", () => {

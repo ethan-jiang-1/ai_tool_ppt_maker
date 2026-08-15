@@ -10,12 +10,15 @@ const REQUEST_KEYS = Object.freeze([
   "schema",
   "slide_id",
   "instruction",
+  "design_system",
   "provider_rendered_content",
   "subject_restrictions",
   "protected_composition",
   "visual",
   "generation_profile",
 ]);
+const PAGE_DESIGN_SYSTEM_KEYS = Object.freeze(["text", "sha256"]);
+const SHA256_RE = /^[0-9a-f]{64}$/;
 const FORBIDDEN_REQUEST_KEYS = Object.freeze([
   "local_header",
   "header_policy",
@@ -34,6 +37,19 @@ function hasExactKeys(value, keys) {
 
 function sameCanonical(left, right) {
   return canonicalJson(left) === canonicalJson(right);
+}
+
+function hasValidPageDesignSystemBinding(rawContract) {
+  const binding = rawContract?.page_design_system;
+  const coreDigest = rawContract?.page_image_core?.page_design_system_sha256;
+  if (!hasExactKeys(binding, PAGE_DESIGN_SYSTEM_KEYS) ||
+    (binding.text === null) !== (binding.sha256 === null)) {
+    return false;
+  }
+  if (binding.text === null) return coreDigest === null;
+  return typeof binding.text === "string" && binding.text.trim().length > 0 &&
+    SHA256_RE.test(binding.sha256 || "") && coreDigest === binding.sha256 &&
+    sha256Bytes(Buffer.from(binding.text, "utf8")) === binding.sha256;
 }
 
 export function buildFramedProviderIdentity(rawContract) {
@@ -57,15 +73,23 @@ export function buildFramedProviderIdentity(rawContract) {
 }
 
 /** Validate Framed's provider-free canonical input before plan publication. */
-export function validateFramedProviderInputContract({ rawContract, generationProfile, compiledProviderInput } = {}) {
+export function validateFramedProviderInputContract({
+  rawContract,
+  generationProfile,
+  compiledProviderInput,
+  maxUtf8Bytes,
+} = {}) {
   try {
     if (!rawContract || typeof rawContract !== "object" ||
       !generationProfile || typeof generationProfile !== "object" ||
+      !Number.isInteger(maxUtf8Bytes) || maxUtf8Bytes <= 0 ||
       !hasExactKeys(compiledProviderInput, COMPILED_INPUT_KEYS) ||
       compiledProviderInput.schema !== "page-image-compiled-provider-input" ||
       typeof compiledProviderInput.utf8 !== "string" || !compiledProviderInput.utf8 ||
       typeof compiledProviderInput.sha256 !== "string" ||
-      compiledProviderInput.sha256 !== sha256Bytes(Buffer.from(compiledProviderInput.utf8, "utf8"))) {
+      compiledProviderInput.sha256 !== sha256Bytes(Buffer.from(compiledProviderInput.utf8, "utf8")) ||
+      Buffer.byteLength(compiledProviderInput.utf8, "utf8") > maxUtf8Bytes ||
+      !hasValidPageDesignSystemBinding(rawContract)) {
       throw new Error("Framed compiled provider input is not an exact canonical byte record");
     }
 
@@ -80,6 +104,8 @@ export function validateFramedProviderInputContract({ rawContract, generationPro
       request.schema !== "page-image-framed-provider-input" ||
       request.slide_id !== rawContract.slide_id ||
       request.instruction !== FRAMED_EXCLUSIVE_HEADER_RESERVATION_INSTRUCTION ||
+      (request.design_system !== null && typeof request.design_system !== "string") ||
+      request.design_system !== rawContract.page_design_system.text ||
       FORBIDDEN_REQUEST_KEYS.some((key) => Object.hasOwn(request, key)) ||
       !sameCanonical(request.provider_rendered_content, rawContract.provider_rendered_content) ||
       request.subject_restrictions !== rawContract.framed?.subject_restrictions ||

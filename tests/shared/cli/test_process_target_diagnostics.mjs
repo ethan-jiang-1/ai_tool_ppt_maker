@@ -11,7 +11,10 @@ import { resolvePureStyleMasterScope } from "../../../ppt_maker_harness/scripts/
 import { CLI_BOUNDS, CLI_DIAGNOSTIC_SCHEMA, parseCliErrorLine } from "../../../ppt_maker_harness/scripts/shared/cli/cli_error.mjs";
 import { pageImageOrdinalImageFilename } from "../../../ppt_maker_harness/scripts/shared/image2/page_image_artifacts.mjs";
 import { pageImageWorkflowPaths, pageImageProgressiveRawPaths } from "../../../ppt_maker_harness/scripts/shared/run-bundle/page_image_paths.mjs";
-import { initBundle } from "../../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
+import {
+  initBundle,
+  PAGE_DESIGN_SYSTEM_FILE,
+} from "../../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
 import { createProgressiveRawItemAttempt } from "../../../ppt_maker_harness/scripts/shared/image2/page_image_progressive_schema.mjs";
 import { readProgressiveRawPlanDirectRecords, writeProgressiveRawItemAttempt } from "../../../ppt_maker_harness/scripts/shared/image2/page_image_progressive_store.mjs";
 import { readState, writeState } from "../../../ppt_maker_harness/scripts/shared/state/state.mjs";
@@ -60,13 +63,26 @@ negative_constraints:
 `;
 }
 
-async function createFixture(title) {
+function replaceFixtureProviderClause(deck, providerClause) {
+  if (providerClause === null) return;
+  const registryPath = join(deck, "2_backbone", "visual-style", "page-image-visual-language.yaml");
+  writeFileSync(
+    registryPath,
+    readFileSync(registryPath, "utf8").replace(
+      "architectural editorial scene, layered amber and cobalt light, quiet depth",
+      providerClause,
+    ),
+  );
+}
+
+async function createFixture(title, { providerClause = null } = {}) {
   const root = mkdtempSync(join(tmpdir(), "pptmaker-target-cli-diagnostic-"));
   const deck = join(root, "deck_target_cli_diagnostic");
   const runDir = join(deck, "3_versions", "v1");
   initBundle(deck, null, "keynote", "dark-executive");
   writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), pngBytes("#1f4d6e"));
   writeFileSync(join(runDir, "slide-specifications.md"), framedSource(title));
+  replaceFixtureProviderClause(deck, providerClause);
   await acceptLocalStyleMasterFixture(resolveFramedStyleMasterScope(runDir));
   return { root, deck, runDir, paths: pageImageWorkflowPaths(runDir) };
 }
@@ -110,13 +126,14 @@ negative_constraints:
 `;
 }
 
-async function createPureFixture(firstTitle = "First exact Pure page") {
+async function createPureFixture(firstTitle = "First exact Pure page", { providerClause = null } = {}) {
   const root = mkdtempSync(join(tmpdir(), "pptmaker-pure-progressive-cli-"));
   const deck = join(root, "deck_pure_progressive_cli");
   const runDir = join(deck, "3_versions", "v1");
   initBundle(deck, null, "keynote", "dark-executive");
   writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), pngBytes("#265e74"));
   writeFileSync(join(runDir, "slide-specifications.md"), pureSource(firstTitle));
+  replaceFixtureProviderClause(deck, providerClause);
   await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir));
   return { root, deck, runDir, paths: pageImageWorkflowPaths(runDir) };
 }
@@ -351,6 +368,62 @@ function removeCurrentTaskMandate(fixture) {
 }
 
 describe("target Page Image CLI diagnostics", () => {
+  it("keeps Page Design System source and canonical-input overflow failures on bounded source repair", async () => {
+    const sourceCases = [
+      { workflow: "framed", create: () => createFixture("Page Design System source diagnostic") },
+      { workflow: "pure", create: () => createPureFixture("Page Design System source diagnostic") },
+    ];
+    for (const scenario of sourceCases) {
+      const fixture = await scenario.create();
+      try {
+        const selectedSource = join(fixture.deck, "2_backbone", "visual-style", PAGE_DESIGN_SYSTEM_FILE);
+        writeFileSync(selectedSource, Buffer.from([0xff]));
+        const rejected = await runFlow(["image2", "plan", fixture.runDir]);
+        const envelope = parseFailure(rejected);
+        expectOwnerAction(envelope, {
+          category: "source_validation",
+          reason: "page_design_system_source_utf8_invalid",
+          action: "edit_source",
+        });
+        expect(envelope.diagnostic.source).toEqual({ path: selectedSource });
+        expect(envelope.diagnostic.next.inspect).toEqual([{ path: selectedSource }]);
+        expect(`${rejected.stdout}${rejected.stderr}`).not.toMatch(/sha256|backbone source is not valid|selection origin/i);
+      } finally {
+        rmSync(fixture.root, { recursive: true, force: true });
+      }
+    }
+
+    const overflowCases = [
+      {
+        workflow: "framed",
+        reason: "framed_provider_input_too_large",
+        create: () => createFixture("Framed canonical input overflow", { providerClause: "x".repeat(40_000) }),
+      },
+      {
+        workflow: "pure",
+        reason: "pure_provider_input_too_large",
+        create: () => createPureFixture("Pure canonical input overflow", { providerClause: "x".repeat(40_000) }),
+      },
+    ];
+    for (const scenario of overflowCases) {
+      const fixture = await scenario.create();
+      try {
+        const rejected = await runFlow(["image2", "plan", fixture.runDir]);
+        const envelope = parseFailure(rejected);
+        expectOwnerAction(envelope, {
+          category: "source_validation",
+          reason: scenario.reason,
+          action: "edit_source",
+        });
+        expect(envelope.diagnostic.source).toBeUndefined();
+        expect(envelope.diagnostic.next.inspect).toBeUndefined();
+        expect(`${rejected.stdout}${rejected.stderr}`).not.toContain("slide-specifications.md");
+      } finally {
+        rmSync(fixture.root, { recursive: true, force: true });
+      }
+    }
+  }, 90_000);
+
   it("short-circuits an unfit Framed source, preserves owner boundaries, and succeeds after the same plan repair", async () => {
     const fixture = await createFixture(`SOURCE_LITERAL_SENTINEL ${"W".repeat(28)}`);
     const provider = await startMockProvider();

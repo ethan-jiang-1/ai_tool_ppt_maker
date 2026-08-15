@@ -221,6 +221,10 @@ wire_schema_groups:
       - pptmaker-page-image-deck-defaults
       - pptmaker-pure-deck-visual-system
       - pptmaker-framed-header-profiles
+  - stage_ref: layout-config
+    role: version-design-system-binding
+    values:
+      - page-image-design-system-binding
   - stage_ref: page-source-receipt
     role: parsed-source
     values:

@@ -40,6 +40,7 @@ import { resolveContentAddressName } from "../../ppt_maker_harness/scripts/share
 import { canonicalJsonSha256 } from "../../ppt_maker_harness/scripts/shared/identity/canonical_json.mjs";
 import { sha256Bytes } from "../../ppt_maker_harness/scripts/shared/identity/byte_hash.mjs";
 import { canonicalJson } from "../../ppt_maker_harness/scripts/shared/identity/canonical_json.mjs";
+import { PAGE_IMAGE_PROVIDER_INPUT_MAX_UTF8_BYTES } from "../../ppt_maker_harness/scripts/shared/page-image/page_image_core.mjs";
 import {
   FRAMED_EXCLUSIVE_HEADER_RESERVATION_INSTRUCTION,
   validateFramedProviderInputContract,
@@ -106,6 +107,7 @@ function framedProviderInputBinding(compiled = "a") {
     generation_profile_sha256: digest("e"),
     header_policy_sha256: digest("f"),
     page_presentation_sha256: digest("9"),
+    page_design_system_sha256: null,
     local_header_profile_sha256: digest("1"),
     protected_composition_sha256: digest("2"),
   };
@@ -449,6 +451,7 @@ ${DEFAULT_VISUAL_BRIEF}
           utf8: lineageUtf8,
           sha256: sha256Bytes(Buffer.from(lineageUtf8, "utf8")),
         },
+        maxUtf8Bytes: PAGE_IMAGE_PROVIDER_INPUT_MAX_UTF8_BYTES,
       })).toMatchObject({ ok: false, code: "framed_provider_input_contract_invalid" });
 
       const withoutClause = structuredClone(identityInput);
@@ -462,6 +465,7 @@ ${DEFAULT_VISUAL_BRIEF}
           utf8: withoutClauseUtf8,
           sha256: sha256Bytes(Buffer.from(withoutClauseUtf8, "utf8")),
         },
+        maxUtf8Bytes: PAGE_IMAGE_PROVIDER_INPUT_MAX_UTF8_BYTES,
       })).toMatchObject({ ok: false, code: "framed_provider_input_contract_invalid" });
     } finally {
       rmSync(root, { recursive: true, force: true });
@@ -636,6 +640,7 @@ relationship: causal-flow`,
         rawContract,
         generationProfile: plan.provider_requests_by_slide.DeckGo.generation_profile,
         compiledProviderInput: weakenedInput,
+        maxUtf8Bytes: PAGE_IMAGE_PROVIDER_INPUT_MAX_UTF8_BYTES,
       })).toMatchObject({
         ok: false,
         code: "framed_provider_input_contract_invalid",
@@ -649,6 +654,7 @@ relationship: causal-flow`,
         rawContract,
         generationProfile: plan.provider_requests_by_slide.DeckGo.generation_profile,
         compiledProviderInput: nonCanonicalInput,
+        maxUtf8Bytes: PAGE_IMAGE_PROVIDER_INPUT_MAX_UTF8_BYTES,
       })).toMatchObject({
         ok: false,
         code: "framed_provider_input_contract_invalid",

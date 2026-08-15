@@ -31,6 +31,7 @@ import {
   PAGE_IMAGE_NATIVE_RAW_PNG,
 } from "./page_image_media_contract.mjs";
 import {
+  classifyRawWorkPlanProviderInputBindings,
   createAcceptedRawEvidence,
   pageImageOrdinalImageFilename,
   validateAcceptedRawEvidence,
@@ -946,10 +947,22 @@ export function resolveTargetStoredPlanContext(runDir, {
     throw staleTargetPlanError("target_source_receipt_stale", "the stored target source receipt does not match current source");
   }
   const storedPlan = readJson(candidate.paths.target_raw_plan, "target_raw_plan_required", "a current target raw plan is required");
-  const storedPlanCheck = requireTargetPlan(storedPlan, storedReceipt, workflow);
+  const storedPlanShape = classifyRawWorkPlanProviderInputBindings(storedPlan);
+  if (!storedPlanShape.ok || storedPlan.workflow !== workflow || storedPlan.source_receipt_sha256 !== storedReceipt.source_sha256) {
+    throw new PageImageTargetRuntimeError(
+      storedPlanShape.code || "target_raw_plan_invalid",
+      "the selected workflow raw plan is invalid or stale",
+    );
+  }
   const compiled = compilePlanCandidate(candidate);
   const compiledPlanCheck = requireTargetPlan(compiled?.raw_work_plan, candidate.receipt, workflow);
-  if (compiledPlanCheck.sha256 !== storedPlanCheck.sha256) {
+  if (storedPlanShape.kind === "former_page_design_system_binding") {
+    throw staleTargetPlanError(
+      "target_raw_plan_stale",
+      "the stored target raw plan uses the former provider-input compiler binding",
+    );
+  }
+  if (compiledPlanCheck.sha256 !== storedPlanShape.sha256) {
     throw staleTargetPlanError("target_raw_plan_stale", "the stored target raw plan does not match current selected-workflow contracts");
   }
   // Stored-plan reads are shared by selected-workflow and progressive adapters. They only

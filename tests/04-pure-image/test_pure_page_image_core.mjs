@@ -13,6 +13,7 @@ import {
 } from "../../ppt_maker_harness/scripts/04-pure-image/index.mjs";
 import {
   initBundle,
+  PAGE_DESIGN_SYSTEM_FILE,
   pureDeckVisualSystemAsset,
 } from "../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
 import { pageImageDerivedPagePaths, pageImageWorkflowPaths } from "../../ppt_maker_harness/scripts/shared/run-bundle/page_image_paths.mjs";
@@ -162,11 +163,13 @@ describe("Pure Page Image Core adapter", () => {
     const root = mkdtempSync(join(tmpdir(), "pure-page-image-core-"));
     const deck = join(root, "deck_pure_page_image_core");
     const runDir = join(deck, "3_versions", "v1");
+    const designSystem = "Use a high-contrast editorial hierarchy with concise CJK-safe labels.";
     const image = createCanvas(2000, 1125);
     image.getContext("2d").fillRect(0, 0, 2000, 1125);
     try {
       initBundle(deck, null, "keynote", "dark-executive");
       writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+      writeFileSync(join(deck, "2_backbone", "visual-style", PAGE_DESIGN_SYSTEM_FILE), designSystem);
       writeFileSync(join(runDir, "slide-specifications.md"), SOURCE);
       await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir));
       const plan = buildPureTargetRawPlan(runDir);
@@ -178,6 +181,7 @@ describe("Pure Page Image Core adapter", () => {
       expect(plan.page_image_core).toMatchObject({
         schema: "page-image-core-facts",
         workflow: "pure",
+        page_design_system_sha256: expect.stringMatching(/^[0-9a-f]{64}$/),
         slides: [{
           slide_id: "DeckGo",
           header_policy: {
@@ -195,6 +199,11 @@ describe("Pure Page Image Core adapter", () => {
         page_image_core: {
           schema: "page-image-core-slide-facts",
           canonical_semantic_sha256: coreSlide.canonical_semantic_sha256,
+          page_design_system_sha256: coreSlide.page_design_system_sha256,
+        },
+        page_design_system: {
+          text: designSystem,
+          sha256: coreSlide.page_design_system_sha256,
         },
         provider_rendered_content: {
           header: coreSlide.header_policy.provider_visible,
@@ -214,6 +223,7 @@ describe("Pure Page Image Core adapter", () => {
         generation_profile_sha256: coreSlide.generation_profile_sha256,
         header_policy_sha256: coreSlide.header_policy_sha256,
         page_presentation_sha256: coreSlide.page_presentation_sha256,
+        page_design_system_sha256: coreSlide.page_design_system_sha256,
         local_header_profile_sha256: null,
         protected_composition_sha256: null,
       });
@@ -222,6 +232,10 @@ describe("Pure Page Image Core adapter", () => {
       expect(JSON.parse(request.compiled_provider_input.utf8).page_presentation).toEqual(contract.page_presentation);
       const providerInput = JSON.parse(request.compiled_provider_input.utf8);
       expect(providerInput.schema).toBe("page-image-pure-provider-input");
+      expect(providerInput.design_system).toBe(designSystem);
+      expect(providerInput).not.toHaveProperty("page_design_system_sha256");
+      expect(providerInput).not.toHaveProperty("page_design_system_path");
+      expect(providerInput).not.toHaveProperty("page_design_system_origin");
       expect(providerInput).not.toHaveProperty("protected_composition");
       expect(providerInput).not.toHaveProperty("reserved_header");
       expect(providerInput).not.toHaveProperty("body_safe");
@@ -231,6 +245,22 @@ describe("Pure Page Image Core adapter", () => {
       expect(serialized).not.toContain("local_header");
       expect(serialized).not.toContain("protected_composition");
       expect(serialized).not.toContain("text_frame");
+
+      const invalidDesignSystemContracts = [
+        (candidate) => { delete candidate.page_design_system; },
+        (candidate) => { candidate.page_design_system.origin = "backbone"; },
+        (candidate) => { candidate.page_design_system.sha256 = null; },
+        (candidate) => { candidate.page_design_system.text = "tampered design guidance"; },
+        (candidate) => { candidate.page_image_core.page_design_system_sha256 = null; },
+      ];
+      for (const mutate of invalidDesignSystemContracts) {
+        const candidate = structuredClone(contract);
+        mutate(candidate);
+        expect(validatePureRawContract(candidate)).toMatchObject({
+          ok: false,
+          code: "pure_raw_contract_invalid",
+        });
+      }
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
@@ -260,6 +290,11 @@ describe("Pure Page Image Core adapter", () => {
 
       expect(first.provider_input_binding.page_presentation_sha256)
         .not.toBe(second.provider_input_binding.page_presentation_sha256);
+      expect(firstRequest.raw_contract.page_image_core.page_design_system_sha256).toBeNull();
+      expect(first.provider_input_binding.page_design_system_sha256).toBeNull();
+      expect(second.provider_input_binding.page_design_system_sha256).toBeNull();
+      expect(firstInput.design_system).toBeNull();
+      expect(secondInput.design_system).toBeNull();
       expect(firstInput.page_presentation).toMatchObject({ page_class: "standard", profile_id: "standard" });
       expect(secondInput.page_presentation).toMatchObject({ page_class: "opening", profile_id: "opening" });
       expect(firstRequest.raw_contract.page_presentation).not.toEqual(secondRequest.raw_contract.page_presentation);

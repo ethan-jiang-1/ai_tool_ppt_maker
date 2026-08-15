@@ -17,7 +17,7 @@ outputs:
   - image-generation-plan
   - image-generation-record
 provenance:
-  source: "One selected adapter's compiled provider input and its binding to core page facts."
+  source: "One selected adapter's compiled provider input and its binding to core page facts, including the optional shared Page Design System digest."
   requirement: "Retain the canonical UTF-8 bytes and sha256 digest selected by the adapter for provider submission."
 downstream_consumers:
   - image-generation-plan
@@ -30,7 +30,7 @@ fields:
   canonical_utf8:
     type: UTF-8 bytes
     description: "The exact canonical request serialization prepared by the selected adapter."
-    rule: "Must be canonicalized before its digest or submission is used."
+    rule: "Must be canonicalized before its digest or submission is used and must not exceed 32768 UTF-8 bytes."
     on_violation:
       means: "The provider request cannot be reproduced or compared reliably."
       ask: "Which approved generation choices should be sent exactly as planned?"
@@ -45,12 +45,20 @@ fields:
       never: "Never reuse a request digest for different bytes."
   adapter_binding:
     type: mapping
-    description: "The selected adapter's binding to the page semantic and workflow-specific configuration digests."
-    rule: "Must bind the request to one selected page and one selected workflow."
+    description: "The selected adapter's binding to the page semantic, nullable Page Design System, and workflow-specific configuration digests."
+    rule: "Must bind the request to one selected page, one selected workflow, and the same nullable Page Design System digest as its raw contract and plan."
     on_violation:
       means: "The request may not belong to the page or workflow being reviewed."
       ask: "Which page and selected production treatment should this request represent?"
       never: "Never submit a request assembled from mixed page treatments."
+  design_system:
+    type: "string or null"
+    description: "The exact selected shared Page Design System prose, or null, supplied only by the selected adapter's raw contract."
+    rule: "Both Pure and Framed inputs contain this one top-level text-or-null field. It may not contain a filesystem path, origin, SHA-256, plan identifier, authorization, attempt, review, or lifecycle fact; Framed retains its existing local-header and exclusive-reservation boundary."
+    on_violation:
+      means: "The provider-facing request leaks local lineage or no longer matches the adapter-bound source text."
+      ask: "Repair the selected source binding or adapter contract, then rebuild the provider-free plan."
+      never: "Never add a transport-side replacement field, rewrite submitted bytes, or place local Framed header content in this value."
   framed_composition_boundary:
     type: workflow-specific mapping
     description: "The Framed request binding for selected normalized protected composition, parser-owned subject restrictions, and the local-overlay-exclusive header reservation."

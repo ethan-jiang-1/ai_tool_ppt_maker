@@ -4,6 +4,7 @@ import {
   PAGE_IMAGE_CORE_FACTS_SCHEMA,
   PageImageCoreError,
   createPageImageCoreFacts,
+  createPageImageProviderInputBinding,
   normalizePageImageHeaderPolicy,
   normalizePageImageProviderContent,
 } from "../../../ppt_maker_harness/scripts/shared/page-image/page_image_core.mjs";
@@ -57,13 +58,14 @@ function sourceReceipt({ workflow = "framed" } = {}) {
   };
 }
 
-function coreInputs(receipt) {
+function coreInputs(receipt, { pageDesignSystemSha256 = null } = {}) {
   return {
     sourceReceipt: receipt,
     visualSelections: receipt.slides.map((slide) => ({ slide_id: slide.slide_id, selection: slide.visual_language })),
     styleMasterSelection: { workflow: receipt.workflow, selection_sha256: "b".repeat(64) },
     generationProfile: { provider: { model: "gpt-image-2" }, output: { format: "png" } },
     headerRenderingPolicy: { workflow: receipt.workflow, policy: receipt.workflow === "framed" ? "local-transparent-overlay" : "provider-visible" },
+    pageDesignSystemSha256,
   };
 }
 
@@ -96,6 +98,7 @@ describe("Page Image Core", () => {
     expect(facts.slides[0].provider_content.items[0]).toEqual({ role: "metric", literal: "92%", copy_policy: "exact" });
     expect(facts.slides[0].canonical_semantic_json).toContain('"slide_id":"DeckGo"');
     expect(facts.slides[0].canonical_semantic_sha256).toHaveLength(64);
+    expect(facts.slides[0].page_design_system_sha256).toBeNull();
     expect(facts.canonical_facts_sha256).toHaveLength(64);
     expect(Object.isFrozen(facts.slides[0].provider_content.items[0])).toBe(true);
   });
@@ -121,6 +124,27 @@ describe("Page Image Core", () => {
     expect(() => normalizePageImageProviderContent({
       items: [{ role: "metric", literal: "92%", copy_policy: "presentation_adaptable" }],
     })).toThrow(PageImageCoreError);
+  });
+
+  it("binds an explicit nullable Page Design System digest into Core semantics and provider lineage", () => {
+    const receipt = sourceReceipt({ workflow: "pure" });
+    const nullFacts = createPageImageCoreFacts(coreInputs(receipt));
+    const digest = "d".repeat(64);
+    const boundFacts = createPageImageCoreFacts(coreInputs(receipt, { pageDesignSystemSha256: digest }));
+
+    expect(boundFacts.page_design_system_sha256).toBe(digest);
+    expect(boundFacts.slides[0].page_design_system_sha256).toBe(digest);
+    expect(boundFacts.slides[0].canonical_semantic_sha256).not.toBe(nullFacts.slides[0].canonical_semantic_sha256);
+    expect(createPageImageProviderInputBinding({
+      coreSlide: boundFacts.slides[0],
+      compiledProviderInputSha256: "e".repeat(64),
+    })).toMatchObject({ page_design_system_sha256: digest });
+
+    const missing = coreInputs(receipt);
+    delete missing.pageDesignSystemSha256;
+    expect(() => createPageImageCoreFacts(missing)).toThrow(/pageDesignSystemSha256/);
+    expect(() => createPageImageCoreFacts(coreInputs(receipt, { pageDesignSystemSha256: "D".repeat(64) })))
+      .toThrow(/lowercase SHA-256/);
   });
 
   it("rejects mismatched selected visual facts, headers, and workflow scope", () => {

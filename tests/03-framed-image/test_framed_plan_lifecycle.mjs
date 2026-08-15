@@ -135,13 +135,20 @@ import {
   resolveFramedStyleMasterScope,
   validateFramedRawContract,
 } from "../../ppt_maker_harness/scripts/03-framed-image/index.mjs";
-import { canonicalJsonSha256 } from "../../ppt_maker_harness/scripts/shared/identity/canonical_json.mjs";
+import {
+  FRAMED_EXCLUSIVE_HEADER_RESERVATION_INSTRUCTION,
+  validateFramedProviderInputContract,
+} from "../../ppt_maker_harness/scripts/03-framed-image/internal/framed_provider_input_contract.mjs";
+import { canonicalJson, canonicalJsonSha256 } from "../../ppt_maker_harness/scripts/shared/identity/canonical_json.mjs";
+import { sha256Bytes } from "../../ppt_maker_harness/scripts/shared/identity/byte_hash.mjs";
+import { PAGE_IMAGE_PROVIDER_INPUT_MAX_UTF8_BYTES } from "../../ppt_maker_harness/scripts/shared/page-image/page_image_core.mjs";
 import { resolveContentAddressName } from "../../ppt_maker_harness/scripts/shared/image2/content_address_store.mjs";
 import { pageImageOrdinalImageFilename } from "../../ppt_maker_harness/scripts/shared/image2/page_image_artifacts.mjs";
 import { pageImageWorkflowPaths } from "../../ppt_maker_harness/scripts/shared/run-bundle/page_image_paths.mjs";
 import {
   STYLE_MASTER_IMAGE,
   initBundle,
+  PAGE_DESIGN_SYSTEM_FILE,
   styleAsset,
 } from "../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
 import { readState } from "../../ppt_maker_harness/scripts/shared/state/state.mjs";
@@ -226,7 +233,7 @@ negative_constraints:
 `;
 }
 
-async function createFixture({ invalid = false, mixedClasses = false } = {}) {
+async function createFixture({ invalid = false, mixedClasses = false, pageDesignSystem = null } = {}) {
   const root = mkdtempSync(join(tmpdir(), "framed-plan-lifecycle-"));
   const deck = join(root, "deck_framed_plan_lifecycle");
   const runDir = join(deck, "3_versions", "v1");
@@ -236,6 +243,9 @@ async function createFixture({ invalid = false, mixedClasses = false } = {}) {
   context.fillRect(0, 0, 2000, 1125);
   initBundle(deck, null, "keynote", "dark-executive");
   writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+  if (pageDesignSystem !== null) {
+    writeFileSync(join(deck, "2_backbone", "visual-style", PAGE_DESIGN_SYSTEM_FILE), pageDesignSystem);
+  }
   const sourceText = source({ invalid });
   writeFileSync(join(runDir, "slide-specifications.md"), mixedClasses
     ? sourceText.replace("**TITLE**: The batch stays bounded\n", "**TITLE**: The batch stays bounded\n**PAGE CLASS**: opening\n")
@@ -538,6 +548,7 @@ describe("Framed proof-before-materialization lifecycle", () => {
           generation_profile_sha256: coreSlide.generation_profile_sha256,
           header_policy_sha256: coreSlide.header_policy_sha256,
           page_presentation_sha256: coreSlide.page_presentation_sha256,
+          page_design_system_sha256: coreSlide.page_design_system_sha256,
           local_header_profile_sha256: rawContract.framed.render_profile_digest,
           protected_composition_sha256: canonicalJsonSha256(rawContract.framed.protected_composition),
         });
@@ -644,6 +655,106 @@ describe("Framed proof-before-materialization lifecycle", () => {
       expect(repaired.raw_work_plan.sha256).not.toBe(initial.raw_work_plan.sha256);
       expect(sourceEpoch(fixture)).toBe(2);
       expect(renderControls.proof_calls).toBe(2);
+    } finally {
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
+  });
+
+  it("binds shared Page Design System text through Framed contracts and stops selected-source drift before transport", async () => {
+    const designSystem = "Use intentional contrast, preserve generous whitespace, and keep CJK labels compact and legible.";
+    const fixture = await createFixture({ pageDesignSystem: designSystem });
+    try {
+      const initial = await buildFramedTargetRawPlan(fixture.runDir);
+      const rawContract = initial.provider_requests_by_slide.DeckGo.raw_contract;
+      const providerRequest = initial.provider_requests_by_slide.DeckGo;
+      const providerInput = JSON.parse(providerRequest.compiled_provider_input.utf8);
+      const coreSlide = initial.page_image_core.slides.find((slide) => slide.slide_id === "DeckGo");
+      const binding = initial.raw_work_plan.items.find((item) => item.slide_id === "DeckGo").provider_input_binding;
+
+      expect(initial.page_image_core.page_design_system_sha256).toMatch(/^[0-9a-f]{64}$/);
+      expect(rawContract.page_design_system).toEqual({
+        text: designSystem,
+        sha256: initial.page_image_core.page_design_system_sha256,
+      });
+      expect(rawContract.page_image_core.page_design_system_sha256).toBe(coreSlide.page_design_system_sha256);
+      expect(binding.page_design_system_sha256).toBe(coreSlide.page_design_system_sha256);
+      expect(providerInput.design_system).toBe(designSystem);
+      expect(providerInput.instruction).toBe(FRAMED_EXCLUSIVE_HEADER_RESERVATION_INSTRUCTION);
+      expect(providerInput).not.toHaveProperty("page_design_system_sha256");
+      expect(providerInput).not.toHaveProperty("page_design_system_path");
+      expect(providerInput).not.toHaveProperty("page_design_system_origin");
+
+      const compiledFor = (value) => {
+        const utf8 = canonicalJson(value);
+        return {
+          schema: providerRequest.compiled_provider_input.schema,
+          utf8,
+          sha256: sha256Bytes(Buffer.from(utf8, "utf8")),
+        };
+      };
+      for (const value of [
+        (() => {
+          const candidate = { ...providerInput };
+          delete candidate.design_system;
+          return candidate;
+        })(),
+        { ...providerInput, design_system: "tampered design guidance" },
+        { ...providerInput, page_design_system_origin: "backbone" },
+      ]) {
+        expect(validateFramedProviderInputContract({
+          rawContract,
+          generationProfile: providerRequest.generation_profile,
+          compiledProviderInput: compiledFor(value),
+          maxUtf8Bytes: PAGE_IMAGE_PROVIDER_INPUT_MAX_UTF8_BYTES,
+        })).toMatchObject({ ok: false, code: "framed_provider_input_contract_invalid" });
+      }
+
+      const baselineBytes = Buffer.byteLength(canonicalJson({ ...providerInput, design_system: "" }), "utf8");
+      const atLimitText = "x".repeat(PAGE_IMAGE_PROVIDER_INPUT_MAX_UTF8_BYTES - baselineBytes);
+      const atLimitRawContract = structuredClone(rawContract);
+      const atLimitDigest = sha256Bytes(Buffer.from(atLimitText, "utf8"));
+      atLimitRawContract.page_design_system = { text: atLimitText, sha256: atLimitDigest };
+      atLimitRawContract.page_image_core.page_design_system_sha256 = atLimitDigest;
+      const atLimitInput = compiledFor({ ...providerInput, design_system: atLimitText });
+      expect(Buffer.byteLength(atLimitInput.utf8, "utf8")).toBe(PAGE_IMAGE_PROVIDER_INPUT_MAX_UTF8_BYTES);
+      expect(validateFramedProviderInputContract({
+        rawContract: atLimitRawContract,
+        generationProfile: providerRequest.generation_profile,
+        compiledProviderInput: atLimitInput,
+        maxUtf8Bytes: PAGE_IMAGE_PROVIDER_INPUT_MAX_UTF8_BYTES,
+      })).toMatchObject({ ok: true });
+      const overLimitText = `${atLimitText}x`;
+      const overLimitDigest = sha256Bytes(Buffer.from(overLimitText, "utf8"));
+      const overLimitRawContract = structuredClone(atLimitRawContract);
+      overLimitRawContract.page_design_system = { text: overLimitText, sha256: overLimitDigest };
+      overLimitRawContract.page_image_core.page_design_system_sha256 = overLimitDigest;
+      expect(validateFramedProviderInputContract({
+        rawContract: overLimitRawContract,
+        generationProfile: providerRequest.generation_profile,
+        compiledProviderInput: compiledFor({ ...providerInput, design_system: overLimitText }),
+        maxUtf8Bytes: PAGE_IMAGE_PROVIDER_INPUT_MAX_UTF8_BYTES,
+      })).toMatchObject({ ok: false, code: "framed_provider_input_contract_invalid" });
+
+      const stateBeforeDrift = readFileSync(join(fixture.deck, "_state", "state.yaml"));
+      const changedDesignSystem = `${designSystem} Avoid decorative labels.`;
+      writeFileSync(join(fixture.deck, "2_backbone", "visual-style", PAGE_DESIGN_SYSTEM_FILE), changedDesignSystem);
+      await expectStalePlanStopsProvider(fixture, initial.raw_work_plan.sha256, "target_raw_plan_stale");
+      expect(readFileSync(join(fixture.deck, "_state", "state.yaml"))).toEqual(stateBeforeDrift);
+
+      const repaired = await buildFramedTargetRawPlan(fixture.runDir);
+      expect(repaired.raw_work_plan.sha256).not.toBe(initial.raw_work_plan.sha256);
+      await authorizeFramedTargetRawPlan(fixture.runDir, { planHash: repaired.raw_work_plan.sha256 });
+      const submittedRequests = {};
+      await generateFramedTargetRawPlan(fixture.runDir, {
+        planHash: repaired.raw_work_plan.sha256,
+        submit: async ({ item, request }) => {
+          submittedRequests[item.slide_id] = request;
+          return fixture.image;
+        },
+      });
+      expect(submittedRequests.DeckGo.compiled_provider_input.utf8)
+        .toBe(repaired.provider_requests_by_slide.DeckGo.compiled_provider_input.utf8);
+      expect(JSON.parse(submittedRequests.DeckGo.compiled_provider_input.utf8).design_system).toBe(changedDesignSystem);
     } finally {
       rmSync(fixture.root, { recursive: true, force: true });
     }

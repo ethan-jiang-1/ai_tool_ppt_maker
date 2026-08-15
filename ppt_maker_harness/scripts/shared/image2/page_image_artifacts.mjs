@@ -22,9 +22,13 @@ const PROVIDER_INPUT_BINDING_KEYS = Object.freeze([
   "generation_profile_sha256",
   "header_policy_sha256",
   "page_presentation_sha256",
+  "page_design_system_sha256",
   "local_header_profile_sha256",
   "protected_composition_sha256",
 ]);
+const FORMER_PROVIDER_INPUT_BINDING_KEYS = Object.freeze(
+  PROVIDER_INPUT_BINDING_KEYS.filter((field) => field !== "page_design_system_sha256"),
+);
 
 export class PageImageArtifactError extends Error {
   constructor(code, message) {
@@ -97,18 +101,26 @@ function rawPlanItemShape(item) {
   return exactKeys(item, ["slide_id", "raw_contract_sha256", "provider_input_binding"]);
 }
 
-function assertProviderInputBinding(binding, workflow) {
-  if (!exactKeys(binding, PROVIDER_INPUT_BINDING_KEYS)) {
-    throw new PageImageArtifactError("raw_plan_provider_input_binding_invalid", "provider input binding has an invalid shape");
-  }
-  for (const field of PROVIDER_INPUT_BINDING_KEYS.slice(0, 7)) assertDigest(binding[field], field);
-  for (const field of PROVIDER_INPUT_BINDING_KEYS.slice(7)) {
-    if (binding[field] !== null) assertDigest(binding[field], field);
-  }
+function providerInputBindingKind(binding) {
+  if (exactKeys(binding, PROVIDER_INPUT_BINDING_KEYS)) return "current";
+  if (exactKeys(binding, FORMER_PROVIDER_INPUT_BINDING_KEYS)) return "former_page_design_system_binding";
+  return null;
 }
 
-/** Validate opaque raw-work inputs without interpreting workflow semantics. */
-export function validateRawWorkPlan(plan) {
+function assertProviderInputBinding(binding, { allowFormer = false } = {}) {
+  const kind = providerInputBindingKind(binding);
+  if (kind === null || (kind !== "current" && !allowFormer)) {
+    throw new PageImageArtifactError("raw_plan_provider_input_binding_invalid", "provider input binding has an invalid shape");
+  }
+  const keys = kind === "current" ? PROVIDER_INPUT_BINDING_KEYS : FORMER_PROVIDER_INPUT_BINDING_KEYS;
+  for (const field of keys.slice(0, 7)) assertDigest(binding[field], field);
+  for (const field of keys.slice(7)) {
+    if (binding[field] !== null) assertDigest(binding[field], field);
+  }
+  return kind;
+}
+
+function classifyRawWorkPlanBindingShape(plan, { allowFormer = false } = {}) {
   try {
     if (!rawPlanShape(plan)) throw new PageImageArtifactError("raw_plan_invalid", "raw work plan has an invalid shape");
     assertDigest(plan.source_receipt_sha256, "source_receipt_sha256");
@@ -118,17 +130,38 @@ export function validateRawWorkPlan(plan) {
     assertDigest(plan.authorization_scope_sha256, "authorization_scope_sha256");
     if (!Array.isArray(plan.items) || plan.items.length !== plan.ordered_slide_ids.length) throw new PageImageArtifactError("raw_plan_invalid", "raw work plan items must cover ordered_slide_ids exactly");
     const ids = [];
+    const bindingKinds = new Set();
     for (const item of plan.items) {
       if (!rawPlanItemShape(item) || !SLIDE_ID_RE.test(item.slide_id || "")) throw new PageImageArtifactError("raw_plan_invalid", "raw work item requires one provider input binding");
       assertDigest(item.raw_contract_sha256, "raw_contract_sha256");
-      assertProviderInputBinding(item.provider_input_binding, plan.workflow);
+      bindingKinds.add(assertProviderInputBinding(item.provider_input_binding, { allowFormer }));
       ids.push(item.slide_id);
     }
     if (canonicalJson(ids) !== canonicalJson(plan.ordered_slide_ids)) throw new PageImageArtifactError("raw_plan_invalid", "raw work item order must equal ordered_slide_ids");
-    return freeze({ ok: true, sha256: canonicalJsonSha256(plan) });
+    if (bindingKinds.size !== 1) {
+      throw new PageImageArtifactError("raw_plan_provider_input_binding_invalid", "raw work plan cannot mix current and former provider input bindings");
+    }
+    const kind = [...bindingKinds][0];
+    return freeze({
+      ok: true,
+      kind,
+      ...(kind === "current" ? { sha256: canonicalJsonSha256(plan) } : {}),
+    });
   } catch (error) {
     return freeze({ ok: false, code: error.code || "raw_plan_invalid", message: error.message });
   }
+}
+
+/** Classify the exact current or one bounded former compiler binding shape. */
+export function classifyRawWorkPlanProviderInputBindings(plan) {
+  return classifyRawWorkPlanBindingShape(plan, { allowFormer: true });
+}
+
+/** Validate opaque current raw-work inputs without interpreting workflow semantics. */
+export function validateRawWorkPlan(plan) {
+  const classified = classifyRawWorkPlanBindingShape(plan);
+  if (!classified.ok) return classified;
+  return freeze({ ok: true, sha256: classified.sha256 });
 }
 
 /** Require every current plan item to carry its adapter-owned input lineage. */

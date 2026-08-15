@@ -12,6 +12,7 @@ import {
   PAGE_DERIVED_ARTIFACT_FILENAMES,
   PAGE_CLASS_CATALOG_FILE,
   PAGE_IMAGE_DECK_DEFAULTS_FILE,
+  PAGE_DESIGN_SYSTEM_FILE,
   PAGE_IMAGE_PRESENTATION_FILES,
   PAGE_IMAGE_PRESENTATION_SUBDIR,
   PAGE_IMAGE_WORKFLOW_PATHS,
@@ -87,6 +88,7 @@ describe("Page Image bundle layout", () => {
       expect(renderTree()).toContain(GEN_PAGE_IMAGE_DERIVED_SUBDIR);
       expect(renderTree()).toContain("page-render-model.json");
       expect(renderTree()).toContain(PURE_DECK_VISUAL_SYSTEM_FILE);
+      expect(renderTree()).toContain(PAGE_DESIGN_SYSTEM_FILE);
       expect(renderTree()).not.toContain("html_production");
       expect(renderTree()).toContain("page-image-style-master-iterations");
       expect(renderTree()).toContain("scopes/vN/{framed,pure}/head.json");
@@ -104,6 +106,7 @@ describe("Page Image bundle layout", () => {
       const source = readFileSync(join(runDir, "slide-specifications.md"), "utf8");
       const presentationPath = join(deck, "2_backbone", "visual-style", PAGE_IMAGE_PRESENTATION_SUBDIR);
       const pureDeckVisualSystemPath = join(presentationPath, PURE_DECK_VISUAL_SYSTEM_FILE);
+      const pageDesignSystemPath = join(deck, "2_backbone", "visual-style", PAGE_DESIGN_SYSTEM_FILE);
       expect(source).toContain("pipeline: page-image-workflow");
       expect(source).not.toMatch(/^  workflow:/m);
       expect(source).not.toContain("page_image_default");
@@ -114,10 +117,13 @@ describe("Page Image bundle layout", () => {
       expect(state.current_node).toBe("author-target-narrative-sources");
       expect(existsSync(pageImageWorkflowPaths(runDir).root)).toBe(false);
       expect(existsSync(pureDeckVisualSystemPath)).toBe(true);
+      expect(readFileSync(pageDesignSystemPath, "utf8")).toBe("");
       expect(PAGE_IMAGE_PRESENTATION_FILES.map((filename) => existsSync(join(presentationPath, filename)))).toEqual([true, true, true, true]);
       expect(readFileSync(join(presentationPath, PAGE_CLASS_CATALOG_FILE), "utf8")).toContain("pptmaker-page-image-class-catalog");
       expect(readFileSync(join(presentationPath, PAGE_IMAGE_DECK_DEFAULTS_FILE), "utf8")).toContain("pptmaker-page-image-deck-defaults");
       expect(readFileSync(pureDeckVisualSystemPath, "utf8")).toContain("schema: pptmaker-pure-deck-visual-system");
+      rmSync(pageDesignSystemPath);
+      expect(checkBundle(runDir, false)).toEqual([PAGE_IMAGE_WORKFLOW_SELECTION_REQUIRED_MESSAGE]);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
@@ -385,14 +391,18 @@ describe("Page Image bundle layout", () => {
       initBundle(deck, null, "keynote", "dark-executive");
       const runDir = join(deck, "3_versions", "v1");
       const override = join(runDir, "overrides", "visual-style", PAGE_IMAGE_PRESENTATION_SUBDIR, PURE_DECK_VISUAL_SYSTEM_FILE);
+      const designSystemOverride = join(runDir, "overrides", "visual-style", PAGE_DESIGN_SYSTEM_FILE);
       mkdirSync(join(override, ".."), { recursive: true });
       writeFileSync(override, "schema: replacement\n", "utf8");
+      writeFileSync(designSystemOverride, "Use one restrained editorial system.\n", "utf8");
       mkdirSync(join(runDir, "_generated", "page_image_workflow", "raw"), { recursive: true });
       writeFileSync(join(runDir, "_generated", "page_image_workflow", "raw", "plan-manifest.json"), "old evidence", "utf8");
 
       const successor = createVersion(runDir, "v2");
       expect(readFileSync(join(successor, "overrides", "visual-style", PAGE_IMAGE_PRESENTATION_SUBDIR, PURE_DECK_VISUAL_SYSTEM_FILE), "utf8"))
         .toBe("schema: replacement\n");
+      expect(readFileSync(join(successor, "overrides", "visual-style", PAGE_DESIGN_SYSTEM_FILE), "utf8"))
+        .toBe("Use one restrained editorial system.\n");
       expect(existsSync(join(successor, "_generated", "page_image_workflow", "raw", "plan-manifest.json"))).toBe(false);
     } finally {
       rmSync(root, { recursive: true, force: true });

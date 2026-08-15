@@ -4,6 +4,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "no
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
+  classifyRawWorkPlanProviderInputBindings,
   createAcceptedRawEvidence,
   createFinalSlideManifest,
   createRawWorkPlan,
@@ -22,7 +23,7 @@ import { pageImageProviderInputBinding } from "../../helpers/page_image_provider
 const digest = (letter) => letter.repeat(64);
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 
-function plan(workflow = "framed") {
+function plan(workflow = "framed", { pageDesignSystem = null } = {}) {
   return createRawWorkPlan({
     source_receipt_sha256: digest("a"),
     workflow,
@@ -30,8 +31,8 @@ function plan(workflow = "framed") {
     provider_profile_sha256: digest("b"),
     authorization_scope_sha256: digest("c"),
     items: [
-      { slide_id: "DeckGo", raw_contract_sha256: digest("d"), provider_input_binding: pageImageProviderInputBinding({ workflow, compiled: "1" }) },
-      { slide_id: "BodyMap", raw_contract_sha256: digest("e"), provider_input_binding: pageImageProviderInputBinding({ workflow, compiled: "2" }) },
+      { slide_id: "DeckGo", raw_contract_sha256: digest("d"), provider_input_binding: pageImageProviderInputBinding({ workflow, compiled: "1", pageDesignSystem }) },
+      { slide_id: "BodyMap", raw_contract_sha256: digest("e"), provider_input_binding: pageImageProviderInputBinding({ workflow, compiled: "2", pageDesignSystem }) },
     ],
   });
 }
@@ -148,6 +149,43 @@ describe("Page Image typed artifacts", () => {
     expect(validateRawWorkPlan(framedWithoutPagePresentation)).toMatchObject({
       ok: false,
       code: "invalid_digest",
+    });
+    expect(validateRawWorkPlan(plan("pure", { pageDesignSystem: "8" }))).toMatchObject({ ok: true });
+    const missingPageDesignSystem = structuredClone(rawPlan);
+    delete missingPageDesignSystem.items[0].provider_input_binding.page_design_system_sha256;
+    expect(validateRawWorkPlan(missingPageDesignSystem)).toMatchObject({
+      ok: false,
+      code: "raw_plan_provider_input_binding_invalid",
+    });
+    const extraPageDesignSystem = structuredClone(rawPlan);
+    extraPageDesignSystem.items[0].provider_input_binding.page_design_system_origin = "backbone";
+    expect(validateRawWorkPlan(extraPageDesignSystem)).toMatchObject({
+      ok: false,
+      code: "raw_plan_provider_input_binding_invalid",
+    });
+    const malformedPageDesignSystem = structuredClone(rawPlan);
+    malformedPageDesignSystem.items[0].provider_input_binding.page_design_system_sha256 = "D".repeat(64);
+    expect(validateRawWorkPlan(malformedPageDesignSystem)).toMatchObject({
+      ok: false,
+      code: "invalid_digest",
+    });
+    const formerPageDesignSystem = structuredClone(rawPlan);
+    for (const item of formerPageDesignSystem.items) {
+      delete item.provider_input_binding.page_design_system_sha256;
+    }
+    expect(classifyRawWorkPlanProviderInputBindings(formerPageDesignSystem)).toEqual({
+      ok: true,
+      kind: "former_page_design_system_binding",
+    });
+    expect(validateRawWorkPlan(formerPageDesignSystem)).toMatchObject({
+      ok: false,
+      code: "raw_plan_provider_input_binding_invalid",
+    });
+    const mixedPageDesignSystem = structuredClone(rawPlan);
+    delete mixedPageDesignSystem.items[0].provider_input_binding.page_design_system_sha256;
+    expect(classifyRawWorkPlanProviderInputBindings(mixedPageDesignSystem)).toMatchObject({
+      ok: false,
+      code: "raw_plan_provider_input_binding_invalid",
     });
     expect(validateAcceptedRawEvidence(evidence, { plan: { ...rawPlan, provider_profile_sha256: digest("9") } })).toMatchObject({ ok: false, code: "raw_evidence_stale" });
     expect(() => createFinalSlideManifest({

@@ -30,7 +30,7 @@ is its layout owner's lower-level interface, not a second startup route.
 ```text
 00-setup: operation-scoped readiness
 01-content: Page Image source and stable slide identity
-02-visual-system: visual language, references, Provider Content Schema, and Header Rendering Policy
+02-visual-system: visual language, references, shared Page Design System source, Provider Content Schema, and Header Rendering Policy
 03 Framed workflow semantics and transparent header overlay
 04 Pure workflow semantics and raw-to-final publication
 05 shared final projection, PPTX assembly, notes, and delivery review
@@ -44,6 +44,12 @@ The method graph is `03-framed-image XOR 04-pure-image -> 05-delivery ->
 06-iteration`. Framed supports only deterministic local header overlay; both
 policies use Provider-rendered body content. Raw work is receipt-bound and requires explicit
 authorization only when it submits a nonzero provider batch.
+
+The optional `2_backbone/visual-style/page-design-system.md` source supplies
+shared opaque provider-design guidance to both workflows. A version may replace
+it only at `overrides/visual-style/page-design-system.md`. It is separate from
+closed visual-language selection, Pure-only presentation profiles, Framed local
+header policy, Style Master intent/selection, and every lifecycle record.
 
 ## Refresh Vocabulary
 

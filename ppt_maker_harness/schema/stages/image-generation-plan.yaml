@@ -14,8 +14,8 @@ outputs:
   - image-generation-record
   - page-review-decision
 provenance:
-  source: "The current source receipt, selected workflow, selected style master, generation profile, and per-page request bindings."
-  requirement: "Retain the plan digest, ordered stable page identities, and source epoch."
+  source: "The current source receipt, selected workflow, selected style master, generation profile, optional Page Design System binding, and per-page request bindings."
+  requirement: "Retain the plan digest, ordered stable page identities, source epoch, and matching nullable Page Design System digest."
 downstream_consumers:
   - provider submission
   - image-generation-record
@@ -48,3 +48,11 @@ fields:
       means: "The planned cost and provider impact are not bounded."
       ask: "How many of the selected pages should this run submit?"
       never: "Never increase the submission count through an implicit retry."
+  page_design_system_sha256:
+    type: nullable sha256 digest
+    description: "The per-page selected shared Page Design System digest carried through ordinary and progressive raw-plan bindings."
+    rule: "Must equal the Core and raw-contract binding; any null/text transition or selected digest change invalidates current raw work through Generated Image Rebuild."
+    on_violation:
+      means: "The planned provider request is not exactly bound to its current shared design-system source."
+      ask: "Recompile a fresh provider-free plan from the current source and follow the existing exact authorization path."
+      never: "Never patch a retained plan, reuse historical raw evidence as current, or locally refresh around a changed shared design-system digest."

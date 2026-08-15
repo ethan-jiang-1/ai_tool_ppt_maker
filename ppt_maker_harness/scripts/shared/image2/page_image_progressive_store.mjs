@@ -23,6 +23,16 @@ import {
 } from "../run-bundle/page_image_paths.mjs";
 import {
   ProgressiveRawSchemaError,
+  validateFormerProgressiveAcceptedRawEvidence,
+  validateFormerProgressiveRawBatch,
+  validateFormerProgressiveRawBatchGrant,
+  validateFormerProgressiveRawCompleteReview,
+  validateFormerProgressiveRawItemAttempt,
+  validateFormerProgressiveRawMaterializationProvenance,
+  validateFormerProgressiveRawPilotDecision,
+  validateFormerProgressiveRawPilotEvidence,
+  validateFormerProgressiveRawScopeHead,
+  validateFormerProgressiveRawWorkPlan,
   validateProgressiveAcceptedRawEvidence,
   validateProgressiveRawBatch,
   validateProgressiveRawBatchGrant,
@@ -244,6 +254,28 @@ function readCanonicalValidatedRecord(pathname, validator, options, label = base
   return Object.freeze({ record: Object.freeze(record), bytes: Buffer.from(bytes), sha256: checked.sha256 });
 }
 
+function readClassifiedProgressiveRawPlan(pathname) {
+  const bytes = readFileSync(pathname);
+  const record = parseCanonicalRecord(bytes, "progressive raw work plan");
+  const current = validateProgressiveRawWorkPlan(record);
+  if (current.ok) {
+    return Object.freeze({ kind: "current", record: Object.freeze(record), bytes: Buffer.from(bytes), sha256: current.sha256 });
+  }
+  const former = validateFormerProgressiveRawWorkPlan(record);
+  if (former.ok) {
+    return Object.freeze({
+      kind: "former_page_design_system_binding",
+      record: Object.freeze(record),
+      bytes: Buffer.from(bytes),
+      sha256: former.sha256,
+    });
+  }
+  throw new ProgressiveRawSchemaError(
+    current.code || former.code || "progressive_raw_plan_invalid",
+    current.message || former.message || "progressive raw work plan is invalid",
+  );
+}
+
 function writeStagedImmutableRecord(runDir, {
   plan_sha256,
   target,
@@ -422,12 +454,35 @@ export function readProgressiveRawWorkPlan(runDir, { plan_sha256 } = {}) {
   return readCanonicalValidatedRecord(paths.work_plan, validateProgressiveRawWorkPlan, undefined, "progressive raw work plan");
 }
 
+export function readHistoricalCutoverProgressiveRawWorkPlan(runDir, { plan_sha256 } = {}) {
+  const paths = progressiveRawStorePaths(runDir, { plan_sha256 });
+  return readCanonicalValidatedRecord(
+    paths.work_plan,
+    validateFormerProgressiveRawWorkPlan,
+    undefined,
+    "historical-cutover progressive raw work plan",
+  );
+}
+
 export function readProgressiveRawScopeHead(runDir, { workflow, plan = null } = {}) {
   const paths = progressiveRawStorePaths(runDir, { workflow });
   const bytes = readBytesOrNull(paths.scope_head);
   if (bytes === null) return null;
   assertPhysicalInside(paths.deck_root, paths.scope_root, "progressive raw scope root");
   return readCanonicalValidatedRecord(paths.scope_head, validateProgressiveRawScopeHead, { plan }, "progressive raw scope head");
+}
+
+export function readHistoricalCutoverProgressiveRawScopeHead(runDir, { workflow, plan } = {}) {
+  const paths = progressiveRawStorePaths(runDir, { workflow });
+  const bytes = readBytesOrNull(paths.scope_head);
+  if (bytes === null) return null;
+  assertPhysicalInside(paths.deck_root, paths.scope_root, "progressive raw scope root");
+  return readCanonicalValidatedRecord(
+    paths.scope_head,
+    validateFormerProgressiveRawScopeHead,
+    { plan },
+    "historical-cutover progressive raw scope head",
+  );
 }
 
 /** CAS the one mutable scope head. Callers supply direct-record preflight. */
@@ -496,6 +551,25 @@ export function writeProgressiveRawItemAttempt(runDir, { plan, batch, grant, att
     target: paths.attempt,
     record: attempt,
     validator: validateProgressiveRawItemAttempt,
+    options: { plan, batch, grant },
+  });
+}
+
+export function writeHistoricalCutoverProgressiveRawItemAttempt(runDir, { plan, batch, grant, attempt } = {}) {
+  const planCheck = assertChecked(validateFormerProgressiveRawWorkPlan(plan), "historical-cutover raw work plan");
+  const attemptCheck = assertChecked(
+    validateFormerProgressiveRawItemAttempt(attempt, { plan, batch, grant }),
+    "historical-cutover raw item attempt",
+  );
+  const paths = progressiveRawStorePaths(runDir, {
+    plan_sha256: planCheck.sha256,
+    attempt_sha256: attemptCheck.sha256,
+  });
+  return writeStagedImmutableRecord(runDir, {
+    plan_sha256: planCheck.sha256,
+    target: paths.attempt,
+    record: attempt,
+    validator: validateFormerProgressiveRawItemAttempt,
     options: { plan, batch, grant },
   });
 }
@@ -588,6 +662,59 @@ export function publishProgressiveRawMaterialization(runDir, { plan, provenance,
   }
 }
 
+export function publishHistoricalCutoverProgressiveRawMaterialization(runDir, { plan, provenance, bytes } = {}) {
+  const planCheck = assertChecked(validateFormerProgressiveRawWorkPlan(plan), "historical-cutover raw work plan");
+  const provenanceCheck = assertChecked(
+    validateFormerProgressiveRawMaterializationProvenance(provenance, { plan }),
+    "historical-cutover materialization provenance",
+  );
+  if (!Buffer.isBuffer(bytes) && !(bytes instanceof Uint8Array)) {
+    fail("progressive_raw_store_invalid", "materialization bytes must be a Buffer or Uint8Array");
+  }
+  const payload = Buffer.from(bytes);
+  if (!payload.length || sha256Bytes(payload) !== provenance.raw_sha256) {
+    fail("progressive_raw_store_invalid", "materialization bytes must match historical-cutover provenance");
+  }
+  const paths = progressiveRawStorePaths(runDir, {
+    plan_sha256: planCheck.sha256,
+    provenance_sha256: provenanceCheck.sha256,
+  });
+  const staging = createProgressiveRawStagingDirectory(runDir, { kind: "materialization" });
+  try {
+    writeBytesAtomic(join(staging, "provenance.json"), canonicalBytes(provenance));
+    writeBytesAtomic(join(staging, "raw.png"), payload);
+    const staged = readCanonicalValidatedRecord(
+      join(staging, "provenance.json"),
+      validateFormerProgressiveRawMaterializationProvenance,
+      { plan },
+      "staged historical-cutover materialization provenance",
+    );
+    if (staged.sha256 !== provenanceCheck.sha256) {
+      fail("progressive_raw_store_record_invalid", "staged historical-cutover provenance digest drifted");
+    }
+    ensureRealDirectoryBelowDeck(paths.deck_root, paths.materializations_root, "progressive raw materializations root");
+    return withExclusiveDirectoryLock(join(paths.materializations_root, `.${shortName(provenanceCheck.sha256)}.lock`), () => {
+      if (existsSync(paths.materialization_root)) {
+        const existing = readHistoricalCutoverProgressiveRawMaterialization(runDir, {
+          plan_sha256: planCheck.sha256,
+          provenance_sha256: provenanceCheck.sha256,
+          plan,
+        });
+        if (!equalBytes(existing.provenance.bytes, staged.bytes) || !equalBytes(existing.bytes, payload)) {
+          fail("progressive_raw_store_conflict", "existing historical-cutover materialization differs from the requested bundle");
+        }
+        cleanupProgressiveRawStagingDirectory(runDir, staging);
+        return Object.freeze({ created: false, replay: true, provenance: existing.provenance, bytes: existing.bytes, root: paths.materialization_root });
+      }
+      renameSync(staging, paths.materialization_root);
+      return Object.freeze({ created: true, replay: false, provenance: Object.freeze(structuredClone(provenance)), bytes: payload, root: paths.materialization_root });
+    });
+  } catch (error) {
+    if (existsSync(staging)) cleanupProgressiveRawStagingDirectory(runDir, staging);
+    throw error;
+  }
+}
+
 export function readProgressiveRawMaterialization(runDir, { plan_sha256, provenance_sha256, plan = null } = {}) {
   const paths = progressiveRawStorePaths(runDir, { plan_sha256, provenance_sha256 });
   realDirectory(paths.materialization_root, "progressive raw materialization bundle");
@@ -597,6 +724,28 @@ export function readProgressiveRawMaterialization(runDir, { plan_sha256, provena
   if (!bytes.length) fail("progressive_raw_store_record_invalid", "materialization bytes are empty");
   if (sha256Bytes(bytes) !== provenance.record.raw_sha256) {
     fail("progressive_raw_store_record_invalid", "materialization bytes do not match immutable provenance");
+  }
+  return Object.freeze({ provenance, bytes: Buffer.from(bytes), root: paths.materialization_root });
+}
+
+export function readHistoricalCutoverProgressiveRawMaterialization(
+  runDir,
+  { plan_sha256, provenance_sha256, plan } = {},
+) {
+  const paths = progressiveRawStorePaths(runDir, { plan_sha256, provenance_sha256 });
+  realDirectory(paths.materialization_root, "historical-cutover progressive raw materialization bundle");
+  const provenance = readCanonicalValidatedRecord(
+    paths.materialization_provenance,
+    validateFormerProgressiveRawMaterializationProvenance,
+    { plan },
+    "historical-cutover progressive raw materialization provenance",
+  );
+  if (provenance.sha256 !== provenance_sha256) {
+    fail("progressive_raw_store_record_invalid", "historical-cutover provenance does not match its canonical directory");
+  }
+  const bytes = readFileSync(paths.materialization_bytes);
+  if (!bytes.length || sha256Bytes(bytes) !== provenance.record.raw_sha256) {
+    fail("progressive_raw_store_record_invalid", "historical-cutover materialization bytes do not match immutable provenance");
   }
   return Object.freeze({ provenance, bytes: Buffer.from(bytes), root: paths.materialization_root });
 }
@@ -691,6 +840,111 @@ export function readProgressiveRawPlanDirectRecords(runDir, { plan_sha256 } = {}
   });
 }
 
+/** Read and validate one exact former-compiler container without admitting current work. */
+export function readHistoricalCutoverProgressiveRawPlanDirectRecords(runDir, { plan_sha256 } = {}) {
+  const plan = readHistoricalCutoverProgressiveRawWorkPlan(runDir, { plan_sha256 });
+  const paths = progressiveRawStorePaths(runDir, { plan_sha256 });
+  realDirectory(paths.plan_root, "historical-cutover progressive raw plan container");
+  const batches = [];
+  const grants = [];
+  for (const batchRoot of listBatchDirectories(paths.batches_root)) {
+    const batch = readCanonicalValidatedRecord(
+      join(batchRoot, "batch.json"),
+      validateFormerProgressiveRawBatch,
+      { plan: plan.record },
+      "historical-cutover progressive raw batch",
+    );
+    if (!nameMatchesAddress(basename(batchRoot), batch.sha256)) {
+      fail("progressive_raw_store_record_invalid", "historical-cutover batch directory does not match its canonical digest");
+    }
+    batches.push(batch);
+    const grantPath = join(batchRoot, "grant.json");
+    if (existsSync(grantPath)) {
+      grants.push(readCanonicalValidatedRecord(
+        grantPath,
+        validateFormerProgressiveRawBatchGrant,
+        { plan: plan.record, batch: batch.record },
+        "historical-cutover progressive raw batch grant",
+      ));
+    }
+  }
+  const attempts = listRecordFiles(paths.attempts_root, "historical-cutover progressive raw attempts root")
+    .map((pathname) => {
+      const record = readCanonicalValidatedRecord(
+        pathname,
+        validateFormerProgressiveRawItemAttempt,
+        { plan: plan.record },
+        "historical-cutover progressive raw item attempt",
+      );
+      if (basename(pathname) !== `${shortName(record.sha256)}.json`) {
+        fail("progressive_raw_store_record_invalid", "historical-cutover attempt file does not match its canonical digest");
+      }
+      return record;
+    });
+  const materializations = [];
+  if (existsSync(paths.materializations_root)) {
+    realDirectory(paths.materializations_root, "historical-cutover progressive raw materializations root");
+    for (const entry of readdirSync(paths.materializations_root, { withFileTypes: true })) {
+      if (!entry.isDirectory() || entry.isSymbolicLink() || !CONTENT_ADDRESS_SHORT_NAME_RE.test(entry.name)) {
+        fail("progressive_raw_store_record_invalid", "historical-cutover materializations root contains a noncanonical bundle");
+      }
+      const provenance = readCanonicalValidatedRecord(
+        join(paths.materializations_root, entry.name, "provenance.json"),
+        validateFormerProgressiveRawMaterializationProvenance,
+        { plan: plan.record },
+        "historical-cutover progressive raw materialization provenance",
+      );
+      if (!nameMatchesAddress(entry.name, provenance.sha256)) {
+        fail("progressive_raw_store_record_invalid", "historical-cutover materialization bundle does not match its canonical digest");
+      }
+      materializations.push(readHistoricalCutoverProgressiveRawMaterialization(runDir, {
+        plan_sha256,
+        provenance_sha256: provenance.sha256,
+        plan: plan.record,
+      }));
+    }
+  }
+  const pilotEvidence = listRecordFiles(paths.pilot_evidence_root, "historical-cutover Pilot-evidence root")
+    .map((pathname) => readCanonicalValidatedRecord(
+      pathname,
+      validateFormerProgressiveRawPilotEvidence,
+      { plan: plan.record },
+      "historical-cutover progressive raw Pilot evidence",
+    ));
+  const pilotDecisions = listRecordFiles(paths.pilot_decisions_root, "historical-cutover Pilot-decisions root")
+    .map((pathname) => readCanonicalValidatedRecord(
+      pathname,
+      validateFormerProgressiveRawPilotDecision,
+      { plan: plan.record },
+      "historical-cutover progressive raw Pilot decision",
+    ));
+  const completeReviews = listRecordFiles(paths.complete_reviews_root, "historical-cutover complete-reviews root")
+    .map((pathname) => readCanonicalValidatedRecord(
+      pathname,
+      validateFormerProgressiveRawCompleteReview,
+      { plan: plan.record },
+      "historical-cutover progressive raw complete review",
+    ));
+  const acceptedEvidence = listRecordFiles(paths.accepted_evidence_root, "historical-cutover accepted-evidence root")
+    .map((pathname) => readCanonicalValidatedRecord(
+      pathname,
+      validateFormerProgressiveAcceptedRawEvidence,
+      { plan: plan.record },
+      "historical-cutover progressive accepted raw evidence",
+    ));
+  return Object.freeze({
+    plan,
+    batches: Object.freeze(batches),
+    grants: Object.freeze(grants),
+    attempts: Object.freeze(attempts),
+    materializations: Object.freeze(materializations),
+    pilot_evidence: Object.freeze(pilotEvidence),
+    pilot_decisions: Object.freeze(pilotDecisions),
+    complete_reviews: Object.freeze(completeReviews),
+    accepted_evidence: Object.freeze(acceptedEvidence),
+  });
+}
+
 /**
  * Resolve one immutable provenance digest across this selected deck's
  * append-mostly plan containers. The digest is the selector; directory order
@@ -712,7 +966,14 @@ export function findProgressiveRawMaterializationByProvenance(runDir, { provenan
       fail("progressive_raw_store_record_invalid", "plans root contains a noncanonical plan container");
     }
     const planDir = join(root.plans_root, entry.name);
-    const plan = readCanonicalValidatedRecord(join(planDir, "work-plan.json"), validateProgressiveRawWorkPlan, undefined, "progressive raw work plan");
+    const plan = readClassifiedProgressiveRawPlan(join(planDir, "work-plan.json"));
+    if (!nameMatchesAddress(entry.name, plan.sha256)) {
+      fail("progressive_raw_store_record_invalid", "plan directory does not match its canonical record digest");
+    }
+    if (plan.kind === "former_page_design_system_binding") {
+      readHistoricalCutoverProgressiveRawPlanDirectRecords(runDir, { plan_sha256: plan.sha256 });
+      continue;
+    }
     const paths = progressiveRawStorePaths(runDir, {
       plan_sha256: plan.sha256,
       provenance_sha256,
@@ -752,7 +1013,14 @@ export function findProgressiveRawCompleteReviewBySha(runDir, { complete_raw_rev
       fail("progressive_raw_store_record_invalid", "plans root contains a noncanonical plan container");
     }
     const planDir = join(root.plans_root, entry.name);
-    const plan = readCanonicalValidatedRecord(join(planDir, "work-plan.json"), validateProgressiveRawWorkPlan, undefined, "progressive raw work plan");
+    const plan = readClassifiedProgressiveRawPlan(join(planDir, "work-plan.json"));
+    if (!nameMatchesAddress(entry.name, plan.sha256)) {
+      fail("progressive_raw_store_record_invalid", "plan directory does not match its canonical record digest");
+    }
+    if (plan.kind === "former_page_design_system_binding") {
+      readHistoricalCutoverProgressiveRawPlanDirectRecords(runDir, { plan_sha256: plan.sha256 });
+      continue;
+    }
     const direct = readProgressiveRawPlanDirectRecords(runDir, { plan_sha256: plan.sha256 });
     const review = direct.complete_reviews.find((candidate) => candidate.sha256 === complete_raw_review_sha256) || null;
     if (!review) continue;

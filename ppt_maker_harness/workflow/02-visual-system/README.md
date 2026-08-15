@@ -16,6 +16,13 @@ versioned registry. Framed protects its local header zone while the Provider ren
 the body; Pure has the Provider render the full page. Validate the selected registry and references
 before raw planning.
 
+`page-design-system.md` is a separate optional opaque source for design guidance
+that both selected adapters bind into their provider inputs. It does not select
+a visual-language entry, replace Style Master intent, widen the Pure-only
+presentation package, alter Framed's deterministic local-header ownership, or
+record lifecycle evidence. Invalid selected bytes stop at source repair; blank
+or absent valid source leaves bind an explicit null.
+
 Page presentation is a four-document source package under
 `visual-style/page-image-presentation/`. A source-authored `PAGE CLASS` resolves
 one workflow-specific profile from that package; the Agent may recommend a class

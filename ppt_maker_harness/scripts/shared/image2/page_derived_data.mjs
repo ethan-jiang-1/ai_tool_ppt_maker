@@ -126,6 +126,11 @@ function digest(value, label) {
   return value;
 }
 
+function nullableDigest(value, label) {
+  if (value === null) return null;
+  return digest(value, label);
+}
+
 function slideId(value, label = "slide_id") {
   if (typeof value !== "string" || !SLIDE_ID_RE.test(value)) fail("page_derived_data_invalid", `${label} must be one safe stable slide ID`);
   return value;
@@ -177,6 +182,7 @@ function coreFacts(value, receipt, expectedWorkflow) {
     value.source_receipt_sha256 !== receipt.source_sha256 || !Array.isArray(value.slides) || value.slides.length !== receipt.slides.length) {
     fail("page_derived_data_core_invalid", "page-derived publication requires current Page Image Core facts for every receipt page");
   }
+  const pageDesignSystemSha256 = nullableDigest(value.page_design_system_sha256, "core page_design_system_sha256");
   const slides = new Map();
   for (const [index, page] of value.slides.entries()) {
     const receiptPage = receipt.slides[index];
@@ -185,9 +191,13 @@ function coreFacts(value, receipt, expectedWorkflow) {
       page.source_receipt_sha256 !== receipt.source_sha256 || !digest(page.canonical_semantic_sha256, "core canonical_semantic_sha256")) {
       fail("page_derived_data_core_invalid", "Page Image Core facts must retain one exact receipt page identity and semantic digest");
     }
+    if (!Object.hasOwn(page, "page_design_system_sha256") ||
+      nullableDigest(page.page_design_system_sha256, "core slide page_design_system_sha256") !== pageDesignSystemSha256) {
+      fail("page_derived_data_core_invalid", "Page Image Core facts must retain one matching nullable Page Design System digest for every page");
+    }
     slides.set(page.slide_id, page);
   }
-  return Object.freeze({ facts: value, slides });
+  return Object.freeze({ facts: value, slides, page_design_system_sha256: pageDesignSystemSha256 });
 }
 
 function requestForPage(value, page, rawItem, corePage, expectedWorkflow) {
@@ -203,7 +213,8 @@ function requestForPage(value, page, rawItem, corePage, expectedWorkflow) {
     canonicalJsonSha256(value.generation_profile) !== rawItem.provider_input_binding.generation_profile_sha256 ||
     rawItem.provider_input_binding.provider_content_sha256 !== corePage.provider_content_sha256 ||
     rawItem.provider_input_binding.visual_selection_sha256 !== corePage.visual_selection_sha256 ||
-    rawItem.provider_input_binding.page_presentation_sha256 !== corePage.page_presentation_sha256) {
+    rawItem.provider_input_binding.page_presentation_sha256 !== corePage.page_presentation_sha256 ||
+    rawItem.provider_input_binding.page_design_system_sha256 !== corePage.page_design_system_sha256) {
     fail("page_derived_data_request_invalid", `selected adapter request bindings do not match ${page.slide_id}`);
   }
   return value;
@@ -303,6 +314,7 @@ function pagePublication(page, input) {
     source_sha256: input.receipt.source_sha256,
     workflow: input.workflow,
     page_presentation_binding_sha256: layout.binding_sha256,
+    page_design_system_sha256: core.page_design_system_sha256,
     core_semantic_sha256: core.canonical_semantic_sha256,
     raw_contract_sha256: item.raw_contract_sha256,
     progressive_raw_work_plan_sha256: input.progressive.sha256,
@@ -374,6 +386,7 @@ function pagePublication(page, input) {
       generation_profile_sha256: core.generation_profile_sha256,
       header_policy_sha256: core.header_policy_sha256,
       page_presentation_sha256: core.page_presentation_sha256,
+      page_design_system_sha256: core.page_design_system_sha256,
     },
     invalidated_by: sharedInvalidation,
     payload: { core_facts: core },
@@ -387,6 +400,7 @@ function pagePublication(page, input) {
       compiled_provider_input_sha256: item.provider_input_binding.compiled_provider_input_sha256,
       canonical_semantic_sha256: core.canonical_semantic_sha256,
       generation_profile_sha256: item.provider_input_binding.generation_profile_sha256,
+      page_design_system_sha256: item.provider_input_binding.page_design_system_sha256,
     },
     invalidated_by: sharedInvalidation,
     payload: {
