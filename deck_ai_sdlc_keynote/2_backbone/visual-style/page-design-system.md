@@ -1,0 +1,26 @@
+The reference style-master image defines the deck's design system — match its palette, typography scale, layout grid, component patterns, and overall visual language precisely. Only the slide content changes, never the style.
+
+TYPOGRAPHY (HARD RULE — ONE typeface family for the whole deck, never vary): ALL Chinese text on EVERY slide must be rendered in a SONG / MING serif typeface — specifically the look of 思源宋体 / Source Han Serif (a.k.a. Noto Serif CJK SC): upright, high-contrast strokes with clear triangular serifs (三角形衬线), even weight, classic and bookish. ALL English/Latin text must be in a matching SERIF face (Source Serif / Times-like), so Chinese and English read as one consistent serif system. NEVER mix in sans-serif, handwritten, brush/calligraphy, rounded, display, or decorative fonts for the text. Every slide must use the SAME Chinese font and the SAME English font — no per-slide variation. The hand-drawn/etching quality applies to the ILLUSTRATION only, NOT to the text: text is always clean printed Song/Ming serif, not sketched or hand-lettered lettering.
+
+LANGUAGE: Chinese on all slides. KICKER and title in Chinese. English only for proper nouns (SDLC, BPM, Fable 5, etc.) and direct quotes from English speakers.
+
+CJK LEGIBILITY (HARD RULE): The image model only garbles TINY Chinese characters (footnote-size / dense micro-text — broken strokes, invented glyphs). Large AND medium Chinese render fine — use them freely for title, core claims, tier labels, short descriptions, and pull-quotes. The ONLY thing to avoid is TINY Chinese: no footnote-size Chinese, no axis/tick labels in Chinese, no dense micro-annotations in Chinese, no small Chinese source notes. For a zone that would be that small, either make it medium-size, or use an English/number label instead, or drop it. Rule of thumb: if a Chinese phrase is readable at a glance on the slide, keep it Chinese; only genuinely tiny text goes English/number. Do NOT over-strip Chinese — medium descriptions are welcome.
+
+DECK TYPE: Strategic keynote about AI disrupting information work. Sketch/etching visual language.
+
+BACKGROUND: Cream paper #F5F0EB on every slide. Exception: closer slide uses near-black warm brown.
+COLOR FAMILY: Earth tones only — cream, sepia brown, warm gray-brown, amber. FORBIDDEN: blue, green, neon, purple, pure black, pure white, cool grays.
+
+TEXT-TO-IMAGE RATIO: Text area 50-60% of slide, sketch/illustration 40-50%. Every slide must have enough Chinese text (title + key concepts + data/quotes) to be understood at a glance without the speaker. The sketch is supporting visual — not the entire slide.
+
+TEXT DENSITY: Title (large serif Chinese, 1 line). Core claim or key concept (medium-large Chinese, 1-2 lines). Supporting text or data (medium Chinese, 2-4 short lines — readable at a glance, NOT tiny). Pull quotes where relevant. Never paragraphs — short blocks, cards, or labels only. Only genuinely tiny text (footnotes, micro-labels) should be English/number instead of Chinese (see CJK LEGIBILITY).
+
+FORBIDDEN: Photography, 3D renders, vector clip art, smooth digital icons, stock photos, corporate logos, watermarks, page numbers, source notes, draft labels, glowing orbs, gradient backgrounds, circuit boards, robot imagery, brain icons.
+
+TONE: Warm, intellectual, human. Confident but curious. Sketch style signals 'thinking in progress.'
+
+SUBJECTS ARE CONTEMPORARY: All human figures and objects are present-day — modern casual / business-casual clothing (tees, hoodies, open collars, sneakers), current devices (laptops, phones, monitors, large screens), present-day workplaces (open-plan desks, standing desks, whiteboards). The etching / cross-hatch look is a DRAWING TECHNIQUE (historical); the SUBJECTS are not. On people & objects, FORBIDDEN: period costume, 19th-century dress, top hats, waistcoats, quills, parchment, antique props — UNLESS a slide's own prompt deliberately invokes a historical metaphor (e.g., the Roman-legion pyramid on the hierarchy slide).
+
+SKETCH QUALITY: Visible hand-drawn lines. Slight irregularity. Cross-hatched shadows. Sepia ink on cream paper. Deliberate, not messy.
+
+CONSISTENCY: Every slide must feel like a page from the same sketchbook.
