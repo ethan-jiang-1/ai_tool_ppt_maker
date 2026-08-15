@@ -244,7 +244,7 @@ negative_constraints:
     const designSystem = "Use a crisp information hierarchy with deliberately restrained color and generous negative space.";
     try {
       initBundle(deck, null, "keynote", "dark-executive");
-      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.png"), image.toBuffer("image/png"));
       writeFileSync(join(deck, "2_backbone", "visual-style", PAGE_DESIGN_SYSTEM_FILE), designSystem);
       writeFileSync(join(runDir, "slide-specifications.md"), sourceText);
       await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir));
@@ -449,7 +449,7 @@ negative_constraints:
     const originalClause = "architectural editorial scene, layered amber and cobalt light, quiet depth";
     try {
       initBundle(deck, null, "keynote", "dark-executive");
-      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.png"), image.toBuffer("image/png"));
       writeFileSync(join(runDir, "slide-specifications.md"), sourceText);
       const registryPath = join(deck, "2_backbone", "visual-style", "page-image-visual-language.yaml");
       const originalRegistry = readFileSync(registryPath, "utf8");
@@ -466,7 +466,7 @@ negative_constraints:
         const sizedImage = createCanvas(2000, 1125);
         sizedImage.getContext("2d").fillRect(0, 0, 2000, 1125);
         initBundle(sizedDeck, null, "keynote", "dark-executive");
-        writeFileSync(join(sizedDeck, "2_backbone", "visual-style", "style_master.jpg"), sizedImage.toBuffer("image/png"));
+        writeFileSync(join(sizedDeck, "2_backbone", "visual-style", "style_master.png"), sizedImage.toBuffer("image/png"));
         writeFileSync(join(sizedRunDir, "slide-specifications.md"), sourceText);
         writeFileSync(join(sizedDeck, "2_backbone", "visual-style", "page-image-visual-language.yaml"), registry);
         await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(sizedRunDir));
@@ -533,7 +533,7 @@ negative_constraints:
 `;
     try {
       initBundle(deck, null, "keynote", "dark-executive");
-      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.png"), image.toBuffer("image/png"));
       writeFileSync(join(runDir, "slide-specifications.md"), source);
       await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir));
 
@@ -587,7 +587,7 @@ negative_constraints:
 `;
     try {
       initBundle(deck, null, "keynote", "dark-executive");
-      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.png"), image.toBuffer("image/png"));
       writeFileSync(join(runDir, "slide-specifications.md"), source);
       await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir));
       const paths = pageImageWorkflowPaths(runDir);
@@ -659,7 +659,7 @@ negative_constraints:
       initBundle(deck, null, "keynote", "dark-executive");
       allowTestIdentitySubjectClass(deck);
       const reference = writeTestIdentityReference(deck);
-      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.png"), image.toBuffer("image/png"));
       writeFileSync(join(runDir, "slide-specifications.md"), source);
       await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir));
 
@@ -871,7 +871,7 @@ negative_constraints:
       initBundle(deck, null, "keynote", "dark-executive");
       allowTestIdentitySubjectClass(deck);
       writeTestIdentityReference(deck);
-      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.png"), image.toBuffer("image/png"));
       writeFileSync(join(runDir, "slide-specifications.md"), source);
       await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir));
       const paths = pageImageWorkflowPaths(runDir);
@@ -925,7 +925,7 @@ negative_constraints:
 `;
     try {
       initBundle(deck, null, "keynote", "dark-executive");
-      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.png"), image.toBuffer("image/png"));
       writeFileSync(join(runDir, "slide-specifications.md"), source("Pure target source-owned note."));
       await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir));
       const plan = buildPureTargetRawPlan(runDir);
@@ -1000,7 +1000,7 @@ negative_constraints:
 `;
     try {
       initBundle(deck, null, "keynote", "dark-executive");
-      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.png"), image.toBuffer("image/png"));
       writeFileSync(join(runDir, "slide-specifications.md"), source);
       await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir));
 
@@ -1077,7 +1077,7 @@ negative_constraints:
 `;
     try {
       initBundle(deck, null, "keynote", "dark-executive");
-      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.png"), image.toBuffer("image/png"));
       writeFileSync(join(runDir, "slide-specifications.md"), source("Initial progressive provider preflight"));
       await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir));
 
@@ -1175,7 +1175,7 @@ negative_constraints:
 `;
     try {
       initBundle(deck, null, "keynote", "dark-executive");
-      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.png"), image.toBuffer("image/png"));
       writeFileSync(join(runDir, "slide-specifications.md"), source("Submitted attempt precedence"));
       await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir));
 
@@ -1242,7 +1242,7 @@ negative_constraints:
 `;
     try {
       initBundle(deck, null, "keynote", "dark-executive");
-      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.png"), image.toBuffer("image/png"));
       writeFileSync(join(runDir, "slide-specifications.md"), source("Initial Pure inspection prompt"));
       await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir));
 
@@ -1363,7 +1363,7 @@ relationship: causal-flow
 `;
     try {
       initBundle(deck, null, "keynote", "dark-executive");
-      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.png"), image.toBuffer("image/png"));
       writeFileSync(join(runDir, "slide-specifications.md"), source);
       await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir));
 
@@ -1444,7 +1444,7 @@ negative_constraints:
 `;
     try {
       initBundle(deck, null, "keynote", "dark-executive");
-      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.png"), image.toBuffer("image/png"));
       writeFileSync(join(runDir, "slide-specifications.md"), source);
       expect(() => resolvePureStyleMasterScope(runDir)).toThrow(/VISUAL SCENE/);
     } finally {
@@ -1482,7 +1482,7 @@ negative_constraints:
 `;
     try {
       initBundle(deck, null, "keynote", "dark-executive");
-      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.png"), image.toBuffer("image/png"));
       writeFileSync(join(runDir, "slide-specifications.md"), source);
       await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir));
 
@@ -1590,7 +1590,7 @@ negative_constraints:
 `;
     try {
       initBundle(deck, null, "keynote", "dark-executive");
-      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.png"), image.toBuffer("image/png"));
       writeFileSync(join(runDir, "slide-specifications.md"), source);
       await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir));
 
@@ -1717,7 +1717,7 @@ negative_constraints:
 `;
     try {
       initBundle(deck, null, "keynote", "dark-executive");
-      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.png"), image.toBuffer("image/png"));
       writeFileSync(join(runDir, "slide-specifications.md"), source("Original pure fact"));
       await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir));
       let providerSubmissions = 0;

@@ -33,7 +33,7 @@
  *     │   ├── manuscript/
  *     │   └── visual-style/
  *     │       ├── style-master-prompt.md   the prompt that GENERATES style_master
- *     │       ├── style_master.jpg
+ *     │       ├── style_master.png
  *     │       ├── page-image-visual-language.yaml
  *     │       └── page-design-system.md    optional shared provider design guidance
  *     │
@@ -113,6 +113,7 @@ import {
     SLIDE_SPECS_NAME,
     VERSIONS_DIR,
 } from './page_image_paths.mjs';
+import { STYLE_MASTER_IMAGE, styleMasterLocalSourcePath } from './style_master_media.mjs';
 
 // Version-key and source-marker helpers are shared with the public CLI.
 export { canonicalVersionKey, normalizeRunVersion, pipelineFromSourceMarker };
@@ -219,7 +220,7 @@ export const BACKBONE_STYLE_SUBDIR = 'visual-style';
 // --- Inside 2_backbone/visual-style/ (or a version override of it) ---------
 // ---------------------------------------------------------------------------
 export const STYLE_MASTER_PROMPT = 'style-master-prompt.md';
-export const STYLE_MASTER_IMAGE = 'style_master.jpg';
+export { STYLE_MASTER_IMAGE, styleMasterLocalSourcePath };
 export const PAGE_IMAGE_VISUAL_LANGUAGE_FILE = 'page-image-visual-language.yaml';
 export const PAGE_DESIGN_SYSTEM_FILE = 'page-design-system.md';
 export const IMAGE2_PROVIDER_PROFILE_FILE = 'image2-provider-profile.yaml';
@@ -504,6 +505,7 @@ export function resolveBackboneAsset(runDir, relpath) {
 }
 
 export function styleAsset(runDir, filename) {
+    if (filename === STYLE_MASTER_IMAGE) return styleMasterLocalSourcePath(runDir);
     return resolveBackboneAsset(runDir, `${BACKBONE_STYLE_SUBDIR}/${filename}`);
 }
 
@@ -642,83 +644,54 @@ function _realFile(pathname) {
     }
 }
 
-function _jpegHasFrameAndEnd(bytes) {
-    if (!Buffer.isBuffer(bytes) || bytes.length < 4 || bytes[0] !== 0xff || bytes[1] !== 0xd8) return false;
-    let offset = 2;
-    let sawFrame = false;
-    while (offset < bytes.length) {
-        if (bytes[offset] !== 0xff) return false;
-        while (offset < bytes.length && bytes[offset] === 0xff) offset += 1;
-        if (offset >= bytes.length) return false;
-        const marker = bytes[offset++];
-        if (marker === 0xd9) return sawFrame && offset === bytes.length;
-        if (marker === 0x01 || (marker >= 0xd0 && marker <= 0xd7)) continue;
-        if (offset + 2 > bytes.length) return false;
-        const length = bytes.readUInt16BE(offset);
-        if (length < 2 || offset + length > bytes.length) return false;
-        const frameMarker = marker >= 0xc0 && marker <= 0xcf && ![0xc4, 0xc8, 0xcc].includes(marker);
-        if (frameMarker) {
-            if (length < 8) return false;
-            const height = bytes.readUInt16BE(offset + 3);
-            const width = bytes.readUInt16BE(offset + 5);
-            if (height <= 0 || width <= 0) return false;
-            sawFrame = true;
+function _crc32(bytes) {
+    let crc = 0xffffffff;
+    for (const byte of bytes) {
+        crc ^= byte;
+        for (let bit = 0; bit < 8; bit += 1) crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1));
+    }
+    return (crc ^ 0xffffffff) >>> 0;
+}
+
+function _validStyleMasterPng(bytes) {
+    if (!Buffer.isBuffer(bytes) || bytes.length < 45 || !bytes.subarray(0, PNG_SIGNATURE.length).equals(PNG_SIGNATURE)) return false;
+    let offset = PNG_SIGNATURE.length;
+    let sawIhdr = false;
+    while (offset + 12 <= bytes.length) {
+        const length = bytes.readUInt32BE(offset);
+        const next = offset + 12 + length;
+        if (next > bytes.length) return false;
+        const type = bytes.subarray(offset + 4, offset + 8);
+        const storedCrc = bytes.readUInt32BE(offset + 8 + length);
+        if (_crc32(bytes.subarray(offset + 4, offset + 8 + length)) !== storedCrc) return false;
+        if (!sawIhdr) {
+            if (type.toString('ascii') !== 'IHDR' || length !== 13 ||
+                bytes.readUInt32BE(offset + 8) === 0 || bytes.readUInt32BE(offset + 12) === 0) return false;
+            sawIhdr = true;
         }
-        if (marker !== 0xda) {
-            offset += length;
-            continue;
-        }
-        if (!sawFrame) return false;
-        offset += length;
-        while (offset < bytes.length) {
-            if (bytes[offset] !== 0xff) {
-                offset += 1;
-                continue;
-            }
-            while (offset < bytes.length && bytes[offset] === 0xff) offset += 1;
-            if (offset >= bytes.length) return false;
-            const entropyMarker = bytes[offset++];
-            if (entropyMarker === 0x00 || (entropyMarker >= 0xd0 && entropyMarker <= 0xd7)) continue;
-            return entropyMarker === 0xd9 && offset === bytes.length;
-        }
+        if (type.toString('ascii') === 'IEND') return sawIhdr && length === 0 && next === bytes.length;
+        offset = next;
     }
     return false;
 }
 
-function _styleMasterImageMediaType(bytes) {
-    if (Buffer.isBuffer(bytes) && bytes.length >= PNG_SIGNATURE.length && bytes.subarray(0, PNG_SIGNATURE.length).equals(PNG_SIGNATURE)) {
-        return 'image/png';
-    }
-    if (_jpegHasFrameAndEnd(bytes)) return 'image/jpeg';
-    return null;
-}
-
-/**
- * Inspect only the layout-resolved presentation JPEG projection path. Presence is never an
- * acceptance signal: an unselected PNG/JPEG remains a possible local input,
- * while a promoted presentation JPEG projection must be a real JPEG.
- */
-export function checkStyleMasterPresentationJpeg(runDir, { requireJpeg = false } = {}) {
+/** Inspect the optional layout-resolved local Style Master PNG source. */
+export function checkStyleMasterLocalPng(runDir) {
     const problems = [];
     const payloadPath = styleAsset(runDir, STYLE_MASTER_IMAGE);
     if (!fs.existsSync(payloadPath)) return problems;
     if (!_realFile(payloadPath)) {
-        problems.push(`Style Master presentation JPEG projection must be a regular file at ${payloadPath}`);
+        problems.push(`Style Master local PNG source must be a regular file at ${payloadPath}`);
         return problems;
     }
     let bytes;
     try {
         bytes = fs.readFileSync(payloadPath);
     } catch {
-        problems.push(`Style Master presentation JPEG projection is unreadable at ${payloadPath}`);
+        problems.push(`Style Master local PNG source is unreadable at ${payloadPath}`);
         return problems;
     }
-    const mediaType = _styleMasterImageMediaType(bytes);
-    if (mediaType === null) {
-        problems.push(`Style Master presentation JPEG projection must be a valid PNG/JPEG candidate at ${payloadPath}`);
-    } else if (requireJpeg && mediaType !== 'image/jpeg') {
-        problems.push(`accepted Style Master presentation JPEG projection must be a valid JPEG at ${payloadPath}`);
-    }
+    if (!_validStyleMasterPng(bytes)) problems.push(`Style Master local PNG source must be a CRC-valid PNG at ${payloadPath}`);
     return problems;
 }
 
@@ -989,7 +962,7 @@ export function checkBundle(runDir, requirePipelineReady = true) {
     problems.push(...checkDeckRootControls(root));
     const bbPath = path.join(root, BACKBONE_DIR);
     const vsPath = path.join(root, BACKBONE_DIR, BACKBONE_STYLE_SUBDIR);
-    problems.push(...checkStyleMasterPresentationJpeg(runDir));
+    problems.push(...checkStyleMasterLocalPng(runDir));
     problems.push(...checkStyleMasterHistoryLayout(runDir));
     problems.push(...checkProgressivePageProductionHistoryLayout(runDir));
     if (needGates) {
@@ -1425,9 +1398,9 @@ const _DIR_READMES = {
         '- `page-design-system.md` — optional shared Page Image provider design guidance for both Pure and Framed; a version may override it only at `overrides/visual-style/page-design-system.md`\n' +
         '- `image2-provider-profile.yaml` — Deck Author confirmed non-secret Image2 route capability; a version may override it only at `overrides/visual-style/image2-provider-profile.yaml`\n' +
         '- `page-image-presentation/` — Page Class catalog, deck defaults, Pure profiles, and Framed header profiles; version overrides use the matching `overrides/visual-style/page-image-presentation/` path\n' +
-        '- `style-master-prompt.md` — Style Master intent input; `style_master.jpg` — derived presentation JPEG after acceptance\n' +
+        '- `style-master-prompt.md` — Style Master intent input; `style_master.png` — optional local Style Master PNG source\n' +
         '- `assets/asset-manifest.yaml` — verified local references\n\n' +
-        '**权威:** 当前 version/workflow 的 accepted selection 在 `_state/state.yaml`; `style_master.jpg` 只按 override-first/backbone-default 路径投影，不能单独通过 raw gate。\n\n' +
+        '**权威:** 当前 version/workflow 的 accepted selection 在 `_state/state.yaml`; `style_master.png` 只按 override-first/backbone-default 路径作为本地候选源，不能单独通过 raw gate。\n\n' +
         '**你做什么:** 改 intent/registry/资产或 selected bytes 后，先回到 Style Master，再走受影响范围的 Generated Image Rebuild。\n'
     ),
     [`${BACKBONE_DIR}/${BACKBONE_STYLE_SUBDIR}/${BACKBONE_ASSETS_SUBDIR}`]: (
@@ -1761,7 +1734,7 @@ deck_\${NAME}/
 │   ├── ${BACKBONE_MANUSCRIPT_SUBDIR}/
 │   └── ${BACKBONE_STYLE_SUBDIR}/
 │       ├── ${STYLE_MASTER_PROMPT}
-│       ├── ${STYLE_MASTER_IMAGE}            ← override-first/backbone-default JPEG presentation JPEG projection only
+│       ├── ${STYLE_MASTER_IMAGE}            ← override-first/backbone-default local PNG candidate source only
 │       ├── ${PAGE_IMAGE_VISUAL_LANGUAGE_FILE}
 │       ├── ${PAGE_DESIGN_SYSTEM_FILE}          ← optional shared Pure/Framed provider design guidance
 │       ├── ${IMAGE2_PROVIDER_PROFILE_FILE}    ← Deck Author declared non-secret Image2 capability

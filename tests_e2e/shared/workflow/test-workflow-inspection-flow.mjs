@@ -39,7 +39,7 @@ async function createSelectedTargetFixture(workflow) {
   const deck = join(root, "deck_target_inspection");
   const runDir = join(deck, "3_versions", "v1");
   initBundle(deck, null, "keynote", "dark-executive");
-  writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), pngBytes());
+  writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.png"), pngBytes());
   const header = "**KICKER**: Operations\n**SUBTITLE**: Current provider-rendered page composition\n";
   const source = `---
 identity:

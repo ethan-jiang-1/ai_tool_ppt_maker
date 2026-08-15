@@ -541,12 +541,16 @@ export function validateStyleMasterAttemptTransition(previous, next) {
 export function validateStyleMasterLocalProvenance(record) {
   return validation(() => {
     assertExactKeys(record, ["schema", "kind", "source_asset", "candidate_sha256", "candidate_media_type", "candidate_width", "candidate_height"], "local provenance");
-    if (record.schema !== STYLE_MASTER_LOCAL_PROVENANCE_SCHEMA || record.kind !== "local-existing" || record.source_asset !== "visual-style/style_master.jpg") {
+    if (record.schema !== STYLE_MASTER_LOCAL_PROVENANCE_SCHEMA || record.kind !== "local-existing" ||
+      !["visual-style/style_master.png", "visual-style/style_master.jpg"].includes(record.source_asset)) {
       fail("style_master_provenance_invalid", "local provenance does not have the canonical local-existing shape");
     }
     assertSha256(record.candidate_sha256, "candidate_sha256");
     assertMedia(record.candidate_media_type);
     assertDimensions(record.candidate_width, record.candidate_height);
+    if (record.source_asset === "visual-style/style_master.png" && record.candidate_media_type !== "image/png") {
+      fail("style_master_provenance_invalid", "current local provenance requires PNG media");
+    }
     return { candidate_provenance_sha256: canonicalJsonSha256(record) };
   });
 }

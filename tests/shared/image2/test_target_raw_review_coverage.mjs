@@ -83,7 +83,7 @@ async function createPureFixture(root, name, imageBytes) {
   const deck = join(root, name);
   const runDir = join(deck, "3_versions", "v1");
   initBundle(deck, null, "keynote", "dark-executive");
-  writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), imageBytes);
+  writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.png"), imageBytes);
   writeFileSync(join(runDir, "slide-specifications.md"), source());
   await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir));
   return { deck, runDir, paths: pageImageWorkflowPaths(runDir) };
@@ -158,7 +158,7 @@ describe("target raw-review coverage", () => {
     try {
       initBundle(deck, null, "keynote", "dark-executive");
       const imageBytes = image.toBuffer("image/png");
-      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), imageBytes);
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.png"), imageBytes);
       writeFileSync(join(runDir, "slide-specifications.md"), source());
       await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir));
 

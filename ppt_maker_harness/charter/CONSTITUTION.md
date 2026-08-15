@@ -116,7 +116,7 @@ deck_{NAME}/
 │   ├── manuscript/
 │   └── visual-style/
 │       ├── style-master-prompt.md      ← current Style Master intent source
-│       ├── style_master.jpg
+│       ├── style_master.png      ← optional local Style Master source
 │       ├── page-image-visual-language.yaml ← current shared Page Image visual-language source
 │       ├── image2-provider-profile.yaml ← Deck Author's non-secret route-capability declaration; never credential, State, or authorization
 │       └── page-image-presentation/

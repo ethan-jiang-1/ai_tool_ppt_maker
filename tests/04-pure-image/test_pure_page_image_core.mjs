@@ -174,7 +174,7 @@ describe("Pure Page Image Core adapter", () => {
     image.getContext("2d").fillRect(0, 0, 2000, 1125);
     try {
       initBundle(deck, null, "keynote", "dark-executive");
-      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.png"), image.toBuffer("image/png"));
       writeFileSync(join(deck, "2_backbone", "visual-style", PAGE_DESIGN_SYSTEM_FILE), designSystem);
       writeFileSync(join(runDir, "slide-specifications.md"), SOURCE);
       await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir));
@@ -286,7 +286,7 @@ describe("Pure Page Image Core adapter", () => {
     image.getContext("2d").fillRect(0, 0, 2000, 1125);
     try {
       initBundle(deck, null, "keynote", "dark-executive");
-      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.png"), image.toBuffer("image/png"));
       writeFileSync(join(runDir, "slide-specifications.md"), MULTI_SLIDE_SOURCE);
       const sourceBefore = resolvePureTargetCandidateSource(runDir).receipt;
       await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir));
@@ -366,7 +366,7 @@ describe("Pure Page Image Core adapter", () => {
     image.getContext("2d").fillRect(0, 0, 2000, 1125);
     try {
       initBundle(deck, null, "keynote", "dark-executive");
-      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.png"), image.toBuffer("image/png"));
       writeFileSync(join(runDir, "slide-specifications.md"), SOURCE);
       await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir));
       const paths = pageImageWorkflowPaths(runDir);

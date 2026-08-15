@@ -27,7 +27,7 @@ import {
   styleAsset,
 } from "../../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
 import { pageImageWorkflowPaths } from "../../../ppt_maker_harness/scripts/shared/run-bundle/page_image_paths.mjs";
-import { readState, statePath } from "../../../ppt_maker_harness/scripts/shared/state/state.mjs";
+import { CONDITIONS, readState, statePath, writeState } from "../../../ppt_maker_harness/scripts/shared/state/state.mjs";
 import { acceptLocalStyleMasterFixture } from "../../helpers/accepted_style_master.mjs";
 import {
   testStyleMasterGenerationProfile,
@@ -152,7 +152,33 @@ describe("accepted Style Master raw binding", () => {
     }
   });
 
-  it("keeps immutable selected bytes when the presentation JPEG projection drifts", async () => {
+  it("keeps a historical JPEG selection readable but blocks current raw authority", async () => {
+    const value = await fixture({ accepted: true });
+    try {
+      const state = readState(value.deck, { purpose: "observe", runVersion: "v1" });
+      state.page_image_style_master.by_version["3_versions/v1"].candidate_media_type = "image/jpeg";
+      writeState(value.deck, state);
+      const stateBefore = readFileSync(statePath(value.deck));
+
+      expect(CONDITIONS.style_master_accepted(readState(value.deck, { purpose: "observe" }), {
+        deckDir: value.deck,
+        runDir: value.runDir,
+      })).toBe(false);
+      const error = captureError(() => buildPureTargetRawPlan(value.runDir));
+
+      expect(error).toMatchObject({
+        code: "target_style_master_stale",
+        next_action: "inspect_style_master",
+      });
+      expect(readFileSync(statePath(value.deck))).toEqual(stateBefore);
+      expect(existsSync(value.paths.target_source_receipt)).toBe(false);
+      expect(existsSync(value.paths.target_raw_plan)).toBe(false);
+    } finally {
+      rmSync(value.root, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps immutable selected bytes when the local PNG source drifts", async () => {
     const value = await fixture({ accepted: true });
     try {
       const before = buildTargetRawGenerationProfile({
@@ -176,7 +202,7 @@ describe("accepted Style Master raw binding", () => {
     }
   });
 
-  it("submits the plan-bound immutable bytes after presentation JPEG projection drift", async () => {
+  it("submits plan-bound immutable bytes after local PNG source drift", async () => {
     const value = await fixture({ accepted: true });
     try {
       const plan = buildPureTargetRawPlan(value.runDir);
@@ -285,6 +311,38 @@ describe("accepted Style Master raw binding", () => {
         request,
         item: { slide_id: "DeckGo" },
         provider_idempotency_key: `page-image-workflow-${"b".repeat(64)}`,
+      })).rejects.toMatchObject({ code: "PAGE_IMAGE_PROVIDER_REQUEST_INVALID" });
+      expect(credentialCalls).toBe(0);
+      expect(transportCalls).toBe(0);
+    } finally {
+      rmSync(value.root, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects a JPEG Style Master reference before Page Image transport", async () => {
+    const value = await fixture({ accepted: true });
+    try {
+      const plan = structuredClone(buildPureTargetRawPlan(value.runDir));
+      const request = plan.provider_requests_by_slide.DeckGo;
+      plan.style_master_reference.candidate_media_type = "image/jpeg";
+      request.generation_profile.effective_style_master.candidate_media_type = "image/jpeg";
+      let credentialCalls = 0;
+      let transportCalls = 0;
+      const submit = targetPageImageSubmitFactory(plan, {
+        credentialResolver: () => {
+          credentialCalls += 1;
+          return { base_url: "https://image.example", api_key: "test-key" };
+        },
+        fetchImpl: async () => {
+          transportCalls += 1;
+          return providerJsonResponse({});
+        },
+      });
+
+      await expect(submit({
+        request,
+        item: { slide_id: "DeckGo" },
+        provider_idempotency_key: `page-image-workflow-${"c".repeat(64)}`,
       })).rejects.toMatchObject({ code: "PAGE_IMAGE_PROVIDER_REQUEST_INVALID" });
       expect(credentialCalls).toBe(0);
       expect(transportCalls).toBe(0);

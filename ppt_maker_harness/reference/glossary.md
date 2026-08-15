@@ -25,7 +25,7 @@ PPT Maker Harness source lives in `workflow/`, `scripts/`, `charter/`,
 | Style Master scope head | `.../page-image-style-master-iterations/scopes/vN/{framed,pure}/head.json` | The sole mutable current candidate-plan pointer for one version/workflow scope. |
 | accepted Style Master selection | `_state/state.yaml` `page_image_style_master.by_version["3_versions/vN"]` | Optional acceptance record and raw-profile authority; first vNext has no inherited target record. |
 | `style-master-prompt.md` | `<run-dir>/overrides/visual-style/` if present, otherwise `2_backbone/visual-style/` | Current Style Master intent source; distinct from presentation profiles and from accepted selection. |
-| `style_master.jpg` | `<run-dir>/overrides/visual-style/` if present, otherwise `2_backbone/visual-style/` | Format-correct JPEG presentation JPEG projection after acceptance; not selection or raw-provider authority. |
+| `style_master.png` | `<run-dir>/overrides/visual-style/` if present, otherwise `2_backbone/visual-style/` | Optional CRC-valid local Style Master candidate source; never selection or raw-provider authority. |
 | `page-image-visual-language.yaml` | `2_backbone/visual-style/` | Current shared Page Image visual-language registry; distinct from Pure-only presentation profiles. |
 | `image2-provider-profile.yaml` | `<run-dir>/overrides/visual-style/` if present, otherwise `2_backbone/visual-style/` | Deck Author's one non-secret confirmed Image2 route/model/operation/budget declaration. It is distinct from `IMAGE2_PROVIDER_PROFILE_ID`, credentials, endpoint URL, Page Design System, inspection, State, plans, grants, attempts, review, and authorization. |
 | `page-design-system.md` | `<run-dir>/overrides/visual-style/` if present, otherwise `2_backbone/visual-style/` | Optional opaque provider-design guidance shared by Pure and Framed; distinct from visual-language selection, Style Master intent, presentation profiles, local-header policy, and lifecycle evidence. |
@@ -60,8 +60,9 @@ export action; it is never a current route.
 
 Style Master candidate work is scoped to one `vN + framed|pure` tuple. A
 selection is authoritative only after the state acceptance record and its
-immutable candidate chain revalidate. A presentation JPEG projection can be absent or
-drift without changing that selection; it is rebuilt from the selected bytes.
+immutable candidate chain revalidate. A local `style_master.png` source can
+drift without changing that selection; a replacement source is snapshotted only
+through the ordinary Style Master lifecycle.
 Selection/intent/context/profile/byte drift and retired raw lineage without the
 selection binding are `Generated Image Rebuild` debt, never a source-epoch
 rewrite or an inferred cross-version selection.

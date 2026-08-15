@@ -61,28 +61,36 @@ exact-match one immutable grant scoped only to its ordered generated slots.
 Generation SHALL revalidate current compiled brief/profile inputs, CAS-persist
 one `claimed` attempt before provider initialization, bind its request identity
 when it becomes `submitted`, and permit exactly one terminal success, known
-failure, or uncertainty outcome. A successful candidate requires verified
-media, immutable bytes, and matching provenance before it becomes reviewable.
-Unknown submitted work remains cost-preserving and requires the owner-issued
-exact abandonment path before a successor; it is never an
-implicit retry. A local-existing candidate is an immutable confined snapshot
-subject to the same review/selection contract, never file-presence acceptance.
+failure, or uncertainty outcome. Every candidate newly admitted to a current
+plan, and every selection newly promoted from one, SHALL be a CRC-valid PNG
+with positive native dimensions, immutable bytes, and matching provenance. A
+local-existing candidate is a confined immutable snapshot of the
+layout-resolved optional `style_master.png` source only, never file-presence
+acceptance. Unknown submitted work remains cost-preserving and requires the
+owner-issued exact abandonment path before a successor; it is never an
+implicit retry.
+
+Historical immutable plans, provenance, and selections that record JPEG media
+SHALL remain readable only to preserve their existing attribution and
+predecessor bindings. They SHALL not satisfy current selection, Controller
+readiness, raw-plan authority, or a new local-existing candidate admission, and
+the owner SHALL not transcode, rewrite, or promote them as PNG.
 
 A stale-binding recovery successor SHALL bind only the new validated candidate
 facts and its immutable predecessor. It SHALL not inherit a prior plan's
 grant, attempt, review decision, effective selection, or acceptance as current.
 Existing canonical local-candidate input MAY be snapshotted only through the
-same confined-byte validation and immutable local-candidate provenance required
-for any new plan; filename presence or historical candidate evidence alone
-cannot provide that input. Planning that successor SHALL not publish Page
+same confined PNG-byte validation and immutable local-candidate provenance
+required for any new plan; filename presence or historical candidate evidence
+alone cannot provide that input. Planning that successor SHALL not publish Page
 Image source, raw-plan, authorization, evidence, or provider-work records.
 
-Staged and unreferenced plans, candidate files, grants, attempts, provenance,
-or presentation JPEG projections are not current authority. The lifecycle preserves
-the shared bounded credential, endpoint, deadline, async-poll, secret-safe
-known-failure, and uncertainty rules without creating a page raw plan, Page
-Image receipt, provider-page evidence, alternate provider route, or a second
-cost authority.
+Staged and unreferenced plans, candidate files, grants, attempts, or provenance
+are not current authority. The lifecycle preserves the shared bounded
+credential, endpoint, deadline, async-poll, secret-safe known-failure, and
+uncertainty rules without creating a page raw plan, Page Image receipt,
+provider-page evidence, alternate provider route, a presentation-JPEG
+projection, or a second cost authority.
 
 #### Scenario: A grant cannot authorize a sibling or successor candidate plan
 
@@ -110,6 +118,32 @@ cost authority.
 - **AND** it does not reuse prior authorization, review, selection, or Page
   Image raw authority, and any local-existing candidate is revalidated from
   canonical source as a new immutable snapshot
+
+#### Scenario: A local PNG candidate is accepted without a JPEG projection
+
+- **WHEN** the layout-resolved optional `style_master.png` is a CRC-valid PNG
+  with positive dimensions
+- **THEN** planning can publish its local-existing immutable candidate using
+  those exact PNG bytes
+- **AND** it does not create or require a `style_master.jpg` file
+
+#### Scenario: JPEG bytes at the current local source path stop before planning
+
+- **WHEN** the layout-resolved `style_master.png` local Style Master input is
+  JPEG media
+- **THEN** planning hard-stops before a plan, grant, attempt, selection, raw
+  plan, or provider call
+- **AND** it returns the one deck-source refresh action without decoding,
+  converting, or adopting the historical media
+
+#### Scenario: Historical JPEG lineage remains history only
+
+- **WHEN** an existing immutable Style Master plan or selection records a JPEG
+  candidate from before this change
+- **THEN** the owner preserves that record as attributable history and
+  predecessor evidence while requiring a newly selected PNG before raw work
+- **AND** it does not alter the historical bytes, infer a PNG candidate, or
+  promote the JPEG as current
 
 ### Requirement: Pending successor projection does not require predecessor input-hash divergence
 
@@ -147,7 +181,8 @@ depend on or interpret a historical source/state marker.
 
 Review SHALL expose only complete current attributable candidates for the exact
 scope-head plan. Before recording a decision or promotion, the owner SHALL
-revalidate the plan/head, candidate bytes and provenance, grant/attempt chain
+revalidate the plan/head, PNG candidate bytes and provenance, grant/attempt
+chain
 where generated, visual/source context, workflow, and previous selection
 identity. `proceed` names exactly one eligible candidate; `repair` and
 `redirect` preserve the current selection and return their owner checkpoint.
@@ -156,18 +191,18 @@ a workflow switch.
 
 On current `proceed`, one immutable review decision and one compare-and-swap
 promotion SHALL publish the single effective-selection/acceptance record bound
-to the candidate's exact bytes, provenance, plan, selection scope, current
+to the candidate's exact PNG bytes, provenance, plan, selection scope, current
 context/profile, and prior selection. Exact replay returns that same selection;
-a stale or cross-scope promotion cannot overwrite it. Any layout-resolved
-`style_master.jpg` presentation JPEG projection is a derived projection of the
-accepted immutable candidate and neither creates, replaces, nor broadens
-selection authority. Its projection failure cannot roll back the committed
-selection or make page raw work current.
+a stale or cross-scope promotion cannot overwrite it. Promotion SHALL complete
+at that existing selection record and SHALL neither create nor require a
+layout-resolved JPEG projection. The accepted immutable PNG remains available
+to raw planning and derived human navigation without broadening selection
+authority.
 
 #### Scenario: A preplaced candidate cannot be promoted from its filename
 
-- **WHEN** a candidate image or presentation JPEG projection exists without the exact
-  current plan, provenance, and terminal-attempt chain required for its kind
+- **WHEN** a candidate image exists without the exact current plan, provenance,
+  and terminal-attempt chain required for its kind
 - **THEN** review and promotion stop before a decision or selection CAS
 - **AND** they do not infer local-candidate status or copy the bytes into a
   replacement selection
@@ -179,37 +214,7 @@ selection or make page raw work current.
 - **THEN** the owner returns the original selection/acceptance record for that
   exact version/workflow scope
 - **AND** it does not mint a second decision, selection, timestamp, provider
-  request, or cross-version selection
-
-### Requirement: Style Master presentation JPEG projection supports valid decoded PNG layouts
-
-After current Style Master selection, the layout-resolved `style_master.jpg`
-presentation JPEG projection SHALL be derivable from selected CRC-valid PNG media with
-an exact decoded pixel count and supported 8-bit or 16-bit grayscale,
-grayscale-alpha, RGB, or RGBA layout. The payload SHALL use a derived RGBA8
-pixel representation for JPEG encoding while preserving the selected candidate
-bytes, dimensions, hash, provenance, review decision, and selection authority
-unchanged.
-
-A malformed, inconsistent, or unsupported decoded layout SHALL fail only the
-presentation JPEG projection with its existing owning replay/repair path. It SHALL
-not reinterpret a source stride, replace selected bytes, roll back the
-selection, or make Page Image raw work current.
-
-#### Scenario: A 16-bit RGB selected Style Master has a presentation JPEG
-
-- **WHEN** a current selected Style Master has CRC-valid 16-bit RGB PNG bytes
-  with its recorded native dimensions
-- **THEN** the owner publishes a decodable same-dimension `style_master.jpg`
-  presentation JPEG projection from derived normalized pixels
-- **AND** the selection continues to bind the original PNG bytes and hash
-
-#### Scenario: An unsupported selected PNG layout does not alter selection
-
-- **WHEN** presentation JPEG projection encounters a decoded layout whose sample
-  count or channel/depth combination cannot be represented reliably
-- **THEN** the projection returns its bounded owning failure
-- **AND** it does not mutate the effective selection or selected candidate
+  request, cross-version selection, or JPEG projection
 
 ### Requirement: Style Master shares bounded invalid-JSON classification without new lifecycle state
 

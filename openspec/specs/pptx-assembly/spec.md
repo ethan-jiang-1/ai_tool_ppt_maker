@@ -14,6 +14,17 @@ override in the delivery command, state, or manifest. The conversion profile
 is mechanical delivery metadata, not a review decision or a replacement
 image-production profile.
 
+This final delivery conversion is the Harness's only current JPEG production
+boundary: it SHALL run only after current final PNG media and its manifest
+validate, and its newly derived JPEG bytes SHALL be used only by the declared
+delivery package and PPTX assembly. Style Master candidates/selections, raw
+page media, Pilot, Complete Page Review, final-PNG review, and human navigation
+SHALL retain PNG bytes and SHALL NOT create or use JPEG as current authority.
+Pre-existing immutable JPEG Style Master records remain attribution-only
+history outside this delivery path and SHALL not become current selection or
+raw authority. The Harness has no PDF assembly route, and this requirement
+does not define a future PDF export boundary.
+
 #### Scenario: Delivery preserves presentation detail without resizing
 
 - **WHEN** assembly derives JPEG media from a valid 2000x1125 final PNG
@@ -29,6 +40,14 @@ image-production profile.
   JPEG encoding without changing the source PNG or its final-manifest digest
 - **AND** the resulting JPEG remains subject to the same dimensions, digest,
   and delivery-manifest validation as an opaque input
+
+#### Scenario: Pre-delivery work remains PNG-only
+
+- **WHEN** Style Master selection, Page Image planning, Pilot, review, or
+  navigation runs before final delivery
+- **THEN** it relies on its existing PNG source or immutable PNG evidence
+- **AND** it does not create or require a new JPEG derivative before that final
+  delivery boundary
 
 ### Requirement: Page Image PPTX slides project only derived current order
 

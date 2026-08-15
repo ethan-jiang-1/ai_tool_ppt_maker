@@ -84,7 +84,7 @@ describe("current Page Image CLI surface", () => {
     try {
       initBundle(deck, null, "keynote", "dark-executive");
       writeConfirmedImage2ProviderProfile(runDir);
-      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.png"), image.toBuffer("image/png"));
       writeFileSync(styleAsset(runDir, STYLE_MASTER_PROMPT), "Use a clear editorial visual system with no readable text.\n", "utf8");
       writeFileSync(join(runDir, "slide-specifications.md"), `---
 identity:

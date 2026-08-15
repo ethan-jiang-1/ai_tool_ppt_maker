@@ -261,8 +261,21 @@ describe("Style Master schema and immutable storage", () => {
       ok: true,
       candidate_provenance_sha256: canonicalJsonSha256(local),
     });
+    expect(validateStyleMasterLocalProvenance({
+      ...local,
+      source_asset: "visual-style/style_master.png",
+      candidate_media_type: "image/png",
+    })).toMatchObject({ ok: true });
+    expect(validateStyleMasterLocalProvenance({
+      ...local,
+      source_asset: "visual-style/style_master.png",
+    })).toMatchObject({ ok: false, code: "style_master_provenance_invalid" });
     expect(validateStyleMasterGeneratedProvenance(generated)).toMatchObject({ ok: true });
     expect(validateStyleMasterSelectionRecord(selection, { expectedRunVersion: "v1", expectedWorkflow: "framed" })).toMatchObject({ ok: true });
+    expect(validateStyleMasterSelectionRecord({ ...selection, candidate_media_type: "image/jpeg" }, {
+      expectedRunVersion: "v1",
+      expectedWorkflow: "framed",
+    })).toMatchObject({ ok: true });
     expect(validateStyleMasterGeneratedProvenance({ ...generated, candidate_width: 1999, candidate_height: 1111 })).toMatchObject({ ok: true });
     expect(validateStyleMasterGeneratedProvenance({ ...generated, candidate_width: 0 })).toMatchObject({ ok: false });
     expect(validateStyleMasterLocalProvenance({ ...local, plan_sha256: digest("f") })).toMatchObject({ ok: false });

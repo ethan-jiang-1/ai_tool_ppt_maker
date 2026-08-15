@@ -80,7 +80,7 @@ async function createFixture(title, { providerClause = null } = {}) {
   const deck = join(root, "deck_target_cli_diagnostic");
   const runDir = join(deck, "3_versions", "v1");
   initBundle(deck, null, "keynote", "dark-executive");
-  writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), pngBytes("#1f4d6e"));
+  writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.png"), pngBytes("#1f4d6e"));
   writeFileSync(join(runDir, "slide-specifications.md"), framedSource(title));
   replaceFixtureProviderClause(deck, providerClause);
   await acceptLocalStyleMasterFixture(resolveFramedStyleMasterScope(runDir));
@@ -131,7 +131,7 @@ async function createPureFixture(firstTitle = "First exact Pure page", { provide
   const deck = join(root, "deck_pure_progressive_cli");
   const runDir = join(deck, "3_versions", "v1");
   initBundle(deck, null, "keynote", "dark-executive");
-  writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), pngBytes("#265e74"));
+  writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.png"), pngBytes("#265e74"));
   writeFileSync(join(runDir, "slide-specifications.md"), pureSource(firstTitle));
   replaceFixtureProviderClause(deck, providerClause);
   await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir));

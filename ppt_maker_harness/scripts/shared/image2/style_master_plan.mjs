@@ -1,12 +1,9 @@
-import { existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync } from "node:fs";
-import { randomUUID } from "node:crypto";
-import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
-import { loadImage } from "@napi-rs/canvas";
+import { existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { basename, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { decode as decodePng } from "fast-png";
 
 import { canonicalJson, canonicalJsonSha256 } from "../identity/canonical_json.mjs";
 import { sha256Bytes } from "../identity/byte_hash.mjs";
-import { createPngRasterProjectionCanvas } from "./png_raster_projection.mjs";
 import {
   SLIDE_SPECS_NAME,
   STYLE_MASTER_IMAGE,
@@ -413,21 +410,37 @@ function describeSupportedImage(bytes, label) {
   return Object.freeze({ candidate_media_type, ...dimensions });
 }
 
+function describeCurrentPng(bytes, label) {
+  if (imageMediaType(bytes) !== "image/png") {
+    fail("style_master_local_invalid", `${label} must be PNG media`);
+  }
+  let decoded;
+  try {
+    decoded = decodePng(bytes, { checkCrc: true });
+  } catch {
+    fail("style_master_local_invalid", `${label} is not a CRC-valid PNG`);
+  }
+  if (!Number.isInteger(decoded.width) || decoded.width <= 0 || !Number.isInteger(decoded.height) || decoded.height <= 0) {
+    fail("style_master_local_invalid", `${label} has invalid PNG dimensions`);
+  }
+  return Object.freeze({ candidate_media_type: "image/png", candidate_width: decoded.width, candidate_height: decoded.height });
+}
+
 async function localCandidateFromScope(scope) {
   const expected = resolve(styleAsset(scope.run_dir, STYLE_MASTER_IMAGE));
   if (scope.local_existing_source_path !== expected) {
-    fail("style_master_scope_invalid", "Style Master local input must use the layout-resolved canonical presentation JPEG projection path");
+    fail("style_master_scope_invalid", "Style Master local input must use the layout-resolved canonical PNG source path");
   }
   assertInside(scope.deck_dir, expected, "local Style Master source");
   const bytes = stableRegularFileBytes(expected, "local Style Master source");
   if (bytes === null) return null;
   assertPhysicallyInside(scope.deck_dir, expected, "local Style Master source");
-  const media = describeSupportedImage(bytes, "local Style Master source");
+  const media = describeCurrentPng(bytes, "local Style Master source");
   const candidate_sha256 = sha256Bytes(bytes);
   const provenance = {
     schema: STYLE_MASTER_LOCAL_PROVENANCE_SCHEMA,
     kind: "local-existing",
-    source_asset: "visual-style/style_master.jpg",
+    source_asset: "visual-style/style_master.png",
     candidate_sha256,
     ...media,
   };
@@ -797,7 +810,7 @@ async function inspectCurrentStyleMasterPlan(scope, current) {
 
 /**
  * Return the owner-issued current lifecycle projection without creating a plan,
- * grant, attempt, review receipt, selection, or presentation JPEG projection. A
+ * grant, attempt, review receipt, selection, or root-level projection. A
  * supplied plan hash is an assertion against the scope head, never a request
  * to expose prior plan state as an actionable projection.
  */
@@ -1959,6 +1972,9 @@ function reviewDecisionRecord(plan, { decision, candidate = null } = {}) {
 }
 
 function acceptedSelectionRecord(plan, decision, candidate, acceptedAt) {
+  if (candidate.candidate_media_type !== "image/png") {
+    fail("style_master_selection_invalid", "current Style Master selection requires PNG candidate media");
+  }
   const record = {
     schema: STYLE_MASTER_SELECTION_SCHEMA,
     run_version: plan.run_version,
@@ -2048,11 +2064,7 @@ function reviewedPriorSelectionCandidate(scope, plan, selection) {
   return reviewed;
 }
 
-/**
- * The prior-plan exception is deliberately narrow: once the state record has
- * won, only the exact plan/decision/candidate it names can rebuild its derived
- * JPEG. It never turns an arbitrary prior plan back into a review action.
- */
+/** Reread the one exact current selection without reopening a prior plan. */
 function exactAcceptedSelectionReplay(scope, { planSha256, decision, candidateId }) {
   const effective = resolveEffectiveStyleMasterSelection(scope.deck_dir, { runDir: scope.run_dir });
   if (!effective.ok || effective.record.plan_sha256 !== planSha256) return null;
@@ -2089,109 +2101,7 @@ function exactAcceptedSelectionReplay(scope, { planSha256, decision, candidateId
   });
 }
 
-function presentationJpegProjectionTarget(scope) {
-  const target = resolve(styleAsset(scope.run_dir, STYLE_MASTER_IMAGE));
-  assertInside(scope.deck_dir, target, "Style Master presentation JPEG projection");
-  const parent = dirname(target);
-  let parentStats;
-  try {
-    parentStats = lstatSync(parent);
-  } catch {
-    fail("style_master_presentation_jpeg_projection_failed", "Style Master presentation JPEG projection directory is unavailable");
-  }
-  if (!parentStats.isDirectory() || parentStats.isSymbolicLink()) {
-    fail("style_master_presentation_jpeg_projection_failed", "Style Master presentation JPEG projection directory is invalid");
-  }
-  assertPhysicallyInside(scope.deck_dir, parent, "Style Master presentation JPEG projection directory");
-  if (existsSync(target)) {
-    const targetStats = lstatSync(target);
-    if (!targetStats.isFile() || targetStats.isSymbolicLink()) {
-      fail("style_master_presentation_jpeg_projection_failed", "Style Master presentation JPEG projection target is not a regular file");
-    }
-  }
-  return target;
-}
-
-function assertUnchangedPresentationJpegProjectionTarget(scope, target) {
-  const refreshed = presentationJpegProjectionTarget(scope);
-  if (refreshed !== target) {
-    fail("style_master_presentation_jpeg_projection_failed", "Style Master presentation JPEG projection path changed during promotion");
-  }
-}
-
-async function encodeStyleMasterPresentationJpeg(candidate) {
-  try {
-    const canvas = createPngRasterProjectionCanvas(candidate.bytes);
-    if (canvas.width !== candidate.candidate_width || canvas.height !== candidate.candidate_height) {
-      fail("style_master_presentation_jpeg_projection_failed", "Style Master selected bytes changed image dimensions before presentation JPEG projection");
-    }
-    const jpeg = Buffer.from(canvas.toBuffer("image/jpeg"));
-    if (jpeg.length === 0 || jpeg[0] !== 0xff || jpeg[1] !== 0xd8) {
-      fail("style_master_presentation_jpeg_projection_failed", "Style Master presentation JPEG projection did not produce JPEG bytes");
-    }
-    const verified = await loadImage(jpeg);
-    if (verified.width !== candidate.candidate_width || verified.height !== candidate.candidate_height) {
-      fail("style_master_presentation_jpeg_projection_failed", "Style Master presentation JPEG dimensions are invalid");
-    }
-    return jpeg;
-  } catch (error) {
-    if (error instanceof StyleMasterPlanError) throw error;
-    fail("style_master_presentation_jpeg_projection_failed", "Style Master selected bytes could not be projected as JPEG");
-  }
-}
-
-function writePresentationJpegProjectionAtomic(scope, target, bytes) {
-  const temporary = join(dirname(target), `.${basename(target)}.style-master-${randomUUID()}.tmp`);
-  try {
-    writeFileSync(temporary, bytes, { flag: "wx", mode: 0o600 });
-    assertUnchangedPresentationJpegProjectionTarget(scope, target);
-    renameSync(temporary, target);
-  } catch (error) {
-    try { rmSync(temporary, { force: true }); } catch { /* Best-effort cleanup of this invocation's temporary. */ }
-    throw error;
-  }
-}
-
-async function ensureStyleMasterPresentationJpegProjection(scope, candidate) {
-  const target = presentationJpegProjectionTarget(scope);
-  const jpeg = await encodeStyleMasterPresentationJpeg(candidate);
-  let current = null;
-  try {
-    current = existsSync(target) ? readFileSync(target) : null;
-  } catch {
-    fail("style_master_presentation_jpeg_projection_failed", "Style Master presentation JPEG projection target is unreadable");
-  }
-  if (current !== null && equalBytes(current, jpeg)) {
-    return Object.freeze({ path: target, status: "current", bytes_sha256: sha256Bytes(jpeg) });
-  }
-  writePresentationJpegProjectionAtomic(scope, target, jpeg);
-  return Object.freeze({ path: target, status: "rebuilt", bytes_sha256: sha256Bytes(jpeg) });
-}
-
-function presentationJpegProjectionFailure(error, replay) {
-  return new StyleMasterPlanError(
-    "style_master_presentation_jpeg_projection_failed",
-    "Style Master selection committed, but its presentation JPEG projection must be replayed",
-    Object.freeze({
-      subject: Object.freeze({ kind: "style_master_selection", id: replay.selection_sha256 }),
-      reason: Object.freeze({ kind: "presentation_jpeg_projection_failed" }),
-      replay: Object.freeze({
-        plan_sha256: replay.plan.plan_sha256,
-        decision: "proceed",
-        candidate_id: replay.candidate.candidate_id,
-      }),
-      cause_code: error?.code || "style_master_presentation_jpeg_projection_failed",
-    }),
-  );
-}
-
-async function finalizedStyleMasterSelectionResult(scope, replay, { replayed }) {
-  let presentation_jpeg_projection;
-  try {
-    presentation_jpeg_projection = await ensureStyleMasterPresentationJpegProjection(scope, replay.candidate);
-  } catch (error) {
-    throw presentationJpegProjectionFailure(error, replay);
-  }
+function finalizedStyleMasterSelectionResult(replay, { replayed }) {
   return Object.freeze({
     plan_sha256: replay.plan.plan_sha256,
     run_version: replay.plan.run_version,
@@ -2204,7 +2114,6 @@ async function finalizedStyleMasterSelectionResult(scope, replay, { replayed }) 
     accepted_at: replay.selection.accepted_at,
     promoted: true,
     replay: Boolean(replayed),
-    presentation_jpeg_projection,
     next_action: "style_master_accepted",
   });
 }
@@ -2277,14 +2186,14 @@ export async function acceptStyleMasterCandidateReview({
   const requested = normalizedReviewDecision(decision, candidateId);
   const resolvedScope = await resolveCurrentScope(scope, refreshScope);
 
-  // A selection CAS winner is the only prior-plan replay path. It can repair
-  // its JPEG even when a terminal successor has advanced the lifecycle head.
+  // A selection CAS winner is the only prior-plan replay path, even after a
+  // terminal successor advances the lifecycle head.
   const existingReplay = exactAcceptedSelectionReplay(resolvedScope, {
     planSha256,
     decision: requested.decision,
     candidateId: requested.candidate_id,
   });
-  if (existingReplay) return finalizedStyleMasterSelectionResult(resolvedScope, existingReplay, { replayed: true });
+  if (existingReplay) return finalizedStyleMasterSelectionResult(existingReplay, { replayed: true });
 
   const review = await validateStyleMasterCandidateReviewForAction({
     scope: resolvedScope,
@@ -2330,13 +2239,13 @@ export async function acceptStyleMasterCandidateReview({
     }),
     refreshScope,
   });
-  return finalizedStyleMasterSelectionResult(resolvedScope, promotion, { replayed: promotion.replay });
+  return finalizedStyleMasterSelectionResult(promotion, { replayed: promotion.replay });
 }
 
 /**
  * Resolve the accepted Style Master authority for Page Image raw planning.
- * The presentation JPEG is intentionally absent from this interface: the
- * returned bytes are the immutable candidate bytes named by the state record.
+ * The returned bytes are the immutable candidate bytes named by the state
+ * record; it does not consult a root-level Style Master file.
  */
 export function resolveAcceptedStyleMasterReference({ runDir, deckDir = null, receipt } = {}) {
   const resolvedRunDir = resolve(runDir || "");
@@ -2363,6 +2272,9 @@ export function resolveAcceptedStyleMasterReference({ runDir, deckDir = null, re
       effective.code === "STYLE_MASTER_SELECTION_MISSING" ? "style_master_selection_missing" : "style_master_selection_stale",
       "Page Image raw planning requires one current accepted Style Master selection",
     );
+  }
+  if (effective.record.candidate_media_type !== "image/png") {
+    fail("style_master_selection_stale", "Page Image raw planning requires a current PNG Style Master selection");
   }
   if (effective.workflow !== receipt.workflow) {
     fail("style_master_selection_stale", "Style Master selection workflow does not match the current source receipt");

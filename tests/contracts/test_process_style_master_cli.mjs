@@ -1,4 +1,4 @@
-import { chmodSync, existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -14,6 +14,7 @@ import { resolveEffectiveStyleMasterSelection } from "../../ppt_maker_harness/sc
 import { styleMasterStorePaths } from "../../ppt_maker_harness/scripts/shared/image2/style_master_store.mjs";
 import { readProgressiveRawPlanDirectRecords } from "../../ppt_maker_harness/scripts/shared/image2/page_image_progressive_store.mjs";
 import { pageImageWorkflowPaths } from "../../ppt_maker_harness/scripts/shared/run-bundle/page_image_paths.mjs";
+import { writeConfirmedImage2ProviderProfile } from "../helpers/image2_provider_profile.mjs";
 
 const FLOW = "ppt_maker_harness/scripts/ppt_flow.mjs";
 const LOCAL_PNG = Buffer.from(
@@ -25,7 +26,11 @@ function run(args, env = {}, { cwd = process.cwd(), nodeArgs = [] } = {}) {
   return spawnSync(process.execPath, [...nodeArgs, FLOW, ...args], {
     encoding: "utf8",
     timeout: 30_000,
-    env: { ...process.env, ...env },
+    env: {
+      ...process.env,
+      IMAGE2_PROVIDER_PROFILE_ID: "test-image2-profile",
+      ...env,
+    },
     cwd,
   });
 }
@@ -74,7 +79,8 @@ function fixture(tag) {
   const deck = join(root, "deck_style_master_cli");
   const runDir = join(deck, "3_versions", "v1");
   initBundle(deck, null, "keynote", "dark-executive");
-  writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), LOCAL_PNG);
+  writeConfirmedImage2ProviderProfile(runDir);
+  writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.png"), LOCAL_PNG);
   writeFileSync(styleAsset(runDir, STYLE_MASTER_PROMPT), "Use a clear editorial visual system with no readable text.\n", "utf8");
   writeFileSync(join(runDir, "slide-specifications.md"), source(), "utf8");
   return { root, deck, runDir };
@@ -363,9 +369,8 @@ describe("Style Master process CLI", () => {
     }
   });
 
-  it("reports committed selection partial success with exact non-human replay", () => {
+  it("reports PNG selection success without a JPEG replay surface", () => {
     const value = fixture("style-master-cli-projection");
-    const presentationDirectory = join(value.deck, "2_backbone", "visual-style");
     try {
       const planned = run(["style-master", "plan", value.runDir, "--candidate-count", "0"]);
       expect(planned.status, planned.stderr).toBe(0);
@@ -373,63 +378,20 @@ describe("Style Master process CLI", () => {
       const reviewed = run(["style-master", "review", value.runDir, "--plan-hash", plan.plan_sha256]);
       expect(reviewed.status, reviewed.stderr).toBe(0);
 
-      chmodSync(presentationDirectory, 0o500);
-      let failed;
-      try {
-        failed = run([
-          "style-master", "accept", value.runDir,
-          "--plan-hash", plan.plan_sha256,
-          "--decision", "proceed",
-          "--candidate-id", "local-existing",
-        ]);
-      } finally {
-        chmodSync(presentationDirectory, 0o700);
-      }
-      expect(failed.status, failed.stderr).toBe(1);
-      expect(failed.stdout).toBe("");
-      const selection = resolveEffectiveStyleMasterSelection(value.deck, { runDir: value.runDir });
-      expect(selection).toMatchObject({ ok: true, record: { plan_sha256: plan.plan_sha256 } });
-      const diagnostic = finalDiagnostic(failed.stderr);
-      expect(diagnostic).toMatchObject({
-        code: "FAILED",
-        where: "ppt_flow.style-master.accept",
-        diagnostic: {
-          category: "artifact",
-          subject: { kind: "style_master_selection", id: selection.selection_sha256 },
-          reason: { kind: "presentation_jpeg_projection_failed" },
-          next: { action: "rerun", requires_human: false },
-        },
-      });
-      expect(diagnostic.diagnostic.next.invocation).toEqual({
-        program: "node",
-        args: [
-          expect.stringContaining("ppt_flow.mjs"),
-          "style-master",
-          "accept",
-          value.runDir,
-          "--plan-hash",
-          plan.plan_sha256,
-          "--decision",
-          "proceed",
-          "--candidate-id",
-          "local-existing",
-        ],
-      });
-
-      const replay = run([
+      const accepted = run([
         "style-master", "accept", value.runDir,
         "--plan-hash", plan.plan_sha256,
         "--decision", "proceed",
         "--candidate-id", "local-existing",
       ]);
-      expect(replay.status, replay.stderr).toBe(0);
-      expect(JSON.parse(replay.stdout)).toMatchObject({
-        replay: true,
-        selection_sha256: selection.selection_sha256,
-        presentation_jpeg_projection: { status: "rebuilt" },
-      });
+      expect(accepted.status, accepted.stderr).toBe(0);
+      const selection = resolveEffectiveStyleMasterSelection(value.deck, { runDir: value.runDir });
+      expect(selection).toMatchObject({ ok: true, record: { plan_sha256: plan.plan_sha256 } });
+      const result = JSON.parse(accepted.stdout);
+      expect(result).toMatchObject({ replay: false, selection_sha256: selection.selection_sha256 });
+      expect(Object.hasOwn(result, "presentation_jpeg_projection")).toBe(false);
+      expect(readFileSync(join(value.deck, "2_backbone", "visual-style", "style_master.png"))).toEqual(LOCAL_PNG);
     } finally {
-      chmodSync(presentationDirectory, 0o700);
       rmSync(value.root, { recursive: true, force: true });
     }
   });

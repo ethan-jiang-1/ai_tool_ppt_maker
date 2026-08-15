@@ -47,6 +47,7 @@ import {
 import {
   validateStyleMasterSelectionRecord,
 } from "../image2/style_master_schema.mjs";
+import { STYLE_MASTER_IMAGE, styleMasterLocalSourcePath } from "../run-bundle/style_master_media.mjs";
 import { PAGE_IMAGE_WORKFLOW_PIPELINE, PAGE_IMAGE_WORKFLOWS, isPageImageWorkflowSelectionPending, probeProductionMarker } from "../run-bundle/production_marker.mjs";
 import { canonicalVersionKey, initialProductionIdentityRecord, inspectProductionIdentity, isProductionIdentityRecord, normalizeRunVersion, pipelineFromSourceMarker } from "../run-bundle/production_identity.mjs";
 import { canonicalJsonSha256 } from "../identity/canonical_json.mjs";
@@ -436,7 +437,7 @@ export function resolveEffectiveStyleMasterSelection(deckDir, { runVersion, runD
     expectedRunVersion: exactVersion,
     expectedWorkflow,
   });
-  if (!checked.ok || source.workflow !== record.workflow) {
+  if (!checked.ok || record.candidate_media_type !== "image/png" || source.workflow !== record.workflow) {
     return Object.freeze({ ok: false, code: "STYLE_MASTER_SELECTION_STALE", current: false });
   }
   return Object.freeze({
@@ -477,6 +478,7 @@ export function recordEffectiveStyleMasterSelection(deckDir, {
     expectedWorkflow,
   });
   if (!checked.ok) throw new Error(checked.code || "STYLE_MASTER_SELECTION_INVALID");
+  if (selection.candidate_media_type !== "image/png") throw new Error("STYLE_MASTER_SELECTION_INVALID");
   const existing = styleMasterSelectionRecord(state, exactVersion);
   if (existing) {
     const checkedExisting = validateStyleMasterSelectionRecord(existing, {
@@ -3229,7 +3231,11 @@ export const CONDITIONS = {
   run_bundle_exists: (_state, ctx) => existsSync(ctx.deckDir || ""),
   deck_guide_created: (_state, ctx) => existsSync(join(ctx.deckDir || "", "deck-guide.md")),
   visual_preset_seeded: (_state, ctx) => existsSync(join(ctx.deckDir || "", ...PAGE_IMAGE_VISUAL_LANGUAGE_RELATIVE_PATH.split("/"))),
-  style_master_exists: (_state, ctx) => existsSync(join(ctx.deckDir || "", "2_backbone", "visual-style", "style_master.jpg")),
+  style_master_exists: (_state, ctx) => {
+    const runDir = ctx.runDir || ctx.run_dir;
+    if (typeof runDir === "string" && runDir) return existsSync(styleMasterLocalSourcePath(runDir));
+    return existsSync(join(ctx.deckDir || "", "2_backbone", "visual-style", STYLE_MASTER_IMAGE));
+  },
   style_master_accepted: (state, ctx) => {
     try {
       const result = resolveEffectiveStyleMasterSelection(ctx.deckDir || "", {

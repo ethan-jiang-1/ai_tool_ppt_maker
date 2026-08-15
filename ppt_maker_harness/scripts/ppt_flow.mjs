@@ -2003,7 +2003,7 @@ function imageBytesDataUrl(bytes, mediaType) {
     error.code = "PAGE_IMAGE_PROVIDER_REQUEST_INVALID";
     throw error;
   }
-  if (!["image/png", "image/jpeg"].includes(mediaType) || bytes.length === 0) {
+  if (mediaType !== "image/png" || bytes.length === 0) {
     const error = new Error("Target Page Image Style Master reference media is invalid");
     error.code = "PAGE_IMAGE_PROVIDER_REQUEST_INVALID";
     throw error;
@@ -3161,37 +3161,12 @@ function styleMasterFailure(operation, route, error) {
   const common = {
     schema: CLI_DIAGNOSTIC_SCHEMA,
     operation: `style-master-${operation}`,
-    reason: error?.reason?.kind === "presentation_jpeg_projection_failed"
-      ? Object.freeze({ kind: "presentation_jpeg_projection_failed" })
-      : Object.freeze({ kind: reason }),
+    reason: Object.freeze({ kind: reason }),
   };
   const source = { path: join(route.run_dir, SLIDE_SPECS_NAME) };
 
   const capabilityFailure = image2CapabilityFailureDiagnostic({ common, route, error, reason, operation: `style-master-${operation}` });
   if (capabilityFailure) return capabilityFailure;
-
-  if (reason === "style_master_presentation_jpeg_projection_failed" &&
-    error?.subject?.kind === "style_master_selection" && STYLE_MASTER_PLAN_HASH_RE.test(error?.replay?.plan_sha256 || "") &&
-    error?.replay?.decision === "proceed" && typeof error?.replay?.candidate_id === "string") {
-    return {
-      code: CLI_ERROR_CODES.FAILED,
-      message: "The Style Master selection committed, but its presentation JPEG projection needs replay.",
-      hint: "Rerun the exact accepted selection so its derived presentation JPEG can be rebuilt.",
-      diagnostic: {
-        ...common,
-        category: "artifact",
-        subject: error.subject,
-        next: createCliNext("rerun", {
-          invocation: styleMasterNextInvocation(route, "accept", {
-            planHash: error.replay.plan_sha256,
-            decision: "proceed",
-            candidateId: error.replay.candidate_id,
-          }),
-          default: "Rerun this exact accept invocation to repair only the derived presentation JPEG.",
-        }),
-      },
-    };
-  }
 
   if ([
     "style_master_intent_invalid",

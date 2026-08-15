@@ -103,7 +103,7 @@ async function progressivePureFixture(slideCount = 1) {
   const image = createCanvas(2000, 1125);
   image.getContext("2d").fillRect(0, 0, 2000, 1125);
   initBundle(deck, null, "keynote", "dark-executive");
-  writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+  writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.png"), image.toBuffer("image/png"));
   writeFileSync(join(runDir, "slide-specifications.md"), progressivePureSource(slideCount));
   await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir));
   const plan = buildPureProgressiveTargetRawPlan(runDir);

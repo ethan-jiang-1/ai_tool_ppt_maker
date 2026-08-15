@@ -234,7 +234,7 @@ relationship: layer-stack`,
     });
     try {
       initBundle(deck, null, "keynote", "dark-executive");
-      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.png"), image.toBuffer("image/png"));
       writeFileSync(join(runDir, "slide-specifications.md"), source);
       await acceptLocalStyleMasterFixture(resolveFramedStyleMasterScope(runDir));
       const plan = await buildFramedTargetRawPlan(runDir);
@@ -294,7 +294,7 @@ ${DEFAULT_VISUAL_BRIEF}
       initBundle(deck, null, "keynote", "dark-executive");
       allowTestIdentitySubjectClass(deck);
       const reference = writeTestIdentityReference(deck);
-      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.png"), image.toBuffer("image/png"));
       writeFileSync(join(runDir, "slide-specifications.md"), source);
       await acceptLocalStyleMasterFixture(resolveFramedStyleMasterScope(runDir));
 
@@ -500,7 +500,7 @@ ${DEFAULT_VISUAL_BRIEF}
       initBundle(deck, null, "keynote", "dark-executive");
       allowTestIdentitySubjectClass(deck);
       writeTestIdentityReference(deck);
-      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.png"), image.toBuffer("image/png"));
       writeFileSync(join(runDir, "slide-specifications.md"), framedSource({
         title: "Reject tampered Framed identity",
         identity: TEST_IDENTITY_REFERENCE,
@@ -545,7 +545,7 @@ relationship: causal-flow`,
     });
     try {
       initBundle(deck, null, "keynote", "dark-executive");
-      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.png"), image.toBuffer("image/png"));
       writeFileSync(join(runDir, "slide-specifications.md"), source);
       await acceptLocalStyleMasterFixture(resolveFramedStyleMasterScope(runDir));
 
@@ -595,7 +595,7 @@ relationship: causal-flow`,
     const sharedLiteral = "Shared provider-owned spelling";
     try {
       initBundle(deck, null, "keynote", "dark-executive");
-      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.png"), image.toBuffer("image/png"));
       writeFileSync(join(runDir, "slide-specifications.md"), framedSource({
         title: sharedLiteral,
         subjectRestrictions: "no-generic-metal-robot",
@@ -746,7 +746,7 @@ relationship: causal-flow`,
     image.getContext("2d").fillRect(0, 0, 2000, 1125);
     try {
       initBundle(deck, null, "keynote", "dark-executive");
-      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.png"), image.toBuffer("image/png"));
       writeFileSync(join(runDir, "slide-specifications.md"), framedSource({
         title: "W".repeat(28),
         note: "Candidate proof must fail before materialization.",
@@ -776,7 +776,7 @@ relationship: causal-flow`,
     image.getContext("2d").fillRect(0, 0, 2000, 1125);
     try {
       initBundle(deck, null, "keynote", "dark-executive");
-      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.png"), image.toBuffer("image/png"));
       writeFileSync(join(runDir, "slide-specifications.md"), framedSource({
         title: "Profile repair gate",
       }));
@@ -823,7 +823,7 @@ relationship: causal-flow`,
     image.getContext("2d").fillRect(0, 0, 2000, 1125);
     try {
       initBundle(deck, null, "keynote", "dark-executive");
-      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.png"), image.toBuffer("image/png"));
       writeFileSync(join(runDir, "slide-specifications.md"), framedSource({
         title: "Recover the exact plan checkpoint",
         note: "A failed plan write must remain unauthorizable.",
@@ -964,7 +964,7 @@ relationship: causal-flow`,
     context.fillRect(0, 0, 2000, 1125);
     try {
       initBundle(deck, null, "keynote", "dark-executive");
-      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.png"), image.toBuffer("image/png"));
       writeFileSync(join(runDir, "slide-specifications.md"), framedSource({
         title: "Framed target fact",
         note: "Framed target source-owned note.",
@@ -1030,7 +1030,7 @@ relationship: causal-flow`,
     const source = (title, note = "Framed target source-owned note.") => framedSource({ title, note });
     try {
       initBundle(deck, null, "keynote", "dark-executive");
-      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.png"), image.toBuffer("image/png"));
       writeFileSync(join(runDir, "slide-specifications.md"), source("Original heading"));
       await acceptLocalStyleMasterFixture(resolveFramedStyleMasterScope(runDir));
       const initialPlan = await buildFramedTargetRawPlan(runDir);
@@ -1093,7 +1093,7 @@ relationship: causal-flow`,
     });
     try {
       initBundle(deck, null, "keynote", "dark-executive");
-      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.png"), image.toBuffer("image/png"));
       writeFileSync(join(runDir, "slide-specifications.md"), source());
       await acceptLocalStyleMasterFixture(resolveFramedStyleMasterScope(runDir));
 
@@ -1296,7 +1296,7 @@ negative_constraints:
 `;
     try {
       initBundle(deck, null, "keynote", "dark-executive");
-      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.png"), image.toBuffer("image/png"));
       writeFileSync(join(runDir, "slide-specifications.md"), source);
       await acceptLocalStyleMasterFixture(resolveFramedStyleMasterScope(runDir));
 
@@ -1409,7 +1409,7 @@ negative_constraints:
 `;
     try {
       initBundle(deck, null, "keynote", "dark-executive");
-      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.png"), image.toBuffer("image/png"));
       writeFileSync(join(runDir, "slide-specifications.md"), source);
       await acceptLocalStyleMasterFixture(resolveFramedStyleMasterScope(runDir));
 
@@ -1461,7 +1461,7 @@ negative_constraints:
     image.getContext("2d").fillRect(0, 0, 2000, 1125);
     try {
       initBundle(deck, null, "keynote", "dark-executive");
-      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.png"), image.toBuffer("image/png"));
       writeFileSync(join(runDir, "slide-specifications.md"), framedSource({
         title: "Header encroachment requires repair",
         bodyYaml: `items:
@@ -1537,7 +1537,7 @@ negative_constraints:
     const source = (title) => framedSource({ title });
     try {
       initBundle(deck, null, "keynote", "dark-executive");
-      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.png"), image.toBuffer("image/png"));
       writeFileSync(join(runDir, "slide-specifications.md"), source("Original CLI heading"));
       await acceptLocalStyleMasterFixture(resolveFramedStyleMasterScope(runDir));
       const initialPlan = await buildFramedTargetRawPlan(runDir);

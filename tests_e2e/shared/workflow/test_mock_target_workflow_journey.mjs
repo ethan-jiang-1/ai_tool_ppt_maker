@@ -75,7 +75,7 @@ function createTargetFixture(prefix, workflow, slides) {
     styleMasterModel: "mock-style-master-model",
     pageImageModel: "mock-page-image-model",
   });
-  writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), pngBytes("#1f4d6e"));
+  writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.png"), pngBytes("#1f4d6e"));
   writeFileSync(styleAsset(runDir, STYLE_MASTER_PROMPT), "Use a clear editorial visual system with clear content hierarchy.\n", "utf8");
   writeFileSync(join(runDir, "slide-specifications.md"), targetSource(workflow, slides));
   return { root, deck, runDir };

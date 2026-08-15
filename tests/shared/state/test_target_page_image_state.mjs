@@ -567,7 +567,7 @@ describe("TARGET Page Image state lineage", () => {
         runDir: fixture.runDir,
       })).toBe(false);
 
-      writeFileSync(join(fixture.deck, "2_backbone", "visual-style", "style_master.jpg"), "unselected asset", "utf8");
+      writeFileSync(join(fixture.deck, "2_backbone", "visual-style", "style_master.png"), "unselected asset", "utf8");
       const path = statePath(fixture.deck);
       writeFileSync(path, `${JSON.stringify(state, null, 2)}\n`);
       const before = readFileSync(path);

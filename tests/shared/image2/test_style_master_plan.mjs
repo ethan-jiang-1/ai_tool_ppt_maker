@@ -5,6 +5,7 @@ import { join } from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { decode as decodePng, encode as encodePng } from "fast-png";
+import { createCanvas } from "@napi-rs/canvas";
 
 const canvasLoaderControls = vi.hoisted(() => ({
   rejectPrivatePng: false,
@@ -1826,6 +1827,13 @@ describe("Style Master candidate planning", () => {
       });
       expect(existsSync(history.plans_root)).toBe(false);
 
+      const canvas = createCanvas(2, 1);
+      writeFileSync(styleAsset(value.runDir, STYLE_MASTER_IMAGE), Buffer.from(canvas.toBuffer("image/jpeg")));
+      await expect(planStyleMasterCandidates({ scope: planningScope(value), candidateCount: 1 })).rejects.toMatchObject({
+        code: "style_master_local_invalid",
+      });
+      expect(existsSync(history.plans_root)).toBe(false);
+
       const staleScope = planningScope(value);
       writeFileSync(join(value.runDir, SLIDE_SPECS_NAME), source("Changed after scope resolution"), "utf8");
       await expect(planStyleMasterCandidates({ scope: staleScope, candidateCount: 1 })).rejects.toMatchObject({
@@ -1869,21 +1877,20 @@ describe("Style Master candidate planning", () => {
       });
       const paths = styleMasterStorePaths(value.runDir, { plan_sha256: plan.plan_sha256 });
       const decision = JSON.parse(readFileSync(paths.review_decision, "utf8"));
-      const presentationJpeg = readFileSync(styleAsset(value.runDir, STYLE_MASTER_IMAGE));
 
       expect(first).toMatchObject({
         promoted: true,
         replay: false,
         plan_sha256: plan.plan_sha256,
         candidate_id: "candidate-001",
-        presentation_jpeg_projection: { status: "rebuilt" },
       });
       expect(Object.keys(decision).sort()).toEqual([
         "schema", "run_version", "workflow", "plan_sha256", "decision", "candidate_id", "candidate_sha256", "previous_selection_sha256",
       ].sort());
       expect(decision).toMatchObject({ schema: STYLE_MASTER_REVIEW_DECISION_SCHEMA, decision: "proceed" });
       expect(Object.hasOwn(decision, "accepted_at")).toBe(false);
-      expect(presentationJpeg.subarray(0, 3).toString("hex")).toBe("ffd8ff");
+      expect(Object.hasOwn(first, "presentation_jpeg_projection")).toBe(false);
+      expect(existsSync(styleAsset(value.runDir, STYLE_MASTER_IMAGE))).toBe(false);
       expect(existsSync(join(value.runDir, "overrides", "visual-style", STYLE_MASTER_IMAGE))).toBe(false);
       expect(resolveEffectiveStyleMasterSelection(value.deck, { runDir: value.runDir })).toMatchObject({
         ok: true,
@@ -1924,7 +1931,7 @@ describe("Style Master candidate planning", () => {
         submit: async () => candidateBytes,
       });
       await prepareStyleMasterCandidateReview({ scope: planningScope(value), planSha256: plan.plan_sha256 });
-      // The prior presentation JPEG projection used this loader for candidate PNG bytes.
+      // Selection no longer rasterizes the immutable PNG through a JPEG projection.
       canvasLoaderControls.rejectPrivatePng = true;
 
       const accepted = await acceptStyleMasterCandidateReview({
@@ -1941,10 +1948,10 @@ describe("Style Master candidate planning", () => {
 
       expect(readFileSync(candidatePath)).toEqual(candidateBytes);
       expect(accepted).toMatchObject({
-        presentation_jpeg_projection: { status: "rebuilt" },
         selection: { candidate_sha256: digest(candidateBytes) },
       });
-      expect(readFileSync(styleAsset(value.runDir, STYLE_MASTER_IMAGE)).subarray(0, 3).toString("hex")).toBe("ffd8ff");
+      expect(Object.hasOwn(accepted, "presentation_jpeg_projection")).toBe(false);
+      expect(existsSync(styleAsset(value.runDir, STYLE_MASTER_IMAGE))).toBe(false);
       expect(resolveEffectiveStyleMasterSelection(value.deck, { runDir: value.runDir })).toMatchObject({
         ok: true,
         selection_sha256: accepted.selection_sha256,
@@ -1983,11 +1990,11 @@ describe("Style Master candidate planning", () => {
       }).candidate_image;
 
       expect(accepted).toMatchObject({
-        presentation_jpeg_projection: { status: "rebuilt" },
         selection: { candidate_sha256: digest(candidateBytes), candidate_width: 17, candidate_height: 11 },
       });
       expect(readFileSync(candidatePath)).toEqual(candidateBytes);
-      expect(readFileSync(styleAsset(value.runDir, STYLE_MASTER_IMAGE)).subarray(0, 3).toString("hex")).toBe("ffd8ff");
+      expect(Object.hasOwn(accepted, "presentation_jpeg_projection")).toBe(false);
+      expect(existsSync(styleAsset(value.runDir, STYLE_MASTER_IMAGE))).toBe(false);
     } finally {
       rmSync(value.root, { recursive: true, force: true });
     }
@@ -2133,7 +2140,7 @@ describe("Style Master candidate planning", () => {
     }
   });
 
-  it("repairs only the committed selection's JPEG projection after head advancement", async () => {
+  it("replays the committed selection after head advancement without a root projection", async () => {
     const value = fixture();
     try {
       const firstPlan = await generatedReviewablePlan(value);
@@ -2143,8 +2150,6 @@ describe("Style Master candidate planning", () => {
         decision: "proceed",
         candidateId: "candidate-001",
       });
-      const presentationJpegPath = styleAsset(value.runDir, STYLE_MASTER_IMAGE);
-      rmSync(presentationJpegPath, { force: true });
       const successor = await planStyleMasterCandidates({ scope: planningScope(value), candidateCount: 1 });
       expect(successor.plan_sha256).not.toBe(firstPlan.plan_sha256);
 
@@ -2158,9 +2163,8 @@ describe("Style Master candidate planning", () => {
         replay: true,
         selection_sha256: accepted.selection_sha256,
         accepted_at: accepted.accepted_at,
-        presentation_jpeg_projection: { status: "rebuilt" },
       });
-      expect(readFileSync(presentationJpegPath).subarray(0, 3).toString("hex")).toBe("ffd8ff");
+      expect(Object.hasOwn(replay, "presentation_jpeg_projection")).toBe(false);
       expect(resolveEffectiveStyleMasterSelection(value.deck, { runDir: value.runDir })).toMatchObject({
         ok: true,
         record: { plan_sha256: firstPlan.plan_sha256 },
@@ -2170,12 +2174,12 @@ describe("Style Master candidate planning", () => {
     }
   });
 
-  it("projects an accepted candidate to an existing override without mutating the backbone payload", async () => {
+  it("does not overwrite an existing local PNG source after generated selection", async () => {
     const value = fixture();
     try {
       const backbonePath = join(value.deck, "2_backbone", "visual-style", STYLE_MASTER_IMAGE);
       const overridePath = join(value.runDir, "overrides", "visual-style", STYLE_MASTER_IMAGE);
-      const backboneBytes = Buffer.from("backbone presentation JPEG projection remains untouched");
+      const backboneBytes = localImageBytes();
       writeFileSync(backbonePath, backboneBytes);
       mkdirSync(join(value.runDir, "overrides", "visual-style"), { recursive: true });
       writeFileSync(overridePath, localImageBytes());
@@ -2188,15 +2192,15 @@ describe("Style Master candidate planning", () => {
         candidateId: "candidate-001",
       });
 
-      expect(accepted.presentation_jpeg_projection.path).toBe(overridePath);
-      expect(readFileSync(overridePath).subarray(0, 3).toString("hex")).toBe("ffd8ff");
+      expect(Object.hasOwn(accepted, "presentation_jpeg_projection")).toBe(false);
+      expect(readFileSync(overridePath)).toEqual(localImageBytes());
       expect(readFileSync(backbonePath)).toEqual(backboneBytes);
     } finally {
       rmSync(value.root, { recursive: true, force: true });
     }
   });
 
-  it("repairs one selection's derived payload without rewriting a sibling version selection", async () => {
+  it("replays one selection without rewriting a sibling version selection", async () => {
     const value = fixture();
     try {
       const plan = await generatedReviewablePlan(value);
@@ -2220,8 +2224,6 @@ describe("Style Master candidate planning", () => {
       state.page_image_style_master.by_version["3_versions/v2"] = sibling;
       writeState(value.deck, state);
       const stateBeforeReplay = readFileSync(statePath(value.deck));
-      rmSync(styleAsset(value.runDir, STYLE_MASTER_IMAGE), { force: true });
-
       const replay = await acceptStyleMasterCandidateReview({
         scope: planningScope(value),
         planSha256: plan.plan_sha256,
@@ -2239,50 +2241,27 @@ describe("Style Master candidate planning", () => {
     }
   });
 
-  it("preserves a committed selection when presentation JPEG projection fails and repairs it on exact replay", async () => {
+  it("accepts a generated PNG while the local-source directory is read-only", async () => {
     const value = fixture();
     try {
       const plan = await generatedReviewablePlan(value);
-      const presentationJpegPath = styleAsset(value.runDir, STYLE_MASTER_IMAGE);
-      const presentationJpegDirectory = join(value.deck, "2_backbone", "visual-style");
-      chmodSync(presentationJpegDirectory, 0o500);
-      let failure = null;
+      const sourceDirectory = join(value.deck, "2_backbone", "visual-style");
+      chmodSync(sourceDirectory, 0o500);
+      let accepted;
       try {
-        try {
-          await acceptStyleMasterCandidateReview({
-            scope: planningScope(value),
-            planSha256: plan.plan_sha256,
-            decision: "proceed",
-            candidateId: "candidate-001",
-          });
-        } catch (error) {
-          failure = error;
-        }
+        accepted = await acceptStyleMasterCandidateReview({
+          scope: planningScope(value),
+          planSha256: plan.plan_sha256,
+          decision: "proceed",
+          candidateId: "candidate-001",
+        });
       } finally {
-        chmodSync(presentationJpegDirectory, 0o700);
+        chmodSync(sourceDirectory, 0o700);
       }
       const committed = resolveEffectiveStyleMasterSelection(value.deck, { runDir: value.runDir });
-      expect(failure).toMatchObject({
-        code: "style_master_presentation_jpeg_projection_failed",
-        subject: { kind: "style_master_selection", id: committed.selection_sha256 },
-        reason: { kind: "presentation_jpeg_projection_failed" },
-        replay: { plan_sha256: plan.plan_sha256, decision: "proceed", candidate_id: "candidate-001" },
-      });
+      expect(accepted).toMatchObject({ promoted: true, selection_sha256: committed.selection_sha256 });
       expect(committed).toMatchObject({ ok: true, record: { plan_sha256: plan.plan_sha256 } });
-
-      const recovered = await acceptStyleMasterCandidateReview({
-        scope: planningScope(value),
-        planSha256: plan.plan_sha256,
-        decision: "proceed",
-        candidateId: "candidate-001",
-      });
-      expect(recovered).toMatchObject({
-        replay: true,
-        selection_sha256: committed.selection_sha256,
-        accepted_at: committed.record.accepted_at,
-        presentation_jpeg_projection: { status: "rebuilt" },
-      });
-      expect(readFileSync(presentationJpegPath).subarray(0, 3).toString("hex")).toBe("ffd8ff");
+      expect(existsSync(styleAsset(value.runDir, STYLE_MASTER_IMAGE))).toBe(false);
     } finally {
       rmSync(value.root, { recursive: true, force: true });
     }

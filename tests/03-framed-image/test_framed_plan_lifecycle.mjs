@@ -261,7 +261,7 @@ async function createFixture({ invalid = false, mixedClasses = false, pageDesign
   context.fillStyle = "#1f4d6e";
   context.fillRect(0, 0, 2000, 1125);
   initBundle(deck, null, "keynote", "dark-executive");
-  writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+  writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.png"), image.toBuffer("image/png"));
   if (pageDesignSystem !== null) {
     writeFileSync(join(deck, "2_backbone", "visual-style", PAGE_DESIGN_SYSTEM_FILE), pageDesignSystem);
   }

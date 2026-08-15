@@ -96,7 +96,7 @@ export async function createRealProviderPureFixture() {
   const runDir = join(deck, "3_versions", "v1");
   try {
     initBundle(deck, null, "keynote", "dark-executive");
-    writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), localStyleMasterPng());
+    writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.png"), localStyleMasterPng());
     writeFileSync(join(runDir, "slide-specifications.md"), targetSource(), "utf8");
     resolvePureTargetSource(runDir);
     await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir));

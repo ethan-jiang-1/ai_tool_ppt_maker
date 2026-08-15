@@ -239,7 +239,7 @@ produces: [target-framed-style-master-acceptance]
 entry: [node_decision:review-target-framed-style-master:proceed]
 exit: [style_master_accepted]
 ```
-**Step 1 — CLI**: Run `ppt_flow style-master accept <run-dir> --plan-hash <sha256> --decision proceed --candidate-id <slot-id>`. Promotion is complete only when the owner exposes the current accepted selection; a failed presentation JPEG projection must use the producer-issued exact replay invocation.
+**Step 1 — CLI**: Run `ppt_flow style-master accept <run-dir> --plan-hash <sha256> --decision proceed --candidate-id <slot-id>`. Promotion is complete when the owner exposes the current accepted immutable PNG selection.
 
 ### plan-target-framed-progressive-raw
 ```yaml
@@ -473,7 +473,7 @@ produces: [target-pure-style-master-acceptance]
 entry: [node_decision:review-target-pure-style-master:proceed]
 exit: [style_master_accepted]
 ```
-**Step 1 — CLI**: Run `ppt_flow style-master accept <run-dir> --plan-hash <sha256> --decision proceed --candidate-id <slot-id>`. Promotion is complete only when the owner exposes the current accepted selection; a failed presentation JPEG projection must use the producer-issued exact replay invocation.
+**Step 1 — CLI**: Run `ppt_flow style-master accept <run-dir> --plan-hash <sha256> --decision proceed --candidate-id <slot-id>`. Promotion is complete when the owner exposes the current accepted immutable PNG selection.
 
 ### plan-target-pure-progressive-raw
 ```yaml

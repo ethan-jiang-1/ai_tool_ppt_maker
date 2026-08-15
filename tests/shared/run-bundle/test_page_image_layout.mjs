@@ -19,7 +19,7 @@ import {
   PAGE_IMAGE_WORKFLOW_PATHS,
   checkBundle,
   checkProgressivePageProductionHistoryLayout,
-  checkStyleMasterPresentationJpeg,
+  checkStyleMasterLocalPng,
   checkStyleMasterHistoryLayout,
   createVersion,
   image2ProviderProfileAsset,
@@ -44,6 +44,7 @@ import {
   inspectProductionIdentity,
 } from "../../../ppt_maker_harness/scripts/shared/run-bundle/production_identity.mjs";
 import {
+  CONDITIONS,
   createInitialState,
   initializeTargetPageImageState,
   readState,
@@ -349,7 +350,7 @@ describe("Page Image bundle layout", () => {
     }
   });
 
-  it("uses the override-first presentation JPEG projection path and requires JPEG only for an accepted projection", () => {
+  it("uses the override-first local PNG source path and rejects JPEG payloads", () => {
     const root = mkdtempSync(join(tmpdir(), "style-master-layout-payload-"));
     try {
       const deck = join(root, "deck_current");
@@ -357,26 +358,28 @@ describe("Page Image bundle layout", () => {
       initBundle(deck, null, "keynote", "dark-executive");
       const canvas = createCanvas(4, 3);
       const png = Buffer.from(canvas.toBuffer("image/png"));
-      const jpeg = Buffer.from(canvas.toBuffer("image/jpeg"));
       const backbonePath = styleAsset(runDir, STYLE_MASTER_IMAGE);
       const overridePath = join(runDir, "overrides", "visual-style", STYLE_MASTER_IMAGE);
       writeFileSync(backbonePath, png);
 
       expect(styleAsset(runDir, STYLE_MASTER_IMAGE)).toBe(backbonePath);
-      expect(checkStyleMasterPresentationJpeg(runDir)).toEqual([]);
-      expect(checkStyleMasterPresentationJpeg(runDir, { requireJpeg: true }))
-        .toEqual([`accepted Style Master presentation JPEG projection must be a valid JPEG at ${backbonePath}`]);
+      expect(CONDITIONS.style_master_exists(null, { deckDir: deck, runDir })).toBe(true);
+      expect(checkStyleMasterLocalPng(runDir)).toEqual([]);
 
       mkdirSync(join(runDir, "overrides", "visual-style"), { recursive: true });
-      writeFileSync(overridePath, jpeg);
+      writeFileSync(overridePath, png);
       expect(styleAsset(runDir, STYLE_MASTER_IMAGE)).toBe(overridePath);
-      expect(checkStyleMasterPresentationJpeg(runDir, { requireJpeg: true })).toEqual([]);
+      expect(checkStyleMasterLocalPng(runDir)).toEqual([]);
       expect(readFileSync(backbonePath)).toEqual(png);
 
+      writeFileSync(overridePath, Buffer.from(canvas.toBuffer("image/jpeg")));
+      expect(checkStyleMasterLocalPng(runDir))
+        .toEqual([`Style Master local PNG source must be a CRC-valid PNG at ${overridePath}`]);
+
       rmSync(join(runDir, "overrides"), { recursive: true, force: true });
-      writeFileSync(backbonePath, jpeg);
-      expect(styleAsset(runDir, STYLE_MASTER_IMAGE)).toBe(backbonePath);
-      expect(checkStyleMasterPresentationJpeg(runDir, { requireJpeg: true })).toEqual([]);
+      rmSync(backbonePath, { force: true });
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), Buffer.from(canvas.toBuffer("image/jpeg")));
+      expect(CONDITIONS.style_master_exists(null, { deckDir: deck, runDir })).toBe(false);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

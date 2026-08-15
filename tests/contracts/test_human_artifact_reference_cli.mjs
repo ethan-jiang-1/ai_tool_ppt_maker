@@ -187,7 +187,7 @@ describe("human artifact reference CLI", () => {
       initBundle(deck, null, "keynote", "dark-executive");
       const canvas = createCanvas(2000, 1125);
       canvas.getContext("2d").fillRect(0, 0, 2000, 1125);
-      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), canvas.toBuffer("image/png"));
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.png"), canvas.toBuffer("image/png"));
       writeFileSync(join(runDir, "slide-specifications.md"), pureSource());
       await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir));
       buildPureProgressiveTargetRawPlan(runDir);
@@ -238,7 +238,7 @@ describe("human artifact reference CLI", () => {
       initBundle(deck, null, "keynote", "dark-executive");
       const canvas = createCanvas(2000, 1125);
       canvas.getContext("2d").fillRect(0, 0, 2000, 1125);
-      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), canvas.toBuffer("image/png"));
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.png"), canvas.toBuffer("image/png"));
       writeFileSync(join(runDir, "slide-specifications.md"), pureSource());
       const predecessor = await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir));
       buildPureProgressiveTargetRawPlan(runDir);
@@ -326,7 +326,7 @@ describe("human artifact reference CLI", () => {
       initBundle(deck, null, "keynote", "dark-executive");
       const canvas = createCanvas(2000, 1125);
       canvas.getContext("2d").fillRect(0, 0, 2000, 1125);
-      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), canvas.toBuffer("image/png"));
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.png"), canvas.toBuffer("image/png"));
       writeFileSync(join(runDir, "slide-specifications.md"), pureSource());
       await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir));
 
@@ -401,7 +401,7 @@ describe("human artifact reference CLI", () => {
       initBundle(deck, null, "keynote", "dark-executive");
       const canvas = createCanvas(2000, 1125);
       canvas.getContext("2d").fillRect(0, 0, 2000, 1125);
-      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), canvas.toBuffer("image/png"));
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.png"), canvas.toBuffer("image/png"));
       writeFileSync(join(runDir, "slide-specifications.md"), framedSource());
       expect(() => resolveFramedTargetCandidateSource(runDir)).not.toThrow();
       await acceptLocalStyleMasterFixture(resolveFramedStyleMasterScope(runDir));
@@ -436,7 +436,7 @@ describe("human artifact reference CLI", () => {
       const canvas = createCanvas(2000, 1125);
       canvas.getContext("2d").fillRect(0, 0, 2000, 1125);
       const image = canvas.toBuffer("image/png");
-      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image);
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.png"), image);
       writeFileSync(join(runDir, "slide-specifications.md"), framedSource());
       await acceptLocalStyleMasterFixture(resolveFramedStyleMasterScope(runDir));
 
@@ -473,7 +473,7 @@ describe("human artifact reference CLI", () => {
       const canvas = createCanvas(2000, 1125);
       canvas.getContext("2d").fillRect(0, 0, 2000, 1125);
       const image = canvas.toBuffer("image/png");
-      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image);
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.png"), image);
       writeFileSync(join(runDir, "slide-specifications.md"), progressiveFramedSource(slideIds));
       await acceptLocalStyleMasterFixture(resolveFramedStyleMasterScope(runDir));
 
@@ -507,7 +507,7 @@ describe("human artifact reference CLI", () => {
       const canvas = createCanvas(2000, 1125);
       canvas.getContext("2d").fillRect(0, 0, 2000, 1125);
       const image = canvas.toBuffer("image/png");
-      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image);
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.png"), image);
       writeFileSync(join(runDir, "slide-specifications.md"), progressivePureSource(slideIds));
       await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir));
 
@@ -541,7 +541,7 @@ describe("human artifact reference CLI", () => {
       const canvas = createCanvas(2000, 1125);
       canvas.getContext("2d").fillRect(0, 0, 2000, 1125);
       const image = canvas.toBuffer("image/png");
-      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image);
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.png"), image);
       writeFileSync(join(runDir, "slide-specifications.md"), progressiveFramedSource(slideIds));
       await acceptLocalStyleMasterFixture(resolveFramedStyleMasterScope(runDir));
 
@@ -587,7 +587,7 @@ describe("human artifact reference CLI", () => {
       const canvas = createCanvas(2048, 1136);
       canvas.getContext("2d").fillRect(0, 0, 2048, 1136);
       const image = canvas.toBuffer("image/png");
-      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image);
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.png"), image);
       writeFileSync(join(runDir, "slide-specifications.md"), progressivePureSource(slideIds));
       await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir));
 
@@ -649,7 +649,7 @@ describe("human artifact reference CLI", () => {
       alternateContext.fillStyle = "#c23b22";
       alternateContext.fillRect(0, 0, 2048, 1136);
       const alternateImage = alternateCanvas.toBuffer("image/png");
-      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image);
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.png"), image);
       writeFileSync(join(runDir, "slide-specifications.md"), progressivePureSource(slideIds));
       await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir));
 
