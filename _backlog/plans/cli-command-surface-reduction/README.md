@@ -1,6 +1,6 @@
 # Plan: CLI 命令面平衡瘦身（3-change 计划,无兼容包袱）
 
-> 类型: 设计 | 更新: 2026-08-16 | 状态: 活跃 — 待开工
+> 类型: 设计 | 更新: 2026-08-16 | 状态: 活跃 — **待外部评审,暂不开工**
 > 依据: `_backlog/_findings/` 四份 findings（写于 HEAD `d2df02b`;已复核: 此后 2 个 commit 未触 CLI 面,
 > `cli-surface/spec.md:5` 的 "fixed 12-command" 与 12-name inventory 硬断言均在位）
 > 目录: `01/02/03` = 三个 OpenSpec change 的落地说明;`04` = 同步面总清单;`05` = 明确不做/延后清单
@@ -81,10 +81,23 @@ Change 3  split-doctor-readiness-probe         （S3）
   注册 + 全部审计绿;完整清单见 `04-sync-surface-master-checklist.md`。
 - [state 零写化是行为变化（S4）] → 与 spec 既有 zero-write 观察精神一致;playbook 0 处;
   独立契约测试证明 `state` 零写、投影重建只在 `task-projection` 发生。
-- [命名分歧] → 候选名取自 CONTEXT.md canonical 术语（Pagination/Human Navigation Path/
-  Collaboration Projection）;最终名在 proposal 由人类定,不是架构决策。
+- [命名] → 候选名取自 CONTEXT.md canonical 术语,人类已确认（2026-08-16）:
+  `artifacts` / `paginate` / `preflight` / `probe` / `task-projection`;proposal 直接采用,
+  评审者如有异议可再提。
 - [收益未覆盖全部摩擦] → C（命名统一）、F（run_dir 统一）、B（operation 子命令化）与
   findings-I 的大重构（库 seam/会话上下文）显式延后,记录在 `05`,不假装解决。
+
+## 评审要点（给外部评审者）
+
+评审本计划时,请聚焦以下决策点(其余为 findings 的证据推导):
+
+1. **3 vs 4 个 change**: C2 含 S4 是主要取舍点(~35–40 文件 vs 拆出后 ~25)。
+2. **Change 1 先行的顺序**: 快速止血(G+H+D)先于拆分,是否认可。
+3. **拆分边界**: S1/S2/S4/S3 的划分与 tombstone 落地规则是否合理。
+4. **同步面清单完整性**: `04` 的五层清单(A 固定税/B 镜像文档/C specs/D 测试/E 完成判据)
+   是否有遗漏。
+5. **延后清单**: `05` 中 C/F/B 与大重构的延后理由是否成立。
+6. 命名(已确认,可再提异议)。
 
 ## 落地关联
 

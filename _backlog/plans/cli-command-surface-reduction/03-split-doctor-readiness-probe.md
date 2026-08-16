@@ -36,7 +36,7 @@
 - [environment-check spec 31 处改写量大] → 条款按 mode 分块改写: `--smoke`/`--probe-vendors`
   条款整体归入 probe 命令节,不逐条重写语义（语义不变,只搬归属）;
 - [付费语义与 confirm 门] → 搬移不动 `human-centered-gates` 条款;probe 的 confirm 门逐字保留;
-- [命名] → `preflight` 候选 `readiness`,`probe` 候选 `vendors`/`channel-probe`;proposal 时人类定;
+- [命名] → 已确认（2026-08-16,人类确认）: `preflight` / `probe`。
 - [run 级就绪逻辑内联在 ppt_flow.mjs] → 本 change 顺手把它迁入独立 owner 模块
   （preflight 实现),不再加深 adapter 渗漏——与 findings-I 的教训一致。
 
