@@ -1,109 +1,76 @@
-# Plan: CLI 命令面平衡瘦身（3-change 计划,无兼容包袱）
+# Plan: CLI 命令面平衡瘦身（4-change,无兼容包袱）
 
-> 类型: 设计 | 更新: 2026-08-16 | 状态: 活跃 — **待外部评审,暂不开工**
-> 依据: `_backlog/_findings/` 四份 findings（写于 HEAD `d2df02b`;已复核: 此后 2 个 commit 未触 CLI 面,
-> `cli-surface/spec.md:5` 的 "fixed 12-command" 与 12-name inventory 硬断言均在位）
-> 目录: `01/02/03` = 三个 OpenSpec change 的落地说明;`04` = 同步面总清单;`05` = 明确不做/延后清单
+> 类型: 设计 | 更新: 2026-08-16 | 状态: 已按外部评审修订,仍不开工,待人类复核
+> 一句话: 用 4 个有界 OpenSpec change,把 CLI 命令面从「职责混装 + 控制路径内藏」改成
+> 「一个命令一个业务、机器契约可审计、写动作可见」;不做 alias、不做大重构、不删结构回放能力。
+> 进度真相在 [`progress.md`](progress.md),本文件只是索引与总纲。
 
----
+## 这是什么
 
-## 背景 / 现状
-
-四份 findings 的结论（细节在原文件,此处只留决策所需的压缩版）:
-
-| Findings | 一句话结论 |
-| --- | --- |
-| I 依赖与设计审计 | 依赖 CLI 是架构必然（LLM 无法 import Node）;病在接口堆积（12 命令/26 子操作/~35 flags/4 种 hash/每调用重校验）与 owner 逻辑渗漏进 4000 行入口;真深度只有 `cli_error.mjs`/`cli_bootstrap.mjs` 的 envelope/脱敏/边界纪律 |
-| II Agent 使用体验 | 摩擦真实但不致命: `doctor`/`image2`/`slides`/`state` 职责混装、flags 挂在父命令上、hash 三种写法、`state` 观察命令带隐藏写;给出 G/H/D/C/F/E/A/B 优化清单 |
-| III 影响面测算 | 影响面分档: 零档 G/H ≈ 3 文件、一档 D ≈ 10–15、三档拆分 S1–S4 每刀 15–40;**非生命周期拆分的 playbook 敏感度 ≈ 0**;唯一制度阻碍是 "fixed 12-command" 一句话 |
-| IV 拆分设计 | 目标树 12→17: S1 `artifacts`、S2 `paginate`、S3 `preflight`+`probe`、S4 state 子命令化 + `task-projection`;原方案每刀带 alias+retire_by |
+四份 findings（`_backlog/_findings/`）诊断出 CLI 面的病: `doctor`/`image2`/`slides`/`state`
+职责混装、flags 挂在父命令上、机器输出不一致、`state` 观察命令带写。本计划把修复拆成 4 个
+change,每个都满足: 影响面可控（≤ ~30 文件）、可独立验证、可独立回滚。
 
 ## 决策约束（人类给定,2026-08-16）
 
-1. **风险/影响面可控优先** — 不做单 change >50 文件的巨型变更;不做触碰 40 个 Controller 步骤的操作。
+1. **风险/影响面可控优先** — 不做单 change >50 文件的变更;不触碰 40 个 Controller 步骤的操作面。
 2. **走 OpenSpec** — proposal → specs → design → tasks → apply → validate → archive。
-3. **change 尽量少** — change 有固定成本（全套 artifact + 验证 + 归档）,能合并就合并。
-4. **无兼容包袱** — 未发行、滚动开发。**不做 alias、不做过渡期、旧形态直接删除换新。**
-   影响: 每个拆分不再维护双表面;风险从"共存窗口漂移"变成"切得干不干净",
-   由仓库自带审计（04 清单）兜底。findings 原方案里的 alias/retire_by 机制整体退场,
-   换成 **tombstone 硬拒绝**（旧词注册进 architecture guard,复现即失败）。
+3. **change 尽量少** — 有固定成本,能合并就合并;但合并上限由**控制风险面**决定,不只看文件数。
+4. **无兼容包袱** — 未发行、滚动开发。旧形态直接删除 + tombstone 硬拒绝,不做 alias/过渡期。
 
-## 权衡框架
-
-两个轴: **change 数量（成本）** × **单 change 影响面（风险）**。找平衡点:
+## 方案总图
 
 ```
- change 数量
-   ▲
- 2 │  ✗ 全合并: 单 change 70–90 文件,超出 repo 历史惯例(~30),违反约束 1
- 3 │  ● 平衡点(本计划): 每 change 12–40 文件,C2 略高于惯例但主题单一
- 4 │  ○ 更稳: 把 S4 从 C2 拆出;+1 change 成本(保留为旋钮)
- 8 │  ✗ findings 原方案: 每刀一个 change + framing,成本 ×3,收益不增
-   └──────────────────────────────────────────▶ 风险轴(单 change 影响面)
+C1  align-cli-machine-contract          (findings G/H/D 的修正版)
+    结构化结果模型 + help/exit/JSON 单一声明源 + variable closed inventory 治理
+C2  split-navigation-and-pagination-commands
+    S1: image2 artifact-view → artifacts
+    S2(修正): 只迁叙事分页 slides narrative-plan → paginate plan/apply
+              **保留 structural slides apply-plan 回放**
+C3  separate-state-task-projection-rebuild
+    state 子命令化 + 投影重建触发重设计(评审 6 问闭合后才开工)
+C4  split-doctor-readiness-probe
+    doctor 纯离线体检 / preflight 绑 exact run / probe connectivity-only
 ```
 
-| 方案 | change 数 | 最大单 change 影响面 | 评价 |
-| --- | --- | --- | --- |
-| 全合并 | 2 | ~70–90 文件 | 拒绝: 超出历史惯例,违反约束 1 |
-| **平衡（本计划）** | **3** | **~35–40 文件（C2）** | 采纳: 主题单一、机械编辑为主、审计兜底 |
-| 稳健 | 4 | ~25 文件 | 备选: S4 独立成 change;C2 提案评审时可切换 |
+**依赖**: C2/C3/C4 都依赖 C1 的 inventory 治理（`harness_coherence.mjs:444`、
+`test_process_docs_consistency.mjs:194` 都断言 "fixed 12-command"）。
+**顺序**: 1→2→3→4,一次只开一个 active change。
 
-## 决策 / 方案（总图）
+## 为什么从 3-change 改成 4-change
 
-```
-Change 1  align-cli-machine-contract            （findings II 的 G + H + D）
-          帮助机器契约块 / 动词撞名决策表 / --json 一致性
-          ~12–15 文件,纯增量,零破坏 ─────────────────────── 先做,当天级收益
+外部评审（`07`）抓到三处事实错误,经逐条代码复核属实:
 
-Change 2  split-non-lifecycle-commands         （framing + S1 + S2 + S4）
-          任务 0: "fixed 12-command" → "closed, audited command inventory"（拆分制度前置）
-          S1: image2 artifact-view            →  artifacts
-          S2: slides narrative-plan/apply-plan →  paginate / paginate apply
-          S4: state 互斥 flag 拼图             →  state / state validate / state repair-known-execution-mismatch
-               + 隐藏写                        →  task-projection
-          ~35–40 文件;全部非生命周期业务,playbook 触点 ≤ 3;旧形态 = tombstone 硬拒绝
+1. S2 会删掉 structural `slides apply-plan` 回放能力（`ppt_flow.mjs:1392/:1423` 双 schema 分流）;
+2. S4 不是「隐藏写」,而是 spec 有意设计的收敛触发器（`cli-surface:498`、`create-deck.md:92`）;
+3. exit 2 属于普通 `state` 的 replacement/current-repair hard-stop（`:3861`）,不是
+   `state --validate-state`（其 invalid 是 exit 1,`:3824`）——findings-I 此处也有事实错误。
 
-Change 3  split-doctor-readiness-probe         （S3）
-          doctor 收缩为纯离线体检;
-          --run-dir/--operation → preflight;--smoke/--probe-vendors → probe
-          ~25–30 文件;environment-check spec 31 处为最大单点
-```
+合并依据因此从「文件数」改为「控制风险面」: S4 是控制路径重设计,独立成 C3。
 
-执行顺序: **1 → 2 → 3**,一次只开一个 active change（repo 惯例）。C2 与 C3 互不依赖,
-按影响面从小到大排。每 change 的同步面、任务骨架、完成判据见 `01/02/03`。
+## 目录索引
 
-## 风险 / 取舍
+| 文件 | 职责 |
+| --- | --- |
+| `progress.md` | **进度跟踪**: 每 change 状态、依赖、开工门槛、下一步、窄决策待办 |
+| `01-align-cli-machine-contract.md` | C1 范围 / 同步面 / 完成判据 |
+| `02-split-navigation-and-pagination-commands.md` | C2 范围 / 同步面 / 完成判据 |
+| `03-separate-state-task-projection-rebuild.md` | C3 范围 + 评审 6 问 + 候选设计 |
+| `04-split-doctor-readiness-probe.md` | C4 范围 / 同步面 / 完成判据 |
+| `05-sync-surface-master-checklist.md` | 改命令必须同步的全部位置（五层清单 + clean-break 边界） |
+| `06-deferred-and-no-go.md` | 明确不做/延后的（防止丢失） |
+| `07-external-design-review.md` | 外部评审原文（2026-08-16） |
 
-- [C2 ~35–40 文件 > 历史惯例 ~30] → 主题单一（全部是非生命周期命令搬移）、编辑以机械性
-  spec/测试/文档改写为主;每刀独立契约测试;tombstone + 计数归零判据 + 文档命令审计强制同步完整;
-  若评审仍嫌大,把 S4 拆为第 4 个 change（显式保留的旋钮）。
-- [改命令后同步不完整 → 半迁移态] → 无兼容模式下完成判据 = live 域旧形态计数 → 0 + tombstone
-  注册 + 全部审计绿;完整清单见 `04-sync-surface-master-checklist.md`。
-- [state 零写化是行为变化（S4）] → 与 spec 既有 zero-write 观察精神一致;playbook 0 处;
-  独立契约测试证明 `state` 零写、投影重建只在 `task-projection` 发生。
-- [命名] → 候选名取自 CONTEXT.md canonical 术语,人类已确认（2026-08-16）:
-  `artifacts` / `paginate` / `preflight` / `probe` / `task-projection`;proposal 直接采用,
-  评审者如有异议可再提。
-- [收益未覆盖全部摩擦] → C（命名统一）、F（run_dir 统一）、B（operation 子命令化）与
-  findings-I 的大重构（库 seam/会话上下文）显式延后,记录在 `05`,不假装解决。
+**编号映射**: 评审原文中的 04/05 = 本目录修订后的 05/06;原文 01–03 对应修订后 01/02/04
+（S2 修正、S4 单列）。文件已重命名,评审的基线 hash 因修订必然过期——其结论已吸收进本修订。
 
-## 评审要点（给外部评审者）
+## 修订记录（2026-08-16,吸收 07 评审）
 
-评审本计划时,请聚焦以下决策点(其余为 findings 的证据推导):
-
-1. **3 vs 4 个 change**: C2 含 S4 是主要取舍点(~35–40 文件 vs 拆出后 ~25)。
-2. **Change 1 先行的顺序**: 快速止血(G+H+D)先于拆分,是否认可。
-3. **拆分边界**: S1/S2/S4/S3 的划分与 tombstone 落地规则是否合理。
-4. **同步面清单完整性**: `04` 的五层清单(A 固定税/B 镜像文档/C specs/D 测试/E 完成判据)
-   是否有遗漏。
-5. **延后清单**: `05` 中 C/F/B 与大重构的延后理由是否成立。
-6. 命名(已确认,可再提异议)。
-
-## 落地关联
-
-- 每个 change: `openspec new change <name>` → proposal/specs/design/tasks → apply →
-  `openspec validate <name> --strict` → archive。artifact 规则照 `openspec/config.yaml` rules。
-- 建议 change 名（可调）: `align-cli-machine-contract` / `split-non-lifecycle-commands` /
-  `split-doctor-readiness-probe`。
-- 关闭条件: 三个 change 全部归档,`npm test` 与全部审计绿,`05` 延后项已在 backlog 有记录。
-- 本 plan 完成后按 `_backlog/plans/README.md` 流程移入 `_done/_closed_plans/`。
+| 修订 | 内容 |
+| --- | --- |
+| 拓扑 3→4 | S4 独立为 C3;change 名与文件名同步重排 |
+| S2 边界 | 只迁 narrative;structural `slides apply-plan` 保留;`apply-plan` token 不 tombstone |
+| exit code 事实 | 0/1/2/130/143 真值表进 `01`(2 属于普通 state hard-stop) |
+| C1 定性 | 从「补 --json flag」改为「结果模型 + 单一声明源 + inventory 治理」 |
+| 05 清单 | 补 harness_coherence / docs-consistency 等 10 处遗漏;修 overclaim;加 clean-break 边界 |
+| 进度跟踪 | 拆分出 `progress.md`,README 只留索引与总纲 |
