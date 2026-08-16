@@ -2,7 +2,7 @@
 
 > 类型：优先级路线图 + OpenSpec change 队列
 > 更新：2026-08-16
-> 状态：全部 3 个 change 已实现、验证并 archive；路线图完成
+> 状态：全部 3 个 change 已实现、验证并 archive；路线图完成（CLS-038）
 > 当前 OpenSpec：`openspec list --json` 为 `changes: []`
 > 总进度：研究里程碑 `2 / 2`；实施 change `3 / 3` ✅
 

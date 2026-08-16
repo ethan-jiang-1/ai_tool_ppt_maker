@@ -1,6 +1,6 @@
 # BUG-068: `image2 plan` 将已知 visual-language 配置错误降级为 internal
 
-> 严重级别: P1 | 发现: 2026-08-16 | 状态: 活跃
+> 严重级别: P1 | 发现: 2026-08-16 | 状态: 已修复（2026-08-16）
 
 ## 症状
 
@@ -69,3 +69,13 @@ publication之前停止。
 本轮现场登记，不修复。建议与 BUG-067 在同一 diagnostic-boundary OpenSpec change 中一起
 处理，但保留两个入口各自的 regression test：Style Master lifecycle producer 与 Page Image
 target-plan producer 的 fallback 分支不同。
+
+## 修复结果
+
+由 Change 1 `page-image-owner-issued-diagnostics`（2026-08-16 archive）修复：
+
+- `image2 plan` 对已知 source/config defect 发出 `source_validation`/`edit_source`（exact
+  owner/locator），`internal`/`report_internal` 只留给 unknown/unsafe fact（fail closed）。
+- 回归：`tests/shared/cli/test_process_source_config_diagnostics.mjs` 26/26（含 `image2 plan`
+  四 family 矩阵与 secret/oversized/escape 负向安全）。
+- 评估记录：`_backlog/_done/_closed_plans/cli-diagnostic-faithful-passthrough.md`（CLS-038）。

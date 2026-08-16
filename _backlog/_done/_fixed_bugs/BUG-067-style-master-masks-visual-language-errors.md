@@ -1,6 +1,6 @@
 # BUG-067: Style Master 将 visual-language 配置错误掩盖成 lifecycle inspect 自循环
 
-> 严重级别: P1 | 发现: 2026-08-16 | 状态: 活跃
+> 严重级别: P1 | 发现: 2026-08-16 | 状态: 已修复（2026-08-16）
 
 ## 症状
 
@@ -84,3 +84,15 @@ node ppt_maker_harness/scripts/ppt_flow.mjs style-master plan <run-dir> --candid
 本轮现场登记，不修复。建议后续以一个仅覆盖 producer diagnostic preservation 的 OpenSpec
 change 处理，并在 Style Master inspect/plan 的 fixture 中覆盖 typed visual-language failure、
 无 provider side effect、以及非 self-referential next action。
+
+## 修复结果
+
+由 Change 1 `page-image-owner-issued-diagnostics`（2026-08-16 archive）修复：
+
+- `style-master inspect/plan` 对携带 producer-issued problem facts 的 source/config 失败走
+  `source_validation`/`edit_source` 投影，next 不再回到具有相同失败前置条件的 inspect（自循环
+  消除）；已知 source defect 不再被称为 lifecycle artifact 或 internal。
+- 回归：`tests/shared/cli/test_process_source_config_diagnostics.mjs` 26/26（Pure/Framed ×
+  `style-master inspect/plan` × `image2 plan` × 四 family，断言 exit 1、空 stdout、单信封、
+  category/reason/source/subject/next、完整 tree 字节不变、无 provider call）。
+- 评估记录：`_backlog/_done/_closed_plans/cli-diagnostic-faithful-passthrough.md`（CLS-038）。

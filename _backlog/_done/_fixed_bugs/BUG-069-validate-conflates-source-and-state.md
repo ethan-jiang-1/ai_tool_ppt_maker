@@ -1,6 +1,6 @@
 # BUG-069: `validate` 将可验证 source 与预期 stale state 绑定，不能作为调优 source 预检
 
-> 严重级别: P2 | 发现: 2026-08-16 | 状态: 活跃
+> 严重级别: P2 | 发现: 2026-08-16 | 状态: 已修复（2026-08-16）
 
 ## 症状
 
@@ -59,3 +59,16 @@ receipt、raw plan 或任何 `_generated/` 产物。
 本轮现场登记，不修复。建议后续独立评估是否扩展现有 `validate` output，或引入不改写 lifecycle
 authority 的 source-only validate surface；必须覆盖 source-valid/state-stale、source-invalid、
 Pure 与 Framed 四种组合。
+
+## 修复结果
+
+由 Change 3 `project-validate-source-state`（2026-08-16 archive）修复：
+
+- `commandValidate` 拆两段投影：stage 1 source-only candidate parse（失败走 Change 1 的
+  `source_validation`/`edit_source` problem envelope，优先于任何 state 结果）；stage 2
+  source/state identity 绑定，`TARGET_SOURCE_STATE_IDENTITY_MISMATCH` 时发出
+  reason `target_source_state_identity_mismatch` + owner rebind next + additive
+  `source_valid: true` observation（非权威，不作为授权）。
+- 回归：`tests_e2e/shared/workflow/test_mock_validate_source_state.mjs` 4/4（source-invalid /
+  state-current / state-stale 无写入 / source 优先于 stale）。
+- 评估记录：`_backlog/_done/_closed_plans/cli-diagnostic-faithful-passthrough.md`（CLS-038）。

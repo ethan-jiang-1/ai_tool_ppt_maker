@@ -1,6 +1,6 @@
 # Closed Plans Index — 已完成 plan 归档
 
-> 最后更新: 2026-08-15 | `_backlog/_done/_closed_plans/` — 已完成 plan 的归档目录。
+> 最后更新: 2026-08-16 | `_backlog/_done/_closed_plans/` — 已完成 plan 的归档目录。
 > 接收来自 [`../../plans/`](../../plans/) 的 plan。`_` 前缀 = coding agent 默认忽略。
 >
 > **plan 完成后文件名不变，位置即状态。** 移入时分配 `CLS-NNN` 序号（Closed），按完成时间递增。
@@ -56,7 +56,8 @@ plan 完成后从 `_backlog/plans/` 通过 `git mv` 移入本目录：
 | [CLS-035](deck-configurable-design-system-provider-prompt.md) | 2026-08-15 | `deck-configurable-design-system-provider-prompt.md` | Deck-owned Page Design System source 已接入 Pure/Framed provider input；实现、回归、main-spec 同步与 OpenSpec 归档完成。 |
 | [CLS-036](provider-prompt-limit-investigation.md) | 2026-08-16 | `provider-prompt-limit-investigation.md` | Image API 4K/16K prompt 限制调查；结论：micuapi 是聚合网关、`gpt-image-2` 别名可动态重定向，不能硬编码单一上限，须建模为 capability profile；设计输入已被 `bind-capability-aware-image2-provider-input` change 吸收。 |
 | [CLS-037](provider-prompt-length-budget.md) | 2026-08-16 | `provider-prompt-length-budget.md` | provider prompt 超长根因与 compact prompt 方案；内部元数据混入 provider bytes 撑爆预算；由 `bind-capability-aware-image2-provider-input` change 落地并归档。 |
+| [CLS-038](cli-diagnostic-faithful-passthrough.md) | 2026-08-16 | `cli-diagnostic-faithful-passthrough.md`（+ 同名研究子目录） | CLI 诊断事实/恢复权威路线图：3 个串行 OpenSpec change 全部实现并 archive（owner-issued diagnostics、doctor readiness 对齐、validate source/state 投影）；BUG-067/068/069/070 关闭证据见对应 `_fixed_bugs/` 条目。 |
 
-**Next available plan ID: CLS-038**
+**Next available plan ID: CLS-039**
 
 > 已完成计划保留历史决策；当前工作只从 `_backlog/plans/` 重新进入。

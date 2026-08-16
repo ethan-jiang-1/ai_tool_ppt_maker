@@ -1,6 +1,6 @@
 # BUG-070: exact-run doctor 报 raw-generation READY，但 `image2 authorize` 不加载同一 `.env` 而失败
 
-> 严重级别: P1 | 发现: 2026-08-16 | 状态: 活跃
+> 严重级别: P1 | 发现: 2026-08-16 | 状态: 已修复（2026-08-16）
 
 ## 症状
 
@@ -78,3 +78,17 @@ provider work 在 readiness 不一致时继续。
 本轮现场登记，不修复。建议后续将 deck/project dotenv loading 收敛到 owner-shared startup
 boundary，并添加 doctor READY -> exact Image2 authorize/generate 的回归测试，同时保留缺失、无效、
 不匹配 profile 的 existing hard-stop。
+
+## 修复结果
+
+由 Change 2 `align-doctor-operation-readiness`（2026-08-16 archive）修复：
+
+- 新增受限共享 startup loader `shared/image2/startup_env.mjs`（只读声明 keys
+  `IMAGE2_API_KEY`/`IMAGE2_BASE_URL`/`IMAGE2_PROVIDER_PROFILE_ID`；shell > deck `.env` >
+  cwd `.env` 补缺；无值输出）；doctor run-bound branch、`image2 authorize/generate`、
+  Style Master authorize/generate、env-check 统一同源——doctor raw-generation READY 后
+  exact `image2 authorize` 无需 shell export 即可解析同一非秘密配置。
+- 回归：`tests_e2e/shared/workflow/test_mock_doctor_readiness_alignment.mjs` 3/3（doctor
+  READY → authorize 成功；deck `.env` mismatch 仍 hard-stop 且零 provider 副作用；Style
+  Master authorize 同源）。
+- 评估记录：`_backlog/_done/_closed_plans/cli-diagnostic-faithful-passthrough.md`（CLS-038）。

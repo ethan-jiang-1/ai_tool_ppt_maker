@@ -1,6 +1,6 @@
 # Fixed Bugs Index — 已修复 bug 归档
 
-> 最后更新: 2026-08-10 | `_backlog/_done/_fixed_bugs/` — 已修复 bug 的归档目录。
+> 最后更新: 2026-08-16 | `_backlog/_done/_fixed_bugs/` — 已修复 bug 的归档目录。
 > 接收来自 [`../../bugs/`](../../bugs/) 的 bug。`_` 前缀 = coding agent 默认忽略。
 >
 > **本目录是 bug 编号的归档索引；新 bug 使用所有已分配 BUG 编号后的下一个值，避免与活跃条目冲突。**
@@ -79,8 +79,12 @@ bug 修完后从 `_backlog/bugs/` 通过 `git mv` 移入本目录：
 | [BUG-063](BUG-063-content-addressed-path-length-unusable.md) | 2026-08-08 | 可重建 logical reference view 解决人类导航，不迁移内容寻址物理目录 |
 | [BUG-065](BUG-065-content-addressed-physical-paths-use-full-64-hex.md) | 2026-08-10 | 内容寻址物理路径固定为记录校验的 8-hex 短名，并提供 exact-run 迁移 |
 | [BUG-066](BUG-066-build-on-inactive-run-pollutes-state-with-mismatch-keys.md) | 2026-08-10 | Inactive Page Image run 在任何 side effect 前 hard-stop，State 不再持久化 execution-mismatch 诊断键 |
+| [BUG-067](BUG-067-style-master-masks-visual-language-errors.md) | 2026-08-16 | Style Master 对 source/config 失败发出 `source_validation`/`edit_source`，不再自循环 inspect（Change 1） |
+| [BUG-068](BUG-068-image2-plan-masks-visual-language-errors.md) | 2026-08-16 | `image2 plan` 已知 source defect 不再降级 internal（Change 1） |
+| [BUG-069](BUG-069-validate-conflates-source-and-state.md) | 2026-08-16 | `validate` 分离 source-valid/state-stale 投影（Change 3） |
+| [BUG-070](BUG-070-doctor-ready-does-not-reach-image2-authorize.md) | 2026-08-16 | doctor READY 与 exact authorize/generate 共享受限 startup env（Change 2） |
 
-**Next available bug ID: BUG-067**
+**Next available bug ID: BUG-073**
 
 ---
 
