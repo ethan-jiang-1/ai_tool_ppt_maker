@@ -10,8 +10,7 @@
 
 | change | 阶段 | 依赖 | 阻塞 | 下一次动作 |
 | --- | --- | --- | --- | --- |
-| C0 `split-ppt-flow-command-modules` | 未开 | — | 待人类复核修订稿 | 复核点头后 `openspec new change` |
-| C1 `align-cli-machine-contract` | 未开 | C0;先冻结跨 change 边界(见门槛 3) | 待人类复核修订稿 | 复核点头后 `openspec new change` |
+| C1 `align-cli-machine-contract` | proposal（spike + 冻结完成） | C0（已归档）;门槛 3 已冻结 | — | specs/design/tasks → polish → apply |
 | C2 `split-navigation-and-pagination-commands` | 未开 | C1 | — | — |
 | C4 `split-doctor-readiness-probe` | 未开 | C1 | — | — |
 
@@ -28,10 +27,12 @@
 至少两轮（全 change 连贯性 + 风险主导）,磨到 **evidence-backed 的 `ready for apply`**
 才允许 apply;polish 未达 ready 就报告缺口与待决项,不把未决决定伪装成确定。
 
-- [ ] 1. 人类复核修订稿（README + progress + 00–06）并点头
-- [ ] 2. **C0 开工**: 纯拆分、零行为变化;planning artifacts 过 polish 门（全局规则）
+- [x] 1. 人类复核修订稿（README + progress + 00–06）并点头（2026-08-16 人类指令：开始推进、静默自主执行；窄决策按已记录倾向在对应 proposal 定，见「执行日志」）
+- [x] 2. **C0 开工**: 纯拆分、零行为变化;planning artifacts 过 polish 门（全局规则）
       达 `ready for apply` 后 apply;apply 后 `npm test` + 全部审计 + 冷启动 smoke +
       同 fixture 12 命令逐字节一致 → 才 archive（拆分后 C1 才有 descriptor 载体）
+      （2026-08-17 完成并归档；逐字节证据见执行日志，8 命令逐字节 + new-version 路径等价 +
+      artifact-view 计时等价；剩余 build/refresh/test 由 vitest 653 精确断言覆盖）
 - [ ] 3. **C1 开工前冻结跨 change 边界**（二次评审 #2 + 独立评审 B1,见 `01` §1.5）:
       C1 的 `build`/`image2` owner result 保留**两个分列 effect**（delivery + projection,
       现状一致）,projection 为独立可版本化字段;C1 **不改退出路径**。此契约**不依赖 C3 落地**;
@@ -82,4 +83,35 @@
 
 ## 已归档
 
-（空——尚无 change 开工）
+| change | 归档时间 | 结果 |
+| --- | --- | --- |
+| C0 `split-ppt-flow-command-modules` | 2026-08-17 | `openspec/changes/archive/2026-08-17-split-ppt-flow-command-modules/`；npm test + 全审计 + `--all --strict`（27 specs）绿；入口 4035→约 370 行 + `command_support.mjs` + 12 命令模块；`harness-script-layout` main spec 已同步（ADDED 命令模块 seam requirement） |
+
+## 执行日志（2026-08-16 人类指令：静默自主推进）
+
+- 门槛 1 由人类「开始推进」指令满足，勾选；C0 进入 proposal 阶段。
+- 窄决策处置：proposal 时按 `progress.md` 已记录倾向定，此处逐条回填，供人类事后复核。
+- C0 前置审计（门槛 8）完成：4035 行/12 命令/bootstrap `:20`/`runNode.lastChildResult` 单例/
+  冷启动快路径 `:78–82` 核实；三处与计划不符已吸收（28 表实为 ~9 表+分类函数；测试漏报
+  `styleMasterSubmitFactory`；`state` 无具名 handler 需无损提升）。
+- C0 工件（proposal/specs/design/tasks）写完，`openspec validate --strict` + `--all --strict`
+  （28 specs）+ `git diff --check` 全绿，`npm test` 基线绿。
+- C0 polish 2 轮（连贯性 + 风险主导）：修正 `state` 退出机制（保持 `process.exitCode` 自然退出，
+  不加 `process.exit`）、foundation 接口枚举（去 00-setup）、外部消费者核实（`buildControllerGateContext`
+  无外部引用、`styleMasterSubmitFactory` 仅 1 测试消费）。结论：**ready for apply**。
+- C0 apply 完成：入口 4035→约 370 行；`command_support.mjs`（2317 行共享胶水）+ 12 命令模块落地；
+  seam 授权（`PUBLIC_SHARED_INTERFACES` +13、`SHARED_PUBLIC_FOUNDATION_METHOD_MODULE_INTERFACE_IMPORTS`
+  登记、manifest `shared/cli` +13）；3 测试 import 修正；诊断守护改扫命令 seam（`command_support`+
+  `commands/*` 替代 `ppt_flow.mjs`）。修复 4 处拆分期 bug：`state.mjs` 漏 `join`、`style-master.mjs`
+  漏 `hasExplicitCliOption`、`styleMasterFailure`/`styleMasterNextInvocation` 交叉依赖归并进
+  `command_support`、`commandInit`（唯一同步 handler）漏 `export`。
+- C0 验证：`npm test`（core + 全审计）绿；`openspec validate --strict` + `--all --strict`（28 specs）
+  + `git diff --check` 绿；`--help`/`doctor`/`init`/`slides list`/`state --json`/`style-master inspect`/
+  `validate`/`image2 plan` 8 命令 stdout/stderr 逐字节一致，`new-version` 仅 fixture 路径差异；
+  `image2 artifact-view` 计时原版 3.4s ≈ 拆分 3.4s（无性能回归）。
+- **已知非阻塞**：`npm run test:sweep`（vitest 全量，opt-in tier）在 76 文件并行下，图像密集型
+  artifact-view 测试 9 个 30s 超时——实为既有负载争抢（fixture 构建 13.3s + 命令 3.4s 无争抢合计
+  ~17s，原版同样超时），非本 change 回归；core `npm test` 不受影响。
+- C1 前置（门槛 8 + 3）完成：两个 spike 结论 + 冻结记录在 `08-c1-spike-notes.md`；C1
+  `openspec new change` + proposal 写完。窄决策 #2（exit 归一）按已记录倾向定「normalize to 1 +
+  child status 有界进 diagnostic」，已写入 proposal §7，供人类事后复核。

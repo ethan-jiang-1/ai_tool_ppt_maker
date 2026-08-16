@@ -146,7 +146,20 @@
       "owner": "shared/cli",
       "interfaces": [
         "shared/cli/cli_bootstrap.mjs",
-        "shared/cli/cli_error.mjs"
+        "shared/cli/cli_error.mjs",
+        "shared/cli/command_support.mjs",
+        "shared/cli/commands/build.mjs",
+        "shared/cli/commands/doctor.mjs",
+        "shared/cli/commands/image2.mjs",
+        "shared/cli/commands/init.mjs",
+        "shared/cli/commands/new-version.mjs",
+        "shared/cli/commands/refresh.mjs",
+        "shared/cli/commands/slides.mjs",
+        "shared/cli/commands/state.mjs",
+        "shared/cli/commands/status.mjs",
+        "shared/cli/commands/style-master.mjs",
+        "shared/cli/commands/test.mjs",
+        "shared/cli/commands/validate.mjs"
       ],
       "executables": [],
       "unit_integration": [

@@ -61,7 +61,8 @@ function canonicalSnapshot() {
       (path.startsWith("00-setup/") ? `import "./index.mjs";\n` : "") +
       (path.startsWith("06-iteration/") ? `import "../../index.mjs";\n` : "");
   }
-  files["ppt_flow.mjs"] = `import "./shared/cli/cli_bootstrap.mjs?entry=ppt_flow.mjs";\nimport("./00-setup/index.mjs");\nimport { projectProblemFactsDiagnostic } from ${CLI_ERROR_SPECIFIER};\n`;
+  files["ppt_flow.mjs"] = `import "./shared/cli/cli_bootstrap.mjs?entry=ppt_flow.mjs";\nimport("./00-setup/index.mjs");\n`;
+  files["shared/cli/command_support.mjs"] = `import { projectProblemFactsDiagnostic } from ${CLI_ERROR_SPECIFIER_UP};\n`;
   files["shared/image2/provider_profile.mjs"] = [
     "export function resolveImage2ProviderProfile() {}",
     "export function evaluateImage2PromptBudget() {}",
@@ -495,13 +496,13 @@ describe("Harness architecture contract", () => {
 
   it("rejects a planted second attributor for a migrated source/config family", () => {
     const snapshot = canonicalSnapshot();
-    snapshot.files["ppt_flow.mjs"] = `import { projectProblemFactsDiagnostic } from ${CLI_ERROR_SPECIFIER};\nconst CODES = new Set(["unregistered_identity_role"]);\n`;
+    snapshot.files["shared/cli/command_support.mjs"] = `import { projectProblemFactsDiagnostic } from ${CLI_ERROR_SPECIFIER_UP};\nconst CODES = new Set(["unregistered_identity_role"]);\n`;
     expect(issueCodes(validateArchitectureSnapshot(snapshot))).toContain("diagnostic-second-attributor");
   });
 
-  it("rejects a planted missing projection seam in ppt_flow", () => {
+  it("rejects a planted missing projection seam in the command seam", () => {
     const snapshot = canonicalSnapshot();
-    snapshot.files["ppt_flow.mjs"] = `import "./shared/cli/cli_bootstrap.mjs?entry=ppt_flow.mjs";\nif (reason.startsWith("style_master_")) return classifyFromPrefix(reason);\n`;
+    snapshot.files["shared/cli/command_support.mjs"] = `import { emitCliError } from ${CLI_ERROR_SPECIFIER_UP};\nif (reason.startsWith("style_master_")) return classifyFromPrefix(reason);\n`;
     expect(issueCodes(validateArchitectureSnapshot(snapshot))).toContain("diagnostic-projection-seam-missing");
   });
 

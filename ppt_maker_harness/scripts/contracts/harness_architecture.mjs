@@ -36,6 +36,19 @@ export const FOUNDATION_METHOD_MODULE_ADJACENCY = Object.freeze({
 export const PUBLIC_SHARED_INTERFACES = Object.freeze([
   "shared/cli/cli_bootstrap.mjs",
   "shared/cli/cli_error.mjs",
+  "shared/cli/command_support.mjs",
+  "shared/cli/commands/build.mjs",
+  "shared/cli/commands/doctor.mjs",
+  "shared/cli/commands/image2.mjs",
+  "shared/cli/commands/init.mjs",
+  "shared/cli/commands/new-version.mjs",
+  "shared/cli/commands/refresh.mjs",
+  "shared/cli/commands/slides.mjs",
+  "shared/cli/commands/state.mjs",
+  "shared/cli/commands/status.mjs",
+  "shared/cli/commands/style-master.mjs",
+  "shared/cli/commands/test.mjs",
+  "shared/cli/commands/validate.mjs",
   "shared/diagnostic/problem_fact.mjs",
   "shared/run-bundle/bundle_layout.mjs",
   "shared/run-bundle/page_image_paths.mjs",
@@ -115,7 +128,10 @@ const TARGET_METHOD_MODULES = Object.freeze([
   "05-delivery",
   "06-iteration",
 ]);
-const SHARED_PUBLIC_FOUNDATION_METHOD_MODULE_INTERFACE_IMPORTS = new Map();
+const SHARED_PUBLIC_FOUNDATION_METHOD_MODULE_INTERFACE_IMPORTS = new Map([
+  ["shared/cli/command_support.mjs", new Set(["01-content/index.mjs"])],
+  ["shared/cli/commands/slides.mjs", new Set(["01-content/index.mjs", "02-visual-system/index.mjs"])],
+]);
 const DIRECT_ENTRY_EXCEPTIONS = new Set([
   "shared/cli/cli_bootstrap.mjs",
   "shared/cli/cli_error.mjs",
@@ -1377,14 +1393,22 @@ const DIAGNOSTIC_SEAM_ALLOWED_PATHS = Object.freeze([
 ]);
 
 function evaluateDiagnosticOwnerGuardConformance(files, issues, guidanceFiles = new Map()) {
-  const pptFlow = files.get("ppt_flow.mjs");
-  if (pptFlow !== undefined) {
-    if (!pptFlow.includes("projectProblemFactsDiagnostic")) {
-      addIssue(issues, "diagnostic-projection-seam-missing", "ppt_flow.mjs", "ppt_flow.mjs must project producer problem facts through projectProblemFactsDiagnostic before code-based classification");
-    }
+  // C0 split: code-based classification now lives in the command seam
+  // (command_support.mjs + commands/*.mjs), not the thin ppt_flow.mjs entry.
+  // The direct CLI surface SHALL project producer problem facts through
+  // projectProblemFactsDiagnostic and SHALL NOT re-derive the migrated
+  // source/config family codes through its own classification tables.
+  const cliClassificationOwners = [...files.keys()].filter((path) =>
+    path === "shared/cli/command_support.mjs" || path.startsWith("shared/cli/commands/")
+  );
+  if (!cliClassificationOwners.some((path) => files.get(path).includes("projectProblemFactsDiagnostic"))) {
+    addIssue(issues, "diagnostic-projection-seam-missing", "shared/cli", "the direct CLI command seam must project producer problem facts through projectProblemFactsDiagnostic before code-based classification");
+  }
+  for (const path of cliClassificationOwners) {
+    const source = files.get(path);
     for (const code of MIGRATED_SOURCE_CONFIG_CODES) {
-      if (pptFlow.includes(`"${code}"`) || pptFlow.includes(`'${code}'`)) {
-        addIssue(issues, "diagnostic-second-attributor", "ppt_flow.mjs", `ppt_flow.mjs must not re-derive the migrated source/config family code ${code} through its own classification tables`);
+      if (source.includes(`"${code}"`) || source.includes(`'${code}'`)) {
+        addIssue(issues, "diagnostic-second-attributor", path, `${path} must not re-derive the migrated source/config family code ${code} through its own classification tables`);
       }
     }
   }

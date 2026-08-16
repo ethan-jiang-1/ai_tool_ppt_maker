@@ -86,7 +86,7 @@ import {
 } from "../../ppt_maker_harness/scripts/03-framed-image/index.mjs";
 import { renderFramedHeaderOverlayHtml, verifyFramedHeaderOverlays } from "../../ppt_maker_harness/scripts/03-framed-image/internal/framed_render_contract.mjs";
 import { STANDARD_FRAMED_PRESENTATION_PROFILE } from "../helpers/framed_presentation_profile.mjs";
-import { targetPageImageSubmitFactory } from "../../ppt_maker_harness/scripts/ppt_flow.mjs";
+import { targetPageImageSubmitFactory } from "../../ppt_maker_harness/scripts/shared/cli/command_support.mjs";
 import {
   FRAMED_HEADER_PROFILES_FILE,
   initBundle as initializeBundle,

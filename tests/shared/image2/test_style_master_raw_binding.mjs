@@ -15,7 +15,7 @@ import {
 import {
   styleMasterSubmitFactory,
   targetPageImageSubmitFactory,
-} from "../../../ppt_maker_harness/scripts/ppt_flow.mjs";
+} from "../../../ppt_maker_harness/scripts/shared/cli/command_support.mjs";
 import { canonicalJsonSha256 } from "../../../ppt_maker_harness/scripts/shared/identity/canonical_json.mjs";
 import { buildTargetRawGenerationProfile } from "../../../ppt_maker_harness/scripts/shared/image2/page_image_target_runtime.mjs";
 import { styleMasterStorePaths } from "../../../ppt_maker_harness/scripts/shared/image2/style_master_store.mjs";
