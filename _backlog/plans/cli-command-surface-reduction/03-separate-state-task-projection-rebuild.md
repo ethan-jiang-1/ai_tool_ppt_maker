@@ -3,6 +3,8 @@
 > 阶段见 `progress.md`。吸收评审 `07` 第 2 条: 这是**收敛触发器重设计**,不是「去掉隐藏写」。
 > **design gate**（二次评审 #1 修正）: C1 归档后即可 open 本 change;但 proposal/specs 之后、
 > 评审 6 问全部闭合前,不得写 tasks、不得 apply。6 问闭合记录进 design。
+> 本 change 在 **C0 拆分后**的模块布局上执行（见 `00`）;文中的 `ppt_flow.mjs` 行号以
+> C0 前基线（HEAD `5571002`）为准,C0 落地后按新模块定位。
 
 ## 现状事实（已复核）
 
@@ -23,13 +25,15 @@
 5. `state` 观察成功但 rebuild 失败: 一个事务、两个结果,还是后者独立命令失败;
 6. 终态不变量: 「合资格 route 的 card = 当前 owner facts 的确定性渲染」,还是「显式请求后可收敛」。
 
-## 候选设计（供 design 验证,非结论）
+## 候选设计（A 已在 C1 前冻结,design 验证而非重新选择）
 
-- **候选 A（倾向）**: 保留自动收敛语义,但写路径显式化——Controller/Agent 在 trigger 点
-  （route entry/resume/decision 后）显式调用 `task-projection rebuild`;普通 `state` 回零写。
-  终态不变量取「合资格 route 的 card = 当前 owner facts 的确定性渲染」（由显式 rebuild 维持）。
-- 候选 B: 保留 `state` 触发,只把行为显式写进 help/spec,不动时序。
-  终态不变量退化为「显式请求后可收敛」。
+- **候选 A（已冻结,见 `01` §1.5 与 `progress.md` 门槛 3）**: 保留自动收敛语义,但写路径显式化
+  ——Controller/Agent 在 trigger 点（route entry/resume/decision 后）显式调用
+  `task-projection rebuild`;普通 `state` 回零写;`build`/target `image2` checkpoint 的投影刷新
+  从 owner result 中删除。终态不变量取「合资格 route 的 card = 当前 owner facts 的确定性渲染」
+  （由显式 rebuild 维持）。
+- 候选 B（备选,仅当 design 证明 A 不可行时启用,且需升级为人类决定）: 保留 `state` 触发,
+  只把行为显式写进 help/spec,不动时序。终态不变量退化为「显式请求后可收敛」。
 
 ## 变更形状
 
@@ -52,14 +56,16 @@
 | 旧 caller | 新 caller / 删除理由 | effect 顺序 | failure 语义 | focused test |
 | --- | --- | --- | --- | --- |
 | `state` 观察 :3884 | 删除（state 回零写） | — | — | state 零写证明 |
-| `build` 成功 :958–960 | C3 后由显式 `task-projection rebuild`（或 build 保持,按 C1 冻结决定） | delivery → rebuild | rebuild 失败不影响 delivery | 复合/独立失败 |
-| target `image2` checkpoint :3134 | 同上 | checkpoint → rebuild | 同上 | 同上 |
+| `build` 成功 :958–960 | 删除（按 C1 冻结,投影出 owner result;此后由显式 rebuild 收敛） | delivery → rebuild（显式） | rebuild 失败不影响 delivery | 复合/独立失败 |
+| target `image2` checkpoint :3134 | 删除（同上） | checkpoint → rebuild（显式） | 同上 | 同上 |
 | Controller route entry/resume/decision（create-deck.md:92） | 显式调用新命令 | inspection → rebuild | rebuild 失败=独立命令失败 | trigger 点测试 |
 
 完成判据里的「trigger 点收敛」绑定这张**闭集**,不是只检查 `state` 零写与新命令存在。
 
 ## 同步面
 
+- 代码（C0 后布局）: `commands/state.mjs`（子命令化 + 零写）、新 `commands/task_projection.mjs`
+  （显式 rebuild,委托现有 `page_production_task_projection.mjs` owner）;
 - specs: `cli-surface`(:165–206/:498)、`node-specification`(:368/:402)、`workflow-inspection`、
   `playbook-execution`、`commands-reference`;
 - docs: `create-deck.md`(:92 触发句)、`charter/NODE-SPEC.md`;

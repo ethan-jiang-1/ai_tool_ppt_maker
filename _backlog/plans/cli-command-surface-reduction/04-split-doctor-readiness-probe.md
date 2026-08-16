@@ -3,6 +3,8 @@
 > 阶段见 `progress.md`。二次评审 #4 已修正第一轮倾向（评审自我更正）:
 > **`probe` 必须绑 exact run**,保留 pre-POST profile fence——不绑 run 会删除现有
 > identity/integrity guard,不是「语义逐字保留」。preflight 绑 exact run。
+> 本 change 在 **C0 拆分后**的模块布局上执行（见 `00`）;文中的 `ppt_flow.mjs` 行号以
+> C0 前基线（HEAD `5571002`）为准,C0 落地后按新模块定位。
 
 ## 范围
 
@@ -31,8 +33,10 @@ redirect 不重试、secret-safe、confirm 门、成功 ≠ 授权。
 
 ## 同步面（~25–30 文件）
 
-- 代码: `ppt_flow.mjs`（doctor 体 :722–773 的 run 级就绪迁入 preflight 实现;注册 :3528–3564）、
-  `env-check.mjs` / `internal/env_check.mjs`（探针模式保留,入口语义重述）;
+- 代码（C0 后布局）: `commands/doctor.mjs`（收缩,doctor 体 :722–773 的 run 级就绪迁出）、
+  新 `commands/preflight.mjs` + `commands/probe.mjs`（委托现有 readiness evaluator,
+  run 级就绪逻辑迁入 preflight 实现）;`env-check.mjs` / `internal/env_check.mjs`
+  （探针模式保留,入口语义重述）;
 - specs: `environment-check`（**31 处,最大单点**）、`playbook-execution`(7)、
   `bootstrap-env-guidance`（review 间接提及）;
 - docs: `BOOTSTRAP.md`（doctor 三态教学缩成三行）、`probe-image-channels.md`(2)、

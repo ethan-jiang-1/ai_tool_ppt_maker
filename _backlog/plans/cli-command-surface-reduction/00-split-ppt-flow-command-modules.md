@@ -10,7 +10,7 @@
 - `ppt_maker_harness/scripts/ppt_flow.mjs` = **4035 行**,是统一 CLI 入口（12 命令注册/分派）;
 - 深 egress 层已经在 `scripts/shared/cli/`（`cli_bootstrap.mjs` + `cli_error.mjs`）——拆分目标
   目录与之同域;
-- 3 个测试直接 import 入口内部符号（拆分必须处理的唯二「行为外」改动）:
+- 3 个测试直接 import 入口内部符号（拆分必须处理的唯一「行为外」改动）:
   `tests/03-framed-image/test_framed_workflow.mjs:89`、`tests/04-pure-image/test_pure_workflow.mjs:89`、
   `tests/shared/image2/test_style_master_raw_binding.mjs:18` 都 import `targetPageImageSubmitFactory`。
 
@@ -59,7 +59,8 @@ ppt_flow.mjs → 只剩: 入口、bootstrap 安装(:20 不动)、inventory、arg
 
 ## 完成判据
 
-1. `npm test` 全绿（含 31 个 spawn 测试与 3 个修正 import 的测试）;
+0. planning artifacts 过 polish 门,达 `ready for apply`（`progress.md` 全局规则）;
+1. `npm test` 全绿（含全部现有 spawn 测试与 3 个修正 import 的测试）;
 2. 全部审计绿: `harness_architecture` / `harness_coherence` / `harness_document_command_audit` /
    `cli_return_audit` / `test_process_docs_consistency`;
 3. 冷启动 smoke: `--help` 耗时与拆分前同数量级（不回退）;

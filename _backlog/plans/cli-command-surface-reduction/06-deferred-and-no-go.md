@@ -1,7 +1,7 @@
 # 06 — 明确不做 / 显式延后（防止丢失）
 
-> 本计划只做 4 个 change（见 `progress.md`）。以下各项**有意不做或延后**,每条都记录理由与
-> 重新评估条件,以免被误读为遗漏。
+> 本计划只做 **5 个 change（C0–C4,见 `progress.md`）**。以下各项**有意不做或延后**,每条都记录
+> 理由与重新评估条件,以免被误读为遗漏。
 > 修订（吸收 07）: exit-2 基线已纠正;F 的大部分随 C4 消解。
 
 ## 一、延后（第二梯队,本计划归档后重新评估）
@@ -16,7 +16,7 @@
 
 | 项 | 内容 | 理由 |
 | --- | --- | --- |
-| findings-I 选项 B+C（库 seam + 薄 CLI / 会话上下文） | command* 主体搬进可 import 运行时模块;hash 不再穿 Agent context window | 收益最大但影响面最大（80–110 文件 + 测试哲学重谈 + secret 边界搬家）;是「大重构」,需要独立 plan,不能混进瘦身计划 |
+| findings-I 选项 B+C（库 seam + 薄 CLI / 会话上下文） | command* 主体搬进可 import 运行时模块（seam 搬家 + 测试哲学重谈）;hash 不再穿 Agent context window | 收益最大但影响面最大（80–110 文件 + secret 边界搬家）;是「大重构」,需要独立 plan。**C0 已做掉它的文件级前奏**（拆模块、零行为变化）,剩下的 seam/测试哲学部分仍在此延后 |
 | findings-I 选项 A/D（收窄表面/单动词 execute） | inspect + 泛型 step;合并 human-gate 动词 | human-gate 动词分离是有意设计（付费步骤之间插人决定）,合并是负优化 |
 | findings-I 选项 E（治理转向） | closed schema 驱动命令生成 | 先有 C1–C4 的拆分成果,才知道 surface 该长什么样 |
 | 自动带 hash / run_dir 智能推断 / 缓存 | 帮 Agent 记住上一次 hash、扫 deck_* 猜 run_dir | 破坏 byte-preservation 保证与 AGENT_CONTRACT 反模式,永远不做 |
@@ -46,5 +46,5 @@
 
 - 本清单在本 plan 关闭时随 plan 移入 `_done/_closed_plans/`,延后项若仍未排期,
   在 `_backlog/todos` 留一条「重新评估 C/B」记录。
-- 重新评估条件: 四个 change 全部归档 + 实际 Agent 使用反馈收集后,按
+- 重新评估条件: **五个 change（C0–C4）全部归档** + 实际 Agent 使用反馈收集后,按
   [影响面] × [收益] 重排,不提前承诺顺序。

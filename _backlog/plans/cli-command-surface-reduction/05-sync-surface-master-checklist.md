@@ -1,9 +1,10 @@
 # 05 — 同步面总清单（改命令必须同步的地方）
 
 > 回答「改了命令要同步很多地方,别忘了」。无兼容模式: 同步 = 一次性切干净,仓库自带审计兜底。
-> **每个 change 的 tasks 必须覆盖本清单对应行。**
+> **C1–C4 每个 change 的 tasks 必须覆盖本清单对应行;C0 纯拆分不触发命令面固定税,
+> 其同步面见 `00`。**
 > 修订（吸收 07）: 修正 overclaim——现有审计各自覆盖一部分,完整 grammar 覆盖需要新增
-> exact command-grammar audit（§E.3）,不是「漏任一行审计就会红」。
+> exact command-grammar audit（§E.3,**由 C1 落地**,基于 C0 的 descriptor）,不是「漏任一行审计就会红」。
 
 ## 同步域边界
 
@@ -12,11 +13,11 @@
 - **不动的历史域**: `openspec/changes/archive/`（历史记录,不改写）、`_backlog/`（簿记）、
   `deck_*/`、`dpt_*/`（生产数据/素材,不是契约面）
 
-## A. 机制文件 — 固定税 12（任何命令面 change 都逃不掉）
+## A. 机制文件 — 固定税 12（C1–C4 任何命令面 change 都逃不掉;C0 豁免）
 
 | # | 文件 | 角色 | 本次改什么 |
 | --- | --- | --- | --- |
-| 1 | `ppt_maker_harness/scripts/ppt_flow.mjs` | 命令注册 + 命令体 | 搬移/收缩命令,新命令实现 |
+| 1 | `ppt_maker_harness/scripts/ppt_flow.mjs` | 入口注册 + `commands/*.mjs` 命令体（C0 之后） | 搬移/收缩命令,新命令实现 |
 | 2 | `scripts/shared/cli/cli_error.mjs:19–32` | `PPT_FLOW_COMMAND_INVENTORY` | 命令名闭集更新 |
 | 3 | `scripts/contracts/cli_return_audit.mjs` | 每命令 return-case 行 | 新命令 + 删旧命令 case |
 | 4 | `tests/contracts/test_process_command_surface_entry_seams.mjs` | inventory 硬断言 | 闭集断言更新 |
@@ -42,7 +43,7 @@
 | `ppt_maker_harness/AGENTS.md`、`README.md` | 若提及命令形态 |
 | `CONTEXT.md` | 只在 canonical 术语变化时动（本计划名字取自它,基本不动） |
 
-## C. main specs 触点（live 域实测,2026-08-16）
+## C. main specs 触点（处数实测于 C0 前基线,proposal 时重跑 grep 为准）
 
 | 旧形态 | main spec 文件（处数） |
 | --- | --- |
@@ -52,7 +53,7 @@
 | 投影重建触发（C3） | `workflow-inspection`(:8)、`playbook-execution`(:441) |
 | `doctor --smoke/--probe-vendors/--run-dir` | `environment-check`(**31**)、`playbook-execution`(7) |
 
-## D. 测试面（除固定税外的变量触点）
+## D. 测试面（除固定税外的变量触点;处数实测于 C0 前基线,proposal 时重跑 grep 为准）
 
 | 旧形态 | 测试文件（处数） |
 | --- | --- |
@@ -64,8 +65,8 @@
 
 ## E. 完成判据（每个 change 的最后一组 task,缺一不可）
 
-1. **旧形态计数归零**: live 域内旧形态出现次数 → 0,仅允许 tombstone 注册行与 spec 禁止句。
-   验证（以 artifact-view 为例）:
+1. **active consumer 计数归零**（口径见第 2 条 a 项: command-aware scanner,不是裸 `rg`）。
+   裸 rg 只作粗查参考,以 artifact-view 为例:
    `rg -n 'artifact-view' --glob '!openspec/changes/archive/**' --glob '!deck_*/**' --glob '!dpt_*/**' --glob '!_backlog/**'`
 2. **tombstone 三分验收**（二次评审 #8 修正: 简单 `rg` 计数归零与负例测试互斥,拆开验收）:
    - **active consumer count = 0**: command-aware scanner 只统计可执行调用、current guidance、
@@ -77,8 +78,9 @@
    - **residue guard sensitivity**: 注入内存 snapshot/fixture 的 planted violation 证明 guard
      会红,恢复后原 snapshot 会绿;普通 token（如 `apply-plan`,仍有结构用途）**不**全局 tombstone,
      按完整 obsolete **grammar** 定义（如 `doctor --run-dir ... --smoke`）。
-3. **新增 exact command-grammar audit**: 证明完整 invocation、参数位置、operation 组合有效。
-   现有 `harness_document_command_audit` 只验证文档 flag 能在 `--help` 找到,不够。
+3. **新增 exact command-grammar audit**（由 C1 落地,基于 C0 的 descriptor）: 证明完整
+   invocation、参数位置、operation 组合有效。现有 `harness_document_command_audit` 只验证
+   文档 flag 能在 `--help` 找到,不够。
 4. **审计全绿**: `cli_return_audit` / `harness_document_command_audit` / `harness_architecture` /
    `harness_coherence` / `test_process_docs_consistency` / `md_controller_reader`。
 5. **exit matrix 与实现一致**: 0/1/2/130/143 真值表（见 `01` §1.2）覆盖 signal/Commander/

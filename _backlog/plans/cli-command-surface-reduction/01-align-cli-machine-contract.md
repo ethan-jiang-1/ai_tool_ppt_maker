@@ -1,6 +1,8 @@
 # Change 1: align-cli-machine-contract（结果模型 + 机器契约 + inventory 治理）
 
 > 阶段见 `progress.md`。吸收评审 `07` 第 3/4/5 条: C1 不是「补 --json flag」,是三类基础改造。
+> 本 change 在 **C0 拆分后**的模块布局上执行（见 `00`）;文中的 `ppt_flow.mjs` 行号以
+> C0 前基线（HEAD `5571002`）为准,C0 落地后按新模块定位。
 
 ## 范围
 
@@ -57,7 +59,7 @@ checkpoint 在 `:3134` 也有 refresh。C1 定义 `build` 的 success/partial-ef
   C1 的 `build` result 只拥有 delivery,projection 从第一天就不进 schema（C3 负责触发器迁移）;
 - 或 C1 保留现状（delivery + projection 两个 effect）,C3 后续版本化该 schema。
 
-**默认取前者**（progress.md 门槛 2 已按候选 A 冻结）;冻结决定写进 C1 proposal 的 scope 边界。
+**已冻结采用前者**（progress.md 门槛 3,采用 C3 候选 A）;冻结决定写进 C1 proposal 的 scope 边界。
 
 ### 1.6 partial effect 必须带恢复闭环（二次评审 #3,只报告不够）
 
@@ -86,9 +88,11 @@ Commander 捕获的 `err.exitCode` 在 `:3994` 透传。C1 必须二选一并写
 
 ### 1.8 declaration authority map（二次评审 #9,单一声明源要指名 fact authority）
 
-C1 design 先画最小 authority map,避免 `cli_error.mjs` 膨胀成第二个 command/controller registry:
+C1 design 先画最小 authority map,避免 `cli_error.mjs` 膨胀成第二个 command/controller registry。
+**载体由 C0 提供**: 每个命令模块导出自己的注册 descriptor（见 `00` 目标结构）:
 
-- Commander registration / operation descriptor 拥有 accepted grammar 与 effect class;
+- Commander registration / operation descriptor（各命令模块,`commands/*.mjs`）拥有 accepted
+  grammar 与 effect class;
 - command owner result 类型拥有业务 effect;
 - `cli-surface` 拥有公开规范;
 - help、inventory、JSON 校验、docs audit 都是从 descriptor/spec 可验证的 projections;
@@ -100,8 +104,10 @@ C1 的结果模型必须把它纳入 schema,不得回归成散文。
 
 ## 同步面
 
-- 代码: `ppt_flow.mjs`（结果模型 + help）、`cli_error.mjs`（report schema 注册 + inventory）、
-  `cli_return_audit.mjs`、`harness_coherence.mjs`、`harness_document_command_audit.mjs`
+- 代码（C0 后布局）: `commands/*.mjs` + `command_support.mjs`（owner result + help 契约块）;
+  入口 `ppt_flow.mjs`（注册）;`cli_error.mjs`（report schema 注册 + inventory）、
+  `cli_return_audit.mjs`、`harness_coherence.mjs`、`harness_document_command_audit.mjs`;
+  exact command-grammar audit 由本 change 落地（`05` §E.3）
 - 测试: `test_process_command_surface_entry_seams.mjs`、`test_process_docs_consistency.mjs`、
   `test_cli_surface.mjs`、`test_process_cli_error.mjs` + 4 组命令测试 + 1 个契约防漂移测试
 - spec: `cli-surface/spec.md`、`commands-reference/spec.md`

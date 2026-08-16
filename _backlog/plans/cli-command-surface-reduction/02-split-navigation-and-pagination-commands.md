@@ -1,6 +1,8 @@
 # Change 2: split-navigation-and-pagination-commands（S1 + 修正后的 S2）
 
 > 阶段见 `progress.md`。吸收评审 `07` 第 1/6 条: 只迁 narrative;**保留 structural `slides apply-plan`**。
+> 本 change 在 **C0 拆分后**的模块布局上执行（见 `00`）;文中的 `ppt_flow.mjs` 行号以
+> C0 前基线（HEAD `5571002`）为准,C0 落地后按新模块定位。
 
 ## S1: `image2 artifact-view` → `artifacts`
 
@@ -38,10 +40,15 @@
 - narrative candidate/plan 仍受 `_scratch/` lexical+realpath confinement、canonical bytes、
   exact hash 约束;
 - structural replay 的 persisted plan、drift fencing、零 provider、target 不重复变更保持原契约;
-- 旧 narrative 入口在任何 binding/write/provider work 前失败并返回新命令。
+- 旧 narrative 入口的拒绝时序与 §S2 一致: run binding + confined read-only plan classification
+  之后、canonical source/State/artifact 变更与 provider initialization 之前失败,并返回
+  `paginate` 的精确 invocation。
 
 ## 同步面（~25–30 文件,重估）
 
+- 代码（C0 后布局）: `commands/slides.mjs`（叙事 plan/apply 迁出,structural apply-plan 保留）、
+  `commands/image2.mjs`（artifact-view 迁出）、新 `commands/paginate.mjs` + `commands/artifacts.mjs`
+  （薄路由到现有 owners `narrative_page_plan.mjs` / 导航 writer）;
 - 固定税见 `05` §A;
 - specs: `cli-surface`(:660–677)、`narrative-authoring`、`image-generation`;
 - docs: `create-deck.md` 3 处、`03-specify-structured-slides.md` 3 处、`AGENT_CONTRACT.md` 1 处;
@@ -52,6 +59,7 @@
 ## 完成判据
 
 1. 两类 plan schema 路由不混淆（契约测试: narrative → `paginate`,structural → `slides apply-plan`）;
-2. 旧 `slides narrative-plan` live 域计数 → 0（除 tombstone/禁止句）;
+2. 旧 `slides narrative-plan` 按 `05` §E 三分验收（active consumer 计数归零;runtime 负例与
+   planted guard sensitivity 保留）;
 3. structural replay 契约测试（含 drift 零写）原样通过;
 4. `npm test` + `openspec validate split-navigation-and-pagination-commands --strict` 全绿。
