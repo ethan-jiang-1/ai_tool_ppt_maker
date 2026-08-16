@@ -22,11 +22,12 @@ ppt_maker_harness/scripts/shared/cli/
 ├── cli_error.mjs                (不动)
 ├── command_support.mjs          (新: 跨命令共享胶水——resolveRunAdapter、submit factories、
 │                                 emit 封装、错误码分类表的机械搬家,不重新归属)
-└── commands/                    (新,12 个)
+└── commands/                    (新,12 个;文件名与命令名一致,kebab)
     ├── doctor.mjs / init.mjs / status.mjs / validate.mjs / build.mjs /
-    ├── refresh.mjs / new_version.mjs / test.mjs / state.mjs /
-    ├── slides.mjs / image2.mjs / style_master.mjs
-    └── 约定: 每模块导出 handler + 注册 descriptor(grammar/flags/help)——C1 的
+    ├── refresh.mjs / new-version.mjs / test.mjs / state.mjs /
+    ├── slides.mjs / image2.mjs / style-master.mjs
+    └── 约定: 每模块导出 handler + 注册 descriptor(grammar/flags/help;descriptor 声明的
+        command id 与 `PPT_FLOW_COMMAND_INVENTORY` 中的名字相同)——C1 的
         declaration authority（01 §1.8）以此为载体
 
 ppt_flow.mjs → 只剩: 入口、bootstrap 安装(:20 不动)、inventory、argv 解析、
@@ -65,12 +66,13 @@ ppt_flow.mjs → 只剩: 入口、bootstrap 安装(:20 不动)、inventory、arg
    `cli_return_audit` / `test_process_docs_consistency`;
 3. 冷启动 smoke: `--help` 耗时与拆分前同数量级（不回退）;
 4. `git diff --check` + `openspec validate split-ppt-flow-command-modules --strict` 全绿;
-5. 行为零变化证据: 拆分前后对同一 fixture run bundle 跑
-   `doctor/status/validate/build/refresh/new-version/test` 各一次,stdout 逐字节一致。
+5. 行为零变化证据: 拆分前后对同一 fixture run bundle 跑**全部 12 个命令**
+   （`init` 用新建 deck 根;`slides` 用 list/resolve;`image2` 用 plan/artifact-view 等无提交
+   形态;`style-master` 用 inspect;其余按最小合法参数）,stdout/stderr 逐字节一致。
 
 ## 与后续 change 的关系
 
 - C1 的 declaration authority（`01` §1.8）直接建立在各命令模块的 descriptor 上;
-- C2/C3/C4 的「命令体搬迁」变为「在已拆分的模块内编辑/迁移」,diff 更小、review 更纯;
-- `01–04` 中引用的 `ppt_flow.mjs` 行号以 C0 前基线（HEAD `5571002`）为准,
-  C0 落地后由执行 Agent 按新模块定位。
+- C2/C4 的「命令体搬迁」变为「在已拆分的模块内编辑/迁移」,diff 更小、review 更纯;
+- `01–04` 中引用的 `ppt_flow.mjs` 行号按当前工作区实测（`ppt_flow.mjs` 最后修改 commit
+  `5571002`）,C0 落地后行号失效,由执行 Agent 按新模块定位。

@@ -3,15 +3,15 @@
 > 阶段见 `progress.md`。二次评审 #4 已修正第一轮倾向（评审自我更正）:
 > **`probe` 必须绑 exact run**,保留 pre-POST profile fence——不绑 run 会删除现有
 > identity/integrity guard,不是「语义逐字保留」。preflight 绑 exact run。
-> 本 change 在 **C0 拆分后**的模块布局上执行（见 `00`）;文中的 `ppt_flow.mjs` 行号以
-> C0 前基线（HEAD `5571002`）为准,C0 落地后按新模块定位。
+> 本 change 在 **C0 拆分后**的模块布局上执行（见 `00`）;文中的 `ppt_flow.mjs` 行号按当前
+> 工作区实测（`ppt_flow.mjs` 最后修改 commit `5571002`）,C0 落地后按新模块定位、行号失效。
 
 ## 范围
 
 | 命令 | 业务 | 现形态 |
 | --- | --- | --- |
 | `doctor`（收缩） | 全局离线体检,零网络零费用 | 裸 `doctor` |
-| `preflight <run-dir> --operation <op>`（新） | run 级就绪,零网络零写;operation 枚举: `framed-local-refresh\|raw-generation\|full-build`（:3531） | `doctor --run-dir --operation` |
+| `preflight <run-dir> --operation <op>`（新） | run 级就绪,零网络零写;operation 枚举: `framed-local-refresh\|raw-generation\|full-build`（:3539） | `doctor --run-dir --operation` |
 | `probe <run-dir> [--smoke\|--vendors]`（新） | live 探针,**绑 exact run**: 先解析该 run 的 confirmed provider profile 并要求 `IMAGE2_PROVIDER_PROFILE_ID` 精确匹配,任何 POST 前失败即停（`ppt_flow.mjs:728–768`、`environment-check/spec.md:501–532`）;成功仍仅 connectivity,不确认 readiness/生产授权 | `doctor --run-dir X --smoke` / `doctor --run-dir X --probe-vendors` |
 
 不变（搬家,语义逐字保留）: `--smoke` 1 次、`--probe-vendors` 每 vendor 1 次、两者互斥、

@@ -1,8 +1,8 @@
 # Change 2: split-navigation-and-pagination-commands（S1 + 修正后的 S2）
 
 > 阶段见 `progress.md`。吸收评审 `07` 第 1/6 条: 只迁 narrative;**保留 structural `slides apply-plan`**。
-> 本 change 在 **C0 拆分后**的模块布局上执行（见 `00`）;文中的 `ppt_flow.mjs` 行号以
-> C0 前基线（HEAD `5571002`）为准,C0 落地后按新模块定位。
+> 本 change 在 **C0 拆分后**的模块布局上执行（见 `00`）;文中的 `ppt_flow.mjs` 行号按当前
+> 工作区实测（`ppt_flow.mjs` 最后修改 commit `5571002`）,C0 落地后按新模块定位、行号失效。
 
 ## S1: `image2 artifact-view` → `artifacts`
 

@@ -1,8 +1,8 @@
 # 05 — 同步面总清单（改命令必须同步的地方）
 
 > 回答「改了命令要同步很多地方,别忘了」。无兼容模式: 同步 = 一次性切干净,仓库自带审计兜底。
-> **C1–C4 每个 change 的 tasks 必须覆盖本清单对应行;C0 纯拆分不触发命令面固定税,
-> 其同步面见 `00`。**
+> **C1/C2/C4 每个 change 的 tasks 必须覆盖本清单对应行;C0 纯拆分不触发命令面固定税,
+> 其同步面见 `00`;C3 延后（α）,其触点保留在本清单 §C/§D 供重启时用。**
 > 修订（吸收 07）: 修正 overclaim——现有审计各自覆盖一部分,完整 grammar 覆盖需要新增
 > exact command-grammar audit（§E.3,**由 C1 落地**,基于 C0 的 descriptor）,不是「漏任一行审计就会红」。
 
@@ -13,7 +13,7 @@
 - **不动的历史域**: `openspec/changes/archive/`（历史记录,不改写）、`_backlog/`（簿记）、
   `deck_*/`、`dpt_*/`（生产数据/素材,不是契约面）
 
-## A. 机制文件 — 固定税 12（C1–C4 任何命令面 change 都逃不掉;C0 豁免）
+## A. 机制文件 — 固定税 12（C1/C2/C4 任何命令面 change 都逃不掉;C0 豁免）
 
 | # | 文件 | 角色 | 本次改什么 |
 | --- | --- | --- | --- |
@@ -38,28 +38,28 @@
 | `ppt_maker_harness/BOOTSTRAP.md` | doctor/preflight/probe 教学（C4）;机器契约说明（C1 可选） |
 | `ppt_maker_harness/charter/AGENT_CONTRACT.md` | artifact-view handoff（C2）;消费规则表述 |
 | `ppt_maker_harness/charter/NODE-SPEC.md` | node-specification 镜像条款 |
-| `ppt_maker_harness/playbook/*.md` | create-deck（C2 改 3 处、C3 改 :92 触发句）;probe-image-channels（C4） |
+| `ppt_maker_harness/playbook/*.md` | create-deck（C2 改 3 处;C3 若重启才改 :92 触发句）;probe-image-channels（C4） |
 | `ppt_maker_harness/workflow/00-setup/*.md`、`workflow/01-content/*.md` | 方法论教学里的命令示例 |
 | `ppt_maker_harness/AGENTS.md`、`README.md` | 若提及命令形态 |
 | `CONTEXT.md` | 只在 canonical 术语变化时动（本计划名字取自它,基本不动） |
 
-## C. main specs 触点（处数实测于 C0 前基线,proposal 时重跑 grep 为准）
+## C. main specs 触点（处数为历史实测,proposal 时重跑 grep 为准）
 
 | 旧形态 | main spec 文件（处数） |
 | --- | --- |
 | `image2 artifact-view` | `cli-surface`(4 条要求)、`image-generation`(2: :765/:1782) |
 | `slides narrative-plan/apply-plan` | `cli-surface`(:660–677)、`narrative-authoring`(1)、`image-generation`(2: :1138/:1184) |
-| `state --validate-state/--repair-known-execution-mismatch` | `cli-surface`(:165–206/:498)、`node-specification`(2: :368/:402)、`commands-reference`(:16) |
-| 投影重建触发（C3） | `workflow-inspection`(:8)、`playbook-execution`(:441) |
+| `state --validate-state/--repair-known-execution-mismatch`（**C3 延后 α,重启时用**） | `cli-surface`(:165–206/:498)、`node-specification`(2: :368/:402)、`commands-reference`(:16) |
+| 投影重建触发（**C3 延后 α,重启时用**） | `workflow-inspection`(:8)、`playbook-execution`(:441) |
 | `doctor --smoke/--probe-vendors/--run-dir` | `environment-check`(**31**)、`playbook-execution`(7) |
 
-## D. 测试面（除固定税外的变量触点;处数实测于 C0 前基线,proposal 时重跑 grep 为准）
+## D. 测试面（除固定税外的变量触点;处数为历史实测,proposal 时重跑 grep 为准）
 
 | 旧形态 | 测试文件（处数） |
 | --- | --- |
 | artifact-view | `tests/contracts/test_human_artifact_reference_cli.mjs`(30) |
 | narrative-plan | `test_target_structural_cli.mjs`(6,保留回放)、`test_narrative_page_plan_cli.mjs`(6)、`test_narrative_page_plan.mjs`(5)、`tests_e2e/.../test_mock_narrative_authoring_journey.mjs`(4) |
-| state validate/repair | `tests_e2e/shared/state/test_mock_inactive_run_state_writes.mjs`(5)、`test_state_yaml.mjs`、`test_page_production_task_projection.mjs`、`test_process_workflow_inspection_cli.mjs`、`test_diagnostic_recovery_handoff.mjs`、`test_mock_target_workflow_journey.mjs` |
+| state validate/repair（**C3 延后 α,重启时用**） | `tests_e2e/shared/state/test_mock_inactive_run_state_writes.mjs`(5)、`test_state_yaml.mjs`、`test_page_production_task_projection.mjs`、`test_process_workflow_inspection_cli.mjs`、`test_diagnostic_recovery_handoff.mjs`、`test_mock_target_workflow_journey.mjs` |
 | doctor smoke/probe | `tests/00-setup/test_process_env_check.mjs`(13)、`test_process_runtime_guidance.mjs`(6)、`tests_e2e/shared/workflow/test_mock_doctor_readiness_alignment.mjs` |
 | 新增/迁移测试归属 | `tests/contracts/source-test-ownership.json` |
 
@@ -84,8 +84,9 @@
 4. **审计全绿**: `cli_return_audit` / `harness_document_command_audit` / `harness_architecture` /
    `harness_coherence` / `test_process_docs_consistency` / `md_controller_reader`。
 5. **exit matrix 与实现一致**: 0/1/2/130/143 真值表（见 `01` §1.2）覆盖 signal/Commander/
-   delegated child 三类来源与优先级（`ppt_flow test` 透传 npm test status、`:3994` 透传
-   `err.exitCode`）;delegated child 的归一协议见 `01` §1.7,help 契约块同源。
+   delegated child 三类来源与优先级（`ppt_flow test` 透传数值型 child status,`return code`
+   在 `:1544`;`:4002` 透传 `err.exitCode`）;delegated child 的归一协议见 `01` §1.7,
+   help 契约块同源。
 6. **回归全绿**: `npm test` + `openspec validate <change> --strict` + `openspec validate --all --strict`
    + `git diff --check`。
 7. **无生产数据触碰**: `deck_*`/`dpt_*`/`_generated/` 字节不变（git status 确认）。
