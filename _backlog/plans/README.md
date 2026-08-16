@@ -20,9 +20,8 @@
 | 计划 | 一句话 | 来源 |
 | --- | --- | --- |
 | [cli-command-surface-reduction](cli-command-surface-reduction/README.md) | CLI 命令面平衡瘦身: 5 个 OpenSpec change（先纯拆分 ppt_flow.mjs 为入口 + commands/ 模块,再机器契约 → 导航/分页拆分 → state/投影分离 → doctor 拆分）,无兼容包袱;进度跟踪见目录内 `progress.md` | `_backlog/_findings/` 四份 findings + 两轮外部评审 |
-| [fold-style-master-cost-into-task-mandate](fold-style-master-cost-into-task-mandate/README.md) | 消除"问预算"打断: Style Master 候选授权 + intake 成本边界折进 Task Mandate(照搬 8/10 对 Page Image 的模板),澄清 `prompt_budget` 命名;一个 OpenSpec change | 用户 UX 反馈 |
 
-**Next available plan ID: CLS-041**（移入 `_closed_plans/` 时分配；CLS-001…040 已用）
+**Next available plan ID: CLS-042**（移入 `_closed_plans/` 时分配；CLS-001…041 已用）
 
 ---
 
