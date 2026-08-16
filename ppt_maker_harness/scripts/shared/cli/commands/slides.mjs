@@ -2,18 +2,16 @@ import { basename, dirname, join, relative, resolve, sep } from "node:path";
 import { readFileSync, writeFileSync, readdirSync, realpathSync, renameSync } from "node:fs";
 import { CLI_ERROR_CODES, CLI_DIAGNOSTIC_SCHEMA, createCliNext, emitCliError, registerCliJsonReport } from "../cli_error.mjs";
 import { commandReport } from "../command_result.mjs";
-import { resolveRunHarnessBinding } from "../command_support.mjs";
+import { PPT_FLOW_ENTRY, resolveRunHarnessBinding } from "../command_support.mjs";
 import { checkBundle, deckRoot, findSlideSpecs, nextVersionName, SCRATCH_SUBDIR } from "../../run-bundle/bundle_layout.mjs";
 import { PAGE_IMAGE_WORKFLOW_PIPELINE, probeProductionMarker } from "../../run-bundle/production_marker.mjs";
 import {
   applySlideEdit,
-  applyNarrativePagePlan,
   applyTargetStructuralVersion,
   computeSlideEditPlanSha256,
   formatSlideCandidate,
   parseSlideDocument,
   parsePageImageSource,
-  previewNarrativePagePlan,
   planSlideEdit,
   previewTargetStructuralVersion,
   resolveSlideBindings,
@@ -159,11 +157,6 @@ async function parseTargetStructuralReceipt(context, sourceText) {
   });
 }
 
-async function narrativeVisualSystem() {
-  const { createPageImageSourceResolver, loadPageImageVisualLanguage } = await import("../../../02-visual-system/index.mjs");
-  return Object.freeze({ createPageImageSourceResolver, loadPageImageVisualLanguage });
-}
-
 /** Bind a current same-workflow structural vNext to the existing exact preview. */
 async function enrichTargetPageImageStructuralPlan(context, transaction, applied, targetBranch) {
   if (targetBranch !== PAGE_IMAGE_WORKFLOW_PIPELINE || transaction.publication.mode !== "next-version") return null;
@@ -288,15 +281,6 @@ function slideOperationsFor(subcommand, args, opts) {
 export async function commandSlides(subcommand, runDir, args = [], opts = {}) {
   if (!resolveRunHarnessBinding(runDir, `ppt_flow.slides.${subcommand}.binding`)) return 1;
   try {
-    if (subcommand === "narrative-plan") {
-      const result = previewNarrativePagePlan({
-        sourceRunDir: runDir,
-        candidatePath: opts.candidate,
-        visualSystem: await narrativeVisualSystem(),
-      });
-      renderSlidesResult(result, opts.json);
-      return 0;
-    }
     if (subcommand === "apply-plan") {
       if (!opts.apply) throw new Error("apply-plan requires explicit --apply");
       const resolvedRunDir = resolve(runDir);
@@ -314,19 +298,22 @@ export async function commandSlides(subcommand, runDir, args = [], opts = {}) {
       }
       const persisted = JSON.parse(readFileSync(planPath, "utf8"));
       if (persisted?.schema === "narrative-page-plan") {
-        if (!opts.planSha256) {
-          const error = new Error("narrative apply-plan requires --plan-sha256 from the confirmed narrative preview");
-          error.code = "missing_plan_sha256";
-          throw error;
-        }
-        const result = applyNarrativePagePlan({
-          sourceRunDir: runDir,
-          plan: persisted,
-          planSha256: opts.planSha256,
-          visualSystem: await narrativeVisualSystem(),
+        emitCliError({
+          code: CLI_ERROR_CODES.USAGE,
+          message: "Narrative page plans are published through paginate, not slides apply-plan.",
+          hint: "Use paginate apply for narrative page plans.",
+          where: "ppt_flow.slides.apply-plan",
+          diagnostic: {
+            schema: CLI_DIAGNOSTIC_SCHEMA,
+            category: "usage",
+            operation: "apply-plan",
+            next: createCliNext("fix_arguments", {
+              invocation: { program: "node", args: [PPT_FLOW_ENTRY, "paginate", "apply", runDir, "--plan", opts.plan, ...(opts.planSha256 ? ["--plan-sha256", opts.planSha256] : [])] },
+              default: "Apply narrative page plans through paginate apply.",
+            }),
+          },
         });
-        renderSlidesResult(result, opts.json);
-        return 0;
+        return 1;
       }
     }
     const context = readCanonicalSlideSource(runDir);

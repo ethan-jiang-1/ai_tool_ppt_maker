@@ -97,11 +97,11 @@ function runCli(args, { expectSuccess = true } = {}) {
 
 describe("narrative page-plan CLI", () => {
   it("documents preview and exact narrative publication in public help", () => {
-    const help = runCli(["slides", "--help"]);
-    expect(help.stdout).toContain("narrative-plan");
+    const help = runCli(["paginate", "--help"]);
+    expect(help.stdout).toContain("plan");
     expect(help.stdout).toContain("--candidate <path>");
     expect(help.stdout).toContain("--plan-sha256 <hash>");
-    expect(help.stdout).toMatch(/required for\s+narrative publication/);
+    expect(help.stdout).toContain("Exact hash from the confirmed preview");
   });
 
   it("previews then publishes only through its exact hash with no provider work", () => {
@@ -116,7 +116,7 @@ describe("narrative page-plan CLI", () => {
       writeFileSync(candidatePath, candidate(), "utf8");
       const seed = readFileSync(join(runDir, "slide-specifications.md"), "utf8");
 
-      const preview = JSON.parse(runCli(["slides", "narrative-plan", runDir, "--candidate", candidatePath, "--json"]).stdout);
+      const preview = JSON.parse(runCli(["paginate", "plan", runDir, "--candidate", candidatePath, "--json"]).stdout);
       expect(preview).toMatchObject({
         kind: "narrative-page-plan",
         publication: "initial-draft",
@@ -126,13 +126,18 @@ describe("narrative page-plan CLI", () => {
       expect(readFileSync(join(runDir, "slide-specifications.md"), "utf8")).toEqual(seed);
       expect(readState(deck, { purpose: "observe", heal: false }).page_image_target_evidence).toBeUndefined();
 
-      const missingHash = runCli(["slides", "apply-plan", runDir, "--plan", preview.plan_path, "--apply", "--json"], { expectSuccess: false });
+      const missingHash = runCli(["paginate", "apply", runDir, "--plan", preview.plan_path, "--json"], { expectSuccess: false });
       expect(missingHash.status).not.toBe(0);
-      expect(missingHash.stderr).toContain("missing_plan_sha256");
+      expect(missingHash.stderr).toContain("paginate apply requires --plan-sha256");
+      expect(readFileSync(join(runDir, "slide-specifications.md"), "utf8")).toEqual(seed);
+
+      const rejected = runCli(["slides", "apply-plan", runDir, "--plan", preview.plan_path, "--apply", "--json"], { expectSuccess: false });
+      expect(rejected.status).not.toBe(0);
+      expect(rejected.stderr).toContain("published through paginate");
       expect(readFileSync(join(runDir, "slide-specifications.md"), "utf8")).toEqual(seed);
 
       const applied = JSON.parse(runCli([
-        "slides", "apply-plan", runDir, "--plan", preview.plan_path, "--apply", "--plan-sha256", preview.plan_sha256, "--json",
+        "paginate", "apply", runDir, "--plan", preview.plan_path, "--plan-sha256", preview.plan_sha256, "--json",
       ]).stdout);
       expect(applied).toMatchObject({ applied: true, target_version: "v1", provider_calls: 0, needs_raw_generation: ["DeckGo"] });
       expect(readFileSync(join(runDir, "slide-specifications.md"), "utf8")).toEqual(TARGET_SOURCE);

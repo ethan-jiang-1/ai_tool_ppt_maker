@@ -582,7 +582,7 @@ describe("mock TARGET workflow journey", () => {
       });
       expect(provider.calls).toHaveLength(callsBeforePlan);
 
-      expectSuccess(await flow(["image2", "artifact-view", fixture.runDir], provider.env));
+      expectSuccess(await flow(["artifacts", fixture.runDir], provider.env));
       const navigation = readFileSync(paths.human_navigation_index, "utf8");
       expect(navigation).not.toContain(request.payload.canonical_utf8);
       expect(navigation).not.toContain("_generated/page_image_workflow/derived");

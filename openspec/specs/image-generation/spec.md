@@ -762,7 +762,7 @@ candidate-generation-profile hashes differ from the successor plan.
 
 The tree SHALL materialize short physical copies only from the owner-provided
 verified candidate locators, label them pending and not accepted, and mark raw,
-review, final, and delivery work unavailable. The artifact-view success
+review, final, and delivery work unavailable. The `artifacts` success
 projection SHALL report the owner's existing next action. Neither surface
 SHALL display the predecessor as current Style Master authority, infer a raw
 plan from it, or expose a SHA-named storage path.
@@ -1778,9 +1778,10 @@ grant publication, attempt claim, credential initialization, or provider
 request, with the existing secret-safe `environment`/`repair_environment` (or
 owner-issued source) recovery; it SHALL NOT relax profile identity, infer a
 fallback profile, or produce a provider side effect. Provider-free operations
-(`image2 plan`, `pilot`, `expansion`, `review`, `accept`, `reconcile`,
-`artifact-view`, and observations) SHALL NOT load dotenv configuration; their
-behavior is unchanged by this requirement.
+(`image2 plan`, `pilot`, `expansion`, `review`, `accept`, `reconcile`, and
+observations) SHALL NOT load dotenv configuration; their behavior is unchanged
+by this requirement. The `artifacts` command is likewise provider-free and
+SHALL NOT load dotenv configuration.
 
 #### Scenario: Authorize resolves the deck .env profile without a shell export
 

@@ -73,7 +73,7 @@ Diagnostic Recovery Handoff; do not summarize a failure as a successful result.
 
 Before asking a person to inspect current Style Master, review, final, PPTX,
 notes, or delivery artifacts, rebuild the exact run's Human Navigation Path
-with `ppt_flow image2 artifact-view <run-dir>`. Cite every requested artifact's
+with `ppt_flow artifacts <run-dir>`. Cite every requested artifact's
 short physical locator, artifact type, and inspection purpose from its
 `_generated/nav/index.md`; never give a SHA-named storage locator. For every
 current Page Image status or request for review, authorization, or delivery

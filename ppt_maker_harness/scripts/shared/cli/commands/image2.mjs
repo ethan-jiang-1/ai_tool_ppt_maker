@@ -1,10 +1,8 @@
 import { CLI_ERROR_CODES, CLI_DIAGNOSTIC_SCHEMA, createCliNext, emitCliError, registerCliJsonReport } from "../cli_error.mjs";
-import { commandReport } from "../command_result.mjs";
 import {
   PAGE_IMAGE_OPERATIONS,
   emitUsage,
   progressiveUnsupportedOption,
-  rebuildTargetPageImageArtifactView,
   refreshProgressiveControllerTaskProjection,
   requiredPageImageHash,
   requiredPilotSlideIds,
@@ -18,8 +16,11 @@ import {
 
 /** Execute the fixed progressive raw lifecycle through the marker-selected owner. */
 async function commandTargetPageImageImage2(operation, route, opts = {}) {
+  if (operation === "artifact-view") {
+    return emitUsage("ppt_flow.image2.artifact-view", "artifact-view moved to the artifacts command", "Use artifacts <run-dir> to rebuild the Human Navigation Path.");
+  }
   if (!PAGE_IMAGE_OPERATIONS.has(operation)) {
-    return emitUsage("ppt_flow.image2.target.operation", `Target Page Image image2 operation ${JSON.stringify(operation)} is not supported`, "Use plan, artifact-view, pilot, expansion, authorize, generate, pilot-review, pilot-accept, review, accept, or reconcile.");
+    return emitUsage("ppt_flow.image2.target.operation", `Target Page Image image2 operation ${JSON.stringify(operation)} is not supported`, "Use plan, pilot, expansion, authorize, generate, pilot-review, pilot-accept, review, accept, or reconcile.");
   }
   const override = progressiveUnsupportedOption(operation);
   if (override) {
@@ -30,22 +31,6 @@ async function commandTargetPageImageImage2(operation, route, opts = {}) {
     applyImage2StartupEnv({ runDir: route.run_dir });
   }
   try {
-    if (operation === "artifact-view") {
-      const output = await rebuildTargetPageImageArtifactView(route);
-      const result = commandReport({
-        operation: "image2",
-        effect: { artifact_view: output.path },
-        fields: {
-          run_dir: output.run_dir,
-          workflow: output.workflow,
-          artifact_view: output.path,
-          human_navigation_root: output.root,
-          ...(output.pending_successor ? { next_action: output.pending_successor.next_action } : {}),
-        },
-      });
-      console.log(JSON.stringify(result, null, 2));
-      return 0;
-    }
     const operations = await targetImage2Operations(route.workflow);
     let output;
     if (operation === "plan") {

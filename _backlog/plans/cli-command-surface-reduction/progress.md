@@ -10,7 +10,7 @@
 
 | change | 阶段 | 依赖 | 阻塞 | 下一次动作 |
 | --- | --- | --- | --- | --- |
-| C2 `split-navigation-and-pagination-commands` | 未开 | C1（已归档） | — | 门槛 7 钉死 plan classification 时序 → `openspec new change` |
+| C2 `split-navigation-and-pagination-commands` | apply 中（待 sweep 确认） | C1（已归档）;门槛 7 已钉死分类时序 | — | sweep 确认 → archive → 提交 |
 | C4 `split-doctor-readiness-probe` | 未开 | C1（已归档） | — | 门槛 7 钉死 probe fence → `openspec new change` |
 
 ## 已延后（α,2026-08-16 人类决定）
@@ -137,4 +137,8 @@
   schema/version/operation/state + fields 展开；`style-master`/`image2` 生命周期保持 owner result，
   `controller_handoff` 未回归）；`validateCommandContracts` + `VERB_COLLISION_TABLE` 相等性审计 +
   `COMMANDS.md` 共享动词 owner-scoped 说明；3 处 toEqual → toMatchObject。归档 `2026-08-17-align-cli-machine-contract`
-  + 提交 `d3933ed`。
+  + 提交 `e14304e`（含 `serialization-contracts.yaml` 声明 `pptmaker-command-result` 的修复——sweep
+  抓到 contract-field-undeclared）。
+- C2（门槛 7 已钉死：`slides.mjs` L305–316 现状分类时序 = run binding + confined 读取后、mutation
+  前，与 `02` 一致）：`openspec new change` + proposal/specs（cli-surface + image-generation 两 delta，
+  含 RENAMED + 补缺 scenario）/design/tasks 写完；`openspec validate --strict` 绿。结论：**ready for apply**。

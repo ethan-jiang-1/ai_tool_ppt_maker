@@ -192,7 +192,7 @@ describe("Page Image bundle layout", () => {
       expect(guide).toMatch(/No human action is required now/i);
       expect(guide).toMatch(/This\s+guide does not locate a run or select pre-install recovery/i);
       expect(guide).not.toMatch(/code\s*\+\s*hint.*repair/i);
-      expect(guide).toContain("ppt_flow image2 artifact-view <run-dir>");
+      expect(guide).toContain("ppt_flow artifacts <run-dir>");
       expect(guide).toMatch(/short physical locator, artifact type, and inspection purpose/i);
       expect(guide).toContain("_generated/nav/index.md");
       expect(guide).toMatch(/never give a SHA-named storage locator/i);

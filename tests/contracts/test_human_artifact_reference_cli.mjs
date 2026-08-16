@@ -194,7 +194,7 @@ describe("human artifact reference CLI", () => {
 
       const paths = pageImageWorkflowPaths(runDir);
       const stateBefore = readFileSync(join(deck, "_state", "state.yaml"));
-      const result = flow(["image2", "artifact-view", runDir]);
+      const result = flow(["artifacts", runDir]);
       expect(result.status, result.stderr).toBe(0);
       expect(JSON.parse(result.stdout)).toMatchObject({
         run_dir: runDir,
@@ -217,11 +217,11 @@ describe("human artifact reference CLI", () => {
       expect(readFileSync(join(deck, "_state", "state.yaml"))).toEqual(stateBefore);
 
       writeFileSync(paths.human_navigation_index, "manually changed\n");
-      const rebuilt = flow(["image2", "artifact-view", runDir]);
+      const rebuilt = flow(["artifacts", runDir]);
       expect(rebuilt.status, rebuilt.stderr).toBe(0);
       expect(readFileSync(paths.human_navigation_index, "utf8")).toContain("# Page Image Human Navigation");
       rmSync(paths.human_navigation_index);
-      const recreated = flow(["image2", "artifact-view", runDir]);
+      const recreated = flow(["artifacts", runDir]);
       expect(recreated.status, recreated.stderr).toBe(0);
       expect(readFileSync(paths.human_navigation_index, "utf8")).toContain("# Page Image Human Navigation");
       expect(readFileSync(join(deck, "_state", "state.yaml"))).toEqual(stateBefore);
@@ -265,7 +265,7 @@ describe("human artifact reference CLI", () => {
         candidate_media_type: localCandidate.candidate_media_type,
       });
 
-      const result = flow(["image2", "artifact-view", runDir]);
+      const result = flow(["artifacts", runDir]);
       expect(result.status, result.stderr).toBe(0);
       expect(JSON.parse(result.stdout)).toMatchObject({
         run_dir: runDir,
@@ -295,7 +295,7 @@ describe("human artifact reference CLI", () => {
       writeFileSync(localPaths.candidate_provenance, "corrupt pending local provenance", "utf8");
       const failedStateBefore = readFileSync(join(deck, "_state", "state.yaml"));
       const failedRawBefore = readFileSync(paths.target_raw_plan);
-      const failed = flow(["image2", "artifact-view", runDir]);
+      const failed = flow(["artifacts", runDir]);
       expect(failed.status).toBe(1);
       expect(finalDiagnostic(failed)).toMatchObject({
         diagnostic: {
@@ -352,7 +352,7 @@ describe("human artifact reference CLI", () => {
 
       const paths = pageImageWorkflowPaths(runDir);
       const stateBefore = readFileSync(join(deck, "_state", "state.yaml"));
-      const result = flow(["image2", "artifact-view", runDir]);
+      const result = flow(["artifacts", runDir]);
       expect(result.status, result.stderr).toBe(0);
       expect(JSON.parse(result.stdout)).toMatchObject({
         run_dir: runDir,
@@ -374,14 +374,14 @@ describe("human artifact reference CLI", () => {
     const deck = join(root, "deck_artifact_view_undeclared_marker");
     const runDir = join(deck, "3_versions", "v1");
     try {
-      const help = flow(["image2", "--help"]);
+      const help = flow(["artifacts", "--help"]);
       expect(help.status, help.stderr).toBe(0);
-      expect(help.stdout).toContain("artifact-view");
-      expect(help.stdout).toContain("no provider work or state/task-projection write");
+      expect(help.stdout).toContain("Rebuild the current Human Navigation Path");
+      expect(help.stdout).toContain("provider-free, non-selector, non-authorizing");
 
       initBundle(deck, null, "keynote", "dark-executive");
       writeFileSync(join(runDir, "slide-specifications.md"), "---\nproduction:\n  pipeline: unrecognized-image2\n---\n");
-      const result = flow(["image2", "artifact-view", runDir]);
+      const result = flow(["artifacts", runDir]);
       expect(result.status).toBe(1);
       expect(finalDiagnostic(result)).toMatchObject({
         diagnostic: { operation: "repair-current-protocol", reason: { kind: "current_protocol_invalid" }, next: { action: "repair_prerequisite" } },
@@ -415,7 +415,7 @@ describe("human artifact reference CLI", () => {
       expect(inspectProgressiveRawLifecycle({ runDir, workflow: "framed" })).toMatchObject({ ok: true, plan: null });
       const stateBefore = readFileSync(join(deck, "_state", "state.yaml"));
 
-      const result = flow(["image2", "artifact-view", runDir]);
+      const result = flow(["artifacts", runDir]);
       expect(result.status, result.stderr).toBe(0);
       const view = readFileSync(pageImageWorkflowPaths(runDir).human_navigation_index, "utf8");
       expect(view).toContain("Workflow: `framed`");
@@ -450,7 +450,7 @@ describe("human artifact reference CLI", () => {
       await buildFramedProgressiveTargetDelivery(runDir);
 
       const stateBefore = readFileSync(join(deck, "_state", "state.yaml"));
-      const result = flow(["image2", "artifact-view", runDir]);
+      const result = flow(["artifacts", runDir]);
       expect(result.status, result.stderr).toBe(0);
       const view = readFileSync(pageImageWorkflowPaths(runDir).human_navigation_index, "utf8");
       expect(view).toContain("Workflow: `framed`");
@@ -485,7 +485,7 @@ describe("human artifact reference CLI", () => {
       await prepareFramedProgressivePilotReview(runDir, { planHash, batchHash: pilot.batch.batch_hash });
 
       const stateBefore = readFileSync(join(deck, "_state", "state.yaml"));
-      const result = flow(["image2", "artifact-view", runDir]);
+      const result = flow(["artifacts", runDir]);
       expect(result.status, result.stderr).toBe(0);
       const view = readFileSync(pageImageWorkflowPaths(runDir).human_navigation_index, "utf8");
       expect(view).toContain("Pilot provider page");
@@ -519,7 +519,7 @@ describe("human artifact reference CLI", () => {
       await preparePureProgressivePilotReview(runDir, { planHash, batchHash: pilot.batch.batch_hash });
 
       const stateBefore = readFileSync(join(deck, "_state", "state.yaml"));
-      const result = flow(["image2", "artifact-view", runDir]);
+      const result = flow(["artifacts", runDir]);
       expect(result.status, result.stderr).toBe(0);
       const view = readFileSync(pageImageWorkflowPaths(runDir).human_navigation_index, "utf8");
       expect(view).toContain("Pilot provider page");
@@ -556,7 +556,7 @@ describe("human artifact reference CLI", () => {
       const paths = pageImageWorkflowPaths(runDir);
       const stateBefore = readFileSync(join(deck, "_state", "state.yaml"));
       const recordsBefore = JSON.stringify(readProgressiveRawPlanDirectRecords(runDir, { plan_sha256: planHash }));
-      const result = flow(["image2", "artifact-view", runDir]);
+      const result = flow(["artifacts", runDir]);
       expect(result.status, result.stderr).toBe(0);
       const view = readFileSync(paths.human_navigation_index, "utf8");
       expect(view).toContain("### `01_DeckGo`");
@@ -602,7 +602,7 @@ describe("human artifact reference CLI", () => {
       const paths = pageImageWorkflowPaths(runDir);
       const stateBefore = readFileSync(join(deck, "_state", "state.yaml"));
       const recordsBefore = JSON.stringify(readProgressiveRawPlanDirectRecords(runDir, { plan_sha256: planHash }));
-      const result = flow(["image2", "artifact-view", runDir]);
+      const result = flow(["artifacts", runDir]);
       expect(result.status, result.stderr).toBe(0);
       const view = readFileSync(paths.human_navigation_index, "utf8");
       expect(view).toContain("### `01_DeckGo`");
@@ -621,7 +621,7 @@ describe("human artifact reference CLI", () => {
       await acceptPureProgressiveRawReview(runDir, { planHash, decision: "repair" });
       const repairedStateBefore = readFileSync(join(deck, "_state", "state.yaml"));
       const repairedRecordsBefore = JSON.stringify(readProgressiveRawPlanDirectRecords(runDir, { plan_sha256: planHash }));
-      const repaired = flow(["image2", "artifact-view", runDir]);
+      const repaired = flow(["artifacts", runDir]);
       expect(repaired.status, repaired.stderr).toBe(0);
       const repairedView = readFileSync(paths.human_navigation_index, "utf8");
       expect(repairedView).not.toContain("current provider page");
@@ -667,7 +667,7 @@ describe("human artifact reference CLI", () => {
 
       const paths = pageImageWorkflowPaths(runDir);
       const stateBefore = readFileSync(join(deck, "_state", "state.yaml"));
-      const result = flow(["image2", "artifact-view", runDir]);
+      const result = flow(["artifacts", runDir]);
       expect(result.status, result.stderr).toBe(0);
       const view = readFileSync(pageImageWorkflowPaths(runDir).human_navigation_index, "utf8");
       expect(view).toContain("### `01_DeckGo`");
@@ -687,7 +687,7 @@ describe("human artifact reference CLI", () => {
         join(paths.final_root, finalManifest.items[0].path),
         readFileSync(join(paths.final_root, finalManifest.items[1].path)),
       );
-      const rejected = flow(["image2", "artifact-view", runDir]);
+      const rejected = flow(["artifacts", runDir]);
       expect(rejected.status).toBe(1);
       expect(readFileSync(paths.human_navigation_index, "utf8")).toBe(view);
     } finally {

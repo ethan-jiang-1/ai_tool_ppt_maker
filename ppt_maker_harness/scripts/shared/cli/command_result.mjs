@@ -72,7 +72,8 @@ export const COMMAND_CONTRACTS = Object.freeze({
   validate: { exitCodes: DEFAULT_EXIT_CODES, stdout: "receipt-validated line", stderr: DEFAULT_STDERR },
   build: { exitCodes: DEFAULT_EXIT_CODES, stdout: "delivery-assembled line", stderr: DEFAULT_STDERR },
   refresh: { exitCodes: DEFAULT_EXIT_CODES, stdout: "refresh-result line", stderr: DEFAULT_STDERR },
-  slides: { exitCodes: DEFAULT_EXIT_CODES, stdout: "preview/report, or one --json report", stderr: DEFAULT_STDERR, decisionEnums: ["list", "resolve", "normalize", "move", "delete", "insert", "narrative-plan", "apply-plan"] },
+  slides: { exitCodes: DEFAULT_EXIT_CODES, stdout: "preview/report, or one --json report", stderr: DEFAULT_STDERR, decisionEnums: ["list", "resolve", "normalize", "move", "delete", "insert", "apply-plan"] },
+  paginate: { exitCodes: DEFAULT_EXIT_CODES, stdout: "narrative plan/apply report", stderr: DEFAULT_STDERR, decisionEnums: ["plan", "apply"] },
   "new-version": { exitCodes: DEFAULT_EXIT_CODES, stdout: "created-version line", stderr: DEFAULT_STDERR },
   test: { exitCodes: DEFAULT_EXIT_CODES, stdout: "core verification output", stderr: DEFAULT_STDERR },
   state: {
@@ -81,7 +82,8 @@ export const COMMAND_CONTRACTS = Object.freeze({
     stderr: DEFAULT_STDERR,
     note: "ordinary text state and state --json may rebuild the current task projection only for the eligible active replacement Controller route, after read-only inspection",
   },
-  image2: { exitCodes: DEFAULT_EXIT_CODES, stdout: "lifecycle report, or one --json report", stderr: DEFAULT_STDERR, decisionEnums: ["plan", "artifact-view", "pilot", "expansion", "authorize", "generate", "pilot-review", "pilot-accept", "review", "accept", "reconcile"] },
+  image2: { exitCodes: DEFAULT_EXIT_CODES, stdout: "lifecycle report, or one --json report", stderr: DEFAULT_STDERR, decisionEnums: ["plan", "pilot", "expansion", "authorize", "generate", "pilot-review", "pilot-accept", "review", "accept", "reconcile"] },
+  artifacts: { exitCodes: DEFAULT_EXIT_CODES, stdout: "derived navigation report", stderr: DEFAULT_STDERR, note: "rebuilds only the current Human Navigation Path; provider-free, non-selector, non-authorizing" },
   "style-master": { exitCodes: DEFAULT_EXIT_CODES, stdout: "candidate lifecycle report", stderr: DEFAULT_STDERR, decisionEnums: ["inspect", "plan", "authorize", "generate", "review", "accept", "abandon", "proceed", "repair", "redirect"] },
 });
 

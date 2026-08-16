@@ -10,10 +10,10 @@ feeds_into:
 
 Do not start by hand-writing page order. Read the current Story Outline and
 Design Constraints, select from the current Visual Language registry, then prepare
-one Agent-authored page-grouping candidate. Preview it with `ppt_flow slides
-narrative-plan <run-dir> --candidate <path>` and present the resulting page plan
+one Agent-authored page-grouping candidate. Preview it with `ppt_flow paginate
+plan <run-dir> --candidate <path>` and present the resulting page plan
 to the Deck Author. After that content and structure confirmation, materialize only
-the matching plan with `slides apply-plan <run-dir> --plan <path> --apply
+the matching plan with `paginate apply <run-dir> --plan <path>
 --plan-sha256 <hash>`.
 
 When a Story Outline, Design Constraints document, or candidate is malformed,

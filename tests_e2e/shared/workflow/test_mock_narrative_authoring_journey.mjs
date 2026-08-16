@@ -122,7 +122,7 @@ describe("mock narrative authoring journey", () => {
       writeFileSync(candidatePath, candidate(), "utf8");
       const sourceBefore = readFileSync(join(runDir, "slide-specifications.md"), "utf8");
 
-      const preview = jsonSuccess(flow(["slides", "narrative-plan", runDir, "--candidate", candidatePath, "--json"]));
+      const preview = jsonSuccess(flow(["paginate", "plan", runDir, "--candidate", candidatePath, "--json"]));
       expect(preview).toMatchObject({ kind: "narrative-page-plan", provider_calls: 0, ordered_slide_ids: ["DeckGo"] });
       expect(readFileSync(join(runDir, "slide-specifications.md"), "utf8")).toEqual(sourceBefore);
       expect(readState(deck, { purpose: "observe", heal: false })).not.toHaveProperty("page_image_target_evidence");
@@ -143,7 +143,7 @@ describe("mock narrative authoring journey", () => {
       expect(state).not.toHaveProperty("page_image_raw_provider_authorization");
       expect(state).not.toHaveProperty("page_image_target_evidence");
 
-      const refreshed = jsonSuccess(flow(["slides", "narrative-plan", runDir, "--candidate", candidatePath, "--json"]));
+      const refreshed = jsonSuccess(flow(["paginate", "plan", runDir, "--candidate", candidatePath, "--json"]));
       expect(refreshed.plan_sha256).not.toBe(preview.plan_sha256);
       expect(readFileSync(join(runDir, "slide-specifications.md"), "utf8")).toEqual(sourceBefore);
     } finally {

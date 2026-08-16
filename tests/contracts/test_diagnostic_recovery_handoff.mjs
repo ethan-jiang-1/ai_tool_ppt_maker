@@ -40,7 +40,7 @@ describe("diagnostic recovery handoff", () => {
     const contract = readFileSync(AGENT_CONTRACT_PATH, "utf8");
     const handoff = headingSection(contract, "Human inspection handoff");
 
-    expect(handoff).toContain("ppt_flow image2 artifact-view <run-dir>");
+    expect(handoff).toContain("ppt_flow artifacts <run-dir>");
     expect(handoff).toMatch(/Human Navigation Path/i);
     expect(handoff).toContain("_generated/nav/index.md");
     expect(handoff).toMatch(/short physical locator, artifact type, and inspection purpose/i);

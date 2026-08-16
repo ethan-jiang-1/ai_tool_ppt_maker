@@ -657,7 +657,6 @@ export async function resolveImage2Run(runDir, where) {
 }
 export const PAGE_IMAGE_OPERATIONS = new Set([
   "plan",
-  "artifact-view",
   "pilot",
   "expansion",
   "authorize",

@@ -206,22 +206,21 @@ Examples:
   // ---- slides ----
   program
     .command("slides")
-    .description("Preview stable-ID edits or narrative page plans; apply only an exact confirmed plan")
-    .argument("<subcommand>", "list, resolve, normalize, move, delete, insert, narrative-plan, or apply-plan")
+    .description("Preview stable-ID edits or apply an exact confirmed structural plan")
+    .argument("<subcommand>", "list, resolve, normalize, move, delete, insert, or apply-plan")
     .argument("<run_dir>", "Path to current version dir")
     .argument("[selectors...]", "Slide selectors for resolve/move/delete")
     .option("--after <selector>", "Place target after snapshot selector")
     .option("--before <selector>", "Place target before snapshot selector")
     .option("--to <edge>", "Place target at start or end")
     .option("--source <path>", "Insert source containing one complete slide block")
-    .option("--candidate <path>", "Agent-authored narrative candidate under current _scratch/")
-    .option("--plan <path>", "Persisted exact plan under current _scratch/")
+    .option("--plan <path>", "Persisted exact structural plan under current _scratch/")
     .option("--apply", "Apply the confirmed preview")
-    .option("--plan-sha256 <hash>", "Exact hash from the confirmed preview; required for narrative publication")
+    .option("--plan-sha256 <hash>", "Exact hash from the confirmed preview")
     .option("--json", "Output one machine-readable report")
     .addHelpText("after", renderContractBlock(COMMAND_CONTRACTS.slides))
     .action(async (subcommand, runDir, selectors, opts) => {
-      const allowed = new Set(["list", "resolve", "normalize", "move", "delete", "insert", "narrative-plan", "apply-plan"]);
+      const allowed = new Set(["list", "resolve", "normalize", "move", "delete", "insert", "apply-plan"]);
       if (!allowed.has(subcommand)) {
         exitUsage("ppt_flow.slides.subcommand", `unknown slides subcommand ${JSON.stringify(subcommand)}`, `Use one of: ${[...allowed].join(", ")}`);
       }
@@ -239,9 +238,6 @@ Examples:
       if (subcommand === "insert" && !opts.source) {
         exitUsage("ppt_flow.slides.insert", "insert requires --source", "Pass --source <one-slide-block.md>");
       }
-      if (subcommand === "narrative-plan" && !opts.candidate) {
-        exitUsage("ppt_flow.slides.narrative-plan", "narrative-plan requires --candidate", "Create one narrative candidate JSON under the current _scratch/ and pass its path");
-      }
       if (subcommand === "apply-plan" && !opts.plan) {
         exitUsage("ppt_flow.slides.apply-plan", "apply-plan requires --plan", "Pass a plan file inside the current version _scratch/");
       }
@@ -254,9 +250,31 @@ Examples:
         before: opts.before,
         to: opts.to,
         source: opts.source,
-        candidate: opts.candidate || null,
         plan: opts.plan,
         apply: opts.apply ?? false,
+        planSha256: opts.planSha256 || null,
+        json: opts.json ?? false,
+      });
+      process.exit(code);
+    });
+
+  // ---- paginate ----
+  program
+    .command("paginate")
+    .description("Preview or publish one exact narrative page plan")
+    .argument("<subcommand>", "plan or apply")
+    .argument("<run_dir>", "Path to current version dir")
+    .option("--candidate <path>", "Agent-authored narrative candidate under current _scratch/")
+    .option("--plan <path>", "Persisted exact narrative plan under current _scratch/")
+    .option("--plan-sha256 <hash>", "Exact hash from the confirmed preview")
+    .option("--json", "Output one machine-readable report")
+    .addHelpText("after", renderContractBlock(COMMAND_CONTRACTS.paginate))
+    .action(async (subcommand, runDir, opts) => {
+      if (opts.json) setCliOutputMode("json");
+      const { commandPaginate } = await import("./shared/cli/commands/paginate.mjs");
+      const code = await commandPaginate(subcommand, runDir, {
+        candidate: opts.candidate || null,
+        plan: opts.plan,
         planSha256: opts.planSha256 || null,
         json: opts.json ?? false,
       });
@@ -325,8 +343,8 @@ Examples:
   // ---- image2 (Page Image raw lifecycle) ----
   program
     .command("image2")
-    .description("Receipt-bound progressive Page Image lifecycle and explicit artifact view")
-    .argument("<operation>", "plan, artifact-view, pilot, expansion, authorize, generate, pilot-review, pilot-accept, review, accept, or reconcile")
+    .description("Receipt-bound progressive Page Image lifecycle")
+    .argument("<operation>", "plan, pilot, expansion, authorize, generate, pilot-review, pilot-accept, review, accept, or reconcile")
     .argument("<run_dir>", "Path to the exact version dir")
     .option("--plan-hash <sha256>", "Exact current progressive full-plan hash")
     .option("--batch-hash <sha256>", "Exact current progressive batch hash")
@@ -334,7 +352,7 @@ Examples:
     .option("--slide-id <formal-id>", "Repeat an exact formal slide ID for Pilot scope", (value, previous) => [...(previous || []), value])
     .option("--decision <decision>", "Pilot: proceed, repair, or redirect; Complete Page Review: proceed or repair")
     .option("--json", "Output one machine-readable success report")
-    .addHelpText("after", "\nartifact-view rebuilds only the current Human Navigation Path; it performs no provider work or state/task-projection write.\nplan -> pilot | expansion -> authorize -> generate (one item) -> pilot-review/pilot-accept | Complete Page Review -> build\nPilot accepts repeated exact --slide-id values; all paid work requires exact plan and batch hashes.\n")
+    .addHelpText("after", "\nplan -> pilot | expansion -> authorize -> generate (one item) -> pilot-review/pilot-accept | Complete Page Review -> build\nPilot accepts repeated exact --slide-id values; all paid work requires exact plan and batch hashes.\n")
     .addHelpText("after", renderContractBlock(COMMAND_CONTRACTS.image2))
     .action(async (operation, runDir, opts) => {
       if (opts.json) setCliOutputMode("json");
@@ -343,6 +361,18 @@ Examples:
         ...opts,
         slotExplicit: false,
       });
+      process.exit(code);
+    });
+
+  // ---- artifacts ----
+  program
+    .command("artifacts")
+    .description("Rebuild the current Human Navigation Path")
+    .argument("<run_dir>", "Path to the exact version dir")
+    .addHelpText("after", renderContractBlock(COMMAND_CONTRACTS.artifacts))
+    .action(async (runDir) => {
+      const { commandArtifacts } = await import("./shared/cli/commands/artifacts.mjs");
+      const code = await commandArtifacts(runDir);
       process.exit(code);
     });
 

@@ -45,7 +45,7 @@ entry: []
 exit: []
 ```
 **Step 1 — MD**: Write or repair the shared Story Outline and Design Constraints from the Deck Author's supplied claim, audience, evidence, and claim boundaries. Keep visual selections in Visual Language and page class, geometry, and density rules with their later owners.
-**Step 2 — CLI**: Use `ppt_flow slides narrative-plan` when the sources need deterministic repair guidance. Its narrative-plan owner validates the sources together with the candidate; a malformed source is a guide when supplied content is enough to repair it, otherwise ask only for the smallest missing content decision.
+**Step 2 — CLI**: Use `ppt_flow paginate plan` when the sources need deterministic repair guidance. Its narrative-plan owner validates the sources together with the candidate; a malformed source is a guide when supplied content is enough to repair it, otherwise ask only for the smallest missing content decision.
 
 ## One Workflow Per Version
 
@@ -139,7 +139,7 @@ entry: [visual_preset_seeded]
 exit: [slide_specs_exists, slide_specs_valid]
 ```
 **Step 1 — MD**: Use the current Story Outline, Design Constraints, and Visual Language registry to make one Agent-authored page-grouping candidate. Repair malformed narrative input or candidate deterministically whenever the supplied content makes that possible.
-**Step 2 — CLI**: Run `ppt_flow slides narrative-plan <run-dir> --candidate <path>` and present the returned ordered page lineage and exact plan hash in Deck Author terms. A stale plan, changed source bytes, invalid identity, or invalid target is an existing non-bypassable hard-stop: repair the direct source or candidate, then preview a new plan.
+**Step 2 — CLI**: Run `ppt_flow paginate plan <run-dir> --candidate <path>` and present the returned ordered page lineage and exact plan hash in Deck Author terms. A stale plan, changed source bytes, invalid identity, or invalid target is an existing non-bypassable hard-stop: repair the direct source or candidate, then preview a new plan.
 **Step 3 — GATE**: Obtain one conversational Deck Author confirmation that the displayed argument-to-page structure is right. This is a content and structure decision only; do not persist an approval, treat it as provider authorization, or create review evidence.
 **Step 4 — CLI**: Materialize only the displayed exact plan with `ppt_flow slides apply-plan <run-dir> --plan <path> --apply --plan-sha256 <hash>`. The structural publisher owns current hashes, source publication, State binding, and render debt.
 

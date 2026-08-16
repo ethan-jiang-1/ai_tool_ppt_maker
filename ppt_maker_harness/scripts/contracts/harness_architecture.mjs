@@ -38,11 +38,13 @@ export const PUBLIC_SHARED_INTERFACES = Object.freeze([
   "shared/cli/cli_error.mjs",
   "shared/cli/command_result.mjs",
   "shared/cli/command_support.mjs",
+  "shared/cli/commands/artifacts.mjs",
   "shared/cli/commands/build.mjs",
   "shared/cli/commands/doctor.mjs",
   "shared/cli/commands/image2.mjs",
   "shared/cli/commands/init.mjs",
   "shared/cli/commands/new-version.mjs",
+  "shared/cli/commands/paginate.mjs",
   "shared/cli/commands/refresh.mjs",
   "shared/cli/commands/slides.mjs",
   "shared/cli/commands/state.mjs",
@@ -132,6 +134,7 @@ const TARGET_METHOD_MODULES = Object.freeze([
 const SHARED_PUBLIC_FOUNDATION_METHOD_MODULE_INTERFACE_IMPORTS = new Map([
   ["shared/cli/command_support.mjs", new Set(["01-content/index.mjs"])],
   ["shared/cli/commands/slides.mjs", new Set(["01-content/index.mjs", "02-visual-system/index.mjs"])],
+  ["shared/cli/commands/paginate.mjs", new Set(["01-content/index.mjs", "02-visual-system/index.mjs"])],
 ]);
 const DIRECT_ENTRY_EXCEPTIONS = new Set([
   "shared/cli/cli_bootstrap.mjs",

@@ -1515,7 +1515,7 @@ successor version.
 ## Human Page Image inspection
 
 Before asking a person to inspect current Style Master, page-review, final, PPTX, notes, or delivery
-artifacts, rebuild the exact run's Human Navigation Path with \`ppt_flow image2 artifact-view <run-dir>\`.
+artifacts, rebuild the exact run's Human Navigation Path with \`ppt_flow artifacts <run-dir>\`.
 For every requested artifact, cite the short physical locator, artifact type, and inspection purpose from
 its \`${GENERATED_SUBDIR}/${GEN_PAGE_IMAGE_NAV_SUBDIR}/index.md\`. Do not replace this handoff by saying an artifact was
 generated or opened, and never give a SHA-named storage locator. A locator or display reference is a

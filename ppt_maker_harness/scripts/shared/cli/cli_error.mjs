@@ -24,11 +24,13 @@ export const PPT_FLOW_COMMAND_INVENTORY = Object.freeze([
   "build",
   "refresh",
   "slides",
+  "paginate",
   "new-version",
   "test",
   "state",
   "style-master",
   "image2",
+  "artifacts",
 ]);
 
 export const CLI_DIAGNOSTIC_CATEGORIES = Object.freeze([
