@@ -17,6 +17,7 @@
 
 ## 活跃列表
 
+- [current-layer-legacy-trace-audit.md](current-layer-legacy-trace-audit.md) — 重构后「当前层」旧痕迹深度审计：7 路只读审计 + 交叉验证，约 45 条 finding 按 P0→P3 优先权排序（3 high：node-specification 退役路径/死 flag、deck v8 具名 Agent 自相矛盾）；含方法学、证据、Wave→OpenSpec change 落地映射；待拆分实施。
 - [version-local-polish-directory.md](version-local-polish-directory.md) — version root 白名单新增版本级「打磨轨迹」目录（暂名 `_polish/`）；现有 `_scratch/`（临时）与 `_lessons/`（跨版本教训）都不适合承载版本私有的、人读的打磨叙事；待 OpenSpec change 实施。
 - [cli-diagnostic-faithful-passthrough.md](cli-diagnostic-faithful-passthrough.md) — 复盘 BUG-067/068/069/070：CLI 归因层在 producer 之上重建了有损的第二归因器，违反 cli-surface「不重复推导 / 忠实透传」铁律；主张收缩为「消费 producer-issued typed 结果 + 忠实转发」的薄壳；待 OpenSpec change 实施。
 
