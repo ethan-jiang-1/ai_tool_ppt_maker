@@ -131,17 +131,18 @@
 
 | Wave | finding | OpenSpec 可行 | 建议 change（串行） |
 |---|---|---|---|
-| 1 | M-1（spec 6 文件）、M-2（3 spec + CONTEXT 反向修正）、M-3（剩余：node-specification ×9 + playbook-execution ×2 + environment-check 组织轴）、M-9 | ✅ | `align-spec-current-layer-terminology` |
+| 1 | M-1（spec 6 文件 + 文档 11 文件）、M-2（3 spec + CONTEXT 反向修正）、M-3（剩余：node-specification ×9 + playbook-execution ×2 + environment-check 组织轴）、M-8、M-9、L-2 | ✅ | `align-current-layer-terminology`（spec 权威 + 文档镜像同 change 完成） |
 | 2 | M-5 #1-5（build plumbing 死代码）、M-5 #7 收尾（`image2-raw` profile 展示名）、M-7、L-3、D-1（剩余词表）、D-2、D-3、D-4 | ✅ | `remove-retired-plumbing-and-harden-detectors` |
 | 3 | M-6（6 键 + 4 孤儿值）、L-1（9 条） | ✅ | `align-serialization-schema-mirror` |
-| 4 | M-1（文档 11 文件）、M-8、L-2 | ✅（依赖 Wave 1 定稿术语） | `align-harness-documentation-mirror`（纯文档，skip_specs） |
 | 5 | H-3、L-4、L-5 | ❌ deck 生产数据 | 走 deck 工作流（见下） |
 
 ### 结论：残留能否全部用 OpenSpec 推进？
 
 - **Wave 1–4 可以**——都是 Harness maintenance，落入 `openspec/specs/`、`ppt_maker_harness/`
-  文档/代码、`schema/`、`tests/` 四个源码域；用 **4 个串行 change**（同一时间一个 active
-  change，每个独立终态 + 验证 + 防回归，archive 后才启动下一个）即可全部解决。
+  文档/代码、`schema/`、`tests/` 四个源码域；用 **3 个串行 change**（Wave 1+4 合并为术语统一；
+  同一时间一个 active change，每个独立终态 + 验证 + 防回归，archive 后才启动下一个）即可
+  全部解决。3 个是当前质量不下降的最小数量：文字面（术语）、代码面（死代码+探测器）、
+  声明面（schema mirror）各有独立验证面，进一步合并会让单个 change 过大。
 - **Wave 5 不能**——H-3 / L-4 / L-5 是 deck 生产数据（`deck_ai_sdlc_keynote`），不在 OpenSpec
   的 Harness maintenance 范围：H-3 是 Deck Author 的内容决策（摘除具名人格 vs 改声明），
   Agent 只能提选项；L-4 / L-5 是需 deck owner 授权范围的机械清理。
@@ -352,10 +353,10 @@
 
 | Wave | 内容 | 性质 / 建议 change | 状态（2026-08-16） |
 |---|---|---|---|
-| **1** | H-1、H-2、M-1(spec 部分)、M-2（含 CONTEXT 反向修正）、M-3、M-4、M-9 | Harness maintenance。1 个 change：「spec 当前层退役词统一 + node-specification 修订」（specs 是行为权威，先修它，文档才有唯一真源可对齐） | H-1/H-2/M-4 已由 CLS-038 吸收；M-3 触及范围已改；**剩余 = M-1(spec)/M-2/M-3(剩余)/M-9 → `align-spec-current-layer-terminology`** |
+| **1** | H-1、H-2、M-1(spec 部分)、M-2（含 CONTEXT 反向修正）、M-3、M-4、M-9 | Harness maintenance。1 个 change：「spec 当前层退役词统一 + node-specification 修订」（specs 是行为权威，先修它，文档才有唯一真源可对齐） | H-1/H-2/M-4 已由 CLS-038 吸收；M-3 触及范围已改；**剩余 = M-1/M-2/M-3(剩余)/M-8/M-9/L-2 → `align-current-layer-terminology`（spec + 文档合并）** |
 | **2** | M-5、M-7、L-3、D-1..D-4 | 1 个 change：「退役面死代码移除 + 探测器词表/校验扩面」（防回归：修完探测器必须能抓同类残留） | M-5#6/#7(operation 别名) 已由 CLS-038 吸收；**剩余 = M-5#1-5 + M-5#7(profile 展示名) + M-7 + L-3 + D-1(剩余)/D-2/D-3/D-4 → `remove-retired-plumbing-and-harden-detectors`** |
 | **3** | M-6、L-1 | 1 个 change：「schema mirror 对齐」（serialization-contracts 6 键 + 孤儿值 + 顶层命名统一） | **未动 → `align-serialization-schema-mirror`** |
-| **4** | M-1(文档部分)、M-8、L-2 | 依赖 Wave 1 定稿术语后执行；独立小 change（纯文档） | **未动 → `align-harness-documentation-mirror`** |
+| ~~**4**~~ | M-1(文档部分)、M-8、L-2 | ~~独立小 change（纯文档）~~ **已并入 Wave 1**（spec 术语定稿后同一 change 对齐文档镜像） | 并入 `align-current-layer-terminology` |
 | **5** | H-3、L-4、L-5 | **deck 生产数据，不走 OpenSpec**。L-4/L-5 机械清理（需 deck owner 指定范围）；**H-3 是 Deck Author 的内容决策**（摘除人格 vs 改声明），Agent 只能提选项不能代决 | **未动**，需 deck owner |
 
 > 推进纪律：与 CLS-038 一致——同一时间只允许一个 active change，archive 后才启动下一个；
@@ -374,12 +375,14 @@
 
 本 plan 是**分析文档**，不直接实施。落地路径（2026-08-16 更新为明确的串行 change 队列）：
 
-1. **Wave 1–4 各起一个 `openspec/changes/`**，严格串行（archive 后才启动下一个）：
-   - `align-spec-current-layer-terminology`（Wave 1：M-1 spec / M-2 / M-3 剩余 / M-9；受影响 capability：node-specification、harness-charter、image-production、image-generation、visual-config、workflow-inspection、pipeline-orchestration、playbook-execution、cli-surface、environment-check）
-   - `remove-retired-plumbing-and-harden-detectors`（Wave 2：M-5#1-5 + #7 展示名 / M-7 / L-3 / D-1..D-4；capability：cli-surface、environment-check、harness-script-layout、production-schema-conformance + tests）
+1. **Wave 1–4 各起一个 `openspec/changes/`**，严格串行（archive 后才启动下一个）——
+   为控制 change 数量，Wave 4（文档镜像）并入 Wave 1，最终 **3 个串行 change**：
+   - `align-current-layer-terminology`（Wave 1+4：M-1 spec+文档 / M-2 / M-3 剩余 / M-8 / M-9 / L-2；受影响 capability：node-specification、harness-charter、image-production、image-generation、visual-config、workflow-inspection、pipeline-orchestration、playbook-execution、cli-surface、environment-check；spec 权威 + 文档镜像同 change，先 spec 后 docs）
+   - `remove-retired-plumbing-and-harden-detectors`（Wave 2：M-5#1-5 + #7 展示名 / M-7 / L-3 / D-1..D-4；capability：cli-surface、environment-check、harness-script-layout + tests）
    - `align-serialization-schema-mirror`（Wave 3：M-6 / L-1；capability：production-schema-conformance + schema/）
-   - `align-harness-documentation-mirror`（Wave 4：M-1 文档 / M-8 / L-2；纯文档 → skip_specs）
    每个 proposal 引用本文件对应编号；每个 change 独立终态 + 验证 + 防回归（Wave 2 自带探测器防回归）。
+   更少 change 的取舍说明：术语（1）与死代码/探测器（2）、schema（3）分属「文字面 vs 代码面 vs 声明面」，
+   各有独立验证面；进一步合并会让单个 change 过大、review 与验证矩阵膨胀，故 3 个是当前质量不下降的最小数量。
 2. **Wave 5 按 `BOOTSTRAP.md`/当前 Controller 走 deck 工作流**，先取得 deck owner 对 H-3 的决策
    与 L-4/L-5 的清理授权；不进 OpenSpec。
 3. Wave 1–4 全部 archive 后本文件移入 `_done/_closed_plans/`（CLS 编号）并更新 plans/README.md；
