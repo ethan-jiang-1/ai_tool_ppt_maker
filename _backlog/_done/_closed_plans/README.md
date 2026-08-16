@@ -54,7 +54,9 @@ plan 完成后从 `_backlog/plans/` 通过 `git mv` 移入本目录：
 | [CLS-033](keel-harness-term-alignment-and-residue-audit/) | 2026-08-13 | `keel-harness-term-alignment-and-residue-audit/` | Keel 架构体检：C1 生命周期编号退休、C2 术语与权威对齐、H 残留清理均完成；审计记录保留为历史证据。 |
 | [CLS-034](harness-signal-cleanup/) | 2026-08-14 | `harness-signal-cleanup/` | 三项 Harness signal cleanup change 已完成、归档、推送并核对；独立 real-provider E2E acceptance 以 owner waiver 归档，不宣称 live acceptance 通过。 |
 | [CLS-035](deck-configurable-design-system-provider-prompt.md) | 2026-08-15 | `deck-configurable-design-system-provider-prompt.md` | Deck-owned Page Design System source 已接入 Pure/Framed provider input；实现、回归、main-spec 同步与 OpenSpec 归档完成。 |
+| [CLS-036](provider-prompt-limit-investigation.md) | 2026-08-16 | `provider-prompt-limit-investigation.md` | Image API 4K/16K prompt 限制调查；结论：micuapi 是聚合网关、`gpt-image-2` 别名可动态重定向，不能硬编码单一上限，须建模为 capability profile；设计输入已被 `bind-capability-aware-image2-provider-input` change 吸收。 |
+| [CLS-037](provider-prompt-length-budget.md) | 2026-08-16 | `provider-prompt-length-budget.md` | provider prompt 超长根因与 compact prompt 方案；内部元数据混入 provider bytes 撑爆预算；由 `bind-capability-aware-image2-provider-input` change 落地并归档。 |
 
-**Next available plan ID: CLS-036**
+**Next available plan ID: CLS-038**
 
 > 已完成计划保留历史决策；当前工作只从 `_backlog/plans/` 重新进入。

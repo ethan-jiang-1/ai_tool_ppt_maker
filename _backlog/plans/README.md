@@ -17,9 +17,9 @@
 
 ## 活跃列表
 
-- [provider-prompt-length-budget.md](provider-prompt-length-budget.md) — provider（gpt-image-2）4000 字符 prompt 硬上限；harness 把 `generation_profile`/`page_presentation` 内部元数据当 prompt 发给 provider，撑爆 `design_system`+`identity role_clause`；待 OpenSpec change 实施「compact provider prompt」。
+- [version-local-polish-directory.md](version-local-polish-directory.md) — version root 白名单新增版本级「打磨轨迹」目录（暂名 `_polish/`）；现有 `_scratch/`（临时）与 `_lessons/`（跨版本教训）都不适合承载版本私有的、人读的打磨叙事；待 OpenSpec change 实施。
 
-**Next available plan ID: CLS-036**（移入 `_closed_plans/` 时分配；CLS-001…035 已用）
+**Next available plan ID: CLS-038**（移入 `_closed_plans/` 时分配；CLS-001…037 已用）
 
 ---
 
