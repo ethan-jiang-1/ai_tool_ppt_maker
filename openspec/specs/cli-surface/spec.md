@@ -237,6 +237,14 @@ ppt_flow image2 accept <run-dir> --plan-hash <sha256> --decision proceed|repair
 ppt_flow image2 reconcile <run-dir> --plan-hash <sha256> --attempt-sha256 <sha256>
 ```
 
+`build` SHALL accept only the canonical `<run-dir>` argument. It SHALL NOT
+register or accept `--resolution`, `--model`, `--base-url`, `--reuse-images`,
+`--dry-run`, `--force`, `--reason`, or `--retired-controls-explicit`
+overrides, and no retired build plumbing SHALL be exposed on its help,
+JSDoc, or dispatch path. `doctor` SHALL NOT register or accept `--image2`;
+the retired flag is rejected by the commander parse (unregistered option) and
+the child environment check retains its own live `--image2` usage rejection.
+
 `artifact-view` is provider-free and rebuilds only the current run's
 non-authoritative human artifact reference view; it creates no mandate, grant,
 plan, submission, acceptance, state transition, or task-projection refresh.
@@ -260,6 +268,13 @@ as final acceptance.
   operations and their bounded owner actions
 - **AND** it lists no undeclared workflow, compatibility, migration, or direct
   prompt operation
+
+#### Scenario: Build help exposes no retired overrides
+
+- **WHEN** a user requests `ppt_flow build --help`
+- **THEN** the help lists only the canonical `<run_dir>` argument
+- **AND** it does not advertise resolution, model, provider, image-reuse,
+  dry-run, force, or retired gate overrides
 
 #### Scenario: A mandate-covered batch is not a human confirmation
 

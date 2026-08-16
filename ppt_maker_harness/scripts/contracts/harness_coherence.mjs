@@ -288,6 +288,12 @@ const STALE_RULES = [
   ["old-path", /(?:ppt_maker_harness\/)?(?:automation\/change-classifier\.md|06_reference_scripts\/|00_project_setup\/|01_visual_style_master\/|02_content_design\/|03_image_prompts\/|04_production_pipeline\/|05_iteration\/)/, "replace with the current type-based Harness path"],
   ["unsupported-stage-run-dir", /stage[345]_[a-z0-9_]+\.mjs\s+--run-dir\b/i, "use the current Page Image `ppt_flow` operation instead"],
   ["complete-copy-version", /(?:版本快照|new-version|--new-version)[^\n]*(?:完整复制|完整拷贝|complete copy)/i, "state that only downstream source delta is copied and _generated is clean"],
+  ["retired-protected-geometry", /\bprotected[ -]geometry\b/i, "use protected composition"],
+  ["retired-protected-zone", /\bprotected[ -]zone\b/i, "use Reserved Header Region or Provider Avoidance Constraint"],
+  ["retired-build-param", /(?:^|[\s(])--(?:resolution|model|reuse-images)\b|\bretiredControlsExplicit\b/i, "build accepts only the canonical run directory"],
+  ["retired-check-gates", /(?:^|[\s(])--check-gates\b/i, "use the current state observation flags"],
+  ["retired-mode-phrase", /\b(?:durable mode|source[/\s-]?mode pair|infer mode)\b/i, "use workflow identity wording"],
+  ["reverse-stale-still-uses", /\b(?:still uses|仍在用|仍在使用|继续使用)\b/i, "terminology authority must not claim the implementation still uses a retired name"],
 ];
 
 const NEGATIVE_POLICY = /(?:不要求|不搜索|不依赖|禁止|不得|绝对禁止|无需|no external|does not require|shall not search|shall not require)/i;
@@ -325,11 +331,13 @@ function isCurrentContractFile(file) {
 export function scanSemanticDrift(file, text = readFileSync(file, "utf8")) {
   const issues = [];
   const registry = isCurrentContractFile(file);
+  const isTerminologyAuthority = /(?:^|\/)CONTEXT\.md$/.test(file);
   let offset = 0;
   for (const line of text.split("\n")) {
     for (const [rule, regex, hint] of STALE_RULES) {
       const match = regex.exec(line);
       if (!match || (rule === "external-image-skill" && NEGATIVE_POLICY.test(line))) continue;
+      if (rule === "reverse-stale-still-uses" && !isTerminologyAuthority) continue;
       issues.push(issue(file, lineAt(text, offset + match.index), rule, match[0].trim(), hint));
     }
     for (const { alias, canonical } of RETIRED_ALIAS_RULES) {
@@ -527,6 +535,10 @@ export function scanHarnessCoherence({ root = "ppt_maker_harness", exceptions = 
     issues.push(...validateDocumentedCommands(extractNodeCommands(file, text), scriptsDir));
   }
   for (const file of ["openspec/config.yaml"]) {
+    if (!existsSync(file)) continue;
+    issues.push(...scanSemanticDrift(file, readFileSync(file, "utf8")));
+  }
+  for (const file of ["CONTEXT.md"]) {
     if (!existsSync(file)) continue;
     issues.push(...scanSemanticDrift(file, readFileSync(file, "utf8")));
   }

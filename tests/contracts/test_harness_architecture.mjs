@@ -55,10 +55,11 @@ function canonicalSnapshot() {
     files[path] = `import "../${PAGE_IMAGE_CORE_INTERFACE}";\nconst providerInput = { schema: "${PAGE_IMAGE_PROVIDER_INPUT_COMPILER_SCHEMA_BY_ADAPTER[path]}" };\nexport const importSafe = true;\n`;
   }
   for (const path of EXECUTABLE_INVENTORY) {
-    const prefix = path.includes("/") ? path.slice(0, path.lastIndexOf("/") + 1).split("/").map(() => "..").join("/") : "./";
+    const dirSegments = path.includes("/") ? path.slice(0, path.lastIndexOf("/") + 1).split("/").filter(Boolean) : [];
+    const prefix = dirSegments.length ? `${dirSegments.map(() => "..").join("/")}/` : "./";
     files[path] = `import "${prefix}shared/cli/cli_bootstrap.mjs?entry=${path}";\n` +
       (path.startsWith("00-setup/") ? `import "./index.mjs";\n` : "") +
-      (path.startsWith("05-iteration/") ? `import "../../index.mjs";\n` : "");
+      (path.startsWith("06-iteration/") ? `import "../../index.mjs";\n` : "");
   }
   files["ppt_flow.mjs"] = `import "./shared/cli/cli_bootstrap.mjs?entry=ppt_flow.mjs";\nimport("./00-setup/index.mjs");\nimport { projectProblemFactsDiagnostic } from ${CLI_ERROR_SPECIFIER};\n`;
   files["shared/image2/provider_profile.mjs"] = [
@@ -192,6 +193,22 @@ describe("Harness architecture contract", () => {
       }
       expect(issueCodes(validateArchitectureSnapshot(snapshot)), `${path} -> ${imported}`).toContain("sibling-workflow-import");
     }
+  });
+
+  it("reports a stale import target instead of silently skipping the edge", () => {
+    const snapshot = canonicalSnapshot();
+    snapshot.files["03-framed-image/index.mjs"] = 'import "../shared/image2/missing_module.mjs";';
+    expect(issueCodes(validateArchitectureSnapshot(snapshot))).toContain("stale-import-target");
+    const repaired = canonicalSnapshot();
+    repaired.files["03-framed-image/index.mjs"] = 'import "../shared/image2/missing_module.mjs";';
+    repaired.files["shared/image2/missing_module.mjs"] = "export const importSafe = true;\n";
+    expect(issueCodes(validateArchitectureSnapshot(repaired))).not.toContain("stale-import-target");
+  });
+
+  it("does not report bare package or node builtin imports as stale", () => {
+    const snapshot = canonicalSnapshot();
+    snapshot.files["03-framed-image/index.mjs"] = 'import { parseDocument } from "yaml";\nimport { join } from "node:path";';
+    expect(issueCodes(validateArchitectureSnapshot(snapshot))).not.toContain("stale-import-target");
   });
 
   it("requires one shared Page Image Core seam for both selected adapters", () => {

@@ -570,6 +570,33 @@ describe("production schema conformance", () => {
     expect(valid).toEqual({ ok: true, issues: [] });
   });
 
+  it("rejects the expanded retired terminology vocabulary with planted violations", () => {
+    const result = evaluateRetiredControlSurfaceReachability({
+      entries: [
+        { path: "ppt_maker_harness/workflow/02-visual-system/README.md", content: "compiled provider input, protected geometry, raw contract" },
+        { path: "ppt_maker_harness/scripts/state.mjs", content: "const mode = durable mode;" },
+        { path: "ppt_maker_harness/playbook/build.md", content: "ppt_flow build --reuse-images --resolution 2k" },
+        { path: "ppt_maker_harness/COMMANDS.md", content: "ppt_flow state --check-gates" },
+        { path: "ppt_maker_harness/playbook/route.md", content: "source/mode pair SHALL be transformed" },
+      ],
+    });
+    expect(result.issues.map((issue) => issue.code).sort()).toEqual([
+      "retired-build-param",
+      "retired-check-gates",
+      "retired-mode-phrase",
+      "retired-mode-phrase",
+      "retired-protected-geometry",
+    ]);
+    // Explicit rejection contexts stay exempt.
+    const exempt = evaluateRetiredControlSurfaceReachability({
+      entries: [
+        { path: "ppt_maker_harness/playbook/build.md", content: "Build rejects the retired --reuse-images and --resolution overrides." },
+        { path: "ppt_maker_harness/scripts/state.mjs", content: "const retiredCheckGates = '--check-gates';" },
+      ],
+    });
+    expect(exempt).toEqual({ ok: true, issues: [] });
+  });
+
   it("enumerates only fixed active roots/files and classifies planted residue without writes or provider calls", () => {
     const fixture = createActiveSurfaceFixture();
     const repositoryFiles = Object.fromEntries(ACTIVE_SURFACE_FILES.map((path) => [path, readFileSync(join(ROOT, path), "utf8")]));

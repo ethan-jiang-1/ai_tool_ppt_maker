@@ -569,9 +569,37 @@ const RETIRED_CONTROL_SURFACE_RULES = Object.freeze([
     category: ["retired", "mode", "dialect"].join("-"),
     pattern: /\b(?:production_mode|image2-page-workflow)\b/i,
   }),
+  Object.freeze({
+    category: ["retired", "protected", "geometry"].join("-"),
+    // Prose forms only (space / hyphen); the underscore serialization field
+    // name protected_geometry is a retired literal that legitimate schema and
+    // rejection lists still name, so it is not treated as prose residue.
+    pattern: /\bprotected[ -]geometry\b/i,
+  }),
+  Object.freeze({
+    category: ["retired", "protected", "zone"].join("-"),
+    // Prose forms only (space / hyphen); protected_zone has no current field
+    // use but the underscore spelling belongs to the retired serialization
+    // family and is not prose residue either.
+    pattern: /\bprotected[ -]zone\b/i,
+  }),
+  Object.freeze({
+    category: ["retired", "build", "param"].join("-"),
+    // Dash-prefixed flags have no word boundary before the first hyphen, so
+    // anchor on start/space/open-paren instead of \b.
+    pattern: /(?:^|[\s(])--(?:resolution|model|reuse-images)\b|\bretiredControlsExplicit\b/i,
+  }),
+  Object.freeze({
+    category: ["retired", "check", "gates"].join("-"),
+    pattern: /(?:^|[\s(])--check-gates\b/i,
+  }),
+  Object.freeze({
+    category: ["retired", "mode", "phrase"].join("-"),
+    pattern: /\b(?:durable mode|source[/\s-]?mode pair|infer mode)\b/i,
+  }),
 ]);
 
-const EXPLICIT_RETIRED_CONTROL_REJECTION = /\b(?:reject(?:ed|s|ion)?|retired|remove[ds]?|forbid(?:den)?|unsupported|invalid|malformed|instead\s+of|not\s+(?:a\s+)?current|shall\s+not|must\s+not|does\s+not|do\s+not|without)\b|\bretired(?=[_-]|[A-Z])/i;
+const EXPLICIT_RETIRED_CONTROL_REJECTION = /\b(?:reject(?:ed|s|ion)?|retired|remove[ds]?|forbid(?:den)?|unsupported|invalid|malformed|instead\s+of|not\s+(?:a\s+)?current|shall\s+not|must\s+not|does\s+not|do\s+not|without|勿用|请勿)\b|\bretired(?=[_-]|[A-Z])|_(?:Avoid|avoid)_/i;
 
 function isExplicitRetiredControlRejection(path, lines, index) {
   const lookbehind = path.startsWith("tests/") || path.startsWith("tests_e2e/") ? 6 : path.endsWith(".md") ? 4 : 1;
@@ -1090,8 +1118,13 @@ export function evaluatePageDerivedPublicationConformance(snapshot = {}) {
 export function collectLiteralImports(source) {
   const edges = [];
   const patterns = [
-    /(?:import|export)\s+(?:[^"']*?\s+from\s+)?["']([^"']+)["']/g,
-    /import\s*\(\s*["']([^"']+)["']\s*\)/g,
+    // import may be bare ("import 'x'") or bound ("import a from 'x'"), across
+    // multiple lines ("import {\n a\n} from 'x'"). The from-clause is optional.
+    /\bimport\s+(?:[^"']*?\s+from\s+)?["']([^"']+)["']/g,
+    // export only matches the re-export form ("export ... from 'x'"), so
+    // string literals like line.slice('export '.length) are never captured.
+    /\bexport\s+[^"']*?\s+from\s+["']([^"']+)["']/g,
+    /\bimport\s*\(\s*["']([^"']+)["']\s*\)/g,
   ];
   for (const pattern of patterns) {
     for (const match of source.matchAll(pattern)) edges.push(match[1].split("?")[0]);
@@ -1113,7 +1146,11 @@ export function hasDirectEntryIndicator(source) {
 }
 
 function validateImportEdge(files, importer, target, issues) {
-  if (!target || !files.has(target)) return;
+  if (!target) return;
+  if (!files.has(target)) {
+    addIssue(issues, "stale-import-target", importer, `local import targets a missing module ${target}`);
+    return;
+  }
   const fromFoundationMethodModule = foundationMethodModuleOf(importer);
   const toFoundationMethodModule = foundationMethodModuleOf(target);
   const fromTargetWorkflowAdapter = targetWorkflowAdapterOf(importer);

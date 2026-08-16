@@ -187,11 +187,6 @@ function exitUsage(where, message, hint) {
   process.exit(1);
 }
 
-function validateResolution(where, resolution) {
-  if (["1k", "2k", "4k"].includes(resolution)) return;
-  exitUsage(where, "Resolution must be 1k, 2k, or 4k.", "Pass --resolution 1k, 2k, or 4k");
-}
-
 function hasExplicitCliOption(option) {
   return process.argv.some((argument) => argument === option || argument.startsWith(`${option}=`));
 }
@@ -722,14 +717,10 @@ function buildEnvSearchDirs(dkRoot) {
 /**
  * doctor — Check base local runtime and optional Image2 readiness.
  * Delegates to env-check.mjs as a subprocess.
- * @param {{image2?: boolean, smoke?: boolean, probeVendors?: boolean}} [opts]
+ * @param {{smoke?: boolean, probeVendors?: boolean, runDir?: string|null, operation?: string|null}} [opts]
  */
-async function commandDoctor({ image2 = false, smoke = false, probeVendors = false, runDir = null, operation = null } = {}) {
+async function commandDoctor({ smoke = false, probeVendors = false, runDir = null, operation = null } = {}) {
   const args = [];
-  if (image2) {
-    emitUsage("ppt_flow.doctor.image2", "--image2 is no longer a public doctor flag", "Use --operation raw-generation when raw Image2 readiness is required.");
-    return null;
-  }
   let route = null;
   if (runDir) {
     route = await resolveRunAdapter(runDir, "ppt_flow.doctor.run-dir");
@@ -961,14 +952,7 @@ function emitSourceStateStaleEnvelope(route) {
 // Command: build
 // ---------------------------------------------------------------------------
 
-async function commandPageImageBuild(route, { resolution, model, baseUrl, reuseImages, dryRun, force, reason, retiredControlsExplicit }) {
-  if (baseUrl || reuseImages || dryRun || force || reason != null || retiredControlsExplicit) {
-    return emitUsage(
-      "ppt_flow.build.page-image",
-      "Page Image build accepts no resolution, model, provider, image-reuse, dry-run, or retired gate overrides",
-      "Use receipt-bound image2 plan/authorize/generate/review first, then run build with only the canonical run directory."
-    );
-  }
+async function commandPageImageBuild(route) {
   try {
     const operations = await targetImage2Operations(route.workflow);
     const result = await operations.buildDelivery(route.run_dir);
@@ -994,12 +978,11 @@ async function commandPageImageBuild(route, { resolution, model, baseUrl, reuseI
  * Executes the receipt-bound Page Image delivery lifecycle.
  *
  * @param {string} runDir
- * @param {{resolution: string, model: string, baseUrl: string|null, reuseImages: boolean, dryRun: boolean, force?: boolean, reason?: string|null}} opts
  */
-async function commandBuild(runDir, opts) {
+async function commandBuild(runDir) {
   const route = await resolveRunAdapter(runDir, "ppt_flow.build.identity");
   if (!route) return 1;
-  return commandPageImageBuild(route, opts);
+  return commandPageImageBuild(route);
 }
 // Command: refresh
 // ---------------------------------------------------------------------------
@@ -1559,10 +1542,6 @@ async function commandTest() {
     );
   }
   return code;
-}
-
-async function commandBuildWrapped(runDir, opts) {
-  return commandBuild(runDir, opts);
 }
 
 async function resolveImage2Run(runDir, where) {
@@ -3567,7 +3546,6 @@ Examples:
         exitUsage("ppt_flow.doctor", "--operation requires --run-dir", "Bind the operation to an exact Page Image run so source/state validation happens before readiness checks.");
       }
       const code = await commandDoctor({
-        image2: false,
         smoke: opts.smoke ?? false,
         probeVendors: opts.probeVendors ?? false,
         runDir: opts.runDir ?? null,
@@ -3636,17 +3614,8 @@ Examples:
     .command("build")
     .description("Build the complete final deck")
     .argument("<run_dir>", "Path to version dir")
-    .action(async (runDir, opts) => {
-      const code = await commandBuildWrapped(runDir, {
-        resolution: null,
-        model: null,
-        baseUrl: null,
-        reuseImages: false,
-        dryRun: false,
-        force: false,
-        reason: null,
-        retiredControlsExplicit: false,
-      });
+    .action(async (runDir) => {
+      const code = await commandBuild(runDir);
       process.exit(code);
     });
 

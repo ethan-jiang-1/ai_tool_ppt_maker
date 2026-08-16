@@ -52,7 +52,7 @@ export const BASE_CHECK_NAMES = Object.freeze([
 ]);
 export const IMAGE2_CHECK_NAMES = Object.freeze(['api_key', 'image_base_url', 'image2_provider_profile_id', 'page_image_raw_generator']);
 export const LIVE_CHECK_NAMES = Object.freeze(['image_smoke', 'image_probe_vendors']);
-export const PAGE_IMAGE_DOCTOR_PROFILES = Object.freeze(['framed-runtime', 'image2-raw']);
+export const PAGE_IMAGE_DOCTOR_PROFILES = Object.freeze(['framed-runtime', 'raw-generation']);
 export const PAGE_IMAGE_DOCTOR_OPERATIONS = Object.freeze([
   'framed-local-refresh',
   'raw-generation',
@@ -983,14 +983,14 @@ function pageImageDoctorPlan(operation) {
       profile: 'page-image-unbound',
       includeImage2: true,
       activeProfiles: ['framed-runtime'],
-      deferredProfiles: ['image2-raw'],
+      deferredProfiles: ['raw-generation'],
     };
   }
   if (operation === 'framed-local-refresh') {
     return { profile: 'page-image-framed', includeImage2: false, activeProfiles: ['framed-runtime'], deferredProfiles: [] };
   }
   if (operation === 'raw-generation') {
-    return { profile: 'page-image-raw', includeImage2: true, activeProfiles: ['image2-raw'], deferredProfiles: [] };
+    return { profile: 'page-image-raw', includeImage2: true, activeProfiles: ['raw-generation'], deferredProfiles: [] };
   }
   if (operation === 'full-build') {
     return { profile: 'page-image-full', includeImage2: true, activeProfiles: [...PAGE_IMAGE_DOCTOR_PROFILES], deferredProfiles: [] };
@@ -1098,7 +1098,7 @@ export async function runEnvCheckCli(argv = process.argv, { providerApi = null }
 
   const profiles = pageImageProfileReports(results, { activeProfiles, deferredProfiles });
   const deferredChecks = new Set(
-    deferredProfiles.includes('image2-raw')
+    deferredProfiles.includes('raw-generation')
       ? ['api_key', 'image_base_url', 'image2_provider_profile_id', 'page_image_raw_generator']
       : []
   );

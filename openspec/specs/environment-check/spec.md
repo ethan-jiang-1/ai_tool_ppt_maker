@@ -593,6 +593,11 @@ existing bounded usage diagnostic naming the accepted set. Every accepted
 operation SHALL map to the targeted checks of its owning capability and SHALL
 NOT fall through to an unrelated generic profile.
 
+The internal profile identifier used by raw-generation readiness SHALL be
+`raw-generation`, not the retired `image2-raw` display name. Profile identifiers
+emitted by the readiness report SHALL be current workflow vocabulary only; no
+report, JSON field, or diagnostic SHALL expose `image2-raw` as a profile name.
+
 #### Scenario: The hidden raw alias is rejected
 
 - **WHEN** an Agent passes `--operation image2-raw`
@@ -605,6 +610,12 @@ NOT fall through to an unrelated generic profile.
 - **THEN** env-check returns the bounded usage failure naming the accepted set
 - **AND** it does not report a generic common-profile result as notes/assembly
   readiness
+
+#### Scenario: Readiness report uses only current profile names
+
+- **WHEN** a raw-generation readiness report is emitted in text or JSON form
+- **THEN** its profile identifiers use current workflow vocabulary
+- **AND** it does not emit the retired `image2-raw` display name
 
 ### Requirement: Exact-run readiness and its consumers share one restricted startup environment
 

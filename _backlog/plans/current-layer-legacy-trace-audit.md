@@ -1,7 +1,7 @@
 # Plan: 当前层旧痕迹深度审计（current-layer legacy-trace audit）
 
-> 类型: 分析/审计 | 更新: 2026-08-16 | 状态: Change 1 已 archive（spec + 文档 + CONTEXT 对齐），残留映射为 3 个串行 change（2 个 QUEUED）+ 1 个 deck 工作流
-> 当前下一步: 启动 Change 2 `remove-retired-plumbing-and-harden-detectors`（见文末 Progress Tracker）
+> 类型: 分析/审计 | 更新: 2026-08-16 | 状态: Change 1+2 已 archive（术语对齐 + 死代码删除/探测器扩面），残留映射为 1 个 QUEUED change + 1 个 deck 工作流
+> 当前下一步: 启动 Change 3 `align-serialization-schema-mirror`（见文末 Progress Tracker）
 > 审计日期: 2026-08-16 | 基准: `npm test` core 全绿（exit 0）| 方法: 7 路只读子代理 + 主 Agent 独立复核 | 写操作: 零（全程只读，未改任何文件）
 
 ## 一句话
@@ -403,8 +403,8 @@
 |---|---|
 | 审计本身 | ✅ 完成（45 条 finding；7 条已由 CLS-038 吸收） |
 | Change 1 `align-current-layer-terminology` | ✅ 已 archive（2026-08-16，spec 10 文件 + 文档 10 文件 + CONTEXT + 1 重命名；`protected geometry/zone`、retired mode 短语、`export action`、`quick intake` 清零） |
-| Change 2 `remove-retired-plumbing-and-harden-detectors` | **NEXT**（未启动） |
-| Change 3 `align-serialization-schema-mirror` | QUEUED |
+| Change 2 `remove-retired-plumbing-and-harden-detectors` | ✅ 已 archive（2026-08-16，build/doctor 死参数、image2-raw profile 名、ledger 死指针、L-3 措辞清零；探测器词表扩面 + stale-import-target + ledger resolve + planted 测试） |
+| Change 3 `align-serialization-schema-mirror` | **NEXT**（未启动） |
 | Deck Wave 5（H-3 / L-4 / L-5） | BLOCKED（等 deck owner 决策/授权；非 OpenSpec） |
 
 ### 进度清单
@@ -429,7 +429,7 @@
     `npm run test:sweep` 652 项通过；`git diff --check` 通过；polish Pass 2 补齐
     playbook-execution resume-ritual M-3 与 environment-check 第 4 个 requirement 两处缺口
 
-- [ ] **Change 2：`remove-retired-plumbing-and-harden-detectors`**（Wave 2）
+- [x] **Change 2：`remove-retired-plumbing-and-harden-detectors`**（Wave 2；2026-08-16 archive）
   - finding：M-5 #1-5（build plumbing 死代码/空壳层/JSDoc）、M-5 #7 收尾（profile 展示名
     `image2-raw`）、M-7（ledger 死指针 + 05-iteration 死分支）、L-3、D-1（剩余词表）、D-2
     （stale-import-target）、D-3（ledger source resolve）、D-4（CONTEXT "still uses" 反向检查）
@@ -438,6 +438,11 @@
     geometry/zone`、build/doctor 退役词、`--mode`、`--check-gates`（H-2 类残留）；ledger
     source 改指现存符号 + 测试 resolve；`npm test`（architecture/coherence guard）+ 新增
     planted-violation 测试全绿；sweep 通过
+  - 验证记录：`openspec validate --all --strict` 27 项通过；`npm test` core 通过；
+    `npm run test:sweep` 657 项通过（含 5 个新增）；`git diff --check` 通过；
+    `collectLiteralImports` regex 修复（跨行 import 支持 + `line.slice('export ')` 误匹配排除）；
+    词表排除 6 个有活拒绝/合法面的 flag（`--base-url`/`--force`/`--reason`/`--dry-run`/
+    `--image2`/`--mode`）避免误报；`_Avoid_` markdown 斜体加入拒绝豁免
   - 生命周期：同 Change 1
 
 - [ ] **Change 3：`align-serialization-schema-mirror`**（Wave 3）
@@ -473,8 +478,8 @@
 
 ### 当前下一步（Next action）
 
-启动 Change 2：`openspec new change "remove-retired-plumbing-and-harden-detectors"` → 写
-proposal（引用本文件 M-5 #1-5 / #7 展示名、M-7、L-3、D-1 剩余词表、D-2/D-3/D-4 编号与受影响
-capability：cli-surface、environment-check、harness-script-layout + tests；目标=删死代码 +
-探测器词表/校验扩面防回归）→ 按 OpenSpec 流程（specs → design → tasks → polish → apply →
-archive）推进。
+启动 Change 3：`openspec new change "align-serialization-schema-mirror"` → 写 proposal
+（引用本文件 M-6（`serialization-contracts.yaml` 漏 6 键 + 4 孤儿 wire-schema 值）与
+L-1（9 条 schema 层低危）编号；受影响 capability：production-schema-conformance +
+`schema/`（+ 必要时 `state.mjs` 对齐）→ 按 OpenSpec 流程（specs → design → tasks →
+polish → apply → archive）推进。

@@ -121,7 +121,7 @@ describe("Page Image presentation package", () => {
 
   it.each([
     ["missing header region", (source) => source.replace("    header_region: { x: 40, y: 28, width: 920, height: 238 }\n", "")],
-    ["former protected geometry", (source) => source.replace("    header_region: { x: 40, y: 28, width: 920, height: 238 }", "    header_region: { x: 40, y: 28, width: 920, height: 238 }\n    protected_geometry: [{ x: 40, y: 28, width: 920, height: 238 }]")],
+    ["former protected_geometry field", (source) => source.replace("    header_region: { x: 40, y: 28, width: 920, height: 238 }", "    header_region: { x: 40, y: 28, width: 920, height: 238 }\n    protected_geometry: [{ x: 40, y: 28, width: 920, height: 238 }]")],
     ["multiple header regions", (source) => source.replace("header_region: { x: 40, y: 28, width: 920, height: 238 }", "header_region: [{ x: 40, y: 28, width: 920, height: 238 }, { x: 40, y: 28, width: 920, height: 238 }]")],
     ["out-of-canvas header region", (source) => source.replace("header_region: { x: 40, y: 28, width: 920, height: 238 }", "header_region: { x: 40, y: 28, width: 961, height: 238 }")],
     ["field outside header region", (source) => source.replace("title: { x: 64, y: 82", "title: { x: 20, y: 82")],
