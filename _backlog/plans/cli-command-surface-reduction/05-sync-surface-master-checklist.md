@@ -67,16 +67,23 @@
 1. **旧形态计数归零**: live 域内旧形态出现次数 → 0,仅允许 tombstone 注册行与 spec 禁止句。
    验证（以 artifact-view 为例）:
    `rg -n 'artifact-view' --glob '!openspec/changes/archive/**' --glob '!deck_*/**' --glob '!dpt_*/**' --glob '!_backlog/**'`
-2. **tombstone 双机制**（评审第 6 条）:
-   - **runtime rejection**: 旧 invocation 在 binding/文件写/State 写/provider 初始化**之前**失败,
+2. **tombstone 三分验收**（二次评审 #8 修正: 简单 `rg` 计数归零与负例测试互斥,拆开验收）:
+   - **active consumer count = 0**: command-aware scanner 只统计可执行调用、current guidance、
+     canonical examples（豁免 tombstone 注册行、spec 禁止句、**负例测试与 replacement
+     diagnostic 里的旧 invocation 提及**）;
+   - **runtime negative controls > 0**: 旧 invocation 的 focused no-write/no-provider 测试保留;
+     旧 invocation 在 binding/文件写/State 写/provider 初始化之前失败,
      输出 secret-safe envelope + 精确的新 `program + args`;
-   - **residue guard**: 静态审计识别完整 obsolete grammar;普通 token（如 `apply-plan`,仍有结构用途）
-     **不**全局 tombstone。
+   - **residue guard sensitivity**: 注入内存 snapshot/fixture 的 planted violation 证明 guard
+     会红,恢复后原 snapshot 会绿;普通 token（如 `apply-plan`,仍有结构用途）**不**全局 tombstone,
+     按完整 obsolete **grammar** 定义（如 `doctor --run-dir ... --smoke`）。
 3. **新增 exact command-grammar audit**: 证明完整 invocation、参数位置、operation 组合有效。
    现有 `harness_document_command_audit` 只验证文档 flag 能在 `--help` 找到,不够。
 4. **审计全绿**: `cli_return_audit` / `harness_document_command_audit` / `harness_architecture` /
    `harness_coherence` / `test_process_docs_consistency` / `md_controller_reader`。
-5. **exit matrix 与实现一致**: 0/1/2/130/143 真值表（见 `01` §1.2）,help 契约块同源。
+5. **exit matrix 与实现一致**: 0/1/2/130/143 真值表（见 `01` §1.2）覆盖 signal/Commander/
+   delegated child 三类来源与优先级（`ppt_flow test` 透传 npm test status、`:3994` 透传
+   `err.exitCode`）;delegated child 的归一协议见 `01` §1.7,help 契约块同源。
 6. **回归全绿**: `npm test` + `openspec validate <change> --strict` + `openspec validate --all --strict`
    + `git diff --check`。
 7. **无生产数据触碰**: `deck_*`/`dpt_*`/`_generated/` 字节不变（git status 确认）。

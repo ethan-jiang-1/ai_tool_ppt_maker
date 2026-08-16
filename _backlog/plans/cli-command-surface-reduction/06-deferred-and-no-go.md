@@ -25,12 +25,22 @@
 
 - **hash 线程化本身**（`--plan-hash`/`--batch-hash`/`--attempt-sha256`/`--plan-sha256`）:
   反漂移/授权绑定/CAS 保护机制。只改命名（延后项 C）,不改机制。
-- **pilot/authorize/generate 的动词分离**: human-gate 机制。
+- **plan/authorize/generate/review 的动词分离**: 保护的是「grant 记录」与「视觉方向决定」的分离,
+  不是「authorize 处插人决定」——authorize 已是 Task Mandate 下的 Agent-run 机械 grant 记录
+  （Page Image 8/10 `align-task-mandate-exact-grants`、Style Master 8/16
+  `fold-style-master-cost-into-task-mandate` 均已落地归档）;人类 gate 在
+  `review`（`proceed|repair|redirect` 看成品）。动词不合并的理由是这个分离,任何
+  「合并成单动词 execute」都会把视觉决定塞回机械序列。
 - **secret-safe envelope 与 stderr 最后一行契约**: 深度所在,动不得。
 - **success 人类文本**: AGENT_CONTRACT 的 Human-facing handoff 依赖。
 - **exit 2 特例**: 属于普通 `state` 的 replacement/current-repair hard-stop
   （`ppt_flow.mjs:3861`）,搬移时保留——**不是** `state validate`（其 invalid 是 exit 1,`:3824`;
   另 SIGINT/SIGTERM 130/143,`cli_bootstrap.mjs:178`）。findings-I 此处有事实错误,已按 07 纠正。
+- **Task Mandate 权威**（对齐已归档 `fold-style-master-cost-into-task-mandate`,commit `5571002`）:
+  成本授权与 probe 的人类确认属于 Task Mandate / MD Controller 侧;CLI 不新增 confirmation
+  flag、grant、State 字段或聊天推断。该 change 还新增了 state-owned 的 typed cli evidence
+  （`style-master authorize` 成功后记录 `controller_handoff`）——C1 结果模型必须覆盖,
+  C3 不得碰撞（见 `01` §1.8、`03` 变更形状）。
 
 ## 四、记录与重新评估
 

@@ -1,7 +1,8 @@
 # Change 3: separate-state-task-projection-rebuild（S4 独立）
 
 > 阶段见 `progress.md`。吸收评审 `07` 第 2 条: 这是**收敛触发器重设计**,不是「去掉隐藏写」。
-> **评审 6 问在 design 全部闭合前,不 open 本 change**（progress.md 门槛 5）。
+> **design gate**（二次评审 #1 修正）: C1 归档后即可 open 本 change;但 proposal/specs 之后、
+> 评审 6 问全部闭合前,不得写 tasks、不得 apply。6 问闭合记录进 design。
 
 ## 现状事实（已复核）
 
@@ -32,10 +33,30 @@
 
 ## 变更形状
 
-- `state` 子命令化: `state`（观察） / `state validate`（现 `--validate-state`） /
-  `state repair-known-execution-mismatch`;
+- `state` 子命令化（**完整 grammar 必须 proposal 前钉死**,二次评审 #6）:
+  推荐 `state show <run-dir> [--json]` / `state validate <run-dir>` /
+  `state repair-known-execution-mismatch <run-dir>`——避免 `validate` 与父命令必填
+  `<run-dir>` 位置参数争位;若保留裸 `state <run-dir>`,另两个动作不得再做同层位置子命令;
 - 新命令 `task-projection rebuild`（窄决策: 是否带 rebuild）;
-- exit 2 特例（普通 `state` 的 replacement/current-repair hard-stop,`:3861`）搬移时保留。
+- exit 2 特例（普通 `state` 的 replacement/current-repair hard-stop,`:3861`）搬移时保留;
+- **不与 state.mjs 的 typed cli evidence 路径碰撞**: `recordStyleMasterAuthorizeCliHandoff`
+  （5571002 新增）是 state 拥有的另一类 evidence,本 change 只动投影写路径与观察模式,
+  不合并、不替代、不重写这条 handoff。
+
+## 触发器 cutover matrix（二次评审 #10,design 必产）
+
+投影 refresh 现状有三个写点,不只是普通 `state`: `state` 观察（`:3884`）、`build`
+成功后（`:958–960`）、所有 target `image2` checkpoint 后（`:3134`）。候选 A 若宣称
+「Controller/Agent 在 route entry/resume/decision 后显式调用」,design 必须逐一枚举:
+
+| 旧 caller | 新 caller / 删除理由 | effect 顺序 | failure 语义 | focused test |
+| --- | --- | --- | --- | --- |
+| `state` 观察 :3884 | 删除（state 回零写） | — | — | state 零写证明 |
+| `build` 成功 :958–960 | C3 后由显式 `task-projection rebuild`（或 build 保持,按 C1 冻结决定） | delivery → rebuild | rebuild 失败不影响 delivery | 复合/独立失败 |
+| target `image2` checkpoint :3134 | 同上 | checkpoint → rebuild | 同上 | 同上 |
+| Controller route entry/resume/decision（create-deck.md:92） | 显式调用新命令 | inspection → rebuild | rebuild 失败=独立命令失败 | trigger 点测试 |
+
+完成判据里的「trigger 点收敛」绑定这张**闭集**,不是只检查 `state` 零写与新命令存在。
 
 ## 同步面
 

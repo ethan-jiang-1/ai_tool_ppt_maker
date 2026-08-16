@@ -317,3 +317,204 @@ run-bundle scaffolder、architecture/coherence/document audits 与对应测试�
 - `tests/shared/workflow/test_page_production_task_projection.mjs`。
 
 合计 16 个定向测试通过。这些测试证明当前行为基线，不代表当前 plan 已可实施。
+
+## 十、二次评审：新的反馈（2026-08-16，针对 21:09 修订稿）
+
+### 总结判断
+
+修订稿已经真正吸收上一轮的主要反馈：4-change 拓扑成立；C1 先提供机器契约与 inventory
+治理；C2 保留 structural `slides apply-plan`；C3 独立处理 projection 收敛；C4 将离线
+doctor、run-bound preflight 与 live probe 分开；clean-break 也不再假装迁移现有 run bundle。
+因此，本轮**不建议推翻总体方案**。
+
+下面 11 条是修订后仍需处理的新问题。它们主要集中在 OpenSpec 生命周期、change 间合同、失败恢复、
+命令 grammar 与守卫可证伪性。第 1–8 条应在对应 proposal/design/tasks 前闭合；第 9–11 条可随
+同一轮修订一起收紧。
+
+### 新反馈 1：C3 的开工门槛在 OpenSpec 生命周期上自相矛盾
+
+`progress.md:22` 与 `03:4` 同时要求“评审 6 问在 design 全部闭合，否则 C3 不 open”。但本 repo
+的正常生命周期是 `openspec new change` → proposal → specs → design → tasks；change 未建立时没有
+合法的 change design 可写。因此这个门槛无法按字面执行。
+
+建议二选一并写成唯一规则：
+
+1. **推荐**：允许在 C1 归档后 open C3，但在 proposal/specs 后设置 design gate；六问未闭合不得写
+   tasks，更不得 apply；或
+2. 若人类坚持“open change 前闭合”，就在本 backlog plan 的 `03` 先作 pre-design decision record，
+   人类确认后再 scaffold change，正式 design 只引用并校验这些决定。
+
+不能同时声称“在 design 闭合”与“闭合前不 open change”。
+
+### 新反馈 2：C1 的 `build` 结果模型依赖尚未决定的 C3 projection 触发策略
+
+当前 `commandPageImageBuild()` 在 `buildDelivery()` 成功后立即调用
+`refreshProgressiveControllerTaskProjection()`（`ppt_flow.mjs:958–960`）。因此 C1 若现在定义
+`build` 的 success / partial-effect schema，就必须先回答“delivery 成功、projection refresh 失败”
+是否仍是 `build` 的复合结果；但 C3 候选 A 又可能把所有 projection 写移到显式
+`task-projection rebuild`。这形成隐性循环：C1 依赖 C3 的边界决定，而排期写成 C3 只依赖 C1。
+
+开 C1 前应冻结一个跨 change 决定：
+
+- 要么 C1 先保留现状，把 delivery 与 projection 分列为两个 effect，C3 后续明确版本化/迁移该结果
+  schema；
+- 要么先决定采用 C3 候选 A，C1 的 `build` owner result 只拥有 delivery，projection result 从一开始
+  就不属于 `build`。
+
+同样检查 `image2` 各 checkpoint 在 `ppt_flow.mjs:3134` 的 refresh；不能只处理 `build` 而留下第二套
+隐性触发器。
+
+### 新反馈 3：partial effect 只有报告模型，没有恢复闭环
+
+`01` 已正确要求 `new-version` / `build` 能表达 partial effect，但 Keel 的恢复契约不能止于“告诉调用者
+写了一半”。当前至少有两条真实 partial path：
+
+- `new-version`：`createVersion()` 已发布可见 `vN/` 后，`activateCleanPageImageTargetDraft()` 仍可能因
+  execution lease、并发 State CAS、Controller index 或 target clean check 失败；重跑同一个命令又会撞
+  `target version already exists`。
+- `build`：delivery 已提交后，projection refresh 失败；重跑 build 可能只是重复昂贵的 assembly，且当前
+  failure hint 仍泛称修 receipt/raw/final manifest/notes，没有指向已完成 delivery 后的最近合法动作。
+
+每条 partial effect 都需要在 C1 design 明确：检测证据、effect owner、可重入/前向修复动作、终态不变量、
+失败后升级路径。对 `new-version` 可考虑把发布与 State activation 变成一个拥有 staging/CAS 的原子 owner，
+或提供严格识别“本次已创建但未激活 target”的 resume/compensation；不能要求手删目录。对 `build` 则应
+复用 C3 决定后的 projection rebuild 路径，避免重复 delivery。
+
+### 新反馈 4：C4 把 probe 固定为 unbound，实际删除了现有 exact-run pre-POST profile fence
+
+上一轮我倾向 connectivity-only unbound probe；结合最新 spec 与 2026-08-15 新增实现复核后，这个倾向
+需要修正。当前 `doctor --run-dir <run> --smoke|--probe-vendors` 会先解析该 run 的 confirmed provider
+profile，并要求 `IMAGE2_PROVIDER_PROFILE_ID` 精确匹配，失败时在任何 POST 前停止
+（`ppt_flow.mjs:728–768`；`environment-check/spec.md:501–532`；
+`test_process_env_check.mjs:1064–1099`）。`environment-check/spec.md:447–452` 还明确规定 normal
+raw-generation readiness 保持 exact-run-bound，unbound direct env-check 只属于预安装恢复边界。
+
+`04` 目前的 `probe [--smoke|--vendors]` 不接 run，若直接照此迁移，会丢掉这条 identity/integrity guard，
+不是“语义逐字保留”。C4 必须明确选择并写出 migration：
+
+1. **推荐**：`probe <run-dir> [--smoke|--vendors]` 保持 exact-run profile fence，但其成功仍只代表
+   connectivity，不代表 readiness/授权；`preflight` 继续负责完整 operation readiness；或
+2. 同时提供一个明确标为 bootstrap/unbound 的低权限入口，但不能替代 normal exact-run probe。
+
+无论选哪种，wrong/missing/pending profile 均须在 POST 前失败的负例测试不能删除。
+
+### 新反馈 5：C2 的 narrative-schema 早拒绝边界写得不可实现
+
+`02:26` 要求 `slides apply-plan` 收到 narrative schema 时在“任何 binding/write/provider work 之前”
+失败。但 schema 位于用户提供的 plan JSON 内；安全识别它至少需要：解析 run binding、把 path 限制到该
+run 的 `_scratch/`、realpath 校验并读取/解析 plan。当前实现正是先 binding，再 confined read，才在
+`ppt_flow.mjs:1391–1393` 判断 `persisted.schema`。
+
+应把不变量改为：**在 run binding 与 confined read-only plan classification 之后、canonical source/State/
+artifact mutation 和 provider initialization 之前**拒绝，并返回 `paginate apply` 的精确 invocation。
+同时定义 malformed/unknown schema 的 owner：它应 fail closed，不能默认为 structural transaction 后再报
+派生错误。
+
+### 新反馈 6：C3 的 `state` 子命令 grammar 仍有位置歧义
+
+`03:35` 写成 `state`（观察）/ `state validate` / `state repair-known-execution-mismatch`，但没有给观察
+命令的完整 invocation。若同时保留现有 `state <run-dir>`，则 `state validate <run-dir>` 中的
+`validate` 会与父命令必填 `<run-dir>` 争同一个位置；Commander 不能从这份描述自动得到唯一 parse tree。
+
+在 C3 proposal 前选定完整 grammar，推荐显式化所有 operation：
+
+```text
+state show <run-dir> [--json]
+state validate <run-dir>
+state repair-known-execution-mismatch <run-dir>
+```
+
+若必须保留 `state <run-dir>`，则另两个动作不宜再作为同层位置子命令。该决定还会改变 clean-break 范围、
+root/subcommand help、exit-2 所属 operation 与 exact-grammar audit，不能留到实现时临场决定。
+
+### 新反馈 7：exit matrix 仍不是完整事实表
+
+`01:23–30` 和 `05:79` 把全局真值表概括为 `0/1/2/130/143`，但 `ppt_flow test` 当前直接返回
+`npm test` child 的非零 status（`ppt_flow.mjs:1507–1537`），理论上可为任意正整数；Commander 捕获的
+`err.exitCode` 也在 `ppt_flow.mjs:3994` 透传。若 C1 的目标是“每命令 help 与实现相等”，这张表仍会
+漏报真实行为。
+
+C1 必须先作协议决定：
+
+- 明确允许 delegated commands 透传任意 child exit，并在 operation-specific contract 表达；或
+- 把 JS-controlled hard failure 规范化到 1，仅由 bootstrap signals 保留 130/143，并在 diagnostic 中
+  保存 bounded child status。
+
+不要把 implementation-audit 误写成只检查五个枚举值；还应覆盖 signal/Commander/delegated child 三类
+来源及其优先级。
+
+### 新反馈 8：tombstone、旧形态计数归零与负例测试目前互相冲突
+
+`05:67` 要求 live 域旧形态计数归零，只豁免 tombstone 注册行与 spec 禁止句；`05:70–75` 又要求每个
+旧 invocation 有 runtime rejection test 和 planted residue guard。负例测试本身必须构造或断言旧完整
+grammar，replacement diagnostic 也可能合法提到旧 invocation，因此它们必然让简单 `rg` 计数非零。
+
+不要扩大一个模糊 allowlist。建议把三个概念拆开验收：
+
+1. **active consumer count = 0**：使用 command-aware scanner，只统计可执行调用、current guidance 与
+   canonical examples；
+2. **runtime negative controls > 0**：旧 invocation 的 focused no-write/no-provider tests 必须保留；
+3. **residue guard sensitivity**：用注入内存 snapshot/fixture 的 planted violation 证明 guard 会红，恢复后
+   原 snapshot 会绿。
+
+此外，clean break 要精确到 obsolete **grammar**，不是普通 token；`doctor --run-dir ... --smoke` 若迁成
+run-bound `probe`，其 tombstone 与 replacement 也要按完整组合定义。
+
+### 新反馈 9：C1 的“单一声明源”还没有声明谁是 fact authority
+
+`01` 同时提到 command implementation 返回 owner result、`cli_error.mjs` 注册 report schema/inventory、
+help 契约块与实现同源，但还没有决定哪个 artifact 负责 command grammar、effect class、exit set、JSON
+schema/version，以及哪些只是投影。若把所有内容继续塞进 `cli_error.mjs`，它会从 diagnostic producer
+膨胀为第二个 command/controller registry；若分别手写，则“相等性审计”仍只是比较多个 peer truths。
+
+C1 design 应先画最小 authority map，例如：
+
+- Commander registration / operation descriptor 拥有 accepted grammar 与 effect class；
+- command owner result type 拥有业务 effect；
+- `cli-surface` 拥有公开规范；
+- help、inventory、JSON validation 与 docs audit 都是从 descriptor/spec 可验证的 projections；
+- `cli_error.mjs` 只拥有 envelope、safe report registration 与 bounded validation，不拥有业务 workflow。
+
+不要求现在选这个具体实现，但必须避免新增一个与 Commander 和 `cli-surface` 并列的万能 registry。
+
+### 新反馈 10：C3 的触发器清单仍漏了现有写点与“谁调用”的可执行证据
+
+`03` 只突出普通 `state`，但当前 projection refresh 还在 `build`（`:959`）和所有 target `image2`
+checkpoint（`:3134`）之后发生。候选 A 若宣称“Controller/Agent 在 route entry/resume/decision 后显式调用”，
+必须逐一枚举哪些现有 runtime checkpoint 删除 refresh、哪些 playbook 节点新增显式 invocation、调用失败后
+原业务 operation 是否仍成功，以及怎样证明没有遗漏。
+
+建议 C3 design 产出一张 trigger cutover matrix：旧 caller → 新 caller / 删除理由 → effect 顺序 → failure
+语义 → focused test。完成判据中的“trigger 点收敛”应绑定这张闭集，而不是只检查 `state` 零写和新命令
+存在。否则最容易留下“部分显式、部分隐藏”的双模型。
+
+### 新反馈 11：`probe` 的 human-confirm 边界需要区分 Controller policy 与 CLI admission
+
+`04:14–15` 说“confirm 门语义逐字保留”，`04:23` 又说人类确认属于 MD Controller policy、CLI 不凭
+flag 推断聊天授权；这两个判断都对，但目前容易让实现者误以为 CLI 自己需要一个 persisted confirmation
+或 `--yes`。现行 spec 的边界是：Controller/Agent 在调用前披露最大提交次数并取得人类确认；CLI 自身
+只保证调用形态对应确定的最大 POST 次数、无重试与零隐式扩张。
+
+C4 proposal/design 应明确：
+
+- 决策 authority 与确认记录仍在 MD Controller / Task Mandate 侧；
+- `probe` 不新增 confirmation flag、grant、State 字段或聊天推断；
+- CLI admission 只验证互斥 mode、resolved vendor count、profile fence（若 run-bound）与 bounded execution；
+- direct human invocation 的成本提示属于 help/handoff，不伪装成 runtime authorization。
+
+这样才能既保留 human-centered gate，又不创建第二套 provider authorization。
+
+### 二次评审后的建议门槛
+
+完成上述修订后，这套计划可以进入 C1 proposal。具体门槛建议压缩为：
+
+1. 先修正 C3 “open 前 design 闭合”的生命周期矛盾；
+2. 在 C1 前冻结 `build`/`image2` projection effect 的跨 change 边界，并给 partial effect 恢复闭环；
+3. 在 C2/C3/C4 proposal 前分别钉死 plan classification 时序、`state` 完整 grammar、run-bound probe
+   profile fence；
+4. 把 exit truth、runtime retirement test、active-residue audit 与 planted guard sensitivity 分开；
+5. C1 明确 declaration authority，C3 用 trigger cutover matrix 关闭所有旧写点。
+
+总体评价：**方案方向已合理，当前属于可修订后开工，而不是需要重新设计。** 最大剩余风险是跨 change
+时序没有显式化：C1 先承诺的结果合同，不能被 C3/C4 随后无意推翻；任何 partial mutation 也不能只
+“可报告”而没有同一 owner 的合法收敛动作。

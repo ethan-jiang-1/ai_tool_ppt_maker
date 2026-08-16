@@ -23,8 +23,13 @@
 - narrative schema 的 apply → `paginate apply <run-dir> --plan <path> --plan-sha256 <hash>`
   （窄决策: 是否保留 `--apply`;倾向 plan/apply 两 operation,去双重 apply）
 - `slides apply-plan` **保留**,只服务 structural transaction replay;
-  narrative schema 投到 `slides apply-plan` → 在任何 binding/write/provider work **之前**失败,
-  并给 `paginate apply` 精确替代诊断
+  narrative schema 投到 `slides apply-plan` 的拒绝时序（二次评审 #5 修正）:
+  **在 run binding + confined read-only plan classification（`_scratch/` lexical+realpath
+  校验、读取并解析 plan JSON）之后,canonical source/State/artifact 变更与 provider
+  initialization 之前**失败,并给 `paginate apply` 精确替代诊断。schema 在用户提供的
+  plan JSON 内,不可能在 binding 之前识别——不变量按此时序写;
+- malformed / unknown schema **fail closed**: 不得默认为 structural transaction 后再报
+  派生错误,ownership 写进 spec;
 - tombstone 仅 `slides narrative-plan`;`apply-plan` token **不**全局 tombstone
 
 ## 不变量（评审 07 第四节 C2）

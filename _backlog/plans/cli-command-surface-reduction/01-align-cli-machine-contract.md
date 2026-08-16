@@ -47,6 +47,57 @@ exit matrix 事实表（已代码复核）:
 
 - G = 1.2 的机器契约块;H = 动词撞名决策表,挂进 `harness_document_command_audit` 防漂移。
 
+### 1.5 跨 change 冻结决定: projection effect 边界（二次评审 #2,开工前必须冻结）
+
+`commandPageImageBuild()` 在 `buildDelivery()` 成功后立即调用
+`refreshProgressiveControllerTaskProjection()`（`ppt_flow.mjs:958–960`）;target `image2`
+checkpoint 在 `:3134` 也有 refresh。C1 定义 `build` 的 success/partial-effect 前必须先冻结:
+
+- **采用 C3 候选 A**: projection refresh 不属于 `build`/`image2` checkpoint 的 owner result;
+  C1 的 `build` result 只拥有 delivery,projection 从第一天就不进 schema（C3 负责触发器迁移）;
+- 或 C1 保留现状（delivery + projection 两个 effect）,C3 后续版本化该 schema。
+
+**默认取前者**（progress.md 门槛 2 已按候选 A 冻结）;冻结决定写进 C1 proposal 的 scope 边界。
+
+### 1.6 partial effect 必须带恢复闭环（二次评审 #3,只报告不够）
+
+两条真实 partial path,design 必须逐条给出: 检测证据、effect owner、可重入/前向修复动作、
+终态不变量、失败后升级路径:
+
+- `new-version`: `createVersion()` 已发布可见 `vN/` 后,`activateCleanPageImageTargetDraft()`
+  仍可能失败（lease/CAS/controller index/target clean check）;重跑撞 "target version already
+  exists"。考虑: 发布 + activation 变成一个 staging/CAS 原子 owner,或提供严格识别
+  "本次已创建但未激活 target" 的 resume/compensation;不得要求手删目录。
+- `build`: delivery 已提交后 projection refresh 失败;重跑 = 重复昂贵 assembly。
+  按 1.5 的冻结决定,delivery 完成后 projection 不再属于本命令的 effect,
+  最近合法动作应指向 C3 的显式 rebuild 路径（或在 C3 落地前保持现状语义）。
+
+### 1.7 exit 归一协议（二次评审 #7,真值表之外的第三类来源）
+
+`ppt_flow test` 直接透传 `npm test` child 的任意非零 status（`ppt_flow.mjs:1507–1537`）;
+Commander 捕获的 `err.exitCode` 在 `:3994` 透传。C1 必须二选一并写进 spec:
+
+- **推荐**: JS-controlled hard failure 规范化为 1;signal 保留 130/143;child status 有界保留进
+  diagnostic;或
+- 允许 delegated commands 透传任意 child exit,并在 operation-specific contract 里表达。
+
+真值表（0/1/2/130/143）是 baseline 之外还要覆盖 signal/Commander/delegated child 三类来源
+及其优先级,不能把实现审计误写成只查五个枚举值。
+
+### 1.8 declaration authority map（二次评审 #9,单一声明源要指名 fact authority）
+
+C1 design 先画最小 authority map,避免 `cli_error.mjs` 膨胀成第二个 command/controller registry:
+
+- Commander registration / operation descriptor 拥有 accepted grammar 与 effect class;
+- command owner result 类型拥有业务 effect;
+- `cli-surface` 拥有公开规范;
+- help、inventory、JSON 校验、docs audit 都是从 descriptor/spec 可验证的 projections;
+- `cli_error.mjs` 只拥有 envelope、safe report 注册与 bounded validation。
+
+另需覆盖已存在的 typed evidence 输出: `style-master authorize` 的成功结果新增
+`controller_handoff` 字段（`recordStyleMasterAuthorizeCliHandoff`,plan/grant 严格格式）——
+C1 的结果模型必须把它纳入 schema,不得回归成散文。
+
 ## 同步面
 
 - 代码: `ppt_flow.mjs`（结果模型 + help）、`cli_error.mjs`（report schema 注册 + inventory）、

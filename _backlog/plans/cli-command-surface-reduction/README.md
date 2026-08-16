@@ -1,7 +1,8 @@
-# Plan: CLI 命令面平衡瘦身（4-change,无兼容包袱）
+# Plan: CLI 命令面平衡瘦身（5-change,无兼容包袱）
 
-> 类型: 设计 | 更新: 2026-08-16 | 状态: 已按外部评审修订,仍不开工,待人类复核
-> 一句话: 用 4 个有界 OpenSpec change,把 CLI 命令面从「职责混装 + 控制路径内藏」改成
+> 类型: 设计 | 更新: 2026-08-16 | 状态: 已吸收两轮外部评审（`07` §十二次评审）+ 人类决定（C0 纯拆分）,仍不开工,待人类复核
+> 一句话: 先用 1 个零行为变化的纯拆分 change 把 4035 行的 `ppt_flow.mjs` 变成入口 + 12 个命令模块,
+> 再用 4 个有界 OpenSpec change 把 CLI 命令面从「职责混装 + 控制路径内藏」改成
 > 「一个命令一个业务、机器契约可审计、写动作可见」;不做 alias、不做大重构、不删结构回放能力。
 > 进度真相在 [`progress.md`](progress.md),本文件只是索引与总纲。
 
@@ -14,13 +15,17 @@ change,每个都满足: 影响面可控（≤ ~30 文件）、可独立验证、
 ## 决策约束（人类给定,2026-08-16）
 
 1. **风险/影响面可控优先** — 不做单 change >50 文件的变更;不触碰 40 个 Controller 步骤的操作面。
-2. **走 OpenSpec** — proposal → specs → design → tasks → apply → validate → archive。
+2. **走 OpenSpec** — proposal → specs → design → tasks → **polish（`/polish-openspec-change`
+   磨到 apply ready）** → apply → validate → archive。
 3. **change 尽量少** — 有固定成本,能合并就合并;但合并上限由**控制风险面**决定,不只看文件数。
 4. **无兼容包袱** — 未发行、滚动开发。旧形态直接删除 + tombstone 硬拒绝,不做 alias/过渡期。
 
 ## 方案总图
 
 ```
+C0  split-ppt-flow-command-modules      (人类决定: 拆一定要拆,用最安全的纯拆分)
+    4035 行入口 → 入口 + shared/cli/commands/ 12 命令模块 + command_support;
+    零行为变化、动态 import 保留冷启动、只搬不改;descriptor 是 C1 的载体
 C1  align-cli-machine-contract          (findings G/H/D 的修正版)
     结构化结果模型 + help/exit/JSON 单一声明源 + variable closed inventory 治理
 C2  split-navigation-and-pagination-commands
@@ -30,12 +35,17 @@ C2  split-navigation-and-pagination-commands
 C3  separate-state-task-projection-rebuild
     state 子命令化 + 投影重建触发重设计(评审 6 问闭合后才开工)
 C4  split-doctor-readiness-probe
-    doctor 纯离线体检 / preflight 绑 exact run / probe connectivity-only
+    doctor 纯离线体检 / preflight 绑 exact run /
+    probe 绑 exact run（保留 pre-POST profile fence）,成功仅 connectivity
 ```
 
-**依赖**: C2/C3/C4 都依赖 C1 的 inventory 治理（`harness_coherence.mjs:444`、
+**依赖**: **C0 先行**（纯拆分,零行为变化——C1 的 declaration authority 需要它做载体）;
+C2/C3/C4 都依赖 C1 的 inventory 治理（`harness_coherence.mjs:444`、
 `test_process_docs_consistency.mjs:194` 都断言 "fixed 12-command"）。
-**顺序**: 1→2→3→4,一次只开一个 active change。
+**跨 change 冻结决定**: C1 开工前冻结 projection effect 边界——采用 C3 候选 A,
+`build`/target `image2` checkpoint 的 projection refresh 不进入 C1 的 owner result
+（二次评审 #2,见 `progress.md` 门槛 3）。
+**顺序**: 0→1→2→3→4,一次只开一个 active change。
 
 ## 为什么从 3-change 改成 4-change
 
@@ -53,6 +63,7 @@ C4  split-doctor-readiness-probe
 | 文件 | 职责 |
 | --- | --- |
 | `progress.md` | **进度跟踪**: 每 change 状态、依赖、开工门槛、下一步、窄决策待办 |
+| `00-split-ppt-flow-command-modules.md` | C0 纯拆分（4035 行入口 → 入口 + 12 命令模块） |
 | `01-align-cli-machine-contract.md` | C1 范围 / 同步面 / 完成判据 |
 | `02-split-navigation-and-pagination-commands.md` | C2 范围 / 同步面 / 完成判据 |
 | `03-separate-state-task-projection-rebuild.md` | C3 范围 + 评审 6 问 + 候选设计 |
@@ -74,3 +85,21 @@ C4  split-doctor-readiness-probe
 | C1 定性 | 从「补 --json flag」改为「结果模型 + 单一声明源 + inventory 治理」 |
 | 05 清单 | 补 harness_coherence / docs-consistency 等 10 处遗漏;修 overclaim;加 clean-break 边界 |
 | 进度跟踪 | 拆分出 `progress.md`,README 只留索引与总纲 |
+
+## 二次评审修订（2026-08-16,吸收 `07` §十的 11 条）
+
+| 修订 | 内容 |
+| --- | --- |
+| C3 门槛矛盾 | 从「design 闭合前不 open」改为 design gate（open 后、tasks 前闭合 6 问） |
+| 跨 change 冻结 | C1 前冻结 `build`/`image2` 的 projection effect 边界（取 C3 候选 A） |
+| partial effect 闭环 | C1 增加恢复闭环要求（new-version/build 的检测/修复/终态不变量） |
+| probe 绑 run | C4 修正: `probe <run-dir>`,保留 pre-POST profile fence,负例测试不删 |
+| C2 拒绝时序 | 「binding 前拒绝」改为「binding + confined read-only classification 后、mutation/provider 前」 |
+| state grammar | C3 推荐 `state show/validate/repair-known-execution-mismatch` 完整 grammar |
+| exit 归一协议 | C1 增加 delegated child status 的归一决定（`test`/`:3994` 透传） |
+| tombstone 三分验收 | 05 拆开: active consumer 计数 / runtime 负例 / planted guard sensitivity |
+| declaration authority | C1 增加 authority map,防 `cli_error.mjs` 膨胀成第二 registry |
+| trigger cutover matrix | C3 design 必产闭集矩阵（state :3884 / build :958 / image2 :3134） |
+| Task Mandate 对齐 | probe 确认属 Task Mandate/MD Controller 侧;覆盖 `style-master authorize` 新增的 `controller_handoff` typed evidence |
+| C0 纯拆分 | 人类决定: 4035 行入口拆为入口 + `commands/` 12 模块 + `command_support`,零行为变化,先于 C1（`00`） |
+| polish 门 | 人类规则: 每个 change 的 planning artifacts 写完并复核后,必跑 `/polish-openspec-change`（≥2 轮,evidence-backed）,达 `ready for apply` 才许 apply |
