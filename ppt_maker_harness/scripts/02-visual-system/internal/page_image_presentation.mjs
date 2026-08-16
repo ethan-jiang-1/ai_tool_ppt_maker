@@ -3,6 +3,7 @@ import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { isAlias, isMap, isScalar, isSeq, parseDocument, stringify } from "yaml";
 
 import { canonicalJsonSha256 } from "../../contracts/canonical_json.mjs";
+import { PROBLEM_OWNER, attachProblemFacts, toProblemFacts } from "../../shared/diagnostic/problem_fact.mjs";
 import {
   BACKBONE_DIR,
   BACKBONE_STYLE_SUBDIR,
@@ -49,6 +50,12 @@ export class PageImagePresentationError extends Error {
     this.code = code;
     this.details = Object.freeze({ ...details });
     this.issues = Object.freeze([{ code, message, ...details }]);
+    attachProblemFacts(this, toProblemFacts([{
+      code,
+      message,
+      source: details.source || null,
+      ...(details.field ? { subject: { field: details.field } } : {}),
+    }], { owner: PROBLEM_OWNER.PRESENTATION }));
   }
 }
 
@@ -133,7 +140,7 @@ function parseSourceDocument({ raw, sourcePath }, filename, schema, keys) {
   try {
     document = parseDocument(raw, { version: "1.2", schema: "core", uniqueKeys: true, merge: false, keepSourceTokens: true });
   } catch (error) {
-    throw new PageImagePresentationError("page_image_presentation_yaml_invalid", `${filename} could not be parsed`, { source: sourcePath, actual: error.message });
+    throw new PageImagePresentationError("page_image_presentation_yaml_invalid", `${filename} could not be parsed`, { source: sourcePath });
   }
   if (document.errors.length || document.warnings.length || !directYaml(document.contents)) {
     throw new PageImagePresentationError("page_image_presentation_yaml_invalid", `${filename} must be direct YAML without aliases, tags, anchors, or warnings`, { source: sourcePath });

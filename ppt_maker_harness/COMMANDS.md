@@ -78,9 +78,13 @@ to the current Controller or CLI owner:
   certification.
 - `focused`: run one deliberately selected seam or process test while changing
   that boundary.
+- `process`: run one selected real public-binary suite (`test_process_*`) under
+  the process config; it is a distinct supported tier — a passing `core`,
+  `focused`, or `sweep` run is never read as process coverage.
 - `sweep`: run broader pure unit/integration sampling when a public change
   warrants it; it does not include process-level or live-provider work.
 - `mock E2E`: run one selected journey through a fake external adapter when a
   public journey changed.
 - `real E2E`: run only a selected live journey after separate explicit human
-  authorization. It is never implied by core, focused, sweep, or mock E2E.
+  authorization. It is never implied by core, focused, process, sweep, or
+  mock E2E.

@@ -141,6 +141,7 @@ async function createPureFixture(firstTitle = "First exact Pure page", { provide
 function runFlow(args, env = {}, { cwd = process.cwd(), unsetEnv = [] } = {}) {
   const childEnv = { ...process.env, ...env };
   for (const key of unsetEnv) delete childEnv[key];
+
   return new Promise((resolveResult, reject) => {
     const child = spawn(process.execPath, [FLOW, ...args], {
       cwd,

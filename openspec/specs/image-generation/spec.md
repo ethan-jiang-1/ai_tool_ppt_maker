@@ -4,7 +4,9 @@ Define the receipt-bound Page Image Workflow raw-image lifecycle. It compiles cu
 Pure and Framed raw requests, requires a Task-Mandate-backed exact batch grant
 before a nonzero provider submission, records deterministic raw evidence, and
 exposes a human review projection before finalization.
+
 ## Requirements
+
 ### Requirement: Page Image Workflow compiles one auditable provider input per slide
 
 For a current schema-declared `page-image-workflow` receipt, the selected
@@ -1182,6 +1184,7 @@ a candidate-acquisition path.
   action before raw planning or provider submission
 - **AND** the Work Request does not create a substitute source, selection,
   generated Style Master authorization, grant, attempt, or acceptance
+
 ### Requirement: Page Image provider identity preserves registered semantics and separated lineage
 
 For a current Page Image slide with a selected `VISUAL IDENTITY`, the selected
@@ -1735,3 +1738,59 @@ stale plan and rebuild action.
   successor head advancement
 - **AND** compact compilation does not resubmit, abandon automatically, reuse
   media, or erase the attempt's attributable cost lineage
+
+### Requirement: Image2 planning reports source/config preconditions through the source owner
+
+When `image2 plan` (or its provider-free preflight) fails on a Page Source,
+Visual Language, Presentation, or Reference Material precondition, the Image2
+operation SHALL report the producer-issued problem fact (per
+`diagnostic-facts`) with one nearest legal source-owner next action, and
+SHALL NOT classify the known source/config defect as `internal` or
+`report_internal`. The operation SHALL NOT rewrite the source fact, SHALL NOT
+guess a source or action when the fact is unknown or unsafe, and SHALL make
+no plan publication, receipt, grant, attempt, or provider call.
+
+#### Scenario: Plan fails on an identity reference defect
+
+- **WHEN** `image2 plan` fails because a selected identity profile role is
+  unregistered or its clause is invalid
+- **THEN** the envelope names the reference registry/Page Source field
+  repair with one exact next
+- **AND** it does not emit `internal`/`report_internal` and creates no
+  receipt or provider input
+
+### Requirement: Page Image provider operations share the restricted startup environment
+
+The current `image2 authorize` and `image2 generate` entries SHALL resolve
+their Image2 runtime facts through the shared restricted startup loader
+(`shared/image2/startup_env.mjs`) with the fixed precedence: explicit process
+environment first, the selected deck `.env` filling only missing declared
+keys, then the project/cwd `.env` filling only keys still missing. The loader
+SHALL read only the declared runtime keys (`IMAGE2_API_KEY`,
+`IMAGE2_BASE_URL`, `IMAGE2_PROVIDER_PROFILE_ID`), SHALL NOT overwrite explicit
+environment values, and SHALL NOT output values or secrets.
+
+A missing, invalid, or profile-mismatched runtime fact SHALL hard-stop before
+grant publication, attempt claim, credential initialization, or provider
+request, with the existing secret-safe `environment`/`repair_environment` (or
+owner-issued source) recovery; it SHALL NOT relax profile identity, infer a
+fallback profile, or produce a provider side effect. Provider-free operations
+(`image2 plan`, `pilot`, `expansion`, `review`, `accept`, `reconcile`,
+`artifact-view`, and observations) SHALL NOT load dotenv configuration; their
+behavior is unchanged by this requirement.
+
+#### Scenario: Authorize resolves the deck .env profile without a shell export
+
+- **WHEN** a current exact run's deck `.env` supplies
+  `IMAGE2_PROVIDER_PROFILE_ID` while the shell does not
+- **THEN** `image2 authorize` resolves that profile identity through the
+  shared loader and continues to its existing grant preconditions
+- **AND** it does not claim an attempt, initialize credentials, or contact a
+  provider as part of that resolution
+
+#### Scenario: Runtime mismatch still hard-stops before a grant
+
+- **WHEN** the resolved runtime profile ID differs from the plan-bound profile
+- **THEN** authorization hard-stops before grant publication or provider work
+  with the existing environment repair action
+- **AND** no attempt, credential initialization, or provider request occurs

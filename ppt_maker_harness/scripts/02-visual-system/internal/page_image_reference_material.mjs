@@ -7,6 +7,7 @@ import {
   normalizePageImageVisualClause,
   resolvePageImageVisualLanguageSelection,
 } from "./page_image_visual_language.mjs";
+import { PROBLEM_OWNER, attachProblemFacts, toProblemFacts } from "../../shared/diagnostic/problem_fact.mjs";
 
 export const PAGE_IMAGE_REFERENCE_REGISTRY_SCHEMA = "pptmaker-image2-reference-registry";
 export const PAGE_IMAGE_REFERENCE_ROOT = "2_backbone/visual-style/assets/reference";
@@ -30,6 +31,7 @@ export class PageImageReferenceMaterialError extends Error {
     super(list.map((item) => item.message || String(item)).join("; "));
     this.name = "PageImageReferenceMaterialError";
     this.issues = Object.freeze([...list]);
+    attachProblemFacts(this, toProblemFacts(list, { owner: PROBLEM_OWNER.REFERENCE_MATERIAL }));
   }
 }
 
@@ -43,10 +45,11 @@ function deepFreeze(value) {
   return Object.freeze(value);
 }
 
-function problem(code, message, { path, actual, expected } = {}) {
+function problem(code, message, { path, actual, expected, source } = {}) {
   return {
     code,
     message,
+    ...(source ? { source } : {}),
     ...(path ? { path } : {}),
     ...(actual !== undefined ? { actual } : {}),
     ...(expected !== undefined ? { expected } : {}),
@@ -109,7 +112,7 @@ function parseString(node, context, issues, { id = false, sha = false, visualCla
     try {
       return normalizePageImageVisualClause(value, { context });
     } catch (error) {
-      issues.push(problem(error.code || "invalid_reference_role_clause", error.message, { path: context, actual: value }));
+      issues.push(problem(error.code || "invalid_reference_role_clause", error.message, { path: context }));
       return null;
     }
   }
@@ -233,10 +236,10 @@ function profileDirectory(deckDir, profileId) {
 function verifyAmberModelSheet(profileId, directory) {
   if (profileId !== "amber-agent") return;
   const path = resolve(directory, "model-sheet.png");
-  if (!existsSync(path)) throw new PageImageReferenceMaterialError(problem("missing_model_sheet", "amber-agent doctrine model sheet is missing", { path }));
+  if (!existsSync(path)) throw new PageImageReferenceMaterialError(problem("missing_model_sheet", "amber-agent doctrine model sheet is missing", { source: { path } }));
   const actual = sha256(readFileSync(path));
   if (actual !== AMBER_AGENT_MODEL_SHEET_SHA256) {
-    throw new PageImageReferenceMaterialError(problem("amber_model_sheet_sha_mismatch", "amber-agent doctrine model sheet checksum differs from the verified reference source", { path, actual, expected: AMBER_AGENT_MODEL_SHEET_SHA256 }));
+    throw new PageImageReferenceMaterialError(problem("amber_model_sheet_sha_mismatch", "amber-agent doctrine model sheet checksum differs from the verified reference source", { source: { path }, actual, expected: AMBER_AGENT_MODEL_SHEET_SHA256 }));
   }
 }
 
@@ -249,9 +252,17 @@ export function loadPageImageReferenceMaterial(deckDir, profileId) {
   try {
     raw = new TextDecoder("utf-8", { fatal: true }).decode(readFileSync(path));
   } catch (error) {
-    throw new PageImageReferenceMaterialError(problem("reference_registry_unavailable", `could not read Page Image image2 reference registry: ${error.message}`, { path }));
+    throw new PageImageReferenceMaterialError(problem("reference_registry_unavailable", "could not read Page Image image2 reference registry", { source: { path } }));
   }
-  const material = parsePageImageReferenceMaterial(raw, { expectedProfile: profileId });
+  let material;
+  try {
+    material = parsePageImageReferenceMaterial(raw, { expectedProfile: profileId });
+  } catch (error) {
+    // The loader knows the exact physical registry path; bind it as the
+    // physical owner locator on the parse-error facts.
+    attachProblemFacts(error, toProblemFacts(error.issues, { owner: PROBLEM_OWNER.REFERENCE_MATERIAL, physicalSource: { path } }));
+    throw error;
+  }
   verifyAmberModelSheet(profileId, directory);
   return deepFreeze({ ...material, profile_directory: directory });
 }
@@ -265,24 +276,25 @@ export function resolvePageImageIdentityReference({ deckDir, identity, identity_
     throw new PageImageReferenceMaterialError(problem("invalid_reference_identity", "identity profile and role must be lower-kebab IDs", { actual: identity }));
   }
   const material = loadPageImageReferenceMaterial(deckDir, profileId);
+  const registrySource = { path: resolve(material.profile_directory, "image2-reference-material.yaml") };
   const profile = material.profiles[profileId];
   const role = profile?.roles?.[roleId];
-  if (!profile) throw new PageImageReferenceMaterialError(problem("unregistered_identity_profile", `VISUAL IDENTITY selects unregistered profile ${JSON.stringify(profileId)}`, { actual: profileId }));
-  if (!role) throw new PageImageReferenceMaterialError(problem("unregistered_identity_role", `VISUAL IDENTITY selects unregistered role ${JSON.stringify(roleId)}`, { actual: roleId }));
+  if (!profile) throw new PageImageReferenceMaterialError(problem("unregistered_identity_profile", `VISUAL IDENTITY selects unregistered profile ${JSON.stringify(profileId)}`, { source: registrySource, actual: profileId }));
+  if (!role) throw new PageImageReferenceMaterialError(problem("unregistered_identity_role", `VISUAL IDENTITY selects unregistered role ${JSON.stringify(roleId)}`, { source: registrySource, actual: roleId }));
   if (identity_subject_count !== "one" || identity_subject_count > profile.maximum_identity_subjects) {
-    throw new PageImageReferenceMaterialError(problem("identity_subject_count_incompatible", `profile ${JSON.stringify(profileId)} permits exactly one identity subject`, { actual: identity_subject_count, expected: "one" }));
+    throw new PageImageReferenceMaterialError(problem("identity_subject_count_incompatible", `profile ${JSON.stringify(profileId)} permits exactly one identity subject`, { source: registrySource, actual: identity_subject_count, expected: "one" }));
   }
   if (!RESTRICTIONS.includes(subject_restrictions) || profile.incompatible_restrictions.includes(subject_restrictions) || !profile.compatible_restrictions.includes(subject_restrictions)) {
-    throw new PageImageReferenceMaterialError(problem("identity_restriction_incompatible", `profile ${JSON.stringify(profileId)} is incompatible with ${JSON.stringify(subject_restrictions)}`, { actual: subject_restrictions, expected: profile.compatible_restrictions }));
+    throw new PageImageReferenceMaterialError(problem("identity_restriction_incompatible", `profile ${JSON.stringify(profileId)} is incompatible with ${JSON.stringify(subject_restrictions)}`, { source: registrySource, actual: subject_restrictions, expected: profile.compatible_restrictions }));
   }
   const referencePath = resolve(material.profile_directory, role.reference_path);
   const relation = relative(material.profile_directory, referencePath);
   if (relation.startsWith(`..${sep}`) || relation === ".." || isAbsolute(relation) || !existsSync(referencePath)) {
-    throw new PageImageReferenceMaterialError(problem("reference_path_escape", "selected role reference is unavailable outside its profile directory", { actual: role.reference_path }));
+    throw new PageImageReferenceMaterialError(problem("reference_path_escape", "selected role reference is unavailable outside its profile directory", { source: { path: referencePath }, actual: role.reference_path }));
   }
   const actualSha = sha256(readFileSync(referencePath));
   if (actualSha !== role.reference_sha256) {
-    throw new PageImageReferenceMaterialError(problem("reference_sha_mismatch", `selected role ${JSON.stringify(roleId)} does not match its registered bytes`, { actual: actualSha, expected: role.reference_sha256 }));
+    throw new PageImageReferenceMaterialError(problem("reference_sha_mismatch", `selected role ${JSON.stringify(roleId)} does not match its registered bytes`, { source: { path: referencePath }, actual: actualSha, expected: role.reference_sha256 }));
   }
   const projection = {
     profile: profileId,

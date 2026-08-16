@@ -60,7 +60,7 @@ function canonicalSnapshot() {
       (path.startsWith("00-setup/") ? `import "./index.mjs";\n` : "") +
       (path.startsWith("05-iteration/") ? `import "../../index.mjs";\n` : "");
   }
-  files["ppt_flow.mjs"] = `import "./shared/cli/cli_bootstrap.mjs?entry=ppt_flow.mjs";\nimport("./00-setup/index.mjs");\n`;
+  files["ppt_flow.mjs"] = `import "./shared/cli/cli_bootstrap.mjs?entry=ppt_flow.mjs";\nimport("./00-setup/index.mjs");\nimport { projectProblemFactsDiagnostic } from ${CLI_ERROR_SPECIFIER};\n`;
   files["shared/image2/provider_profile.mjs"] = [
     "export function resolveImage2ProviderProfile() {}",
     "export function evaluateImage2PromptBudget() {}",
@@ -88,6 +88,9 @@ function canonicalSnapshot() {
 function issueCodes(result) {
   return result.issues.map((issue) => issue.code);
 }
+
+const CLI_ERROR_SPECIFIER = "./shared/cli/" + "cli_error.mjs";
+const CLI_ERROR_SPECIFIER_UP = "../../shared/cli/" + "cli_error.mjs";
 
 function walkHarnessScripts(root, files = []) {
   for (const name of readdirSync(root)) {
@@ -471,6 +474,51 @@ describe("Harness architecture contract", () => {
   it("enforces the final architecture against the real repository tree", () => {
     const result = validateRepositoryArchitecture(process.cwd());
     expect(result.issues, result.issues.map((issue) => `${issue.code}: ${issue.path} ${issue.message}`).join("\n")).toEqual([]);
+  });
+
+  it("rejects a planted second attributor for a migrated source/config family", () => {
+    const snapshot = canonicalSnapshot();
+    snapshot.files["ppt_flow.mjs"] = `import { projectProblemFactsDiagnostic } from ${CLI_ERROR_SPECIFIER};\nconst CODES = new Set(["unregistered_identity_role"]);\n`;
+    expect(issueCodes(validateArchitectureSnapshot(snapshot))).toContain("diagnostic-second-attributor");
+  });
+
+  it("rejects a planted missing projection seam in ppt_flow", () => {
+    const snapshot = canonicalSnapshot();
+    snapshot.files["ppt_flow.mjs"] = `import "./shared/cli/cli_bootstrap.mjs?entry=ppt_flow.mjs";\nif (reason.startsWith("style_master_")) return classifyFromPrefix(reason);\n`;
+    expect(issueCodes(validateArchitectureSnapshot(snapshot))).toContain("diagnostic-projection-seam-missing");
+  });
+
+  it("rejects a planted delivery-notes seam use outside 05-delivery", () => {
+    const snapshot = canonicalSnapshot();
+    snapshot.files["01-content/internal/page_image_source.mjs"] = `import { attachCliDiagnostic } from ${CLI_ERROR_SPECIFIER_UP};\nattachCliDiagnostic(error, diagnostic);\n`;
+    expect(issueCodes(validateArchitectureSnapshot(snapshot))).toContain("diagnostic-seam-jurisdiction");
+  });
+
+  it("rejects a planted retired visual-language path in current guidance", () => {
+    const snapshot = canonicalSnapshot();
+    const result = validateArchitectureSnapshot(snapshot, undefined, undefined);
+    const withGuidance = validateArchitectureSnapshot({
+      ...snapshot,
+      guidanceFiles: { "charter/NODE-SPEC.md": "visual-language readiness checks join(deckDir, '2_backbone/visual-style/page-authority-visual-language.yaml')" },
+    });
+    expect(issueCodes(withGuidance)).toContain("retired-visual-language-path");
+    expect(issueCodes(result)).not.toContain("retired-visual-language-path");
+  });
+
+  it("rejects a planted old code+hint consumer branch in current guidance", () => {
+    const withGuidance = validateArchitectureSnapshot({
+      ...canonicalSnapshot(),
+      guidanceFiles: { "playbook/create-deck.md": "MD Controllers SHALL branch on `code` and surface `message`/`hint` to decide the next repair action" },
+    });
+    expect(issueCodes(withGuidance)).toContain("retired-consumer-branch");
+  });
+
+  it("rejects a planted retired path that tries to escape via a different file", () => {
+    const withGuidance = validateArchitectureSnapshot({
+      ...canonicalSnapshot(),
+      guidanceFiles: { "workflow/00-setup/README.md": "read the page-authority-visual-language.yaml source" },
+    });
+    expect(issueCodes(withGuidance)).toContain("retired-visual-language-path");
   });
 
 });

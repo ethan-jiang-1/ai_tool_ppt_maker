@@ -66,7 +66,7 @@ export const STATE_YAML_HEADER = `\
 # _state/state.yaml — MD Controller execution state (not a hand-edit playground)
 # Schema authority: ppt_maker_harness/charter/NODE-SPEC.md
 # API: ppt_maker_harness/scripts/shared/state/state.mjs
-# CLI: node ppt_maker_harness/scripts/ppt_flow.mjs state <runDir> [--json|--check-gates]
+# CLI: node ppt_maker_harness/scripts/ppt_flow.mjs state <runDir> [--json|--validate-state]
 # Fields: pipeline, production_identity.by_version, page_image_task_mandate.by_version, playbook, current_node, execution_id, nodes.*, gates.*, deck.*, playbook_stack
 # MD Controller source: ppt_maker_harness/playbook/*.md
 # Read boundary: observation validates the declared current authority and never rewrites, infers, or continues unsupported state

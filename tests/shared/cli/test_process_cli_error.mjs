@@ -185,6 +185,19 @@ describe("cli_error", () => {
     expect(Buffer.byteLength(JSON.stringify(diagnostic))).toBeLessThanOrEqual(CLI_BOUNDS.diagnosticBytes);
   });
 
+  it("projects the additive source_valid observation only as literal true", () => {
+    const base = {
+      schema: CLI_DIAGNOSTIC_SCHEMA,
+      category: "artifact",
+      reason: { kind: "target_source_state_identity_mismatch" },
+      next: { action: "repair_prerequisite", requires_human: false, default: "Rebind source/state identity, then rerun validate." },
+    };
+    expect(sanitizeCliDiagnostic({ ...base, source_valid: true }).source_valid).toBe(true);
+    expect(sanitizeCliDiagnostic({ ...base, source_valid: false })).not.toHaveProperty("source_valid");
+    expect(sanitizeCliDiagnostic({ ...base, source_valid: "yes" })).not.toHaveProperty("source_valid");
+    expect(sanitizeCliDiagnostic({ ...base })).not.toHaveProperty("source_valid");
+  });
+
   it("omits credential-bearing invocation and safe-domain sentinel values", () => {
     const diagnostic = sanitizeCliDiagnostic({
       schema: CLI_DIAGNOSTIC_SCHEMA,
@@ -244,32 +257,97 @@ describe("cli_error", () => {
     const categories = ["help", "usage", "contextual", "delegated", "interruption", "prose_success", "json_success"];
     const focused = (file, test) => ({ probe: { file, test } });
     const na = (reason) => ({ notApplicable: reason });
-    const executableAudit = Object.fromEntries(EXECUTABLE_INVENTORY.map((entry) => [entry, {
-      help: focused("tests/shared/cli/test_process_cli_error.mjs", "every registered executable has side-effect-free help"),
-      usage: focused("tests/shared/cli/test_process_cli_error.mjs", "every registered executable has side-effect-free help"),
-      contextual: focused({
-        "shared/run-bundle/bundle_layout.mjs": "tests/shared/run-bundle/test_page_image_layout.mjs",
-        "00-setup/env-check.mjs": "tests/00-setup/test_process_env_check.mjs",
-        "shared/run-bundle/lessons.mjs": "tests/shared/run-bundle/test_process_lessons.mjs",
-        "ppt_flow.mjs": "tests/contracts/test_cli_surface.mjs",
-      }[entry], "structured contextual failure"),
-      delegated: entry === "ppt_flow.mjs" ? focused("tests/shared/cli/test_process_cli_error.mjs", "suppresses child failure prose") : na("Executable does not own a subprocess boundary."),
-      interruption: focused("tests/shared/cli/test_process_cli_error.mjs", "handles catchable interruption once"),
-      prose_success: focused("tests/shared/cli/test_process_cli_error.mjs", "every registered executable has side-effect-free help"),
-      json_success: ["00-setup/env-check.mjs", "ppt_flow.mjs", "shared/run-bundle/lessons.mjs"].includes(entry) ? focused(entry === "00-setup/env-check.mjs" ? "tests/00-setup/test_process_env_check.mjs" : entry === "ppt_flow.mjs" ? "tests/contracts/test_cli_surface.mjs" : "tests/shared/run-bundle/test_process_lessons.mjs", "documented JSON output") : na("No documented JSON success mode."),
-    }]));
-    const delegatedCommands = new Set(["doctor", "validate", "build", "refresh", "test"]);
-    const commandAudit = Object.fromEntries(PPT_FLOW_COMMAND_INVENTORY.map((entry) => {
-      const commandProbeFile = "tests/contracts/test_cli_surface.mjs";
-      const commandProbeName = `ppt_flow ${entry} contextual behavior`;
+    const CLI_ERROR_FILE = "tests/shared/cli/test_process_cli_error.mjs";
+    const CLI_SURFACE_FILE = "tests/contracts/test_cli_surface.mjs";
+    const CLI_HELP = "every registered executable has side-effect-free help and one final current failure envelope";
+    const CLI_DELEGATED = "suppresses child failure prose and preserves only registered current evidence";
+    const CLI_INTERRUPTION = "handles catchable interruption once without reporting an internal defect";
+    const CLI_SURFACE_CASE = "has no retired command and rejects undeclared observation and execution without writes";
+    const executableAudit = Object.fromEntries(EXECUTABLE_INVENTORY.map((entry) => {
+      const contextual = {
+        "shared/run-bundle/bundle_layout.mjs": focused("tests/shared/run-bundle/test_page_image_layout.mjs", "reports malformed progressive page-production topology without selecting or cleaning it"),
+        "00-setup/env-check.mjs": focused("tests/00-setup/test_process_env_check.mjs", "rejects version suffixes outside the narrow allowlist"),
+        "shared/run-bundle/lessons.mjs": focused("tests/shared/run-bundle/test_process_lessons.mjs", "hard-stops a locatorless Deck before creating a lesson"),
+        "ppt_flow.mjs": focused(CLI_SURFACE_FILE, CLI_SURFACE_CASE),
+      }[entry];
+      const jsonSuccess = {
+        "00-setup/env-check.mjs": focused("tests/00-setup/test_process_env_check.mjs", "produces JSON with --json"),
+        "ppt_flow.mjs": focused(CLI_SURFACE_FILE, CLI_SURFACE_CASE),
+        "shared/run-bundle/lessons.mjs": focused("tests/shared/run-bundle/test_process_lessons.mjs", "supports --json output"),
+      }[entry];
       return [entry, {
-        help: focused("tests/contracts/test_cli_surface.mjs", "has no retired command and hard-stops non observation and execution without writes"),
-        usage: entry === "test" ? na("The no-argument test command has no command-specific usage failure.") : focused("tests/contracts/test_cli_surface.mjs", "has no retired command and hard-stops non observation and execution without writes"),
-        contextual: focused(commandProbeFile, commandProbeName),
-        delegated: delegatedCommands.has(entry) ? focused("tests/shared/cli/test_process_cli_error.mjs", "suppresses child failure prose") : na("Command does not delegate to a child process."),
-        interruption: focused("tests/shared/cli/test_process_cli_error.mjs", "handles catchable interruption once"),
-        prose_success: focused(commandProbeFile, `ppt_flow ${entry} success`),
-        json_success: ["status", "state", "image2"].includes(entry) ? focused("tests/contracts/test_cli_surface.mjs", "has no retired command and hard-stops non observation and execution without writes") : na("No documented JSON success mode."),
+        help: focused(CLI_ERROR_FILE, CLI_HELP),
+        usage: focused(CLI_ERROR_FILE, CLI_HELP),
+        contextual: contextual || na("No registered contextual failure case exists for this executable; its failure surface is asserted by its owning owner suite."),
+        delegated: entry === "ppt_flow.mjs" ? focused(CLI_ERROR_FILE, CLI_DELEGATED) : na("Executable does not own a subprocess boundary."),
+        interruption: focused(CLI_ERROR_FILE, CLI_INTERRUPTION),
+        prose_success: focused(CLI_ERROR_FILE, CLI_HELP),
+        json_success: jsonSuccess || na("No documented JSON success mode."),
+      }];
+    }));
+    const delegatedCommands = new Set(["doctor", "validate", "build", "refresh", "test"]);
+    const commandFile = {
+      "style-master": "tests/contracts/test_process_style_master_cli.mjs",
+      "image2": "tests/shared/cli/test_process_target_diagnostics.mjs",
+      "slides": "tests/01-content/test_target_structural_cli.mjs",
+      "status": "tests/shared/cli/test_process_target_diagnostics.mjs",
+      "state": "tests/shared/cli/test_process_target_diagnostics.mjs",
+      "validate": "tests/shared/cli/test_process_target_diagnostics.mjs",
+      "build": "tests/shared/cli/test_process_target_diagnostics.mjs",
+      "refresh": "tests/shared/cli/test_process_target_diagnostics.mjs",
+      "doctor": "tests/00-setup/test_process_env_check.mjs",
+      "init": "tests/shared/run-bundle/test_page_image_layout.mjs",
+      "new-version": "tests/01-content/test_clean_page_image_new_version_cli.mjs",
+      "test": CLI_SURFACE_FILE,
+    };
+    const commandCase = {
+      "tests/contracts/test_process_style_master_cli.mjs": {
+        contextual: "plans a stale source-context successor without raw mutation or an inspect loop",
+        success: "reports PNG selection success without a JPEG replay surface",
+        usage: "rejects an undeclared or bypass-shaped input before plan publication",
+      },
+      "tests/shared/cli/test_process_target_diagnostics.mjs": {
+        contextual: "short-circuits an unfit Framed source, preserves owner boundaries, and succeeds after the same plan repair",
+        success: "runs the fixed Pure progressive CLI forms one item at a time",
+        usage: "rejects retired and bypassing progressive forms before mutation or provider initialization",
+      },
+      "tests/01-content/test_target_structural_cli.mjs": {
+        contextual: "publishes a same-workflow v2 vNext through the exact preview hash with no provider work",
+        success: "publishes a same-workflow v2 vNext through the exact preview hash with no provider work",
+        usage: "fails persisted apply-plan replay after target selection-map drift without mutation",
+      },
+      "tests/01-content/test_clean_page_image_new_version_cli.mjs": {
+        contextual: "creates a clean target that validates through the draft route",
+        success: "creates a clean target that validates through the draft route",
+        usage: "hard-stops an undeclared source before creating a successor",
+      },
+      "tests/00-setup/test_process_env_check.mjs": {
+        contextual: "rejects version suffixes outside the narrow allowlist",
+        success: "produces text output by default",
+        usage: "fails when no ancestor has the packages",
+      },
+      "tests/shared/run-bundle/test_page_image_layout.mjs": {
+        contextual: "rejects missing, malformed, retired-mode, and source-disagreeing identity records without mutation",
+        success: "initializes a current authoring draft without guessing its workflow",
+        usage: "reports malformed progressive page-production topology without selecting or cleaning it",
+      },
+      [CLI_SURFACE_FILE]: {
+        contextual: CLI_SURFACE_CASE,
+        success: CLI_SURFACE_CASE,
+        usage: CLI_SURFACE_CASE,
+      },
+    };
+    const commandAudit = Object.fromEntries(PPT_FLOW_COMMAND_INVENTORY.map((entry) => {
+      const file = commandFile[entry];
+      const probe = commandCase[file];
+      return [entry, {
+        help: focused(file, probe.success),
+        usage: focused(file, probe.usage),
+        contextual: focused(file, probe.contextual),
+        delegated: delegatedCommands.has(entry) ? focused(CLI_ERROR_FILE, CLI_DELEGATED) : na("Command does not delegate to a child process."),
+        interruption: focused(CLI_ERROR_FILE, CLI_INTERRUPTION),
+        prose_success: focused(file, probe.success),
+        json_success: ["status", "state", "image2"].includes(entry) ? focused(file, probe.success) : na("No documented JSON success mode."),
       }];
     }));
     expect(Object.keys(executableAudit).sort()).toEqual([...EXECUTABLE_INVENTORY].sort());
@@ -282,6 +360,11 @@ describe("cli_error", () => {
           expect(typeof value.probe.file).toBe("string");
           expect(typeof value.probe.test).toBe("string");
           expect(statSync(join(ROOT, value.probe.file)).isFile()).toBe(true);
+          const source = readFileSync(join(ROOT, value.probe.file), "utf8");
+          const resolved = [...source.matchAll(/(?:it|test)(?:\.each\([^)]*\))?\(\s*[`"']([^`"']+)[`"']/g)]
+            .map((match) => match[1])
+            .includes(value.probe.test);
+          expect(resolved, `${value.probe.file} has no real test case "${value.probe.test}"`).toBe(true);
         } else {
           expect(value.notApplicable.length).toBeGreaterThan(20);
         }

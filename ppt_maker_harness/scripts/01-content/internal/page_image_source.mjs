@@ -5,6 +5,7 @@ import {
   probeProductionMarker,
 } from "../../shared/run-bundle/production_marker.mjs";
 import { PAGE_IMAGE_CLASSES } from "../../shared/run-bundle/bundle_layout.mjs";
+import { PROBLEM_OWNER, attachProblemFacts, createProblemFact, problemFactsFromError, toProblemFacts } from "../../shared/diagnostic/problem_fact.mjs";
 import {
   PAGE_IMAGE_CORE_CONTENT_ROLES,
   PAGE_IMAGE_CORE_COPY_POLICIES,
@@ -84,8 +85,34 @@ export class PageImageSourceError extends Error {
     super(list.map((issue) => issue.message || String(issue)).join("; "));
     this.name = "PageImageSourceError";
     this.issues = Object.freeze([...list]);
+    attachProblemFacts(this, toProblemFacts(list, { owner: PROBLEM_OWNER.PAGE_SOURCE }));
   }
 }
+
+/**
+ * Per-issue owner tracking for resolver-absorbed facts. Issues carry no owner
+ * field; the aggregation layer records ownership in this module-scoped map so
+ * the final error's problem facts preserve the real repair owner instead of
+ * re-homing every failure to Page Source.
+ */
+const issueOwners = new WeakMap();
+
+// Page Source-owned selection failures: the failing fact is the slide's own
+// field, so the repair owner is the Page Source field listed here.
+const IDENTITY_FIELD_CODES = new Map([
+  ["unregistered_identity_profile", "VISUAL IDENTITY"],
+  ["unregistered_identity_role", "VISUAL IDENTITY"],
+  ["identity_subject_count_incompatible", "IDENTITY SUBJECT COUNT"],
+  ["identity_restriction_incompatible", "SUBJECT RESTRICTIONS"],
+]);
+// A VISUAL BRIEF that references an unregistered registry ID is a brief
+// ingress failure: repair the Page Source VISUAL BRIEF field.
+const UNREGISTERED_BRIEF_CODES = new Set([
+  "unregistered_visual_recipe",
+  "unregistered_visual_composition",
+  "unregistered_visual_motif",
+  "unregistered_visual_relationship",
+]);
 
 function sha256(value) {
   return createHash("sha256").update(value).digest("hex");
@@ -682,22 +709,96 @@ function resolveVisualBrief(registry, context, document, block, visualBrief, iss
   try {
     return registry.resolveSelection(context);
   } catch (error) {
-    const details = Array.isArray(error?.issues) ? error.issues : [];
-    if (details.length > 0) {
-      for (const detail of details) {
-        issues.push(issue(document, block, detail.code || "unregistered_visual_selection", detail.message || String(detail), {
-          field: "VISUAL BRIEF",
-          fieldSpan: block.body_range,
-        }));
-      }
-    } else {
-      issues.push(issue(document, block, "unregistered_visual_selection", error?.message || "VISUAL BRIEF does not resolve in the visual language registry", {
-        field: "VISUAL BRIEF",
-        fieldSpan: block.body_range,
-      }));
-    }
+    absorbResolverFailure(error, document, block, issues);
     return null;
   }
+}
+
+/**
+ * Absorb a resolver failure (identity reference, visual-language selection, or
+ * per-slide presentation projection) without re-homing it to VISUAL BRIEF.
+ * Producer-issued problem facts keep their owner/locator; only the declared
+ * Page Source field-location mapping re-homes genuinely Page Source-owned
+ * selection failures. Errors without contract facts stay unknown.
+ */
+function absorbResolverFailure(error, document, block, issues) {
+  const facts = problemFactsFromError(error);
+  if (!facts) {
+    const entry = issue(document, block, "unregistered_visual_selection", error?.message || "VISUAL BRIEF does not resolve in the visual language registry", {
+      field: "VISUAL BRIEF",
+      fieldSpan: block.body_range,
+    });
+    issueOwners.set(entry, null);
+    issues.push(entry);
+    return;
+  }
+  for (const fact of facts) {
+    let owner = fact.owner;
+    let field = fact.subject?.field || null;
+    let source = fact.source;
+    let path = fact.path;
+    if (fact.owner === PROBLEM_OWNER.REFERENCE_MATERIAL && IDENTITY_FIELD_CODES.has(fact.reason)) {
+      // The slide's own identity selection is the failing fact: repair the
+      // Page Source field, not the registry.
+      owner = PROBLEM_OWNER.PAGE_SOURCE;
+      field = IDENTITY_FIELD_CODES.get(fact.reason);
+      source = { path: document.source, line: block.body_range.start_line, column: block.body_range.start_column || 1 };
+      path = null;
+    } else if (fact.reason === "page_image_presentation_header_field_forbidden") {
+      // A forbidden Framed header literal is a Page Source header/class field
+      // defect; the producer supplies the exact header field when known.
+      owner = PROBLEM_OWNER.PAGE_SOURCE;
+      field = typeof field === "string" ? field.toUpperCase() : null;
+      source = { path: document.source, line: block.body_range.start_line, column: block.body_range.start_column || 1 };
+      path = null;
+    } else if (fact.owner === PROBLEM_OWNER.VISUAL_LANGUAGE && UNREGISTERED_BRIEF_CODES.has(fact.reason)) {
+      // The brief references an unregistered ID: repair the VISUAL BRIEF field.
+      owner = PROBLEM_OWNER.PAGE_SOURCE;
+      field = "VISUAL BRIEF";
+      source = { path: document.source, line: block.body_range.start_line, column: block.body_range.start_column || 1 };
+      path = null;
+    }
+    const entry = {
+      severity: "ERROR",
+      code: fact.reason,
+      message: fact.message,
+      ...(source ? { source } : {}),
+      ...(path ? { path } : {}),
+      subject: { kind: "slide", id: block.slide_id || null, ...(field ? { field } : {}) },
+      ...(fact.actual !== undefined ? { actual: fact.actual } : {}),
+      ...(fact.expected !== undefined ? { expected: fact.expected } : {}),
+    };
+    issueOwners.set(entry, owner);
+    issues.push(entry);
+  }
+}
+
+/**
+ * Assemble the final error's problem facts from the collected issues: one
+ * stable root fact per (owner, reason, physical source, logical path), with
+ * repeated shared-root occurrences kept as subject attachments in `issues`.
+ * Slide order and truncation cannot change the root.
+ */
+function buildAggregatedFacts(issues) {
+  const facts = [];
+  const seenRoots = new Set();
+  for (const entry of issues) {
+    const owner = issueOwners.has(entry) ? issueOwners.get(entry) : PROBLEM_OWNER.PAGE_SOURCE;
+    const rootKey = `${owner}\u0000${entry.code}\u0000${entry.source?.path || ""}\u0000${entry.path || ""}`;
+    if (seenRoots.has(rootKey)) continue;
+    seenRoots.add(rootKey);
+    facts.push(createProblemFact({
+      reason: entry.code,
+      owner,
+      source: entry.source || null,
+      path: entry.path || null,
+      subject: entry.subject ? { slideId: entry.subject.id, field: entry.subject.field } : null,
+      actual: entry.actual,
+      expected: entry.expected,
+      message: entry.message,
+    }));
+  }
+  return facts;
 }
 
 /**
@@ -846,7 +947,11 @@ export function parsePageImageSource(sourceText, { source = "slide-specification
     });
   }
 
-  if (issues.length > 0) throw new PageImageSourceError(issues);
+  if (issues.length > 0) {
+    const error = new PageImageSourceError(issues);
+    attachProblemFacts(error, buildAggregatedFacts(issues));
+    throw error;
+  }
   return deepFreeze({
     schema: PAGE_IMAGE_WORKFLOW_SOURCE_RECEIPT_SCHEMA,
     artifact_role: PAGE_IMAGE_WORKFLOW_SOURCE_RECEIPT_ARTIFACT_ROLE,

@@ -112,7 +112,7 @@ describe("Page Image visual language", () => {
     });
   });
 
-  it("rejects retired authorities and content-overriding text-free clauses", () => {
+  it("rejects retired authorities structurally and content-overriding clauses at selection", () => {
     const retiredAuthority = registrySource().replace("workflows: [framed, pure]", "authorities: [pure-image2, framed-image2]");
     const textFree = registrySource().replace(
       "architectural editorial scene, layered amber and cobalt light, quiet depth",
@@ -123,11 +123,48 @@ describe("Page Image visual language", () => {
       "centered focal form with headline",
     );
 
-    for (const invalid of [retiredAuthority, textFree, sourceLiteral]) {
-      expect(() => parsePageImageVisualLanguage(invalid)).toThrow(PageImageVisualLanguageError);
+    expect(() => parsePageImageVisualLanguage(retiredAuthority)).toThrow(PageImageVisualLanguageError);
+
+    for (const invalid of [textFree, sourceLiteral]) {
+      const parsed = parsePageImageVisualLanguage(invalid);
+      expect(() => resolvePageImageVisualLanguageSelection(parsed, {
+        workflow: "pure",
+        visual_brief: { recipe: "editorial-systems", composition: "centered-constellation", motifs: [] },
+      })).toThrow(PageImageVisualLanguageError);
     }
-    expect(() => parsePageImageVisualLanguage(textFree)).toThrow(/text-free page/);
-    expect(() => parsePageImageVisualLanguage(sourceLiteral)).toThrow(/source content token/);
+    const textFreeError = (() => {
+      try {
+        resolvePageImageVisualLanguageSelection(parsePageImageVisualLanguage(textFree), {
+          workflow: "pure",
+          visual_brief: { recipe: "editorial-systems", composition: "centered-constellation", motifs: [] },
+        });
+        return null;
+      } catch (error) {
+        return error;
+      }
+    })();
+    expect(textFreeError).not.toBeNull();
+    expect(textFreeError.issues.map((entry) => entry.code)).toContain("forbidden_text_free_visual_clause");
+    expect(textFreeError.issues[0].path).toBe("recipes.editorial-systems.provider_clause");
+    expect(textFreeError.issues[0].source).toBe("2_backbone/visual-style/page-image-visual-language.yaml");
+  });
+
+  it("does not let an unselected semantic-violation record invalidate the page", () => {
+    const withUnusedInvalid = registrySource().replace(
+      "recipes:\n",
+      "recipes:\n  unused-invalid:\n    provider_clause: quiet headline depth\n    workflows: [framed, pure]\n    composition_ids: [centered-constellation]\n    motif_ids: []\n    identity_subject_classes: [none]\n",
+    );
+    const registry = parsePageImageVisualLanguage(withUnusedInvalid);
+    const resolved = resolvePageImageVisualLanguageSelection(registry, {
+      workflow: "pure",
+      visual_brief: { recipe: "editorial-systems", composition: "centered-constellation", motifs: [] },
+    });
+    expect(resolved.projection.recipe.id).toBe("editorial-systems");
+
+    expect(() => resolvePageImageVisualLanguageSelection(registry, {
+      workflow: "pure",
+      visual_brief: { recipe: "unused-invalid", composition: "centered-constellation", motifs: [] },
+    })).toThrow(/source content token/);
   });
 
   it("accepts registered relationship selection for either workflow", () => {

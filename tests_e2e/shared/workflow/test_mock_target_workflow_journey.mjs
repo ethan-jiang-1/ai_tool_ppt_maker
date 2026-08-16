@@ -951,4 +951,28 @@ describe("mock TARGET workflow journey", () => {
     }
   }, 120_000);
 
+  it("hard-stops image2 plan with a source_validation envelope on an invalid visual registry", async () => {
+    const slides = [
+      { id: "DeckGo", title: "Pure invalid registry opening", note: "Invalid registry note." },
+    ];
+    const fixture = createTargetFixture("target-invalid-registry-", "pure", slides);
+    try {
+      const registryPath = join(fixture.deck, "2_backbone", "visual-style", "page-image-visual-language.yaml");
+      writeFileSync(
+        registryPath,
+        readFileSync(registryPath, "utf8").replace("quiet depth", "quiet headline depth"),
+      );
+      const result = await flow(["image2", "plan", fixture.runDir]);
+      const envelope = jsonFailure(result);
+      expect(result.stdout).toBe("");
+      expect(envelope.diagnostic.schema).toBe("pptmaker-cli-diagnostic");
+      expect(envelope.diagnostic.category).toBe("source_validation");
+      expect(envelope.diagnostic.reason.kind).toBe("content_overriding_visual_clause");
+      expect(envelope.diagnostic.source.path).toContain("page-image-visual-language.yaml");
+      expect(envelope.diagnostic.next).toMatchObject({ action: "edit_source", requires_human: false });
+    } finally {
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
+  }, 60_000);
+
 });

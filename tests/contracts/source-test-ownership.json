@@ -29,6 +29,7 @@
         "tests/01-content/test_narrative_page_plan_cli.mjs",
         "tests/01-content/test_narrative_source.mjs",
         "tests/01-content/test_page_image_source.mjs",
+        "tests/01-content/test_problem_fact_aggregation.mjs",
         "tests/01-content/test_slide_document.mjs",
         "tests/01-content/test_slide_ids.mjs",
         "tests/01-content/test_target_structural_cli.mjs",
@@ -150,7 +151,20 @@
       "executables": [],
       "unit_integration": [
         "tests/shared/cli/test_process_cli_error.mjs",
-        "tests/shared/cli/test_process_target_diagnostics.mjs"
+        "tests/shared/cli/test_process_source_config_diagnostics.mjs",
+        "tests/shared/cli/test_process_target_diagnostics.mjs",
+        "tests/shared/cli/test_project_problem_facts.mjs"
+      ],
+      "e2e": []
+    },
+    {
+      "owner": "shared/diagnostic",
+      "interfaces": [
+        "shared/diagnostic/problem_fact.mjs"
+      ],
+      "executables": [],
+      "unit_integration": [
+        "tests/shared/diagnostic/test_problem_fact.mjs"
       ],
       "e2e": []
     },
@@ -181,6 +195,7 @@
         "shared/image2/png_raster_projection.mjs",
         "shared/image2/provider_profile.mjs",
         "shared/image2/runtime_profile_id.mjs",
+        "shared/image2/startup_env.mjs",
         "shared/image2/style_master_plan.mjs",
         "shared/image2/style_master_scope.mjs"
       ],
@@ -198,6 +213,7 @@
         "tests/shared/image2/test_progressive_raw_owner.mjs",
         "tests/shared/image2/test_provider_profile.mjs",
         "tests/shared/image2/test_raw_mechanics.mjs",
+        "tests/shared/image2/test_startup_env.mjs",
         "tests/shared/image2/test_style_master_plan.mjs",
         "tests/shared/image2/test_style_master_raw_binding.mjs",
         "tests/shared/image2/test_style_master_schema.mjs",
@@ -289,9 +305,11 @@
       ],
       "e2e": [
         "tests_e2e/shared/workflow/test-workflow-inspection-flow.mjs",
+        "tests_e2e/shared/workflow/test_mock_doctor_readiness_alignment.mjs",
         "tests_e2e/shared/workflow/test_mock_narrative_authoring_journey.mjs",
         "tests_e2e/shared/workflow/test_mock_selected_journey.mjs",
-        "tests_e2e/shared/workflow/test_mock_target_workflow_journey.mjs"
+        "tests_e2e/shared/workflow/test_mock_target_workflow_journey.mjs",
+        "tests_e2e/shared/workflow/test_mock_validate_source_state.mjs"
       ]
     }
   ]

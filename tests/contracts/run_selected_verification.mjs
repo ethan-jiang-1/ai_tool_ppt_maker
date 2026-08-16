@@ -46,9 +46,9 @@ export function realE2EEnabled(env = process.env) {
 
 export function validateSelectedInvocation(args, root = process.cwd(), env = process.env) {
   const [tier, entry, ...rest] = args;
-  if (!["focused", "journey", "real-e2e"].includes(tier)) return { ok: false, detail: "select focused, journey, or real-e2e" };
+  if (!["focused", "process", "journey", "real-e2e"].includes(tier)) return { ok: false, detail: "select focused, process, journey, or real-e2e" };
   if (!entry || rest.length) return { ok: false, detail: "supply exactly one selected test path and no extra selector or flag" };
-  const pathPattern = tier === "journey" ? JOURNEY_PATH : tier === "real-e2e" ? REAL_E2E_PATH : TEST_PATH;
+  const pathPattern = tier === "journey" ? JOURNEY_PATH : tier === "real-e2e" ? REAL_E2E_PATH : tier === "process" ? PROCESS_TEST_PATH : TEST_PATH;
   if (entry.includes("\\") || entry.includes("..") || entry.startsWith("/") || !pathPattern.test(entry)) return { ok: false, detail: "selected path is outside this tier's exact naming and scope" };
   const path = resolve(root, entry);
   if (!path.startsWith(`${resolve(root)}/`) || !existsSync(path)) return { ok: false, detail: "selected test path does not exist in this repository" };
@@ -56,6 +56,12 @@ export function validateSelectedInvocation(args, root = process.cwd(), env = pro
   if (tier === "real-e2e") {
     if (!realE2EEnabled(env)) return { ok: false, detail: "real E2E requires PPTMAKER_RUN_REAL_E2E=1" };
     return { ok: true, tier, entry, config: "vitest.real-e2e.config.mjs" };
+  }
+  if (tier === "process") {
+    // The process tier runs real public-binary suites (test_process_*). It is
+    // a distinct supported tier: core and focused runs must not be read as
+    // process coverage, and process suites are not part of the default sweep.
+    return { ok: true, tier, entry, config: "vitest.process.config.mjs" };
   }
   const closure = selectedClosure(root, entry);
   if (!closure.ok) return closure;

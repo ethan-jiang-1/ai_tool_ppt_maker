@@ -3,6 +3,7 @@
  * openspec/specs/cli-surface/spec.md plus any active cli-surface delta.
  */
 import { EXECUTABLE_INVENTORY } from "../../contracts/executable_inventory.mjs";
+import { problemFactsFromError } from "../diagnostic/problem_fact.mjs";
 export { CLI_RETURN_AUDIT_SCHEMA, CONTINUATION_RETURN_CASES, IMAGE2_RETURN_CASES, STYLE_MASTER_RETURN_CASES, PPT_FLOW_RETURN_AUDIT, validateCliReturnAudit } from "../../contracts/cli_return_audit.mjs";
 export { EXECUTABLE_INVENTORY } from "../../contracts/executable_inventory.mjs";
 
@@ -282,6 +283,10 @@ export function sanitizeCliDiagnostic(input, { fallbackOnInvalid = true } = {}) 
   if (source) out.source = source;
   if (reason) out.reason = reason;
 
+  // Additive bounded observation: projected only as the literal boolean true
+  // when the producer established the fact; every other value is omitted.
+  if (input.source_valid === true) out.source_valid = true;
+
   if (input.delegated && typeof input.delegated === "object" && !Array.isArray(input.delegated)) {
     const delegated = {};
     const invocation = sanitizeInvocation(input.delegated.invocation, state);
@@ -353,6 +358,80 @@ export function sanitizeCliDiagnostic(input, { fallbackOnInvalid = true } = {}) 
     out.truncated = true;
   }
   return byteLength(out) <= CLI_BOUNDS.diagnosticBytes ? out : minimalDiagnostic("internal");
+}
+
+// ---------------------------------------------------------------------------
+// Problem-fact projection (diagnostic-facts -> registered public diagnostic)
+// ---------------------------------------------------------------------------
+
+function projectPublicLocator(source) {
+  if (!source || typeof source !== "object" || Array.isArray(source)) return undefined;
+  if (typeof source.path !== "string" || !source.path) return undefined;
+  return {
+    path: source.path,
+    ...(source.line != null ? { line: source.line } : {}),
+    ...(source.column != null ? { column: source.column } : {}),
+  };
+}
+
+function projectPublicIssue(entry) {
+  if (!entry || typeof entry !== "object" || Array.isArray(entry)) return undefined;
+  const out = {};
+  const message = typeof entry.message === "string" ? entry.message : "";
+  const subject = entry.subject
+    ? { kind: "slide", ...(entry.subject.id ? { id: entry.subject.id } : {}), ...(entry.subject.field ? { field: entry.subject.field } : {}) }
+    : undefined;
+  const source = projectPublicLocator(entry.source);
+  const reason = typeof entry.code === "string" && entry.code ? { kind: entry.code } : undefined;
+  if (message) out.message = message;
+  if (subject) out.subject = subject;
+  if (source) out.source = source;
+  if (reason) out.reason = reason;
+  return Object.keys(out).length ? out : undefined;
+}
+
+/**
+ * Project producer-issued problem facts (diagnostic-facts contract) into one
+ * registered public diagnostic (cli-surface projection layer). This is the
+ * only allowed internal-fact -> public-envelope conversion for the four
+ * source/config producer families; raw internal issues are never passed
+ * directly to the sanitizer.
+ *
+ * Returns the sanitized diagnostic, or null when the error carries no usable
+ * root fact (unknown owner) so the caller keeps its fail-closed route.
+ */
+export function projectProblemFactsDiagnostic({ error, operation, rerunText }) {
+  const facts = problemFactsFromError(error);
+  if (!facts || facts.length === 0) return null;
+  const root = facts[0];
+  if (!root.owner) return null;
+  const source = projectPublicLocator(root.source);
+  const reason = {
+    kind: root.reason,
+    ...(typeof root.actual === "string" || typeof root.actual === "number" ? { actual: root.actual } : {}),
+    ...(typeof root.expected === "string" || typeof root.expected === "number" ? { expected: root.expected } : {}),
+  };
+  const issues = Array.isArray(error?.issues)
+    ? error.issues.map((entry) => projectPublicIssue(entry)).filter((entry) => entry !== undefined)
+    : [];
+  const subject = root.subject
+    ? { kind: "slide", ...(root.subject.slideId ? { id: root.subject.slideId } : {}), ...(root.subject.field ? { field: root.subject.field } : {}) }
+    : undefined;
+  const diagnostic = {
+    schema: CLI_DIAGNOSTIC_SCHEMA,
+    category: "source_validation",
+    operation,
+    reason,
+    ...(source ? { source } : {}),
+    ...(subject ? { subject } : {}),
+    ...(issues.length > 0 ? { issues } : {}),
+    next: createCliNext("edit_source", {
+      requiresHuman: false,
+      ...(source ? { inspect: [source] } : {}),
+      default: rerunText,
+    }),
+  };
+  return sanitizeCliDiagnostic(diagnostic, { fallbackOnInvalid: false });
 }
 
 function defaultCategoryForCode(code) {

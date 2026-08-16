@@ -6,7 +6,9 @@ Define every registered direct Node CLI and the fixed 12-command unified entry
 point. The CLI producer owns its JSON diagnostics, current Page Image Workflow routing,
 and bounded undeclared-contract hard-stop responses; Controller consumers do not copy that
 schema.
+
 ## Requirements
+
 ### Requirement: Direct CLI is exposed from the canonical Harness root
 
 Every documented direct production CLI entrypoint SHALL be invoked from
@@ -386,15 +388,23 @@ precedence; a comma-containing endpoint is malformed configuration before any
 provider request. They SHALL not reset the deadline, fail over, retry, expose
 an endpoint list, or create durable task state.
 
-Credential resolution is generate-scoped. It SHALL use the existing scoped,
-non-overwriting dotenv order from the selected Deck root and then the process
-current working directory, preserve inherited environment precedence, and pass
-the one resolved credential/endpoint pair to the original submit and any
-same-invocation task poll. Missing or malformed credentials SHALL fail before a
-new claimed or submitted attempt, grant consumption, provider request,
-materialization, or provenance write; provider-free plan, Pilot/Expansion,
-authorization, reconciliation, review, acceptance, and delivery do not load or
-write dotenv configuration.
+Credential resolution is generate-scoped. It SHALL use the shared restricted
+startup environment (`shared/image2/startup_env.mjs`) in the fixed precedence
+of explicit process environment, then the selected Deck `.env` filling only
+missing declared keys, then the process current working directory `.env`
+filling only keys still missing; it SHALL read only the declared runtime keys
+(`IMAGE2_API_KEY`, `IMAGE2_BASE_URL`, `IMAGE2_PROVIDER_PROFILE_ID`), SHALL NOT
+overwrite explicit environment values, and SHALL NOT output values or
+secrets. The one resolved credential/endpoint pair SHALL be passed to the
+original submit and any same-invocation task poll. Missing or malformed
+credentials SHALL fail before a new claimed or submitted attempt, grant
+consumption, provider request, materialization, or provenance write;
+provider-free plan, Pilot/Expansion, reconciliation, review, acceptance, and
+delivery do not load or write dotenv configuration. `image2 authorize` SHALL
+resolve only the same restricted non-secret startup environment for the
+exact-run profile-identity check and SHALL NOT resolve credentials, mutate
+dotenv files, claim an attempt, or initialize a provider as part of that
+resolution.
 
 The selected lifecycle SHALL accept provider media only after validating an
 exact CRC-valid PNG with positive native dimensions, retaining its exact bytes
@@ -441,6 +451,15 @@ raw media, or a new alternate route.
 - **THEN** the original submitted attempt receives the verified media result
 - **AND** the CLI creates no durable task state, second authorization, or
   second provider submission
+
+#### Scenario: Authorize resolves the restricted startup profile only
+
+- **WHEN** `image2 authorize` validates the exact-run profile identity while
+  the deck `.env` supplies `IMAGE2_PROVIDER_PROFILE_ID` and the shell does not
+- **THEN** it resolves that non-secret identity through the shared restricted
+  startup environment and continues to its existing grant preconditions
+- **AND** it does not resolve credentials, write dotenv files, claim an
+  attempt, or initialize a provider during that resolution
 
 ### Requirement: New-version CLI success activates a clean current draft
 
@@ -875,3 +894,154 @@ transcode, compatibility, force, or generic retry route.
   lifecycle diagnostic
 - **AND** it does not emit the retired projection failure or a command to replay
   a JPEG projection
+
+### Requirement: Source/config precondition failures keep the source owner
+
+When a provider-free `style-master inspect`, `style-master plan`, or `image2
+plan` operation fails on a source/configuration precondition — Page Source
+field ingress (`content-parsing`), Visual Language registry or Presentation
+package (`visual-config`), or Reference Material (`visual-asset-management`) —
+the CLI producer SHALL emit the existing registered secret-safe failure
+envelope with `source_validation` classification, the producer-issued
+`reason`/`source`/`subject`/`issues` facts, and the one exact
+nearest legal owner action `edit_source` (non-human). It SHALL
+NOT classify a known source/config defect as `internal`/`report_internal`,
+SHALL NOT emit an `artifact`/`inspect` next that has the same failed
+precondition as the command that just failed, and SHALL NOT attribute the
+failure to the operation/lifecycle owner. The command SHALL exit 1 with
+empty stdout and exactly one final envelope, and SHALL make no plan
+publication, receipt, state, review, or provider call.
+
+#### Scenario: A registry clause failure reaches Style Master inspect
+
+- **WHEN** `style-master inspect` fails because a selected Visual Language
+  registry clause violates a content-authority rule
+- **THEN** the final envelope carries `source_validation` with the Visual
+  Language registry locator facts and the registry repair next
+- **AND** it does not return an `artifact`/`inspect` next, does not call it
+  `internal`, and performs no plan/state/provider work
+
+#### Scenario: A known source defect reaches image2 plan
+
+- **WHEN** `image2 plan` fails on an unregistered identity role in Page
+  Source
+- **THEN** the final envelope names the `VISUAL IDENTITY` field repair and a
+  single edit-source next
+- **AND** it does not return `internal`/`report_internal` and does not create
+  a receipt, route, or provider input
+
+### Requirement: CLI projects producer facts without a second business attributor
+
+For the four migrated source/config producer families, the direct CLI SHALL
+consume the problem-fact contract owned by `diagnostic-facts` and SHALL NOT
+re-derive owner, category, reason, or next from error class names, code
+prefixes, or hard-coded code/set tables in `ppt_flow.mjs`. The CLI retains
+ownership of the public envelope: schema/version compatibility, category and
+action vocabulary, redaction, bounds, lineage, invocation confinement, exit
+status, and stdout/stderr isolation.
+
+`attachCliDiagnostic()` SHALL retain its existing delivery-notes
+jurisdiction and SHALL NOT become the general CLI authority for low-level
+source resolvers. `diagnosticFromError()` SHALL remain the delivery-notes
+scoped retrieval seam with that declared jurisdiction and focused tests; it
+SHALL NOT be used by source resolvers, aggregators, or the direct CLI
+classifiers, and SHALL NOT remain an undocumented helper.
+
+#### Scenario: A migrated family keeps one owner path
+
+- **WHEN** a Page Image source/config failure carries a producer-issued
+  owner fact
+- **THEN** the CLI emits that owner's category/reason/next without consulting
+  a `ppt_flow.mjs` code table
+- **AND** the same failure emits the same root facts across
+  `style-master inspect`, `style-master plan`, and `image2 plan` except for
+  the operation-legal next
+
+### Requirement: Public projection keeps one bounded root fact and one exact next
+
+The CLI SHALL project internal problem facts to the public envelope through
+declared conversion and omission rules. Raw internal `issues[]` SHALL NOT be
+passed directly into the public sanitizer; each issue SHALL be converted only
+when its fields map to the registered public issue shape
+(`message`, `subject`, `source`, `reason`, `lineage`). The final envelope
+SHALL contain a bounded root fact (one root owner/reason/locator), at most
+one exact `next` action, and bounded secondary issues with
+`omitted_count`/`truncated` metadata when bounds apply.
+
+The projection SHALL NOT leak a stack trace, provider body, prompt, complete
+visual clause, role clause, parser/fs prose, OS error text, digest, secret, or
+absolute escape path. Facts whose public safety is not established SHALL be
+omitted or replaced with a bounded summary, and unknown/unsafe facts SHALL
+fail closed rather than guessing. Top-level `code`/`message`/`hint` SHALL
+remain a compatibility summary only and SHALL NOT become recovery authority.
+
+#### Scenario: An oversized source failure degrades within bounds
+
+- **WHEN** a shared-source failure produces more issues than the public
+  bounds allow
+- **THEN** the envelope keeps the root owner/reason/locator and exact next
+  and reports the omitted count
+- **AND** truncation or slide order does not change the root fact or next
+
+#### Scenario: A secret-like or absolute path fact is never emitted
+
+- **WHEN** a producer issue contains secret-like text, an absolute escape
+  path, or complete clause prose
+- **THEN** the projection omits or bounds those values
+- **AND** the final envelope remains valid and names only the safe repair
+  owner
+
+### Requirement: Validate projects source validity separately from state binding
+
+`ppt_flow validate <run-dir>` SHALL first complete a source-only candidate
+parse of the selected workflow's canonical Page Image source (provider-free,
+zero state/evidence writes) and SHALL then evaluate the current source/state
+identity binding as a separate second stage.
+
+When the source-only parse fails, the failure SHALL project the
+producer-issued source problem through the existing `source_validation` /
+`edit_source` envelope (Change 1 contract): exact owner/locator facts, exit 1,
+empty stdout, one final envelope, and it SHALL NOT be overridden or
+reclassified by a state identity result.
+
+When the source parses and the source/state identity binding is stale
+(`target_source_state_identity_mismatch`), the command SHALL exit non-zero
+with the state owner's bounded hard-stop: `reason.kind` exactly
+`target_source_state_identity_mismatch`, one exact owner-owned rebind `next`
+(rerun the owner's plan/rebind checkpoint), and a machine-consumable
+`source_valid: true` observation in the same final envelope. The
+`source_valid` field is a bounded additive boolean: it SHALL be projected
+only as `true` when the source-only parse succeeded, SHALL be omitted in
+every other envelope, and SHALL NOT authorize raw planning, provider work,
+state rebinding, or any bypass of the stale-identity hard-stop. Consumers
+SHALL treat it as a non-authoritative observation and SHALL use
+`category`/`reason`/`next` as the control authority.
+
+When the source parses and the binding is current, the command SHALL exit 0
+with the existing human success text; no additive observation is emitted.
+
+#### Scenario: Invalid source wins over state staleness
+
+- **WHEN** `validate` runs on a run whose source fails parsing while its
+  state binding is also stale
+- **THEN** the final envelope is the `source_validation`/`edit_source` source
+  problem with the exact owner/locator
+- **AND** it does not report `target_source_state_identity_mismatch` or any
+  state observation
+
+#### Scenario: Valid source with stale binding separates the facts
+
+- **WHEN** `validate` runs on a run whose source parses but whose
+  source/state identity is stale
+- **THEN** the final envelope carries reason
+  `target_source_state_identity_mismatch`, the owner-owned rebind next, and
+  `source_valid: true`
+- **AND** it writes no state/receipt/plan/generated artifact and initializes
+  no provider
+
+#### Scenario: Valid source with current binding succeeds
+
+- **WHEN** `validate` runs on a run whose source parses and whose
+  source/state identity is current
+- **THEN** it exits 0 with the existing human receipt-validated text
+- **AND** it emits no `source_valid` observation and performs no writes

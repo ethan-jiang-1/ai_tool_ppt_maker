@@ -1,7 +1,9 @@
 ## Purpose
 
 Define the Node — the atomic unit of playbook execution — and its governing constitution at `charter/NODE-SPEC.md`: node frontmatter (entry/exit gates), the run-bundle state model (`_state/state.yaml` as the single truth source plus the append-only `_state/history.jsonl`), the five node statuses, shared nodes, the gate-conditions catalog, and the `scripts/shared/state/state.mjs` API (the CONDITIONS registry, `checkEntry`/`checkExit`, atomic writes, and the query/manipulation functions). This capability guarantees that any agent can deterministically decide whether a node may start or complete, resume an in-progress run from persisted state, and switch between playbooks without losing its position.
+
 ## Requirements
+
 ### Requirement: Stateful Controller entry follows verified Harness binding
 
 Before a Controller or state consumer uses a run-scoped Deck as current work,
@@ -87,13 +89,25 @@ Each node body SHALL contain one or more compact step declarations using exactly
 
 ### Requirement: ctx parameter provides run bundle paths to conditions
 
-`checkEntry` and `checkExit` SHALL accept a `ctx` parameter providing: `deckDir` (deck root), `runDir` (current version dir), and `harnessDir` (PPT Maker Harness root). FILESYSTEM conditions SHALL resolve paths relative to these directories. The context SHALL not expose a retired root field.
+`checkEntry` and `checkExit` SHALL accept a `ctx` parameter providing:
+`deckDir` (deck root), `runDir` (current version dir), and `harnessDir`
+(PPT Maker Harness root). FILESYSTEM conditions SHALL resolve paths relative
+to these directories. The context SHALL not expose a retired root field.
+
+Visual-language readiness SHALL resolve the current canonical Visual
+Language source through the run-bundle owner's declared current path (the
+`page-image-visual-language.yaml` source in the current run-bundle visual
+layout) and SHALL NOT reference the retired
+`page-authority-visual-language.yaml` path or rebuild a competing path
+string mirror.
 
 #### Scenario: Condition resolves file path via ctx
 
 - **WHEN** `checkEntry('authoring-slides', playbookDir, state, { deckDir, runDir })` is called
 - **THEN** the `slide_specs_exists` condition checks `join(runDir, 'slide-specifications.md')`
-- **AND** visual-language readiness checks `join(deckDir, '2_backbone/visual-style/page-authority-visual-language.yaml')`
+- **AND** visual-language readiness resolves the current canonical Visual
+  Language source through the run-bundle owner and never the retired
+  page-authority path
 
 #### Scenario: Developer looks up a condition
 
@@ -350,17 +364,43 @@ replacement execution, source, workflow, receipt, evidence, or acceptance.
 - **AND** `readHistory` skips the damaged line
 
 ### Requirement: CLI exposes state via ppt_flow state command
-ppt_flow state <runDir>, --json, and --check-gates SHALL remain observation-first operations. They SHALL resolve the canonical deck/run version, classify the direct source marker and durable state, and call readState with purpose observe and heal false plus read-only validation. A repairable current record returns the owner-issued action without writes. Missing, retired, malformed, or mismatched state/source identity returns a bounded non-writing protocol diagnostic; it does not seed state, infer mode, select a Controller, or use generated artifacts as a resume substitute.
 
-Closed current mutation forms, including gate-journal recovery and Page Image Workflow delivery decisions, retain their owning preconditions and exact arguments. They are mutually exclusive with observation modes and must validate current source/state identity before write. No unsupported controller identity or receipt is accepted by this command surface.
+`ppt_flow state <runDir>`, `--json`, and `--validate-state` SHALL remain
+observation-first operations. They SHALL resolve the canonical deck/run
+version, classify the direct source marker and durable state, and call
+`readState` with purpose observe and heal false plus read-only validation. A
+repairable current record returns the owner-issued action without writes.
+Missing, retired, malformed, or mismatched state/source identity returns a
+bounded non-writing protocol diagnostic; it does not seed state, infer a
+selected workflow, select a Controller, or use generated artifacts as a
+resume substitute. The retired `--check-gates` form is not a current state
+entry and SHALL NOT be documented or referenced as one.
+
+Closed current mutation forms, including gate-journal recovery and Page Image
+Workflow delivery decisions, retain their owning preconditions and exact
+arguments. They are mutually exclusive with observation modes and must
+validate current source/state identity before write. No unsupported
+controller identity or receipt is accepted by this command surface.
 
 #### Scenario: Plain state observes a repairable current record
-- **WHEN** ppt_flow state <runDir> --json sees a one-to-one repairable declared-current defect
-- **THEN** it reports the owner action without changing state, history, metadata, or generated output
+
+- **WHEN** `ppt_flow state <runDir> --json` sees a one-to-one repairable
+  declared-current defect
+- **THEN** it reports the owner action without changing state, history,
+  metadata, or generated output
 
 #### Scenario: Plain state sees an unsupported protocol
+
 - **WHEN** the run has a pre-current state or absent/retired marker
-- **THEN** it returns a bounded diagnostic without creating a state file or active execution
+- **THEN** it returns a bounded diagnostic without creating a state file or
+  active execution
+
+#### Scenario: Observation never references the retired flag
+
+- **WHEN** current guidance or implementation documents the state observation
+  forms
+- **THEN** they name `--validate-state` and the owner-owned operations only
+- **AND** they do not reference the retired `--check-gates` entry
 
 ### Requirement: Node transitions persist via writeState
 
@@ -384,13 +424,25 @@ Whenever a node status transitions to `in_progress`, `completed`, `failed`, or `
 
 ### Requirement: CLI ⇔ MD failure protocol uses JSON envelopes
 
-Playbook CLI steps that invoke `ppt_flow.mjs` SHALL treat a non-zero exit as actionable only when paired with the JSON failure envelope on stderr (last non-empty line), as defined by `cli-surface` and `charter/CONSTITUTION.md`. MD Controllers SHALL branch on `code` and surface `message`/`hint` to the user or attempt repair — they SHALL NOT depend solely on matching prose such as `Fatal error:`.
+Playbook CLI steps that invoke `ppt_flow.mjs` SHALL treat a non-zero exit as
+actionable only when paired with the JSON failure envelope on stderr (last
+non-empty line), as defined by `cli-surface` and `charter/CONSTITUTION.md`.
+MD Controllers SHALL consume the canonical four-part diagnostic handoff:
+`diagnostic.category` and `diagnostic.reason` classify the failure, and
+`diagnostic.next` is the sole recovery authority; the Controller follows the
+exact next action within its authority and stops when
+`next.requires_human` is true. Top-level `code`/`message`/`hint` SHALL
+remain a compatibility summary and SHALL NOT be used to decide a repair
+action. Controllers SHALL NOT derive a parallel recovery route from prose,
+file presence, or code/hint branching — they SHALL NOT depend solely on
+matching prose such as `Fatal error:`.
 
 #### Scenario: MD Controller reads a ppt_flow failure
 
 - **WHEN** a playbook CLI step runs `ppt_flow.mjs` and it exits non-zero
 - **THEN** the controller parses the last non-empty stderr line as JSON
-- **AND** uses `code` + `hint` to decide the next repair action
+- **AND** it uses `diagnostic.category`/`reason`/`next` to decide the repair
+  action and does not branch on top-level `code` or `hint`
 
 ### Requirement: state.yaml carries a discoverability header on every write
 
@@ -1186,3 +1238,23 @@ refresh or replacement-selection action.
   current Style Master owner
 - **AND** State preserves the historical record and does not seed a replacement
   acceptance record
+
+### Requirement: Consumers treat additive validate observations as non-authoritative
+
+MD Controllers and runtime Agent guidance SHALL consume a
+`source_valid` observation in a validate failure envelope as a bounded,
+non-authoritative fact: it states only that the source-only parse succeeded
+and SHALL NOT be read as overall validate success, raw-planning readiness,
+provider authorization, state rebind permission, or a bypass of the stale
+identity hard-stop. Control authority SHALL remain
+`diagnostic.category`/`reason`/`next`, per `cli-surface`; consumers SHALL
+tolerate the additive field and SHALL NOT copy its schema.
+
+#### Scenario: An Agent reads source_valid without treating it as success
+
+- **WHEN** a validate failure envelope contains `source_valid: true` beside a
+  state-binding hard-stop
+- **THEN** the Agent follows the state owner's exact next and treats the
+  observation as explanatory evidence only
+- **AND** it does not run raw planning, provider work, or a state rebind
+  based on the observation

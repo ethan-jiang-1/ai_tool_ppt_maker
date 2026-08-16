@@ -13,6 +13,7 @@ import {
   initBundle,
   styleAsset,
 } from "../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
+import { writeConfirmedImage2ProviderProfile } from "../../tests/helpers/image2_provider_profile.mjs";
 import { pageImageWorkflowPaths } from "../../ppt_maker_harness/scripts/shared/run-bundle/page_image_paths.mjs";
 import { readState } from "../../ppt_maker_harness/scripts/shared/state/state.mjs";
 
@@ -66,12 +67,13 @@ function isolatedImage2Env(overrides = {}) {
   return {
     IMAGE2_API_KEY: undefined,
     IMAGE2_BASE_URL: undefined,
+    IMAGE2_PROVIDER_PROFILE_ID: undefined,
     ...overrides,
   };
 }
 
 function writeImage2Dotenv(directory, env) {
-  writeFileSync(join(directory, ".env"), `IMAGE2_API_KEY=${env.IMAGE2_API_KEY}\nIMAGE2_BASE_URL=${env.IMAGE2_BASE_URL}\n`, "utf8");
+  writeFileSync(join(directory, ".env"), `IMAGE2_API_KEY=${env.IMAGE2_API_KEY}\nIMAGE2_BASE_URL=${env.IMAGE2_BASE_URL}\nIMAGE2_PROVIDER_PROFILE_ID=${env.IMAGE2_PROVIDER_PROFILE_ID}\n`, "utf8");
 }
 
 function expectSuccess(result) {
@@ -109,6 +111,11 @@ function fixture({ local = false, workflow = "pure" } = {}) {
   const deck = join(root, "deck_style_master_lifecycle");
   const runDir = join(deck, "3_versions", "v1");
   initBundle(deck, null, "keynote", "dark-executive");
+  writeConfirmedImage2ProviderProfile(runDir, {
+    profileId: "mock-style-master-profile",
+    styleMasterModel: "mock-style-master-model",
+    pageImageModel: "mock-page-image-model",
+  });
   writeFileSync(join(runDir, "slide-specifications.md"), source({ workflow }), "utf8");
   writeFileSync(styleAsset(runDir, STYLE_MASTER_PROMPT), "Use a calm editorial visual system with material depth.\n", "utf8");
   if (local) writeFileSync(styleAsset(runDir, STYLE_MASTER_IMAGE), LOCAL_PNG);
@@ -150,6 +157,7 @@ async function startMockProvider(bytes) {
     env: {
       IMAGE2_API_KEY: "mock-style-master-key",
       IMAGE2_BASE_URL: `http://127.0.0.1:${address.port}`,
+      IMAGE2_PROVIDER_PROFILE_ID: "mock-style-master-profile",
     },
     close: () => new Promise((resolveClosed) => server.close(resolveClosed)),
   };
@@ -224,6 +232,13 @@ describe("fresh Style Master lifecycle integration", () => {
     const value = fixture({ local: true, workflow: "framed" });
     const provider = await startMockProvider(generatedCandidate());
     try {
+      // The authorize checkpoint resolves the runtime selector from the deck
+      // .env through the shared restricted startup environment (no shell export).
+      writeFileSync(join(value.deck, ".env"), [
+        "IMAGE2_API_KEY=mock-style-master-key",
+        "IMAGE2_BASE_URL=http://127.0.0.1:1/v1",
+        "IMAGE2_PROVIDER_PROFILE_ID=mock-style-master-profile",
+      ].join("\n"));
       const stylePlan = expectSuccess(await flow(["style-master", "plan", value.runDir, "--candidate-count", "0"]));
       expectSuccess(await flow([
         "style-master", "review", value.runDir,

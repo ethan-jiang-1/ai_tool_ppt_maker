@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { isAlias, isMap, isScalar, isSeq, parseDocument } from "yaml";
 import { canonicalJsonSha256 } from "../../contracts/canonical_json.mjs";
+import { PROBLEM_OWNER, attachProblemFacts, toProblemFacts } from "../../shared/diagnostic/problem_fact.mjs";
 
 export const PAGE_IMAGE_VISUAL_LANGUAGE_SCHEMA = "pptmaker-page-image-visual-language";
 export const PAGE_IMAGE_VISUAL_LANGUAGE_RELATIVE_PATH = "2_backbone/visual-style/page-image-visual-language.yaml";
@@ -37,6 +38,7 @@ export class PageImageVisualLanguageError extends Error {
     super(list.map((issue) => issue.message || String(issue)).join("; "));
     this.name = "PageImageVisualLanguageError";
     this.issues = Object.freeze([...list]);
+    attachProblemFacts(this, toProblemFacts(list, { owner: PROBLEM_OWNER.VISUAL_LANGUAGE }));
   }
 }
 
@@ -132,8 +134,13 @@ function normalizedVisualClauseDigest() {
 
 export const PAGE_IMAGE_VISUAL_CLAUSE_DIGEST = normalizedVisualClauseDigest();
 
-/** Validate and normalize one content-neutral visual direction without I/O. */
-export function normalizePageImageVisualClause(value, { context = "provider clause" } = {}) {
+/**
+ * Validate and normalize the structural shape of one content-neutral visual
+ * direction without I/O. Structural checks are whole-source properties: an
+ * unselected record whose clause fails these checks makes the registry
+ * structurally invalid.
+ */
+export function normalizePageImageVisualClauseStructure(value, { context = "provider clause" } = {}) {
   if (typeof value !== "string" || value.length === 0) {
     throw new PageImageVisualClauseError("empty_visual_clause", "must be a non-empty string", context);
   }
@@ -150,6 +157,16 @@ export function normalizePageImageVisualClause(value, { context = "provider clau
   if (![...normalized].every((character) => /[a-z0-9 ,;:()./-]/.test(character))) {
     throw new PageImageVisualClauseError("invalid_visual_clause_character", `must use only ${CHARACTER_GRAMMAR}`, context);
   }
+  return normalized;
+}
+
+/**
+ * Evaluate the content-authority semantics of one already-structurally-
+ * normalized visual clause. Semantic checks are selection-scoped: they apply
+ * only to records selected by a page ("an unselected registry record SHALL
+ * not invalidate a page").
+ */
+export function evaluatePageImageVisualClauseSemantics(normalized, { context = "provider clause" } = {}) {
   if (/\b(?:no[- ]readable[- ]text|no[- ]labels?|text[- ]free|without[- ](?:readable[- ] )?text|without[- ]labels?)\b/.test(normalized)) {
     throw new PageImageVisualClauseError("forbidden_text_free_visual_clause", "must not require a text-free page or suppress provider-rendered content", context);
   }
@@ -170,6 +187,13 @@ export function normalizePageImageVisualClause(value, { context = "provider clau
   return normalized;
 }
 
+/** Validate and normalize one content-neutral visual direction without I/O (structural + semantic). */
+export function normalizePageImageVisualClause(value, { context = "provider clause" } = {}) {
+  const normalized = normalizePageImageVisualClauseStructure(value, { context });
+  evaluatePageImageVisualClauseSemantics(normalized, { context });
+  return normalized;
+}
+
 function parseScalar(node, context, issues, { id = false, visualClause = false, integer = false } = {}) {
   if (!plainString(node)) {
     issues.push(issue("invalid_registry_scalar", `${context} must be one unquoted direct scalar`, { path: context, actual: nodeKind(node) }));
@@ -186,9 +210,9 @@ function parseScalar(node, context, issues, { id = false, visualClause = false, 
   }
   if (visualClause) {
     try {
-      return normalizePageImageVisualClause(value, { context });
+      return normalizePageImageVisualClauseStructure(value, { context });
     } catch (error) {
-      issues.push(issue(error.code || "invalid_visual_clause", error.message, { path: context, actual: value }));
+      issues.push(issue(error.code || "invalid_visual_clause", error.message, { path: context }));
       return null;
     }
   }
@@ -383,6 +407,7 @@ export function parsePageImageVisualLanguage(raw, { source = PAGE_IMAGE_VISUAL_L
   }
   const registry = {
     schema,
+    source,
     visual_clause_digest: PAGE_IMAGE_VISUAL_CLAUSE_DIGEST,
     audit: { whole_registry_sha256: sha256(raw) },
     recipes: parseRecordMap(root.get("recipes"), "recipes", RECIPE_KEYS, issues, parseRecipeRecord),
@@ -405,7 +430,7 @@ export function loadPageImageVisualLanguage(deckDir) {
   try {
     raw = new TextDecoder("utf-8", { fatal: true }).decode(readFileSync(path));
   } catch (error) {
-    throw new PageImageVisualLanguageError(issue("registry_unavailable", `could not read Page Image visual language registry: ${error.message}`, { source: path }));
+    throw new PageImageVisualLanguageError(issue("registry_unavailable", "could not read Page Image visual language registry", { source: path }));
   }
   return parsePageImageVisualLanguage(raw, { source: PAGE_IMAGE_VISUAL_LANGUAGE_RELATIVE_PATH });
 }
@@ -465,6 +490,26 @@ export function resolvePageImageVisualLanguageSelection(registry, context) {
     issues.push(selectionIssue("identity_subject_class_unresolved", "a selected VISUAL IDENTITY must resolve a registered subject class before visual-language compilation", selectedIdentitySubjectClass));
   } else if (!recipe.identity_subject_classes.includes(selectedIdentitySubjectClass)) {
     issues.push(selectionIssue("incompatible_identity_subject_class", `recipe ${JSON.stringify(brief.recipe)} does not allow subject class ${JSON.stringify(selectedIdentitySubjectClass)}`, selectedIdentitySubjectClass));
+  }
+  // Content-authority semantics are selection-scoped: evaluate only the
+  // records selected by this page, so an unselected record's semantic
+  // violation cannot invalidate the page. The issue carries the registry
+  // source and the exact logical record path.
+  const selectedRecords = [
+    ["recipe", recipe, brief.recipe],
+    ["composition", composition, brief.composition],
+    ...motifs.map((item) => ["motif", item.record, item.id]),
+    ...(relationship ? [["relationship", relationship, relationshipId]] : []),
+  ];
+  for (const [kind, record, id] of selectedRecords) {
+    try {
+      evaluatePageImageVisualClauseSemantics(record.provider_clause, { context: `${kind} ${JSON.stringify(id)}` });
+    } catch (error) {
+      issues.push(issue(error.code || "invalid_visual_clause", error.message, {
+        source: registry.source,
+        path: `${kind === "relationship" ? "relationships" : `${kind}s`}.${id}.provider_clause`,
+      }));
+    }
   }
   if (issues.length > 0) throw new PageImageVisualLanguageError(issues);
 

@@ -966,6 +966,26 @@ describe('env-check Page Image operation profiles', () => {
       rmSync(browserCache, { recursive: true, force: true });
     }
   });
+
+  it.each([
+    ['image2-raw', 'the hidden raw alias'],
+    ['assembly-notes', 'the hollow assembly operation'],
+  ])('rejects %s (%s) as an undeclared doctor operation', (operation) => {
+    const script = join(process.cwd(), ENV_CHECK);
+    let status = 0;
+    let stderr = '';
+    try {
+      execFileSync('node', [script, '--operation', operation], { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
+    } catch (error) {
+      status = error.status;
+      stderr = String(error.stderr || '');
+    }
+    expect(status).toBe(1);
+    const envelope = parseCliErrorLine(stderr.trim().split(/\r?\n/).at(-1));
+    expect(envelope.diagnostic).toMatchObject({ category: 'usage', operation: 'parse-arguments' });
+    expect(envelope.diagnostic.next.action).toBe('fix_arguments');
+    expect(stderr).toContain('Allowed: framed-local-refresh, raw-generation, full-build.');
+  });
 });
 
 describe('exact-run Image2 doctor profile identity', () => {

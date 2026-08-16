@@ -25,6 +25,7 @@ import {
 import { HTML_RUNTIME_PROFILE } from './html_runtime_profile.mjs';
 import { normalizeImage2BaseUrl } from '../../shared/image2/credentials.mjs';
 import { isImage2ProviderProfileId } from '../../shared/image2/runtime_profile_id.mjs';
+import { applyImage2StartupEnv } from '../../shared/image2/startup_env.mjs';
 
 import { execFileSync, execSync } from 'node:child_process';
 import { readFileSync, existsSync, statSync, readdirSync } from 'node:fs';
@@ -55,9 +56,7 @@ export const PAGE_IMAGE_DOCTOR_PROFILES = Object.freeze(['framed-runtime', 'imag
 export const PAGE_IMAGE_DOCTOR_OPERATIONS = Object.freeze([
   'framed-local-refresh',
   'raw-generation',
-  'image2-raw',
   'full-build',
-  'assembly-notes',
 ]);
 
 // --- Helpers ---
@@ -280,25 +279,6 @@ function checkGitSafety() {
   return probeGitSafetyForTest();
 }
 
-function loadDotenv(...searchDirs) {
-  for (const d of searchDirs) {
-    const envFile = join(d, '.env');
-    if (!existsSync(envFile)) continue;
-    for (const raw of readFileSync(envFile, 'utf-8').split('\n')) {
-      const line = raw.trim();
-      if (!line || line.startsWith('#') || !line.includes('=')) continue;
-      const eqIdx = line.indexOf('=');
-      let key = line.slice(0, eqIdx).trim();
-      let val = line.slice(eqIdx + 1).trim();
-      if (key.startsWith('export ')) key = key.slice(7);
-      val = val.replace(/^["']|["']$/g, '');
-      if (key && !(key in process.env)) process.env[key] = val;
-    }
-    return envFile;
-  }
-  return null;
-}
-
 /**
  * Yield absolute ancestor directories from `start` up to the filesystem root.
  * Shared by .env loading and per-package node_modules walk-up.
@@ -326,7 +306,7 @@ function findPackageInAncestorNodeModules(pkg, start = process.cwd()) {
   return null;
 }
 
-export { loadDotenv, walkUpDirs, findPackageInAncestorNodeModules };
+export { walkUpDirs, findPackageInAncestorNodeModules };
 
 // --- Checks ---
 
@@ -628,10 +608,11 @@ function providerDiagnostics(value) {
 }
 
 async function runAllChecks({ includeImage2 = false, profile = 'common+html', start = process.cwd(), providerApi = null } = {}) {
-  // Load .env from cwd/parents first (same walk-up helper as deps)
-  for (const p of walkUpDirs(start)) {
-    if (existsSync(join(p, '.env'))) { loadDotenv(p); break; }
-  }
+  // Restricted startup environment from cwd/parents (nearest ancestor first,
+  // declared keys only) — the same loader and precedence the exact-run
+  // Image2/Style Master consumers use; PPT_FONT_DIR is env-check's own
+  // declared non-IMAGE2 key.
+  applyImage2StartupEnv({ searchDirs: [...walkUpDirs(start)], extraKeys: ['PPT_FONT_DIR'] });
 
   const framedRuntime = ['page-image-framed', 'page-image-full', 'page-image-unbound'].includes(profile);
   const includeHtml = profile === 'common+html' || framedRuntime;
@@ -1008,7 +989,7 @@ function pageImageDoctorPlan(operation) {
   if (operation === 'framed-local-refresh') {
     return { profile: 'page-image-framed', includeImage2: false, activeProfiles: ['framed-runtime'], deferredProfiles: [] };
   }
-  if (operation === 'raw-generation' || operation === 'image2-raw') {
+  if (operation === 'raw-generation') {
     return { profile: 'page-image-raw', includeImage2: true, activeProfiles: ['image2-raw'], deferredProfiles: [] };
   }
   if (operation === 'full-build') {

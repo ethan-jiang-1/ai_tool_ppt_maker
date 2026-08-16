@@ -118,6 +118,11 @@ context: |-
       scope: current Page Image source parsing and receipt inputs
       owner_paths:
         - ppt_maker_harness/scripts/01-content/index.mjs
+    - id: diagnostic-facts
+      spec: openspec/specs/diagnostic-facts/spec.md
+      scope: internal source/config problem-fact contract shared by producers, aggregators, and operation owners
+      owner_paths:
+        - ppt_maker_harness/scripts/shared/diagnostic/problem_fact.mjs
     - id: environment-check
       spec: openspec/specs/environment-check/spec.md
       scope: local Harness readiness checks

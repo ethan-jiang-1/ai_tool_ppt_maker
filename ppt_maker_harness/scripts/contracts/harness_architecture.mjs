@@ -36,6 +36,7 @@ export const FOUNDATION_METHOD_MODULE_ADJACENCY = Object.freeze({
 export const PUBLIC_SHARED_INTERFACES = Object.freeze([
   "shared/cli/cli_bootstrap.mjs",
   "shared/cli/cli_error.mjs",
+  "shared/diagnostic/problem_fact.mjs",
   "shared/run-bundle/bundle_layout.mjs",
   "shared/run-bundle/page_image_paths.mjs",
   "shared/run-bundle/production_marker.mjs",
@@ -50,6 +51,7 @@ export const PUBLIC_SHARED_INTERFACES = Object.freeze([
   "shared/image2/credentials.mjs",
   "shared/image2/provider_profile.mjs",
   "shared/image2/runtime_profile_id.mjs",
+  "shared/image2/startup_env.mjs",
   "shared/image2/content_address_store.mjs",
   "shared/image2/page_image_artifacts.mjs",
   "shared/image2/page_image_complete_page_review.mjs",
@@ -1305,14 +1307,79 @@ function validateImage2CapabilitySeam(files, issues) {
   }
 }
 
-export function validateArchitectureSnapshot({ files: inputFiles, manifest = null, requireCompleteManifest = true }) {
+// Representative issue codes of the four migrated source/config producer
+// families (diagnostic-facts contract). The direct CLI classifiers SHALL NOT
+// re-derive owner/category/next for these families from code literals or
+// prefix sets; the producer-issued problem facts are the only attribution.
+const MIGRATED_SOURCE_CONFIG_CODES = Object.freeze([
+  "content_overriding_visual_clause",
+  "unregistered_visual_recipe",
+  "unregistered_visual_composition",
+  "unregistered_visual_motif",
+  "unregistered_visual_relationship",
+  "unregistered_identity_profile",
+  "unregistered_identity_role",
+  "identity_subject_count_incompatible",
+  "identity_restriction_incompatible",
+  "reference_registry_unavailable",
+  "reference_sha_mismatch",
+  "page_image_presentation_source_missing",
+  "page_image_presentation_header_field_forbidden",
+]);
+
+const RETIRED_VISUAL_LANGUAGE_PATH = "page-authority-visual-language.yaml";
+
+// The retired MD consumer contract branches on top-level `code` + `hint` to
+// decide a repair action; current guidance must consume
+// diagnostic.category/reason/next instead.
+const OLD_CONSUMER_BRANCH_RE = /(?:branch\s+on\s+`?code`?[^.\n]{0,80}hint|`?code`?\s*\+\s*`?hint`?[^.\n]{0,80}repair)/i;
+
+const DIAGNOSTIC_SEAM_ALLOWED_PATHS = Object.freeze([
+  "05-delivery/",
+  "shared/cli/cli_error.mjs",
+]);
+
+function evaluateDiagnosticOwnerGuardConformance(files, issues, guidanceFiles = new Map()) {
+  const pptFlow = files.get("ppt_flow.mjs");
+  if (pptFlow !== undefined) {
+    if (!pptFlow.includes("projectProblemFactsDiagnostic")) {
+      addIssue(issues, "diagnostic-projection-seam-missing", "ppt_flow.mjs", "ppt_flow.mjs must project producer problem facts through projectProblemFactsDiagnostic before code-based classification");
+    }
+    for (const code of MIGRATED_SOURCE_CONFIG_CODES) {
+      if (pptFlow.includes(`"${code}"`) || pptFlow.includes(`'${code}'`)) {
+        addIssue(issues, "diagnostic-second-attributor", "ppt_flow.mjs", `ppt_flow.mjs must not re-derive the migrated source/config family code ${code} through its own classification tables`);
+      }
+    }
+  }
+  for (const [path, source] of files) {
+    if (path.startsWith("tests/") || path.startsWith("tests_e2e/")) continue;
+    if (/attachCliDiagnostic\(|diagnosticFromError\(/.test(source)) {
+      const allowed = DIAGNOSTIC_SEAM_ALLOWED_PATHS.some((prefix) => path === prefix || path.startsWith(prefix));
+      if (!allowed) {
+        addIssue(issues, "diagnostic-seam-jurisdiction", path, "attachCliDiagnostic/diagnosticFromError are delivery-notes scoped and may not be used by source resolvers, aggregators, or CLI classifiers");
+      }
+    }
+  }
+  for (const [path, source] of guidanceFiles) {
+    if (source.includes(RETIRED_VISUAL_LANGUAGE_PATH)) {
+      addIssue(issues, "retired-visual-language-path", path, "the retired page-authority-visual-language.yaml path must not re-enter current-layer guidance");
+    }
+    if (OLD_CONSUMER_BRANCH_RE.test(source)) {
+      addIssue(issues, "retired-consumer-branch", path, "current guidance must not branch on top-level code + hint to decide a repair action; consume diagnostic.category/reason/next instead");
+    }
+  }
+}
+
+export function validateArchitectureSnapshot({ files: inputFiles, manifest = null, requireCompleteManifest = true, guidanceFiles: inputGuidance = null }) {
   const files = new Map(Object.entries(inputFiles instanceof Map ? Object.fromEntries(inputFiles) : inputFiles).map(([path, value]) => [normalized(path), String(value)]));
+  const guidanceFiles = new Map(inputGuidance instanceof Map ? inputGuidance : Object.entries(inputGuidance || {}).map(([path, value]) => [normalized(path), String(value)]));
   const issues = [];
   validatePageImageCoreSeam(files, issues);
   validatePageImageProviderInputCompilation(files, issues);
   validateImage2CapabilitySeam(files, issues);
   validateSharedWorkflowSemanticBoundaries(files, issues);
   validateSingleDeliveryOwner(files, issues);
+  evaluateDiagnosticOwnerGuardConformance(files, issues, guidanceFiles);
   const scriptFiles = new Map([...files].filter(([path]) => !path.startsWith("tests/") && !path.startsWith("tests_e2e/")));
   const rootEntries = new Set([...scriptFiles].map(([path]) => path.split("/")[0]));
   for (const entry of rootEntries) if (!ROOT_WHITELIST.has(entry)) addIssue(issues, "root-whitelist", entry, "unexpected scripts-root entry");
@@ -1368,6 +1435,17 @@ export function validateRepositoryArchitecture(repoRoot = process.cwd()) {
     for (const [path, source] of Object.entries(walk(absolute))) files[`${testRoot}/${path}`] = source;
   }
   const manifest = JSON.parse(files["tests/contracts/source-test-ownership.json"] || readFileSync(resolve(repoRoot, "tests/contracts/source-test-ownership.json"), "utf8"));
-  const result = validateArchitectureSnapshot({ files, manifest });
+  const harnessRoot = resolve(repoRoot, "ppt_maker_harness");
+  const guidanceFiles = {};
+  for (const name of ["BOOTSTRAP.md", "AGENTS.md", "README.md", "COMMANDS.md"]) {
+    const path = join(harnessRoot, name);
+    if (existsSync(path)) guidanceFiles[name] = readFileSync(path, "utf8");
+  }
+  for (const dir of ["charter", "playbook", "workflow"]) {
+    const absolute = resolve(harnessRoot, dir);
+    if (!existsSync(absolute)) continue;
+    for (const [path, source] of Object.entries(walk(absolute))) guidanceFiles[`${dir}/${path}`] = source;
+  }
+  const result = validateArchitectureSnapshot({ files, manifest, guidanceFiles });
   return Object.freeze(result);
 }
