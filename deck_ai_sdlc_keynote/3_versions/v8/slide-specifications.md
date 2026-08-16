@@ -11,23 +11,20 @@ production:
 ## Slide 01: `InfoRev`
 
 **PAGE CLASS**: opening
+**KICKER**: 从 SDLC 到 BPM
 **TITLE**: AI 时代的信息加工革命
-**SUBTITLE**: 从 SDLC 到 BPM，工作方式正在被整体重写
+**SUBTITLE**: 工作方式正在被重新定义
 **VISUAL BRIEF**:
 ```yaml
 recipe: editorial-systems
-composition: minimal
+composition: title-pause
 motifs: []
 negative_constraints: [no-logo, no-watermark]
 ```
 
 **SLIDE BODY**:
 ```yaml
-items:
-  - role: body
-    literal: 软件只是第一个被掀翻的样本，传统企业紧随其后。
-  - role: supporting_copy
-    literal: 这是一场关于「工作方式」的整体重写，不是一次工具升级。
+items: []
 ```
 
 > **SPEAKER NOTE**
@@ -46,7 +43,7 @@ items:
 
 ## Slide 02: `TriYear`
 
-**PAGE CLASS**: opening
+**PAGE CLASS**: standard
 **KICKER**: 三年
 **TITLE**: 从补全一行代码，到接管整个项目。
 **SUBTITLE**: 这不是 hype。这是加速度。
@@ -153,26 +150,27 @@ items:
 ## Slide 05: `NewPart`
 
 **KICKER**: 你多了一个伙伴
-**TITLE**: 以前每次技术浪潮，给你换工具。这次给你一个搭档。
-**SUBTITLE**: 超级能干。但人还不会跟它协作——这本身就是最大的挑战。
+**TITLE**: 过去只换工具；这次多了一位搭档。
+**SUBTITLE**: 它很能干；但人还没学会怎么和它协作，这才是最大的挑战。
 **VISUAL IDENTITY**: amber-agent/guide
 **IDENTITY SUBJECT COUNT**: one
 **SUBJECT RESTRICTIONS**: none
 **VISUAL BRIEF**:
 ```yaml
 recipe: collaborative-work
-composition: two-column
-motifs: [shared-work-surface, connected-nodes]
+composition: specialist-generalist
+motifs: [role-contrast, shared-work-surface, five-domain-map]
 negative_constraints: [no-logo, no-watermark]
+relationship: specialist-generalist
 ```
 
 **SLIDE BODY**:
 ```yaml
 items:
   - role: body
-    literal: 专才 → 通才。AI 横跨产品、程序、测试、运维、汇报五域；人以一个领域为边界，跨出就得换人。
+    literal: 专才 → 通才。人通常只深耕一个领域，跨出去就得换人；AI 却能横跨产品、开发、测试、运维和汇报五个环节。
   - role: supporting_copy
-    literal: 这次不是帮你更快——是帮你做了。它超级能干，但你还不会跟搭档配合。两个都是真的。
+    literal: 这次不只是让你更快，而是能替你把事情做完。它很能干，人却还没学会怎么和它配合。
 ```
 
 > **SPEAKER NOTE**
@@ -232,25 +230,26 @@ items:
 ## Slide 07: `DeerVal`
 
 **KICKER**: 五个月，同一群人
-**TITLE**: 「不确定多于确定」→「不是 slides，是 production。」
-**SUBTITLE**: Martin Fowler，ThoughtWorks 首席科学家。两次 retreat，他召的。
+**TITLE**: 从「不确定多于确定」，走到「直接投入生产」。
+**SUBTITLE**: Martin Fowler，ThoughtWorks 首席科学家；两次闭门研讨，都由他召集。
 **VISUAL BRIEF**:
 ```yaml
 recipe: editorial-systems
-composition: two-column
-motifs: [soft-grid]
+composition: evidence-shift
+motifs: [shift-connector, evidence-cards]
 negative_constraints: [no-logo, no-watermark]
+relationship: evidence-shift
 ```
 
 **SLIDE BODY**:
 ```yaml
 items:
   - role: body
-    literal: Deer Valley（02/2026，~40 人）「There is more uncertainty than certainty.」
+    literal: Deer Valley（2026 年 2 月，约 40 人）：“不确定多于确定。”
   - role: body
-    literal: Engelberg（06/2026，~60 人）「Not slides — production. The debate is over.」
+    literal: Engelberg（2026 年 6 月，约 60 人）：“不是做幻灯片，而是投入生产。争论已经结束。”
   - role: supporting_copy
-    literal: 同一群人、同一个召集人、5 个月内一次集体认知跃迁。disruption 的速度，不是渐进改进。
+    literal: 同一群人、同一个召集人，五个月里完成了一次集体认知跃迁。颠覆不是更快一点，而是换了一个速度档。
 ```
 
 > **SPEAKER NOTE**
@@ -583,11 +582,7 @@ negative_constraints: [no-logo, no-watermark]
 
 **SLIDE BODY**:
 ```yaml
-items:
-  - role: body
-    literal: 软件只是煤矿里的金丝雀——它先感觉到空气变了。
-  - role: supporting_copy
-    literal: 方法论被挖、角色被重写、组织开始连锁反应。同一条信息加工链，现在轮到你的行业。
+items: []
 ```
 
 > **SPEAKER NOTE**
@@ -641,33 +636,34 @@ items:
 
 ## Slide 18: `FramAut`
 
-**KICKER**: 有框，才有真正的自主
-**TITLE**: Framed Autonomy = 人定边界。Agent 在框内可劲儿干。
-**SUBTITLE**: 框不是笼子——是让你敢放手的边界。
+**KICKER**: 有了边界，才谈得上自主
+**TITLE**: Framed Autonomy：人定边界，Agent 放手执行。
+**SUBTITLE**: 框不是笼子，而是让人敢于放手的边界。
 **VISUAL IDENTITY**: amber-agent/collaborating
 **IDENTITY SUBJECT COUNT**: one
 **SUBJECT RESTRICTIONS**: none
 **VISUAL BRIEF**:
 ```yaml
 recipe: collaborative-work
-composition: field-of-work
-motifs: [shared-work-surface, connected-nodes]
+composition: framed-workspace
+motifs: [frame-boundary, shared-work-surface, readable-schematic]
 negative_constraints: [no-logo, no-watermark]
+relationship: framed-autonomy
 ```
 
 **SLIDE BODY**:
 ```yaml
 items:
   - role: body
-    literal: 约束不是限制发挥——明确的边界让 Agent 敢放手干活。Operational Frame 规定执行序列；Normative Frame 规定禁止行为。
+    literal: 约束不是束缚。边界说清楚，Agent 才能放手干活：Operational Frame 规定执行顺序；Normative Frame 划出不可触碰的红线。
   - role: supporting_copy
-    literal: 框内砚·在想在写在验证，铸·在搭在连在跑。德国能源网 meter-to-cash 达 99% 成功执行率。框是信任，不是锁。
+    literal: 框内，一个 Agent 负责思考、书写和验证，另一个负责搭建、连接和运行。德国能源网的 meter-to-cash 流程，成功执行率达到 99%。框是信任，不是锁。
 ```
 
 > **SPEAKER NOTE**
 >
 > **Narrative flow:**
-> 给出 Dagstuhl 正式定义。关键翻面——「约束」这个词听起来像限制，但本质是赋能。就像沙盒——因为知道边界在哪，所以框内什么都能试。框内两个 Agent 性格截然不同：砚——安静写代码/写测试/写规范，沉稳精确；铸——狂野地连接设备/调动资源/跑流程。两种 Agent，同一个框，各司其职。框外，人不再紧张地盯着每一步——一只手轻轻搭在框边，信任但关注。两种框：Operational Frame 规定执行序列（像 CI 管道）、Normative Frame 规定禁止行为（像编码规范）。真实验证：德国能源网 meter-to-cash 99% 成功率。BPM 叫 Framed Autonomy，SDLC 叫 AI Sandwich——人定框，Agent 在框内可劲儿干。框是信任，不是锁。
+> 给出 Dagstuhl 正式定义。关键翻面——「约束」这个词听起来像限制，但本质是赋能。就像沙盒——因为知道边界在哪，所以框内什么都能试。框内两个 Agent 性格截然不同：一个——安静写代码/写测试/写规范，沉稳精确；另一个——狂野地连接设备/调动资源/跑流程。两种 Agent，同一个框，各司其职。框外，人不再紧张地盯着每一步——一只手轻轻搭在框边，信任但关注。两种框：Operational Frame 规定执行序列（像 CI 管道）、Normative Frame 规定禁止行为（像编码规范）。真实验证：德国能源网 meter-to-cash 99% 成功率。BPM 叫 Framed Autonomy，SDLC 叫 AI Sandwich——人定框，Agent 在框内可劲儿干。框是信任，不是锁。
 >
 > **Terms:**
 > — Operational / Normative Frame: 规定「怎么做」/ 规定「不许做」
@@ -733,7 +729,7 @@ negative_constraints: [no-logo, no-watermark]
 ```yaml
 items:
   - role: body
-    literal: 1 个 planner「舵」调度 3 个专才 agent「核」「察」「算」——澳洲食品变质理赔，数天→数小时（−80%）；理赔员未裁，升为签核者。
+    literal: 1 个 planner 调度 3 个专才 agent（承保核对、欺诈筛查、赔付计算）——澳洲食品变质理赔，数天→数小时（−80%）；理赔员未裁，升为签核者。
   - role: quote
     literal: We scoped it intentionally. ——Maria Janssen
   - role: supporting_copy
@@ -743,7 +739,7 @@ items:
 > **SPEAKER NOTE**
 >
 > **Narrative flow:**
-> 只讲一家，但讲透。安联是全球最大保险集团之一，传统金融巨头。Project Nemo 两个突出点：① 一个 planner「舵」指挥 3 个专才 agent——「核」（承保核对）、「察」（欺诈筛查）、「算」（赔付计算）——处理澳洲食品变质理赔，数天→数小时、-80%，理赔员没被裁、升为签核者(human-in-the-loop)；② 打法才是真洞察——首席转型官 Maria Janssen "We scoped it intentionally"，巨头刻意把 AI 缩到极窄高频低值场景先跑通、被独立第三方验证，再铺开。这是全场唯一独立媒体 + 独立机构双重佐证的案例。诚实交代：-80% 只限食品变质 <AUD$500 窄类目，扩展仍是意向——这恰是"缩窄验证"打法的证据，不是减分。
+> 只讲一家，但讲透。安联是全球最大保险集团之一，传统金融巨头。Project Nemo 两个突出点：① 一个 planner 指挥 3 个专才 agent——承保核对、欺诈筛查、赔付计算——处理澳洲食品变质理赔，数天→数小时、-80%，理赔员没被裁、升为签核者(human-in-the-loop)；② 打法才是真洞察——首席转型官 Maria Janssen "We scoped it intentionally"，巨头刻意把 AI 缩到极窄高频低值场景先跑通、被独立第三方验证，再铺开。这是全场唯一独立媒体 + 独立机构双重佐证的案例。诚实交代：-80% 只限食品变质 <AUD$500 窄类目，扩展仍是意向——这恰是"缩窄验证"打法的证据，不是减分。
 >
 > **Terms:**
 > — Project Nemo: 安联的 agentic 理赔试点
@@ -920,11 +916,7 @@ negative_constraints: [no-logo, no-watermark]
 
 **SLIDE BODY**:
 ```yaml
-items:
-  - role: body
-    literal: 软件是煤矿里的金丝雀——方法论、角色、组织 5 个月被掀翻。你的行业也在加工信息：看文档、写邮件、填报表、走审批——AI 正在学会做这一切。
-  - role: supporting_copy
-    literal: 软件是先行样本，你是下一个。
+items: []
 ```
 
 > **SPEAKER NOTE**

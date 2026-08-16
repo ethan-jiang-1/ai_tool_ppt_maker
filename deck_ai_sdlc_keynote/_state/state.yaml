@@ -10,7 +10,7 @@ production_identity:
   by_version:
     3_versions/v8:
       workflow: pure
-      source_epoch: 2
+      source_epoch: 7
 playbook: create-deck
 current_node: author-target-page-image-content
 execution_id: exec-d554196b-9f5e-46c0-b7c0-7abecd068b3c
@@ -18,7 +18,7 @@ execution_started_at: 2026-08-14T14:43:36.789Z
 run_version: v8
 continuation_target_version: v8
 started_at: 2026-08-14T14:43:36.789Z
-updated_at: 2026-08-15T14:37:55.182Z
+updated_at: 2026-08-16T04:36:07.094Z
 nodes:
   checkpoint-intake:
     status: completed
@@ -39,8 +39,8 @@ page_image_target_evidence:
     3_versions/v8:
       schema: page-image-workflow-target-state
       run_version: v8
-      source_epoch: 2
-      source_receipt_sha256: bd27255c7dcd5d1df4c9121cdcf34c04118fac0906a68005c716879e41f94180
+      source_epoch: 7
+      source_receipt_sha256: 90ddf15d6201de0f9f749c85d0563a5669fedb8f6e853333a024841f37420767
       workflow: pure
       provider_authorization_sha256: null
       accepted_raw_evidence_sha256: null
@@ -52,19 +52,19 @@ page_image_style_master:
       schema: page-image-style-master-selection
       run_version: v8
       workflow: pure
-      plan_sha256: ce1bc35db6fd80fd4f31111f3644469e15c2a71f8bc7dd9c2ce5b3ac2321b491
+      plan_sha256: b67624361a3b0c7993907a6d06d320d66ff65eecca3918897d73ac36b9020429
       candidate_id: local-existing
-      candidate_sha256: 2cd6de3d38cd65b6d46acee669a7e8c1f9f6b8bf77e2fa5c532a2653342c7205
-      candidate_media_type: image/jpeg
+      candidate_sha256: 08010017a0824e41b9e7174c6ca0df20e64c86288222c10ebc1da9e40f0a9661
+      candidate_media_type: image/png
       candidate_width: 1536
       candidate_height: 864
-      candidate_provenance_sha256: 9a3885a87998baf04f9c6436b37e978bf6b1d5bb61989dcdee51bee046a1dfb2
+      candidate_provenance_sha256: a9d04114bb78799fdd58c389e0382f79ef4b17c2ed2b6dbe490077bc58ec0748
       style_intent_sha256: 9c8aa0a6715e20ece7c3b1ddb18641b04af26811b3e7234d0fc05ca0cd4c0505
-      style_context_sha256: 8796264919df07e9720d8107765260e5cbc99158766e7296d4f2a03938e493cd
+      style_context_sha256: 85e08cd17964ba031d81400dddc89f6f2a7ace8d188c96e97a6fcf047172e499
       candidate_generation_profile_sha256: f15a56edeed8bf2d45d62d91dd73882a779485a2f406fcc19629b07726385c16
-      previous_selection_sha256: ce7d756bd5b6d73aa90340de9ceb63556a4cdf41fc15c93e6525ea16a0ff02db
-      review_decision_sha256: 2961e725c0400f2a0b2df4b71a9d516bb6386b1fe7ce5e0cc7a4cd8b77cb0cb1
-      accepted_at: 2026-08-15T14:35:29.832Z
+      previous_selection_sha256: 6950fbc8658e645a3a8639d080eaec1136cc6cf67bd9db78a4e41af91428b19f
+      review_decision_sha256: 05097fa5441538165390e62b8856714aad0aacd58092bab3ebc0fae1ceb95a15
+      accepted_at: 2026-08-16T04:35:50.039Z
 page_image_task_mandate:
   by_version:
     3_versions/v8:
@@ -80,10 +80,10 @@ page_image_progressive_handoff:
     3_versions/v8:
       schema: page-image-workflow-handoff
       run_version: v8
-      source_epoch: 2
-      source_receipt_sha256: bd27255c7dcd5d1df4c9121cdcf34c04118fac0906a68005c716879e41f94180
+      source_epoch: 7
+      source_receipt_sha256: 90ddf15d6201de0f9f749c85d0563a5669fedb8f6e853333a024841f37420767
       workflow: pure
-      raw_work_plan_sha256: 698c0e43281749f5ee2ea3e51ae27e6f0628a1b56654e70b7a5cede82f38fd3c
+      raw_work_plan_sha256: 7a21eb82208281a30c9dfd430163d8f4f011cf7db40080e3a838d3edd57f5a41
       partial_pilot_decision_sha256: null
       complete_raw_review_sha256: null
       accepted_raw_evidence_sha256: null

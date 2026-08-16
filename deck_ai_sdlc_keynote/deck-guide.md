@@ -59,7 +59,7 @@ Generated outputs 在 `3_versions/v8/_generated/page_image_workflow/`（receipts
 # 验证 source
 node ppt_maker_harness/scripts/ppt_flow.mjs validate deck_ai_sdlc_keynote/3_versions/v8
 
-# Style Master（先 inspect，再用现有 style_master.jpg zero-cost adopt，或重新生成候选）
+# Style Master（先 inspect，再用现有 style_master.png zero-cost adopt，或重新生成候选）
 node ppt_maker_harness/scripts/ppt_flow.mjs style-master inspect deck_ai_sdlc_keynote/3_versions/v8
 node ppt_maker_harness/scripts/ppt_flow.mjs style-master plan deck_ai_sdlc_keynote/3_versions/v8 --candidate-count 0
 
