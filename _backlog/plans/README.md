@@ -17,6 +17,10 @@
 
 ## 活跃列表
 
+| 计划 | 一句话 | 来源 |
+| --- | --- | --- |
+| [cli-command-surface-reduction](cli-command-surface-reduction/README.md) | CLI 命令面平衡瘦身: 3 个 OpenSpec change（机器契约一致性 → 非生命周期拆分 → doctor 拆分）,无兼容包袱,同步面清单见子目录 `04` | `_backlog/_findings/` 四份 findings |
+
 **Next available plan ID: CLS-041**（移入 `_closed_plans/` 时分配；CLS-001…040 已用）
 
 ---
