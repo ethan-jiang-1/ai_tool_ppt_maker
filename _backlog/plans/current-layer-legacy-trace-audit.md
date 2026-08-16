@@ -422,7 +422,8 @@
     清零（仅保留定义/禁止语境）；触及 spec 中 retired `mode`/`durable mode`/`source-mode pair`
     短语清零；Complete Page Review 单一 owner（image-production，image-generation 引用）；
     M-8 路径/文件名、L-2 文档低危清零；`openspec validate --strict`、`npm test`、`npm run test:sweep` 通过
-  - 生命周期：scaffold → proposal → delta specs → design → tasks → polish → apply → archive
+  - 生命周期：scaffold → proposal/specs/design/tasks（planning 齐）→ **`/polish-openspec-change`
+    （≥2 轮 risk-led，结论 `ready for apply` 才继续）** → apply → archive
 
 - [ ] **Change 2：`remove-retired-plumbing-and-harden-detectors`**（Wave 2）
   - finding：M-5 #1-5（build plumbing 死代码/空壳层/JSDoc）、M-5 #7 收尾（profile 展示名
@@ -450,6 +451,9 @@
 
 ### 判定标准（何时 done / 何时 blocker）
 
+- **apply 门槛**（硬性）：每个 change 的 proposal/specs/design/tasks 完成后，先跑
+  `/polish-openspec-change`（≥2 轮 risk-led，逐项核查），**只有结论明确 `ready for apply`**
+  且 `openspec validate --strict` + `git diff --check` + 项目完整性检查全绿，才进入 apply；否则继续打磨。
 - **change done** = `openspec archive` 成功 + main specs 同步 + 该 change 完成判据全绿（勾选只在证据存在时打勾）
 - **blocker** = 同一条件连续 3 轮无法推进 → 记录具体 blocker_reason，不猜测、不绕过
 - **Wave 5** = 需要 deck owner 决策时停下，只提选项，不代决
