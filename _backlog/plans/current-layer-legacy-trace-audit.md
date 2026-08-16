@@ -1,6 +1,7 @@
 # Plan: 当前层旧痕迹深度审计（current-layer legacy-trace audit）
 
-> 类型: 分析/审计 | 更新: 2026-08-16 | 状态: 部分吸收（CLS-038），残留映射为串行 OpenSpec change 队列
+> 类型: 分析/审计 | 更新: 2026-08-16 | 状态: 部分吸收（CLS-038），残留映射为 3 个串行 change + 1 个 deck 工作流
+> 当前下一步: 启动 Change 1 `align-current-layer-terminology`（见文末 Progress Tracker）
 > 审计日期: 2026-08-16 | 基准: `npm test` core 全绿（exit 0）| 方法: 7 路只读子代理 + 主 Agent 独立复核 | 写操作: 零（全程只读，未改任何文件）
 
 ## 一句话
@@ -360,13 +361,13 @@
 | **5** | H-3、L-4、L-5 | **deck 生产数据，不走 OpenSpec**。L-4/L-5 机械清理（需 deck owner 指定范围）；**H-3 是 Deck Author 的内容决策**（摘除人格 vs 改声明），Agent 只能提选项不能代决 | **未动**，需 deck owner |
 
 > 推进纪律：与 CLS-038 一致——同一时间只允许一个 active change，archive 后才启动下一个；
-> Wave 1→4 严格串行（Wave 4 依赖 Wave 1 定稿术语）；Wave 5 与 Wave 1–4 无依赖，可在取得
-> deck owner 决策后随时并行处理。
+> Change 1→2→3 严格串行；Change 1 内部先 spec（唯一真源）后 docs（镜像）；Wave 5 与
+> Change 1–3 无依赖，可在取得 deck owner 决策后随时并行处理。
 
 ## 风险 / 取舍
 
 - [术语统一伤到机器契约] → 缓解：M-1/M-2 只改**散文**；`header_region`/`protected_composition`/`reserved_header`/`body_safe` 序列化字段一律不动（CONTEXT.md:202-209 明示这些字面契约不是术语别名）。
-- [改 spec 顺序错导致文档二次返工] → 缓解：Wave 1（spec 权威）先于 Wave 4（文档镜像）。
+- [改 spec 顺序错导致文档二次返工] → 缓解：Change 1 内先 spec（权威）后 docs（镜像）。
 - [行号漂移] → 缓解：本文件所有引用以「路径 + 符号名」为准，行号是 2026-08-16 快照。
 - [deck 源改动触发失效/重渲染] → 缓解：H-3 若选「真摘除」，必须按 owner 流程走失效分类（改 VISUAL IDENTITY/注册表 → Generated Image Rebuild 起），不得手改 `_generated/`；若选「改声明」则只动 README，零渲染影响。
 - [一次修太多难以 review] → 缓解：按 Wave 拆 change，每个 change 可独立验证（Wave 2 自带防回归测试）。
@@ -387,3 +388,83 @@
    与 L-4/L-5 的清理授权；不进 OpenSpec。
 3. Wave 1–4 全部 archive 后本文件移入 `_done/_closed_plans/`（CLS 编号）并更新 plans/README.md；
    Wave 5 的 deck 清理在其自身闭环内收尾。
+
+---
+
+## 执行进度追踪（Progress Tracker）
+
+> **这是本 plan 的唯一进度真源**——自动推进时先读这里就知道"现在到哪、下一步做什么"。
+> 纪律与 `cli-diagnostic-faithful-passthrough`（CLS-038）一致：同一时间一个 active change，
+> archive 后才启动下一个；每个 change 独立终态，不依赖下一个才保持 surface 安全。
+
+### 总状态（2026-08-16）
+
+| 项 | 状态 |
+|---|---|
+| 审计本身 | ✅ 完成（45 条 finding；7 条已由 CLS-038 吸收） |
+| Change 1 `align-current-layer-terminology` | **NEXT**（未启动） |
+| Change 2 `remove-retired-plumbing-and-harden-detectors` | QUEUED |
+| Change 3 `align-serialization-schema-mirror` | QUEUED |
+| Deck Wave 5（H-3 / L-4 / L-5） | BLOCKED（等 deck owner 决策/授权；非 OpenSpec） |
+
+### 进度清单
+
+- [ ] **Change 1：`align-current-layer-terminology`**（Wave 1+4 合并）
+  - finding：M-1（spec 6 文件 + 文档 11 文件）、M-2（3 spec + CONTEXT 反向修正）、M-3 剩余
+    （node-specification ×9 + playbook-execution ×2 + environment-check 组织轴）、M-8、M-9、L-2
+  - capability：node-specification、harness-charter、image-production、image-generation、
+    visual-config、workflow-inspection、pipeline-orchestration、playbook-execution、cli-surface、
+    environment-check（+ CONTEXT.md 术语权威修正）
+  - 内部顺序：先 spec（唯一真源）→ 后 docs（镜像对齐）→ 最后 CONTEXT.md 术语定义修正
+  - 红线：只改散文；`header_region`/`protected_composition`/`reserved_header`/`body_safe`
+    序列化字段一字不动（CONTEXT.md:202-209 明示不是术语别名）
+  - 完成判据：`protected geometry`/`protected-geometry`/`protected zone`/`protected-zone` 在当前层
+    清零（仅保留定义/禁止语境）；触及 spec 中 retired `mode`/`durable mode`/`source-mode pair`
+    短语清零；Complete Page Review 单一 owner（image-production，image-generation 引用）；
+    M-8 路径/文件名、L-2 文档低危清零；`openspec validate --strict`、`npm test`、`npm run test:sweep` 通过
+  - 生命周期：scaffold → proposal → delta specs → design → tasks → polish → apply → archive
+
+- [ ] **Change 2：`remove-retired-plumbing-and-harden-detectors`**（Wave 2）
+  - finding：M-5 #1-5（build plumbing 死代码/空壳层/JSDoc）、M-5 #7 收尾（profile 展示名
+    `image2-raw`）、M-7（ledger 死指针 + 05-iteration 死分支）、L-3、D-1（剩余词表）、D-2
+    （stale-import-target）、D-3（ledger source resolve）、D-4（CONTEXT "still uses" 反向检查）
+  - capability：cli-surface、environment-check、harness-script-layout（探测器）+ tests
+  - 完成判据：M-5 #1-5 死代码删除；探测器词表扩面后 planted violation 能抓 `protected
+    geometry/zone`、build/doctor 退役词、`--mode`、`--check-gates`（H-2 类残留）；ledger
+    source 改指现存符号 + 测试 resolve；`npm test`（architecture/coherence guard）+ 新增
+    planted-violation 测试全绿；sweep 通过
+  - 生命周期：同 Change 1
+
+- [ ] **Change 3：`align-serialization-schema-mirror`**（Wave 3）
+  - finding：M-6（`serialization-contracts.yaml` 漏 6 键 + 4 孤儿 wire-schema 值）、L-1（9 条
+    schema 层低危：顶层命名/键/枚举/mirror 漂移）
+  - capability：production-schema-conformance + `schema/`（+ 必要时 `state.mjs` 对齐）
+  - 完成判据：`current_state_shape` 与 `state.mjs#STATE_TOP_LEVEL_KEYS` 对齐；孤儿 wire-schema
+    值删除或标注；L-1 的 9 条清零；`npm test` + conformance 测试通过
+  - 生命周期：同 Change 1
+
+- [ ] **Deck Wave 5（非 OpenSpec）**：H-3（具名人格自相矛盾）、L-4（导航陈旧引用 8 条）、L-5（孤儿产物）
+  - 前置：deck owner 对 H-3 的二选一决策（摘除人格 → 走失效/重渲染；或改 README 声明）+ L-4/L-5 清理授权
+  - 完成判据：按 `BOOTSTRAP.md`/当前 Controller 流程；H-3 二选一落地；L-4/L-5 清理完成
+  - 与 Change 1–3 无依赖，可并行
+
+### 判定标准（何时 done / 何时 blocker）
+
+- **change done** = `openspec archive` 成功 + main specs 同步 + 该 change 完成判据全绿（勾选只在证据存在时打勾）
+- **blocker** = 同一条件连续 3 轮无法推进 → 记录具体 blocker_reason，不猜测、不绕过
+- **Wave 5** = 需要 deck owner 决策时停下，只提选项，不代决
+
+### 每次更新进度时必须做什么
+
+1. 更新本 tracker 的「总状态」表与「进度清单」勾选框
+2. 更新顶部状态行（第 3 行的「当前下一步」）
+3. 写明最新 `openspec list --json` 与 `openspec validate --strict` 结果
+4. 某个 change archive 后才把下一项从 QUEUED 改为 NEXT
+5. Change 1–3 全部 archive 后：本文件移入 `_done/_closed_plans/`（分配 CLS-039）+ 更新
+   `plans/README.md` + `_done/README.md`（计数 +1、Next CLS-040）
+
+### 当前下一步（Next action）
+
+启动 Change 1：`openspec new change "align-current-layer-terminology"` → 写 proposal（引用本文件
+M-1/M-2/M-3/M-8/M-9/L-2 编号与受影响 capability；明确"只改散文、不动序列化字段"红线）→ 按
+OpenSpec 流程（specs → design → tasks → polish → apply → archive）推进。
