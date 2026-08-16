@@ -17,10 +17,9 @@
 
 ## 活跃列表
 
-- [current-layer-legacy-trace-audit.md](current-layer-legacy-trace-audit.md) — 重构后「当前层」旧痕迹深度审计：7 路只读审计 + 交叉验证，约 45 条 finding 按 P0→P3 优先权排序（3 high：node-specification 退役路径/死 flag、deck v8 具名 Agent 自相矛盾）；含方法学、证据、Wave→OpenSpec change 落地映射；待拆分实施。
 - [version-local-polish-directory.md](version-local-polish-directory.md) — version root 白名单新增版本级「打磨轨迹」目录（暂名 `_polish/`）；现有 `_scratch/`（临时）与 `_lessons/`（跨版本教训）都不适合承载版本私有的、人读的打磨叙事；待 OpenSpec change 实施。
 
-**Next available plan ID: CLS-038**（移入 `_closed_plans/` 时分配；CLS-001…037 已用）
+**Next available plan ID: CLS-040**（移入 `_closed_plans/` 时分配；CLS-001…039 已用）
 
 ---
 

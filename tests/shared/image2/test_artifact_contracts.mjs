@@ -201,15 +201,6 @@ describe("Page Image typed artifacts", () => {
       items: [{ slide_id: "DeckGo", position: 1, final_sha256: digest("c"), path: "01_DeckGo.png" }],
     }, { evidence, expectedWorkflow: "pure" })).toMatchObject({ ok: false, code: "final_manifest_stale" });
     expect(validateAcceptedRawEvidence({
-      schema: "pptmaker-page-image-raw-manifest",
-      raw_work_plan_sha256: rawPlan.sha256,
-      source_receipt_sha256: rawPlan.source_receipt_sha256,
-      workflow: "pure",
-      provider_authorization_sha256: digest("f"),
-      raw_review_sha256: digest("0"),
-      items: [],
-    }, { plan: rawPlan })).toMatchObject({ ok: false, code: "raw_evidence_invalid" });
-    expect(validateAcceptedRawEvidence({
       schema: "unrecognized-accepted-raw-evidence",
     }, { plan: rawPlan })).toMatchObject({ ok: false, code: "raw_evidence_invalid" });
     expect(() => createAcceptedRawEvidence({

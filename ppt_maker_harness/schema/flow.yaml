@@ -1,20 +1,20 @@
-flow: page-image-production
+flow: page-image-workflow
 authority: conceptual-vocabulary
-execution: descriptive-only
+execution: non-executable
 
 sources:
   - schema: story-outline
-    owner: "ppt_maker_harness/scripts/01-content/internal/narrative_source.mjs"
+    owner: "scripts/01-content/internal/narrative_source.mjs"
     producer_status: materialized
     invalidated_by:
       - "A human changes the deck argument, evidence order, or audience outcome."
   - schema: visual-language
-    owner: "ppt_maker_harness/scripts/02-visual-system/internal/page_image_visual_language.mjs"
+    owner: "scripts/02-visual-system/internal/page_image_visual_language.mjs"
     producer_status: materialized
     invalidated_by:
       - "A human changes the canonical visual-language registry or a selected visual record."
   - schema: design-constraints
-    owner: "ppt_maker_harness/scripts/01-content/internal/narrative_source.mjs"
+    owner: "scripts/01-content/internal/narrative_source.mjs"
     producer_status: materialized
     invalidated_by:
       - "A human changes audience, claim boundaries, tone, or required terminology."
@@ -31,7 +31,7 @@ transformations:
       - design-constraints
       - visual-language
     output: page-source
-    owner: "ppt_maker_harness/scripts/01-content/internal/narrative_page_plan.mjs"
+    owner: "scripts/01-content/internal/narrative_page_plan.mjs"
     producer_status: materialized
     invalidated_by:
       - "A story, constraint, visual selection, or source-authored page change."
@@ -40,7 +40,7 @@ transformations:
       - page-source
       - visual-language
     output: page-source-receipt
-    owner: "ppt_maker_harness/scripts/01-content/internal/page_image_source.mjs"
+    owner: "scripts/01-content/internal/page_image_source.mjs"
     producer_status: materialized
     invalidated_by:
       - "A page source byte change or selected visual-language registry change."
@@ -72,7 +72,7 @@ transformations:
       - visual-language
       - visual-style-candidates
     output: page-generation-spec
-    owner: "ppt_maker_harness/scripts/shared/page-image/page_image_core.mjs"
+    owner: "scripts/shared/page-image/page_image_core.mjs"
     producer_status: materialized
     invalidated_by:
       - "A normalized source, selected Page Class projection, selected visual language, selected style candidate, generation profile, or header policy change."
@@ -80,7 +80,7 @@ transformations:
     inputs:
       - page-generation-spec
     output: image2-request
-    owner: "ppt_maker_harness/scripts/03-framed-image/index.mjs and ppt_maker_harness/scripts/04-pure-image/index.mjs"
+    owner: "scripts/03-framed-image/index.mjs and scripts/04-pure-image/index.mjs"
     producer_status: materialized
     invalidated_by:
       - "A generation-spec change or selected workflow adapter configuration change."
@@ -89,7 +89,7 @@ transformations:
       - page-source-receipt
       - page-layout
     output: framed-header-html
-    owner: "ppt_maker_harness/scripts/03-framed-image/internal/header_overlay.mjs"
+    owner: "scripts/03-framed-image/internal/header_overlay.mjs"
     producer_status: materialized
     invalidated_by:
       - "A framed header policy or selected Framed presentation-profile change."
@@ -111,7 +111,7 @@ transformations:
       - visual-language
       - production-progress-state
     output: visual-style-candidates
-    owner: "ppt_maker_harness/scripts/shared/image2/style_master_schema.mjs"
+    owner: "scripts/shared/image2/style_master_schema.mjs"
     producer_status: materialized
     invalidated_by:
       - "A style candidate source, selected workflow, or source context change."
@@ -122,7 +122,7 @@ transformations:
       - page-review-decision
       - delivery-package
     output: production-progress-state
-    owner: "ppt_maker_harness/scripts/shared/state/state.mjs"
+    owner: "scripts/shared/state/state.mjs"
     producer_status: materialized
     invalidated_by:
       - "A runtime-owned source epoch or recorded lifecycle handoff change."
@@ -133,7 +133,7 @@ transformations:
       - visual-style-candidates
       - production-progress-state
     output: image-generation-plan
-    owner: "ppt_maker_harness/scripts/03-framed-image/index.mjs and ppt_maker_harness/scripts/04-pure-image/index.mjs"
+    owner: "scripts/03-framed-image/index.mjs and scripts/04-pure-image/index.mjs"
     producer_status: materialized
     invalidated_by:
       - "A selected page request, style candidate, source epoch, or workflow configuration change."
@@ -142,7 +142,7 @@ transformations:
       - image-generation-plan
       - image2-request
     output: image-generation-record
-    owner: "ppt_maker_harness/scripts/shared/image2/page_image_progressive_schema.mjs"
+    owner: "scripts/shared/image2/page_image_progressive_schema.mjs"
     producer_status: materialized
     invalidated_by:
       - "Never rewritten; a new provider attempt creates a new record."
@@ -151,7 +151,7 @@ transformations:
       - image-generation-plan
       - image-generation-record
     output: page-review-decision
-    owner: "ppt_maker_harness/scripts/shared/image2/page_image_progressive_schema.mjs"
+    owner: "scripts/shared/image2/page_image_progressive_schema.mjs"
     producer_status: materialized
     invalidated_by:
       - "Never rewritten; a new review is recorded for a new or current exact plan."
@@ -160,7 +160,7 @@ transformations:
       - image-generation-record
       - page-review-decision
     output: final-page-list
-    owner: "ppt_maker_harness/scripts/05-delivery/index.mjs with shared final-manifest validation"
+    owner: "scripts/05-delivery/index.mjs with shared final-manifest validation"
     producer_status: materialized
     invalidated_by:
       - "A repair outcome, a changed accepted-evidence set, or a new finalization."
@@ -169,7 +169,7 @@ transformations:
       - final-page-list
       - page-source
     output: delivery-package
-    owner: "ppt_maker_harness/scripts/05-delivery/index.mjs"
+    owner: "scripts/05-delivery/index.mjs"
     producer_status: materialized
     invalidated_by:
       - "A final-page-list change or a source-owned notes refresh."

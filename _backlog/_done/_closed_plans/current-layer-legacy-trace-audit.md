@@ -1,7 +1,7 @@
 # Plan: 当前层旧痕迹深度审计（current-layer legacy-trace audit）
 
-> 类型: 分析/审计 | 更新: 2026-08-16 | 状态: Change 1+2 已 archive（术语对齐 + 死代码删除/探测器扩面），残留映射为 1 个 QUEUED change + 1 个 deck 工作流
-> 当前下一步: 启动 Change 3 `align-serialization-schema-mirror`（见文末 Progress Tracker）
+> 类型: 分析/审计 | 更新: 2026-08-16 | 状态: ✅ 全部 3 个串行 change 已 archive（术语对齐 / 死代码删除+探测器扩面 / schema mirror 对齐）；残留仅 deck Wave 5（生产数据，走 deck 工作流）。本计划完成，移入 _done/_closed_plans（CLS-039）
+> 当前下一步: 无（Change 1-3 全部完成；Wave 5 需 deck owner 决策时再启动）
 > 审计日期: 2026-08-16 | 基准: `npm test` core 全绿（exit 0）| 方法: 7 路只读子代理 + 主 Agent 独立复核 | 写操作: 零（全程只读，未改任何文件）
 
 ## 一句话
@@ -404,7 +404,7 @@
 | 审计本身 | ✅ 完成（45 条 finding；7 条已由 CLS-038 吸收） |
 | Change 1 `align-current-layer-terminology` | ✅ 已 archive（2026-08-16，spec 10 文件 + 文档 10 文件 + CONTEXT + 1 重命名；`protected geometry/zone`、retired mode 短语、`export action`、`quick intake` 清零） |
 | Change 2 `remove-retired-plumbing-and-harden-detectors` | ✅ 已 archive（2026-08-16，build/doctor 死参数、image2-raw profile 名、ledger 死指针、L-3 措辞清零；探测器词表扩面 + stale-import-target + ledger resolve + planted 测试） |
-| Change 3 `align-serialization-schema-mirror` | **NEXT**（未启动） |
+| Change 3 `align-serialization-schema-mirror` | ✅ 已 archive（2026-08-16，state shape 20 键 mirror 对齐 + 4 孤儿 wire-schema 值删除 + L-1 九项 schema 层修正） |
 | Deck Wave 5（H-3 / L-4 / L-5） | BLOCKED（等 deck owner 决策/授权；非 OpenSpec） |
 
 ### 进度清单
@@ -445,12 +445,16 @@
     `--image2`/`--mode`）避免误报；`_Avoid_` markdown 斜体加入拒绝豁免
   - 生命周期：同 Change 1
 
-- [ ] **Change 3：`align-serialization-schema-mirror`**（Wave 3）
+- [x] **Change 3：`align-serialization-schema-mirror`**（Wave 3；2026-08-16 archive）
   - finding：M-6（`serialization-contracts.yaml` 漏 6 键 + 4 孤儿 wire-schema 值）、L-1（9 条
     schema 层低危：顶层命名/键/枚举/mirror 漂移）
   - capability：production-schema-conformance + `schema/`（+ 必要时 `state.mjs` 对齐）
   - 完成判据：`current_state_shape` 与 `state.mjs#STATE_TOP_LEVEL_KEYS` 对齐；孤儿 wire-schema
     值删除或标注；L-1 的 9 条清零；`npm test` + conformance 测试通过
+  - 验证记录：`openspec validate --all --strict` 27 项通过；`npm test` core 通过；
+    `npm run test:sweep` 657 项通过；`git diff --check` 通过；polish Pass 2 修正
+    L-1#1 schema_home 语义（定义集名非 pipeline 字面量）、L-1#7 前缀方向（规范=裸
+    scripts/）、L-1#3/#5 测试连带
   - 生命周期：同 Change 1
 
 - [ ] **Deck Wave 5（非 OpenSpec）**：H-3（具名人格自相矛盾）、L-4（导航陈旧引用 8 条）、L-5（孤儿产物）
@@ -478,8 +482,7 @@
 
 ### 当前下一步（Next action）
 
-启动 Change 3：`openspec new change "align-serialization-schema-mirror"` → 写 proposal
-（引用本文件 M-6（`serialization-contracts.yaml` 漏 6 键 + 4 孤儿 wire-schema 值）与
-L-1（9 条 schema 层低危）编号；受影响 capability：production-schema-conformance +
-`schema/`（+ 必要时 `state.mjs` 对齐）→ 按 OpenSpec 流程（specs → design → tasks →
-polish → apply → archive）推进。
+Change 1-3 全部完成并 archive（2026-08-16），本计划关闭（CLS-039）。残留仅
+**Deck Wave 5**（H-3 具名人格决策 / L-4 导航陈旧引用 / L-5 孤儿产物）——属于 deck
+生产数据，需 deck owner 决策/授权后按 `BOOTSTRAP.md`/当前 Controller 流程处理，
+不走 OpenSpec。

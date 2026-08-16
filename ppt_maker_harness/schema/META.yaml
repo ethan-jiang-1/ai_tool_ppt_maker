@@ -22,12 +22,12 @@ stage_definition:
     - downstream_consumers
     - does_not_contain
     - fields
+    - publication
   kind_values:
     - source
     - derived
     - record
   producer_status_values:
-    - human-authored
     - materialized
   owner_rule: "Every stage names a real current owner; schema definitions do not reserve future producers or implementation routes."
   provenance_rule: "Every derived or record stage identifies the source, configuration, or upstream record needed to explain how it was made."
@@ -36,6 +36,13 @@ field_definition:
   required_keys:
     - type
     - description
+  optional_keys:
+    - producer
+    - producer_status
+  producer_status_note: "Field-level producer_status mirrors the stage-level
+    materialized value; field-level producer names the parser/owner that
+    materializes that field (e.g. page-source.yaml fields)."
+
   constrained_field:
     detection: "A field is constrained when it declares rule."
     required_keys:

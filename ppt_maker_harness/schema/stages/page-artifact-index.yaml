@@ -6,7 +6,9 @@ answers: "Where are this page's current planning artifacts, and what produces or
 owner: "scripts/shared/image2/page_derived_data.mjs"
 producer_status: materialized
 publication:
-  role: page-derived-index
+  roles:
+    - page-derived-index
+    - deck-derived-index
   current_producer: scripts/shared/image2/page_derived_data.mjs
   workflow_presence:
     framed: required

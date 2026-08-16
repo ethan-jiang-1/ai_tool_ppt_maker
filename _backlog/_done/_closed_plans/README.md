@@ -58,6 +58,7 @@ plan 完成后从 `_backlog/plans/` 通过 `git mv` 移入本目录：
 | [CLS-037](provider-prompt-length-budget.md) | 2026-08-16 | `provider-prompt-length-budget.md` | provider prompt 超长根因与 compact prompt 方案；内部元数据混入 provider bytes 撑爆预算；由 `bind-capability-aware-image2-provider-input` change 落地并归档。 |
 | [CLS-038](cli-diagnostic-faithful-passthrough.md) | 2026-08-16 | `cli-diagnostic-faithful-passthrough.md`（+ 同名研究子目录） | CLI 诊断事实/恢复权威路线图：3 个串行 OpenSpec change 全部实现并 archive（owner-issued diagnostics、doctor readiness 对齐、validate source/state 投影）；BUG-067/068/069/070 关闭证据见对应 `_fixed_bugs/` 条目。 |
 
-**Next available plan ID: CLS-039**
+| [CLS-039](current-layer-legacy-trace-audit.md) | 2026-08-16 | `current-layer-legacy-trace-audit.md` | 当前层旧痕迹深度审计：45 条 finding；3 个串行 OpenSpec change 全部实现并 archive（align-current-layer-terminology 术语对齐 / remove-retired-plumbing-and-harden-detectors 死代码+探测器扩面 / align-serialization-schema-mirror schema 对齐）；残留仅 deck Wave 5（生产数据，需 deck owner 决策）。 |
+**Next available plan ID: CLS-040**
 
 > 已完成计划保留历史决策；当前工作只从 `_backlog/plans/` 重新进入。

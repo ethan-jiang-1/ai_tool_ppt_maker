@@ -97,7 +97,7 @@ describe("Page Image schema definitions", () => {
     ]) {
       visit(definition, [], (value, path) => {
         if (!Object.hasOwn(value, "producer_status")) return;
-        if (!["human-authored", "materialized"].includes(value.producer_status)) {
+        if (value.producer_status !== "materialized") {
           failures.push(`${file}:${formatPath(path)} has a non-current producer status`);
         }
         if (Object.hasOwn(value, "route_ref")) {
@@ -192,7 +192,7 @@ describe("Page Image schema definitions", () => {
       "page-generation-spec": { role: "compiled-page-facts", framed: "required", pure: "required" },
       "image2-request": { role: "provider-input", framed: "required", pure: "required" },
       "framed-header-html": { role: "local-header-overlay", framed: "required", pure: "forbidden" },
-      "page-artifact-index": { role: "page-derived-index", framed: "required", pure: "required" },
+      "page-artifact-index": { roles: ["page-derived-index", "deck-derived-index"], framed: "required", pure: "required" },
     };
 
     for (const [stage, rule] of Object.entries(expected)) {
@@ -201,7 +201,7 @@ describe("Page Image schema definitions", () => {
         schema: stage,
         producer_status: "materialized",
         publication: {
-          role: rule.role,
+          ...(rule.role ? { role: rule.role } : { roles: rule.roles }),
           current_producer: "scripts/shared/image2/page_derived_data.mjs",
           workflow_presence: { framed: rule.framed, pure: rule.pure },
         },

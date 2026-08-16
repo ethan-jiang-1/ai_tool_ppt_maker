@@ -66,6 +66,13 @@ current_state_shape:
     - execution_id
     - execution_started_at
     - run_version
+  allowed_execution_fields:
+    - page_image_raw_provider_authorization
+    - page_image_target_evidence
+    - page_image_progressive_handoff
+    - page_image_task_mandate
+    - page_image_style_master
+    - diagnostics
   production_identity:
     storage: production_identity.by_version
     owner: scripts/shared/state/state.mjs
@@ -220,6 +227,23 @@ shared_contracts:
     anchors:
       - scripts/00-setup/internal
 
+closed_enums:
+  - name: page-image-core-content-roles
+    owner: scripts/shared/page-image/page_image_core.mjs#PAGE_IMAGE_CORE_CONTENT_ROLES
+    values:
+      - body
+      - label
+      - metric
+      - diagram_text
+      - quote
+      - callout
+      - supporting_copy
+  - name: page-image-core-copy-policies
+    owner: scripts/shared/page-image/page_image_core.mjs#PAGE_IMAGE_CORE_COPY_POLICIES
+    values:
+      - exact
+      - presentation_adaptable
+
 wire_schema_groups:
   - stage_ref: story-outline
     role: narrative-source
@@ -271,7 +295,6 @@ wire_schema_groups:
     role: provider-input
     values:
       - page-image-compiled-provider-input
-      - page-image-provider-input
       - page-image-framed-provider-input
       - page-image-pure-provider-input
       - page-image-target-raw-provider-request
@@ -282,7 +305,6 @@ wire_schema_groups:
     role: generation-planning
     values:
       - page-image-adapter-raw-work-plan
-      - page-image-raw-contract
       - page-image-target-raw-contract
       - page-image-target-raw-generation-profile
       - page-image-target-raw-plan-projection
@@ -295,6 +317,8 @@ wire_schema_groups:
       - page-image-progressive-raw-source-execution
       - page-image-workflow-provider-authorization
       - page-image-task-mandate
+      # task-mandate record scope (state.mjs#PAGE_IMAGE_TASK_MANDATE_SCOPE):
+      #   normal-page-image-production
   - stage_ref: image-generation-record
     role: raw-generation-evidence
     values:
@@ -347,8 +371,6 @@ wire_schema_groups:
     values:
       - page-image-workflow-target-state
       - page-image-workflow-handoff
-      - page-image-raw-manifest
-      - pptmaker-page-image-raw-manifest
 
 # Only these records are current Page Image derived-publication envelopes. The
 # broader wire-schema groups above also inventory owner-internal records and
