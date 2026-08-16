@@ -3458,6 +3458,14 @@ async function commandStyleMaster(operation, runDir, opts = {}) {
       output = await owner.planStyleMasterCandidates({ ...common, candidateCount });
     } else if (operation === "authorize") {
       output = await owner.authorizeStyleMasterCandidates({ ...common, planSha256: planHash });
+      const { recordStyleMasterAuthorizeCliHandoff } = await import("./shared/state/state.mjs");
+      const controllerHandoff = recordStyleMasterAuthorizeCliHandoff(route.deck_dir, {
+        runDir: route.run_dir,
+        planHash: output.plan_sha256,
+        grantHash: output.candidate_grant_sha256,
+        workflow: output.workflow,
+      });
+      output = Object.freeze({ ...output, controller_handoff: controllerHandoff });
     } else if (operation === "generate") {
       output = await owner.generateStyleMasterCandidates({
         ...common,

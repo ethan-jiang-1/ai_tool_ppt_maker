@@ -875,6 +875,7 @@ export function activateCleanPageImageTargetDraft(deckDir, {
 // State keeps only the typed Controller handoff references needed to resume.
 export const PAGE_IMAGE_PROGRESSIVE_HANDOFF_SCHEMA = "page-image-workflow-handoff";
 export const PAGE_IMAGE_PROGRESSIVE_AUTHORIZE_CLI_EVIDENCE_KEY = "exact-batch-grant-recorded";
+export const STYLE_MASTER_AUTHORIZE_CLI_EVIDENCE_KEY = "style-master-grant-recorded";
 const PROGRESSIVE_HANDOFF_RECORD_KEYS = Object.freeze([
   "schema",
   "run_version",
@@ -2099,6 +2100,129 @@ export function recordTargetProgressiveAuthorizeCliHandoff(deckDir, {
     batch_sha256: batchHash,
     grant_sha256: grantHash,
     task_mandate_sha256: plan.task_mandate_sha256,
+    ...(supersedesPriorCliGrant ? { supersedes_prior_cli_grant: true } : {}),
+  });
+  return Object.freeze({
+    ...base,
+    status: supersedesPriorCliGrant ? "superseded" : evidenceIsCurrent ? "repaired" : "completed",
+  });
+}
+
+function styleMasterAuthorizeNodeId(workflow) {
+  if (!["framed", "pure"].includes(workflow)) return null;
+  return `authorize-target-${workflow}-style-master`;
+}
+
+function styleMasterAuthorizeCliEvidenceNote({ planHash, grantHash } = {}) {
+  return `plan=${planHash}; grant=${grantHash}`;
+}
+
+function validStyleMasterAuthorizeCliEvidence(evidence) {
+  return isPlainObject(evidence) &&
+    evidence.met === true &&
+    evidence.kind === "cli" &&
+    typeof evidence.note === "string" &&
+    /^plan=[0-9a-f]{64}; grant=[0-9a-f]{64}$/.test(evidence.note);
+}
+
+function styleMasterAuthorizeHandoffFailure(code) {
+  const error = new Error(code);
+  error.code = code;
+  throw error;
+}
+
+/**
+ * Complete only the matching stable Style Master authorize node after
+ * `style-master authorize` has already recorded or replayed its immutable
+ * candidate grant. The authorize operation's own validation (including its
+ * post-write scope-head recheck) is authoritative; State owns only the typed
+ * CLI handoff needed by the MD Controller.
+ */
+export function recordStyleMasterAuthorizeCliHandoff(deckDir, {
+  runVersion,
+  runDir,
+  planHash,
+  grantHash,
+  workflow,
+  expectedStateSha = null,
+} = {}) {
+  for (const [label, value] of Object.entries({ planHash, grantHash })) {
+    if (!SHA256_RE.test(value || "")) throw new TypeError(`${label} must be a lowercase SHA-256`);
+  }
+  const expectedNodeId = styleMasterAuthorizeNodeId(workflow);
+  if (!expectedNodeId) styleMasterAuthorizeHandoffFailure("STYLE_MASTER_AUTHORIZE_HANDOFF_WORKFLOW_INVALID");
+
+  let context = null;
+  try {
+    context = targetEvidenceContext(deckDir, { runVersion, runDir, purpose: "execute" });
+  } catch {
+    context = null;
+  }
+  const base = Object.freeze({
+    ok: true,
+    run_version: context?.exactVersion ?? null,
+    workflow,
+    node_id: expectedNodeId,
+    plan_hash: planHash,
+    grant_hash: grantHash,
+  });
+  // The handoff is a best-effort Controller projection: it completes the node
+  // only when a valid current create-deck execution is actively at the exact
+  // Style Master authorize node. A standalone `style-master authorize` still
+  // records its immutable grant; node completion is simply deferred to replay.
+  if (!context ||
+    !validTargetEvidenceRecord(context.record, context.exactVersion) ||
+    context.record.source_epoch !== context.identityRecord.source_epoch ||
+    context.record.workflow !== context.inspection.workflow ||
+    context.record.workflow !== workflow ||
+    context.state.playbook !== "create-deck" ||
+    context.state.current_node !== expectedNodeId) {
+    return Object.freeze({
+      ...base,
+      status: "not-applicable",
+      ...(context ? { current_node: context.state.current_node || null } : {}),
+    });
+  }
+
+  const note = styleMasterAuthorizeCliEvidenceNote({ planHash, grantHash });
+  const existing = activeRecord(context.state, expectedNodeId);
+  const existingEvidence = existing?.evidence?.[STYLE_MASTER_AUTHORIZE_CLI_EVIDENCE_KEY] || null;
+  const evidenceIsCurrent = validStyleMasterAuthorizeCliEvidence(existingEvidence) && existingEvidence.note === note;
+  const supersedesPriorCliGrant = existing?.status === "completed" &&
+    !evidenceIsCurrent &&
+    validStyleMasterAuthorizeCliEvidence(existingEvidence) &&
+    Object.keys(existing.evidence || {}).length === 1;
+  if (existing?.status === "completed") {
+    if (evidenceIsCurrent) {
+      return Object.freeze({ ...base, status: "replay" });
+    }
+    if (!supersedesPriorCliGrant) {
+      styleMasterAuthorizeHandoffFailure("STYLE_MASTER_AUTHORIZE_HANDOFF_NODE_CONFLICT");
+    }
+  }
+  if (existing && !["pending", "in_progress"].includes(existing.status) && !supersedesPriorCliGrant) {
+    styleMasterAuthorizeHandoffFailure("STYLE_MASTER_AUTHORIZE_HANDOFF_NODE_STATE_INVALID");
+  }
+
+  const next = structuredClone(context.state);
+  delete next.durable_state_present;
+  delete next._healed;
+  delete next._heal_pending;
+  if (!evidenceIsCurrent) {
+    setNodeEvidence(next, expectedNodeId, STYLE_MASTER_AUTHORIZE_CLI_EVIDENCE_KEY, {
+      kind: "cli",
+      note,
+    }, { runVersion: context.exactVersion });
+  }
+  setNodeStatus(next, expectedNodeId, "completed", {}, { runVersion: context.exactVersion });
+  writeState(deckDir, next, { expectedStateSha: expectedStateSha ?? context.stateSha, updatedAt: nowIso() });
+  appendHistory(deckDir, {
+    type: "style_master_authorize_cli_handoff",
+    run_version: context.exactVersion,
+    workflow,
+    node_id: expectedNodeId,
+    plan_sha256: planHash,
+    grant_sha256: grantHash,
     ...(supersedesPriorCliGrant ? { supersedes_prior_cli_grant: true } : {}),
   });
   return Object.freeze({

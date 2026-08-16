@@ -24,7 +24,7 @@ produces: [deck-intake]
 entry: [run_bundle_exists]
 exit: [user_decision_recorded]
 ```
-**Step 1 — MD**: Confirm the topic, audience, source truth, visual direction, and remote-cost boundary before authoring.
+**Step 1 — MD**: Confirm the topic, audience, source truth, and visual direction before authoring. Ordinary in-scope provider cost is covered by the Task Mandate; stop only for an explicit human spending limit or a different goal.
 
 ## Narrative Before Pages
 
@@ -178,13 +178,11 @@ production_workflows: [framed]
 draft_route: true
 requires: [plan-target-framed-style-master]
 produces: [target-framed-style-master-candidate-authorization]
-decisions: [authorize, revise, decline]
 entry: []
-exit: [user_decision_recorded]
+exit: [evidence:style-master-grant-recorded]
 ```
-**Step 1 — CLI**: Inspect the exact plan's generated-slot count and disclosed maximum submissions.
-**Step 2 — GATE**: For a nonzero generated count, record `authorize`, `revise`, or `decline` against that exact cost. For a zero-generated local plan, skip this node without recording approval, credential use, or a grant.
-**Step 3 — CLI**: After `authorize`, run `ppt_flow style-master authorize <run-dir> --plan-hash <sha256>` and retain the one grant digest. Do not run this command for a zero-generated local plan.
+**Step 1 — MD**: For a zero-generated local plan, skip this node and proceed with the local canonical candidate; no grant, credential use, or approval is recorded.
+**Step 2 — CLI**: Run `ppt_flow style-master authorize <run-dir> --plan-hash <sha256>`. The state-owned CLI handoff records the exact grant evidence and completes this node.
 
 ### generate-target-framed-style-master
 ```yaml
@@ -194,7 +192,7 @@ production_workflows: [framed]
 draft_route: true
 requires: [authorize-target-framed-style-master]
 produces: [target-framed-style-master-candidate-progress]
-entry: [node_decision:authorize-target-framed-style-master:authorize]
+entry: [node_evidence:authorize-target-framed-style-master:style-master-grant-recorded]
 exit: [evidence:target-framed-style-master-progress]
 ```
 **Step 1 — CLI**: Run the exact `ppt_flow style-master generate <run-dir> --plan-hash <sha256>` after the owner-issued grant exists. It reports owner-derived progress and never authorizes page raw work.
@@ -412,13 +410,11 @@ production_workflows: [pure]
 draft_route: true
 requires: [plan-target-pure-style-master]
 produces: [target-pure-style-master-candidate-authorization]
-decisions: [authorize, revise, decline]
 entry: []
-exit: [user_decision_recorded]
+exit: [evidence:style-master-grant-recorded]
 ```
-**Step 1 — CLI**: Inspect the exact plan's generated-slot count and disclosed maximum submissions.
-**Step 2 — GATE**: For a nonzero generated count, record `authorize`, `revise`, or `decline` against that exact cost. For a zero-generated local plan, skip this node without recording approval, credential use, or a grant.
-**Step 3 — CLI**: After `authorize`, run `ppt_flow style-master authorize <run-dir> --plan-hash <sha256>` and retain the one grant digest. Do not run this command for a zero-generated local plan.
+**Step 1 — MD**: For a zero-generated local plan, skip this node and proceed with the local canonical candidate; no grant, credential use, or approval is recorded.
+**Step 2 — CLI**: Run `ppt_flow style-master authorize <run-dir> --plan-hash <sha256>`. The state-owned CLI handoff records the exact grant evidence and completes this node.
 
 ### generate-target-pure-style-master
 ```yaml
@@ -428,7 +424,7 @@ production_workflows: [pure]
 draft_route: true
 requires: [authorize-target-pure-style-master]
 produces: [target-pure-style-master-candidate-progress]
-entry: [node_decision:authorize-target-pure-style-master:authorize]
+entry: [node_evidence:authorize-target-pure-style-master:style-master-grant-recorded]
 exit: [evidence:target-pure-style-master-progress]
 ```
 **Step 1 — CLI**: Run the exact `ppt_flow style-master generate <run-dir> --plan-hash <sha256>` after the owner-issued grant exists. It reports owner-derived progress and never authorizes page raw work.

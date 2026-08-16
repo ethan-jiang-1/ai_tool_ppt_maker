@@ -172,6 +172,7 @@ describe("fresh Style Master lifecycle integration", () => {
       expect(planned).toMatchObject({ workflow: "pure", max_candidate_submissions: 1, next_action: "authorize_style_master_candidates" });
       const authorized = expectSuccess(await flow(["style-master", "authorize", value.runDir, "--plan-hash", planned.plan_sha256], provider.env));
       expect(authorized).toMatchObject({ plan_sha256: planned.plan_sha256, max_candidate_submissions: 1 });
+      expect(authorized.controller_handoff).toMatchObject({ node_id: "authorize-target-pure-style-master", status: "not-applicable" });
       const generated = expectSuccess(await flow(["style-master", "generate", value.runDir, "--plan-hash", planned.plan_sha256], provider.env));
       expect(generated).toMatchObject({ plan_sha256: planned.plan_sha256, next_action: "review_style_master_candidates" });
       expect(provider.calls).toHaveLength(1);
