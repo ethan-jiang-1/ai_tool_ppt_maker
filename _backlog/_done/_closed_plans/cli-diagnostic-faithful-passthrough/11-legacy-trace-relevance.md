@@ -2,7 +2,7 @@
 
 ## 目的
 
-本文评估 [`../current-layer-legacy-trace-audit.md`](../current-layer-legacy-trace-audit.md) 中哪些 finding 会
+本文评估 [`../../../plans/current-layer-legacy-trace-audit.md`](../../../plans/current-layer-legacy-trace-audit.md) 中哪些 finding 会
 改变本 diagnostic/runtime/validate 路线图，哪些必须继续留在原 legacy cleanup 边界。
 
 吸收标准只有四个：finding 必须直接改变同一个 fact authority、public entry、MD consumer control，或
@@ -115,7 +115,7 @@ production identity或准确 owner term。全仓其他 `mode` finding仍由 lega
 - H-3/L-4/L-5：production deck内容、导航和孤儿产物。
 
 这些项目不能以“顺手清理”为理由进入 Change 1-3。若实施时触及同一行，只允许做当前 requirement所需的
-最小修改；其余仍回到 [`../current-layer-legacy-trace-audit.md`](../current-layer-legacy-trace-audit.md)。
+最小修改；其余仍回到 [`../../../plans/current-layer-legacy-trace-audit.md`](../../../plans/current-layer-legacy-trace-audit.md)。
 
 ## 对 change 数量的影响
 
