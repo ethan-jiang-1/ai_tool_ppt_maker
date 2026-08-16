@@ -3549,7 +3549,7 @@ Examples:
     .command("doctor")
     .description("Check offline local runtime and optional Image2 readiness")
     .option("--run-dir <runDir>", "Resolve the exact run's production identity and scope checks to it")
-    .option("--operation <operation>", "Run-bound Page Image operation: framed-local-refresh|raw-generation|full-build|assembly-notes")
+    .option("--operation <operation>", "Run-bound Page Image operation: framed-local-refresh|raw-generation|full-build")
     .option("--smoke", "Add Image2 presence plus one live first-vendor submit")
     .option(
       "--probe-vendors",
