@@ -17,9 +17,7 @@
 
 ## 活跃列表
 
-- [version-local-polish-directory.md](version-local-polish-directory.md) — version root 白名单新增版本级「打磨轨迹」目录（暂名 `_polish/`）；现有 `_scratch/`（临时）与 `_lessons/`（跨版本教训）都不适合承载版本私有的、人读的打磨叙事；待 OpenSpec change 实施。
-
-**Next available plan ID: CLS-040**（移入 `_closed_plans/` 时分配；CLS-001…039 已用）
+**Next available plan ID: CLS-041**（移入 `_closed_plans/` 时分配；CLS-001…040 已用）
 
 ---
 

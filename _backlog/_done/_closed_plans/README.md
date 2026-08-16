@@ -59,6 +59,7 @@ plan 完成后从 `_backlog/plans/` 通过 `git mv` 移入本目录：
 | [CLS-038](cli-diagnostic-faithful-passthrough.md) | 2026-08-16 | `cli-diagnostic-faithful-passthrough.md`（+ 同名研究子目录） | CLI 诊断事实/恢复权威路线图：3 个串行 OpenSpec change 全部实现并 archive（owner-issued diagnostics、doctor readiness 对齐、validate source/state 投影）；BUG-067/068/069/070 关闭证据见对应 `_fixed_bugs/` 条目。 |
 
 | [CLS-039](current-layer-legacy-trace-audit.md) | 2026-08-16 | `current-layer-legacy-trace-audit.md` | 当前层旧痕迹深度审计：45 条 finding；3 个串行 OpenSpec change 全部实现并 archive（align-current-layer-terminology 术语对齐 / remove-retired-plumbing-and-harden-detectors 死代码+探测器扩面 / align-serialization-schema-mirror schema 对齐）；残留仅 deck Wave 5（生产数据，需 deck owner 决策）。 |
-**Next available plan ID: CLS-040**
+| [CLS-040](version-local-polish-directory.md) | 2026-08-16 | `version-local-polish-directory.md` | version root 白名单新增版本级人读「打磨轨迹」目录 `_polish/`；由 `add-version-local-polish-directory` change 实现、全量回归通过并归档。 |
+**Next available plan ID: CLS-041**
 
 > 已完成计划保留历史决策；当前工作只从 `_backlog/plans/` 重新进入。
