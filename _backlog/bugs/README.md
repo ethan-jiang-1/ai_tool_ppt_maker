@@ -1,6 +1,6 @@
 # Active Bugs — 活跃 bug 列表
 
-> 最后更新: 2026-08-10 | `_backlog/bugs/` — 活跃 bug 在此
+> 最后更新: 2026-08-16 | `_backlog/bugs/` — 活跃 bug 在此
 >
 > **bug 编号归档索引在 `_done/_fixed_bugs/`；新 bug 必须取所有已分配 BUG 编号后的下一个值，避免与活跃条目冲突。** 本文件只列活跃 bug。
 
@@ -15,15 +15,21 @@
 
 ## 活跃列表
 
-当前无活跃 bug。
+| ID | Severity | Title |
+|----|----------|-------|
+| [BUG-067](BUG-067-style-master-masks-visual-language-errors.md) | P1 | Style Master 将可定位的 visual-language 配置错误掩盖成生命周期 inspect 自循环 |
+| [BUG-068](BUG-068-image2-plan-masks-visual-language-errors.md) | P1 | `image2 plan` 将已知 visual-language 配置错误降级为 internal |
+| [BUG-069](BUG-069-validate-conflates-source-and-state.md) | P2 | `validate` 把可验证 source 与预期的 stale state 绑定，不能用于调优阶段的 source 预检 |
+| [BUG-070](BUG-070-doctor-ready-does-not-reach-image2-authorize.md) | P1 | exact-run doctor 报 raw-generation READY，但 `image2 authorize` 不加载同一 `.env` 而失败 |
+| [BUG-071](BUG-071-pilot-review-masks-reconcile-after-store-lock.md) | P1 | `pilot-review` 的 store-lock 诊断没有区分生成进行中与需要 reconcile 的提交 |
 
 ---
 
-**Next available bug ID: BUG-067**
+**Next available bug ID: BUG-072**
 
 ## 类别分布
 
-P0: 0 | P1: 0 | P2: 0 | P3: 0
+P0: 0 | P1: 4 | P2: 1 | P3: 0
 
 ---
 

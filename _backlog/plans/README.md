@@ -18,6 +18,7 @@
 ## 活跃列表
 
 - [version-local-polish-directory.md](version-local-polish-directory.md) — version root 白名单新增版本级「打磨轨迹」目录（暂名 `_polish/`）；现有 `_scratch/`（临时）与 `_lessons/`（跨版本教训）都不适合承载版本私有的、人读的打磨叙事；待 OpenSpec change 实施。
+- [cli-diagnostic-faithful-passthrough.md](cli-diagnostic-faithful-passthrough.md) — 复盘 BUG-067/068/069/070：CLI 归因层在 producer 之上重建了有损的第二归因器，违反 cli-surface「不重复推导 / 忠实透传」铁律；主张收缩为「消费 producer-issued typed 结果 + 忠实转发」的薄壳；待 OpenSpec change 实施。
 
 **Next available plan ID: CLS-038**（移入 `_closed_plans/` 时分配；CLS-001…037 已用）
 
