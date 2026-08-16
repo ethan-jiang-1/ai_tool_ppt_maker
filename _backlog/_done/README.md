@@ -29,9 +29,9 @@ _done/
 | `_suspended_bugs/` | 2 | — |
 | `_suspended_plans/` | 2 | — |
 | `_done_todos/` | 2 | DONE-003 |
-| `_closed_plans/` | 41 | CLS-042 |
+| `_closed_plans/` | 42 | CLS-043 |
 
-_（已修复 bug：BUG-001…037、040…063、065、066、067、068、069、070；BUG-038、039 悬挂。已关闭 plan：CLS-001…041。每次搬迁按 `../README.md` 的 ritual 更新对应计数与 Next ID。）_
+_（已修复 bug：BUG-001…037、040…063、065、066、067、068、069、070；BUG-038、039 悬挂。已关闭 plan：CLS-001…042。每次搬迁按 `../README.md` 的 ritual 更新对应计数与 Next ID。）_
 
 ---
 

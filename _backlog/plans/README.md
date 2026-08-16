@@ -19,9 +19,7 @@
 
 | 计划 | 一句话 | 来源 |
 | --- | --- | --- |
-| [cli-command-surface-reduction](cli-command-surface-reduction/README.md) | CLI 命令面平衡瘦身: 4 个 OpenSpec change（先纯拆分 ppt_flow.mjs 为入口 + commands/ 模块,再机器契约 → 导航/分页拆分 → doctor 拆分）;原 C3（state/投影重建）已延后（α）,无兼容包袱;进度跟踪见目录内 `progress.md` | `_backlog/_findings/` 四份 findings + 两轮外部评审 |
-
-**Next available plan ID: CLS-042**（移入 `_closed_plans/` 时分配；CLS-001…041 已用）
+**Next available plan ID: CLS-043**（移入 `_closed_plans/` 时分配；CLS-001…041 已用）
 
 ---
 

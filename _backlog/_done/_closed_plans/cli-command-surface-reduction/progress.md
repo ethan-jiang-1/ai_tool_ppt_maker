@@ -10,7 +10,7 @@
 
 | change | 阶段 | 依赖 | 阻塞 | 下一次动作 |
 | --- | --- | --- | --- | --- |
-| C4 `split-doctor-readiness-probe` | proposal（门槛 7 已钉死 probe fence） | C1/C2（已归档） | — | specs/design/tasks 已写 → **polish（≥2 轮）→ apply** → archive → 提交 |
+| （全部完成） | — | — | — | 关闭本 plan |
 
 ## 已延后（α,2026-08-16 人类决定）
 
@@ -91,6 +91,7 @@
 | C0 `split-ppt-flow-command-modules` | 2026-08-17 | `openspec/changes/archive/2026-08-17-split-ppt-flow-command-modules/`；npm test + 全审计 + `--all --strict`（27 specs）绿；入口 4035→约 370 行 + `command_support.mjs` + 12 命令模块；`harness-script-layout` main spec 已同步（ADDED 命令模块 seam requirement） |
 | C1 `align-cli-machine-contract` | 2026-08-17 | `openspec/changes/archive/2026-08-17-align-cli-machine-contract/`；结构化结果模型（`command_result.mjs` + text/JSON 双 renderer）、退出归一、help 契约块、inventory 治理、partial-effect 分列（build/new-version）落地；`cli-surface`（+4/~2）+ `commands-reference`（+1）main specs 同步；顺手修 C0 latent bug（init 无效 deck-type ReferenceError） |
 | C2 `split-navigation-and-pagination-commands` | 2026-08-17 | `openspec/changes/archive/2026-08-17-split-navigation-and-pagination-commands/`；`image2 artifact-view`→`artifacts`、`slides narrative-plan`→`paginate plan`、narrative apply→`paginate apply`、`slides apply-plan` 收窄为 structural + narrative-schema 精确拒绝；inventory 12→14；`cli-surface`（~4/→1）+ `image-generation`（~2）main specs 同步；deck-guide/playbook/AGENT_CONTRACT 文档重指向新命令 |
+| C4 `split-doctor-readiness-probe` | 2026-08-17 | `openspec/changes/archive/2026-08-17-split-doctor-readiness-probe/`；`doctor` 收窄为离线、`preflight <run-dir> --operation` + `probe <run-dir> [--smoke\|--vendors]`（保留 pre-POST profile fence）；inventory 14→16；`cli-surface`（+1）+ `environment-check`（+1/~1）main specs 同步；BOOTSTRAP/probe-image-channels/setup 文档重指向 |
 
 ## 执行日志（2026-08-16 人类指令：静默自主推进）
 

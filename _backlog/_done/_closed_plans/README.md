@@ -61,6 +61,8 @@ plan 完成后从 `_backlog/plans/` 通过 `git mv` 移入本目录：
 | [CLS-039](current-layer-legacy-trace-audit.md) | 2026-08-16 | `current-layer-legacy-trace-audit.md` | 当前层旧痕迹深度审计：45 条 finding；3 个串行 OpenSpec change 全部实现并 archive（align-current-layer-terminology 术语对齐 / remove-retired-plumbing-and-harden-detectors 死代码+探测器扩面 / align-serialization-schema-mirror schema 对齐）；残留仅 deck Wave 5（生产数据，需 deck owner 决策）。 |
 | [CLS-040](version-local-polish-directory.md) | 2026-08-16 | `version-local-polish-directory.md` | version root 白名单新增版本级人读「打磨轨迹」目录 `_polish/`；由 `add-version-local-polish-directory` change 实现、全量回归通过并归档。 |
 | [CLS-041](fold-style-master-cost-into-task-mandate/) | 2026-08-16 | `fold-style-master-cost-into-task-mandate/` | 消除「问预算」打断：Style Master 候选授权 + intake 成本边界折进 Task Mandate（照搬 Page Image 模板），`prompt_budget` 定出 scope；由同名 OpenSpec change 实现并归档（commit `5571002`）。 |
-**Next available plan ID: CLS-042**
+| [CLS-042](cli-command-surface-reduction/README.md) | 2026-08-17 | `cli-command-surface-reduction/` | CLI 命令面平衡瘦身：4 个 OpenSpec change（C0 纯拆分 / C1 机器契约 / C2 导航分页 / C4 doctor 拆分）全部实现并归档；原 C3（state/投影重建）延后 α，设计预案保留在 `03`；commit `0c498fb`/`e14304e`/`78fb282`/`be26a6d`。 |
+
+**Next available plan ID: CLS-043**
 
 > 已完成计划保留历史决策；当前工作只从 `_backlog/plans/` 重新进入。
