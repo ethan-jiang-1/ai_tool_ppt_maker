@@ -1012,7 +1012,7 @@ describe('exact-run Image2 doctor profile identity', () => {
       delete childEnv.IMAGE2_API_KEY;
       delete childEnv.IMAGE2_BASE_URL;
     }
-    return execFileSync('node', [FLOW, 'doctor', '--run-dir', runDir, '--operation', 'raw-generation', ...args], {
+    return execFileSync('node', [FLOW, 'preflight', runDir, '--operation', 'raw-generation', ...args], {
       encoding: 'utf8',
       timeout: 30_000,
       env: childEnv,
@@ -1070,7 +1070,7 @@ describe('exact-run Image2 doctor profile identity', () => {
     try {
       let error;
       try {
-        execFileSync('node', ['--import', preload, FLOW, 'doctor', '--run-dir', runDir, '--operation', 'raw-generation', liveFlag], {
+        execFileSync('node', ['--import', preload, FLOW, 'probe', runDir, liveFlag], {
           encoding: 'utf8',
           timeout: 30_000,
           env: {

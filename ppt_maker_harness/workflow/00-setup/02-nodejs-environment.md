@@ -88,7 +88,7 @@ IMAGE2_BASE_URL=https://你的-relay/v1
 先用离线 presence 检查，不产生 provider submit：
 
 ```bash
-node ppt_maker_harness/scripts/ppt_flow.mjs doctor --run-dir <run-dir> --operation raw-generation
+node ppt_maker_harness/scripts/ppt_flow.mjs preflight <run-dir> --operation raw-generation
 ```
 
 任何 `--smoke` 或 `--probe-vendors` live probe 都会产生 provider submit，必须先披露次数并取得用户确认。完整契约见 `03-runtime-and-tools.md`。

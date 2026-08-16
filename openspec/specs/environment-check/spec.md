@@ -228,14 +228,14 @@ making this evidence boundary clear without exposing prompt, credential, or prov
 
 #### Scenario: Smoke success is not presented as Style Master production readiness
 
-- **WHEN** `doctor --smoke` receives an accepted sync image reference or task identifier
+- **WHEN** `probe --smoke` receives an accepted sync image reference or task identifier
 - **THEN** it reports successful endpoint connectivity with a statement that production prompt and media
   compatibility are not verified by the probe
 - **AND** it does not claim that Style Master generation can proceed or that a provider response meets a native media contract
 
 #### Scenario: Smoke remains a single minimal submission
 
-- **WHEN** `doctor --smoke` runs against a configured Image2 endpoint
+- **WHEN** `probe --smoke` runs against a configured Image2 endpoint
 - **THEN** it performs only the existing one minimal POST and does not fetch image bytes, poll an async task, or
   submit a compiled Style Master prompt
 - **AND** it creates no grant, attempt, authorization, receipt, workflow state, or run-bundle artifact
@@ -645,3 +645,27 @@ non-secret configuration without a shell export.
   `.env` declares a different one
 - **THEN** doctor and authorize both resolve the explicit shell value
 - **AND** the deck `.env` value never overrides it
+
+### Requirement: Live probe binds an exact run with a pre-POST profile fence
+
+`probe <run-dir> [--smoke|--vendors]` SHALL first resolve the exact run's
+confirmed provider profile and require `IMAGE2_PROVIDER_PROFILE_ID` to match it;
+any missing, invalid, or mismatched profile SHALL stop the probe before any POST.
+Its success SHALL report connectivity only, not readiness, capability fit, or
+production authorization. `--smoke` SHALL submit once to the first vendor;
+`--probe-vendors` SHALL submit once per resolved vendor; the two modes SHALL be
+mutually exclusive, redirects SHALL not be retried, and output SHALL remain
+secret-safe.
+
+#### Scenario: A wrong, missing, or pending profile fails before any POST
+
+- **WHEN** `probe` cannot resolve or match the exact run's confirmed provider
+  profile
+- **THEN** it stops before any POST
+- **AND** it does not infer a fallback profile, alias, or migrate the run
+
+#### Scenario: Probe success is connectivity only
+
+- **WHEN** `probe` completes its bounded submits successfully
+- **THEN** it reports connectivity only
+- **AND** it does not grant readiness, capability, or production authorization

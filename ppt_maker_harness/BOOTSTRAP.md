@@ -25,10 +25,10 @@ sequence。
 当前 owner 明确选中 raw-generation 操作后，normal readiness 才绑定到 exact run：
 
 ```bash
-node ppt_maker_harness/scripts/ppt_flow.mjs doctor --run-dir <run-dir> --operation raw-generation
+node ppt_maker_harness/scripts/ppt_flow.mjs preflight <run-dir> --operation raw-generation
 ```
 
-这时才检查 `IMAGE2_API_KEY`、endpoint、`IMAGE2_PROVIDER_PROFILE_ID` 和 raw generator presence。`IMAGE2_PROVIDER_PROFILE_ID` 是环境拥有的非 secret selector，必须精确匹配 Deck Author 在 `2_backbone/visual-style/image2-provider-profile.yaml`（或当前版本的 matching override）确认的 provider profile；它不是 credential、endpoint、Page Design System 或授权。source pending/invalid 时先获得 Deck Author 的一次 route-capability declaration，修复该 source 后重跑同一 checkpoint；smoke/probe 只证明 connectivity，不能确认 profile、route、model、budget、prompt fit 或生产授权。`doctor --smoke` 提交 1 次；`doctor --probe-vendors` 恰好提交 1 次/每个 resolved entry。两者都是明确选择的 live diagnostic，必须先披露并取得确认。probe success 不等于生产授权，也不产生 production authorization/state。direct `env-check` 只用于 pre-install 或 main entry 无法启动时的 recovery，不是 normal raw readiness 的替代入口。
+这时才检查 `IMAGE2_API_KEY`、endpoint、`IMAGE2_PROVIDER_PROFILE_ID` 和 raw generator presence。`IMAGE2_PROVIDER_PROFILE_ID` 是环境拥有的非 secret selector，必须精确匹配 Deck Author 在 `2_backbone/visual-style/image2-provider-profile.yaml`（或当前版本的 matching override）确认的 provider profile；它不是 credential、endpoint、Page Design System 或授权。source pending/invalid 时先获得 Deck Author 的一次 route-capability declaration，修复该 source 后重跑同一 checkpoint；smoke/probe 只证明 connectivity，不能确认 profile、route、model、budget、prompt fit 或生产授权。`probe --smoke` 提交 1 次；`probe --probe-vendors` 恰好提交 1 次/每个 resolved entry。两者都是明确选择的 live diagnostic，必须先披露并取得确认。probe success 不等于生产授权，也不产生 production authorization/state。direct `env-check` 只用于 pre-install 或 main entry 无法启动时的 recovery，不是 normal raw readiness 的替代入口。
 
 ## Step 2 - Choose one version workflow while authoring
 

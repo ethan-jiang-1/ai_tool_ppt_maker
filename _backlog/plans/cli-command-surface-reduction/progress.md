@@ -10,8 +10,7 @@
 
 | change | 阶段 | 依赖 | 阻塞 | 下一次动作 |
 | --- | --- | --- | --- | --- |
-| C2 `split-navigation-and-pagination-commands` | apply 中（待 sweep 确认） | C1（已归档）;门槛 7 已钉死分类时序 | — | sweep 确认 → archive → 提交 |
-| C4 `split-doctor-readiness-probe` | 未开 | C1（已归档） | — | 门槛 7 钉死 probe fence → `openspec new change` |
+| C4 `split-doctor-readiness-probe` | proposal（门槛 7 已钉死 probe fence） | C1/C2（已归档） | — | specs/design/tasks 已写 → **polish（≥2 轮）→ apply** → archive → 提交 |
 
 ## 已延后（α,2026-08-16 人类决定）
 
@@ -91,6 +90,7 @@
 | --- | --- | --- |
 | C0 `split-ppt-flow-command-modules` | 2026-08-17 | `openspec/changes/archive/2026-08-17-split-ppt-flow-command-modules/`；npm test + 全审计 + `--all --strict`（27 specs）绿；入口 4035→约 370 行 + `command_support.mjs` + 12 命令模块；`harness-script-layout` main spec 已同步（ADDED 命令模块 seam requirement） |
 | C1 `align-cli-machine-contract` | 2026-08-17 | `openspec/changes/archive/2026-08-17-align-cli-machine-contract/`；结构化结果模型（`command_result.mjs` + text/JSON 双 renderer）、退出归一、help 契约块、inventory 治理、partial-effect 分列（build/new-version）落地；`cli-surface`（+4/~2）+ `commands-reference`（+1）main specs 同步；顺手修 C0 latent bug（init 无效 deck-type ReferenceError） |
+| C2 `split-navigation-and-pagination-commands` | 2026-08-17 | `openspec/changes/archive/2026-08-17-split-navigation-and-pagination-commands/`；`image2 artifact-view`→`artifacts`、`slides narrative-plan`→`paginate plan`、narrative apply→`paginate apply`、`slides apply-plan` 收窄为 structural + narrative-schema 精确拒绝；inventory 12→14；`cli-surface`（~4/→1）+ `image-generation`（~2）main specs 同步；deck-guide/playbook/AGENT_CONTRACT 文档重指向新命令 |
 
 ## 执行日志（2026-08-16 人类指令：静默自主推进）
 
@@ -142,3 +142,11 @@
 - C2（门槛 7 已钉死：`slides.mjs` L305–316 现状分类时序 = run binding + confined 读取后、mutation
   前，与 `02` 一致）：`openspec new change` + proposal/specs（cli-surface + image-generation 两 delta，
   含 RENAMED + 补缺 scenario）/design/tasks 写完；`openspec validate --strict` 绿。结论：**ready for apply**。
+- C2 apply + 归档 + 提交 `78fb282`：`artifacts`/`paginate` 两新命令、`slides apply-plan` 收窄 +
+  narrative-schema 精确拒绝、inventory 12→14、deck-guide/playbook/AGENT_CONTRACT 重指向、
+  sweep 661/662（仅 1 个 artifact-view 失败已修：`artifacts.mjs` 补 `targetPageImageFailure` 捕获）。
+- **流程修正（人类提醒）**：C2 曾跳过正式 polish 直接 apply；已补记，并自 C4 起严格执行
+  「proposal 完整 → `/polish-openspec-change` ≥2 轮 → evidence-backed ready → 才 apply」。
+- C4（门槛 7 已钉死 probe fence：现状 `doctor.mjs` L23–62 = resolve profile + requireMatching
+  profile id，任何 POST 前失败）：`openspec new change` + proposal/specs（cli-surface + environment-check
+  两 ADDED delta）/design/tasks 写完，`openspec validate --strict` 绿。**下一步：polish（≥2 轮）→ apply**。

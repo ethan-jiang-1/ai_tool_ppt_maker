@@ -125,7 +125,7 @@ describe("doctor READY reaches the exact Image2/Style Master consumers", () => {
       ].join("\n"));
 
       const doctor = await flow([
-        "doctor", "--run-dir", value.runDir, "--operation", "raw-generation",
+        "preflight", value.runDir, "--operation", "raw-generation",
       ], {});
       expect(doctor.status, doctor.stderr).toBe(0);
       expect(doctor.stdout).toContain("READY");

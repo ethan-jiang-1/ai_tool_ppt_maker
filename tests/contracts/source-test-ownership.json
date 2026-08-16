@@ -156,6 +156,8 @@
         "shared/cli/commands/init.mjs",
         "shared/cli/commands/new-version.mjs",
         "shared/cli/commands/paginate.mjs",
+        "shared/cli/commands/preflight.mjs",
+        "shared/cli/commands/probe.mjs",
         "shared/cli/commands/refresh.mjs",
         "shared/cli/commands/slides.mjs",
         "shared/cli/commands/state.mjs",

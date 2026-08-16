@@ -271,6 +271,54 @@ export async function resolveRunAdapter(runDir, where) {
   return null;
 }
 
+/**
+ * Pre-POST profile fence (shared by preflight/probe): resolve the exact run's
+ * confirmed provider profile and require IMAGE2_PROVIDER_PROFILE_ID to match.
+ * Returns true on success; emits the owner-issued diagnostic and returns false
+ * on any missing/invalid/mismatched profile, before any provider POST.
+ */
+export async function requireExactRunImage2Profile(route, { where = "ppt_flow", operation = "raw-generation-readiness" } = {}) {
+  try {
+    const { resolveImage2ProviderProfile } = await import("../../shared/image2/provider_profile.mjs");
+    const { requireMatchingImage2RuntimeProfileId } = await import("../../shared/image2/runtime_profile_id.mjs");
+    const { applyImage2StartupEnv } = await import("../../shared/image2/startup_env.mjs");
+    const profile = resolveImage2ProviderProfile(route.run_dir);
+    applyImage2StartupEnv({ runDir: route.run_dir });
+    requireMatchingImage2RuntimeProfileId({ expectedProfileId: profile.profile_id });
+    return true;
+  } catch (error) {
+    const reason = pageImageDiagnosticReasonKind(error?.code);
+    const sourceFailure = isImage2ProviderProfileSourceFailure(reason);
+    const sourcePath = sourceFailure && error?.source
+      ? join(route.deck_dir, ...String(error.source).split("/"))
+      : null;
+    emitCliError({
+      code: CLI_ERROR_CODES.FAILED,
+      message: sourceFailure
+        ? "The selected Image2 provider profile source is not ready."
+        : "IMAGE2_PROVIDER_PROFILE_ID does not match the selected Image2 provider profile.",
+      hint: sourceFailure
+        ? "Repair the selected non-secret provider profile source, then rerun this exact readiness check."
+        : "Repair IMAGE2_PROVIDER_PROFILE_ID for this environment, then rerun this exact readiness check.",
+      where,
+      diagnostic: {
+        schema: CLI_DIAGNOSTIC_SCHEMA,
+        category: sourceFailure ? "source_validation" : "environment",
+        operation,
+        ...(sourcePath ? { source: { path: sourcePath } } : {}),
+        reason: { kind: sourceFailure ? reason : "image2_provider_profile_id_mismatch" },
+        next: createCliNext(sourceFailure ? "edit_source" : "repair_environment", {
+          ...(sourcePath ? { inspect: [{ path: sourcePath }] } : {}),
+          default: sourceFailure
+            ? "Repair the selected provider profile source, then rerun this exact readiness check."
+            : "Repair IMAGE2_PROVIDER_PROFILE_ID for the selected provider profile, then rerun this exact readiness check.",
+        }),
+      },
+    });
+    return false;
+  }
+}
+
 export function createGateDiagnostic({ operation, source, issues = [], action = "review", invocation, defaultText }) {
   return {
     schema: CLI_DIAGNOSTIC_SCHEMA,

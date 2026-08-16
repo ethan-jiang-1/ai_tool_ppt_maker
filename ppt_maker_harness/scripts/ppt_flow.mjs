@@ -74,33 +74,11 @@ Examples:
   // ---- doctor ----
   program
     .command("doctor")
-    .description("Check offline local runtime and optional Image2 readiness")
-    .option("--run-dir <runDir>", "Resolve the exact run's production identity and scope checks to it")
-    .option("--operation <operation>", "Run-bound Page Image operation: framed-local-refresh|raw-generation|full-build")
-    .option("--smoke", "Add Image2 presence plus one live first-vendor submit")
-    .option(
-      "--probe-vendors",
-      "Add Image2 presence and live-probe every resolved vendor (not --smoke)"
-    )
+    .description("Check offline local runtime")
     .addHelpText("after", renderContractBlock(COMMAND_CONTRACTS.doctor))
-    .action(async (opts) => {
-      if (opts.smoke && opts.probeVendors) {
-        exitUsage(
-          "ppt_flow.doctor",
-          "--smoke and --probe-vendors are mutually exclusive.",
-          "Use --smoke for the first-vendor gate or --probe-vendors for the full channel report"
-        );
-      }
-      if (opts.operation && !opts.runDir) {
-        exitUsage("ppt_flow.doctor", "--operation requires --run-dir", "Bind the operation to an exact Page Image run so source/state validation happens before readiness checks.");
-      }
+    .action(async () => {
       const { commandDoctor } = await import("./shared/cli/commands/doctor.mjs");
-      const code = await commandDoctor({
-        smoke: opts.smoke ?? false,
-        probeVendors: opts.probeVendors ?? false,
-        runDir: opts.runDir ?? null,
-        operation: opts.operation ?? null,
-      });
+      const code = await commandDoctor();
       if (code === null) {
         process.exit(1);
         return;
@@ -109,7 +87,59 @@ Examples:
         code,
         "ppt_flow.doctor",
         `doctor exited ${code}`,
-        "Fix env / Image2 channel issues reported by env-check, then re-run doctor"
+        "Fix env issues reported by env-check, then re-run doctor"
+      );
+    });
+
+  // ---- preflight ----
+  program
+    .command("preflight")
+    .description("Check exact-run operation readiness with zero network and zero write")
+    .argument("<run_dir>", "Path to the exact version dir")
+    .option("--operation <operation>", "Run-bound Page Image operation: framed-local-refresh|raw-generation|full-build")
+    .addHelpText("after", renderContractBlock(COMMAND_CONTRACTS.preflight))
+    .action(async (runDir, opts) => {
+      const { commandPreflight } = await import("./shared/cli/commands/preflight.mjs");
+      const code = await commandPreflight(runDir, { operation: opts.operation });
+      if (code === null) {
+        process.exit(1);
+        return;
+      }
+      exitWithCode(
+        code,
+        "ppt_flow.preflight",
+        `preflight exited ${code}`,
+        "Fix env / Image2 channel issues reported by env-check, then re-run preflight"
+      );
+    });
+
+  // ---- probe ----
+  program
+    .command("probe")
+    .description("Live connectivity probe bound to the exact run")
+    .argument("<run_dir>", "Path to the exact version dir")
+    .option("--smoke", "One live first-vendor submit")
+    .option("--probe-vendors", "Live-probe every resolved vendor (not --smoke)")
+    .addHelpText("after", renderContractBlock(COMMAND_CONTRACTS.probe))
+    .action(async (runDir, opts) => {
+      if (opts.smoke && opts.probeVendors) {
+        exitUsage(
+          "ppt_flow.probe",
+          "--smoke and --probe-vendors are mutually exclusive.",
+          "Use --smoke for the first-vendor gate or --probe-vendors for the full channel report"
+        );
+      }
+      const { commandProbe } = await import("./shared/cli/commands/probe.mjs");
+      const code = await commandProbe(runDir, { mode: opts.probeVendors ? "vendors" : "smoke" });
+      if (code === null) {
+        process.exit(1);
+        return;
+      }
+      exitWithCode(
+        code,
+        "ppt_flow.probe",
+        `probe exited ${code}`,
+        "Fix env / Image2 channel issues reported by env-check, then re-run probe"
       );
     });
 

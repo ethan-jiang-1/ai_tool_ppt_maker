@@ -9,7 +9,7 @@ production operation.
 For the exact raw-generation run, first use the provider-free readiness check:
 
 ```bash
-node ppt_maker_harness/scripts/ppt_flow.mjs doctor --run-dir <run-dir> --operation raw-generation
+node ppt_maker_harness/scripts/ppt_flow.mjs preflight <run-dir> --operation raw-generation
 ```
 
 Read the owner-issued result. Repair a local prerequisite only when its
@@ -30,10 +30,10 @@ reference without a provider call.
 After that confirmation, run:
 
 ```bash
-node ppt_maker_harness/scripts/ppt_flow.mjs doctor --probe-vendors
+node ppt_maker_harness/scripts/ppt_flow.mjs probe --probe-vendors
 ```
 
-Report the bounded owner result without exposing credentials. 不自动运行 `doctor --smoke`; it is a separate live diagnostic that needs its own disclosure and confirmation.
+Report the bounded owner result without exposing credentials. 不自动运行 `probe --smoke`; it is a separate live diagnostic that needs its own disclosure and confirmation.
 
 ## Result boundary
 

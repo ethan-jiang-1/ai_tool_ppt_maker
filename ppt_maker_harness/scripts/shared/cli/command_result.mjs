@@ -67,6 +67,8 @@ const DEFAULT_STDERR = "secret-safe JSON envelope on the last non-empty stderr l
  */
 export const COMMAND_CONTRACTS = Object.freeze({
   doctor: { exitCodes: DEFAULT_EXIT_CODES, stdout: "offline readiness report", stderr: DEFAULT_STDERR },
+  preflight: { exitCodes: DEFAULT_EXIT_CODES, stdout: "operation readiness report", stderr: DEFAULT_STDERR, decisionEnums: ["framed-local-refresh", "raw-generation", "full-build"] },
+  probe: { exitCodes: DEFAULT_EXIT_CODES, stdout: "connectivity report", stderr: DEFAULT_STDERR, decisionEnums: ["smoke", "vendors"], note: "success is connectivity only, not readiness or authorization" },
   init: { exitCodes: DEFAULT_EXIT_CODES, stdout: "initialization summary", stderr: DEFAULT_STDERR },
   status: { exitCodes: DEFAULT_EXIT_CODES, stdout: "human text, or one --json report", stderr: DEFAULT_STDERR },
   validate: { exitCodes: DEFAULT_EXIT_CODES, stdout: "receipt-validated line", stderr: DEFAULT_STDERR },
