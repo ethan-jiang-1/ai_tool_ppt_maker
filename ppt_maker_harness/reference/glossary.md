@@ -19,6 +19,7 @@ PPT Maker Harness source lives in `workflow/`, `scripts/`, `charter/`,
 | production schema definitions | `ppt_maker_harness/schema/` | The single authoritative production-schema definition home; not a Run Bundle or runtime controller. |
 | `_state/` | deck root `_state/` | State, history, and transaction journals; never hand-edit. |
 | `_scratch/` | `<run-dir>/_scratch/` | Version-local transaction workspace. |
+| `_polish/` | `<run-dir>/_polish/` | Version-private human-readable polish trail; non-pipeline; not copied across versions. |
 | `_generated/` | `<run-dir>/_generated/` | Rebuildable derived artifacts; never a source of truth. |
 | Style Master history | `deck_NAME/1_upstream_raw_material/page-image-style-master-iterations/` | Append-mostly candidate plans, immutable bytes/provenance, and grants; directory order never selects a style. |
 | Style Master staging | `.../page-image-style-master-iterations/_staging/plan-<unique>/` | Incomplete owner-only publication workspace; never authority and cleanup stays below `_staging/`. |

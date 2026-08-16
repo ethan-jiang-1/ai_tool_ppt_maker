@@ -261,7 +261,8 @@
         "tests/shared/run-bundle/test_page_image_layout.mjs",
         "tests/shared/run-bundle/test_process_harness_binding.mjs",
         "tests/shared/run-bundle/test_process_lessons.mjs",
-        "tests/shared/run-bundle/test_run_bundle_locator.mjs"
+        "tests/shared/run-bundle/test_run_bundle_locator.mjs",
+        "tests/shared/run-bundle/test_version_polish_directory.mjs"
       ],
       "e2e": [
         "tests_e2e/shared/run-bundle/test-lessons-flow.mjs"

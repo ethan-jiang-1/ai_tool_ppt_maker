@@ -84,6 +84,7 @@ Page Image raw generation、visual-language compilation 和 raw review **全部�
 | 中 | `1_upstream` / `2_backbone` | 白名单；共享稳定 |
 | 松 | `3_versions/v{n}/` 源 + `_generated/` | 本版源与管线产物 |
 | 最松 | `3_versions/v{n}/_scratch/` | 本版临时/备份官方出口；内部不抠文件名；可删 |
+| 最松 | `3_versions/v{n}/_polish/` | 本版持久打磨轨迹（人读 Markdown）；非管线；不跨版本；内部不抠文件名 |
 
 临时东西**往下沉**进 `_scratch/`，**禁止往上逃**到 deck 根。
 
@@ -134,8 +135,9 @@ deck_{NAME}/
     │   │   ├── page_image_workflow/review/
     │   │   ├── page_image_workflow/final/final-slide-manifest.json
     │   │   └── ppt/{NAME}.pptx (+ notes receipt)
-    │   └── _scratch/                      ← THIS version temp/bak · not SSOT · deletable
-    └── v2/  (--new-version v1 → copies source delta only; clean _generated/ + _scratch/; backbone referenced)
+    │   ├── _scratch/                      ← THIS version temp/bak · not SSOT · deletable
+    │   └── _polish/                       ← THIS version human-readable polish trail · non-pipeline · not copied
+    └── v2/  (--new-version v1 → copies source delta only; clean _generated/ + _scratch/; _polish/ not copied; backbone referenced)
 ```
 
 ## 三层梯度

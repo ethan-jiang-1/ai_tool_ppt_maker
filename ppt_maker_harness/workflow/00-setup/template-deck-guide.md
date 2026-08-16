@@ -34,7 +34,9 @@ production identity, node, gates, and recovery actions always come from state/st
 | Research material | `1_upstream_raw_material/` |
 
 Never hand-edit `3_versions/vN/_generated/`; edit its source and rerun the owning path. Put
-version-local temporary work only in `3_versions/vN/_scratch/`.
+version-local temporary work only in `3_versions/vN/_scratch/`. Keep the version-private human
+polish trail (what was polished, why, where it stands) in `3_versions/vN/_polish/` — Markdown
+narrative, non-pipeline, never copied to a successor version.
 
 ## Operating rules
 

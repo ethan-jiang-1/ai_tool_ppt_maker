@@ -43,7 +43,8 @@
  *             ├── overrides/               only what THIS version changes vs backbone
  *             │   └── visual-style/ · manuscript/
  *             ├── _generated/              GENERATED · never hand-edit · rm -rf & rerun
- *             └── _scratch/                THIS version temp/bak only · not SSOT · deletable
+ *             ├── _scratch/                THIS version temp/bak only · not SSOT · deletable
+ *             └── _polish/                 THIS version human-readable polish trail · non-pipeline · not copied
  *
  * Strictness gradient (constitutional): deck root strictest → mid tiers whitelist →
  * version leaf looser → _scratch internals loosest. Do not dump bak at deck root.
@@ -51,7 +52,7 @@
  * Rules encoded here:
  * - A "version" (deck_<name>/3_versions/vN) is the DOWNSTREAM delta only. Create one
  *   with `--new-version`; it copies slide-specifications.md + overrides/ but never
- *   `_generated/` or `_scratch/` contents. Backbone & upstream are referenced, never copied.
+ *   `_generated/`, `_scratch/`, or `_polish/` contents. Backbone & upstream are referenced, never copied.
  * - Override precedence: for any backbone asset, a version's overrides/<relpath> wins
  *   if present, else the backbone default is used (see resolveBackboneAsset).
  * - Deck name (for the .pptx) derives from the deck root dir, two levels above a version.
@@ -363,11 +364,17 @@ export const SLIDE_SPECS_GLOB = 'slide-specifications*.md';
 export const OVERRIDES_SUBDIR = 'overrides';
 /** Version-local temp/bak outlet (upper-strict / lower-loose leaf). */
 export const SCRATCH_SUBDIR = '_scratch';
+/**
+ * Version-local, version-private, human-readable polish trail (non-pipeline).
+ * Init seeds it with a README; --new-version never copies or creates it.
+ */
+export const POLISH_SUBDIR = '_polish';
 
 export const VERSION_SUBDIRS = Object.freeze([
   OVERRIDES_SUBDIR,
   GENERATED_SUBDIR,
   SCRATCH_SUBDIR,
+  POLISH_SUBDIR,
 ]);
 
 /** Canonical README for version `_scratch/` (Chinese). */
@@ -384,9 +391,27 @@ export const SCRATCH_DIR_README = `\
 | style master 被拒轮次 | \`1_upstream_raw_material/style-master-iterations/\` |
 | 管线产物 / pptx.backup | \`_generated/\` |
 | 克服困难后的教训 | \`_lessons/\` |
+| 本版持久打磨轨迹/决策 | \`_polish/\` |
 | playbook 断点 | \`_state/\` |
 
 **禁止:** 自创 \`_tmp/\` · \`backup/\` · \`_bak/\`；把 bak 丢到 **deck 根** 或 \`2_backbone/\`。
+`;
+
+/** Canonical README for version `_polish/` (Chinese). */
+export const POLISH_DIR_README = `\
+# 本版打磨轨迹 (_polish/)
+
+**这里放什么:** 仅属**这一版**的持久、人读打磨轨迹——磨了啥、为什么磨、磨到哪了、还差什么。Markdown 叙事为主（可自由组织），是留给人和后续 Agent 读的，不是管线输入。
+
+**不放什么 / 去哪放:**
+| 东西 | 放哪 |
+|------|------|
+| 临时拷贝 / .bak / 草稿 | \`_scratch/\`（临时/可删） |
+| 跨版本可复用教训 | \`_lessons/\`（一题一文） |
+| 机器事件日志 / hash 流水 | \`_state/history.jsonl\`、upstream 迭代历史（别在这里塞 JSON 当唯一记录） |
+| 管线产物 | \`_generated/\`（可重建，不手改） |
+
+**边界:** \`--new-version\` **不会拷贝**本目录——轨迹留在产生它的版本，新版本从零开始。这里的一切**不是真相源**：删改它不影响 source、state 或任何生成/校验。
 `;
 
 /** Deck-root allowed names (strictest layer). Dotfiles handled by _ignorable. */
@@ -1000,6 +1025,7 @@ export function checkBundle(runDir, requirePipelineReady = true) {
             name === OVERRIDES_SUBDIR ||
             name === GENERATED_SUBDIR ||
             name === SCRATCH_SUBDIR ||
+            name === POLISH_SUBDIR ||
             name === 'README.md'
         ) {
             continue;
@@ -1007,8 +1033,8 @@ export function checkBundle(runDir, requirePipelineReady = true) {
         problems.push(
             `unexpected '${name}' at version root — not part of the canonical structure. ` +
             `A version holds only: slide-specifications.md, ${OVERRIDES_SUBDIR}/, ` +
-            `${GENERATED_SUBDIR}/, ${SCRATCH_SUBDIR}/, README.md. Sources live in ${BACKBONE_DIR}/ (deck root); ` +
-            `temp/bak → ${SCRATCH_SUBDIR}/; generated → ${GENERATED_SUBDIR}/. Do not improvise.`);
+            `${GENERATED_SUBDIR}/, ${SCRATCH_SUBDIR}/, ${POLISH_SUBDIR}/, README.md. Sources live in ${BACKBONE_DIR}/ (deck root); ` +
+            `temp/bak → ${SCRATCH_SUBDIR}/; persistent polish trail → ${POLISH_SUBDIR}/; generated → ${GENERATED_SUBDIR}/. Do not improvise.`);
     }
 
     if (fs.existsSync(bbPath) && fs.statSync(bbPath).isDirectory()) {
@@ -1422,15 +1448,16 @@ const _DIR_READMES = {
         '# 下游:版本\n\n' +
         '**这里放什么:** 每个版本一个子目录(`v1/`、`v2/`…)。版本就是在这一层切的。\n' +
         '**你做什么:** 在 `v1/` 里改 slide、生成 PPT。要留档就用 ' +
-        '`bundle_layout.mjs --new-version 3_versions/v1`，它不会复制旧的 `_generated/` ' +
-        '或 `_scratch/` 内容（新版是干净临时区）。\n'
+        '`bundle_layout.mjs --new-version 3_versions/v1`，它不会复制旧的 `_generated/`、' +
+        '`_scratch/` 或 `_polish/` 内容（新版是干净临时区，打磨轨迹留在原版本）。\n'
     ),
     [`${VERSIONS_DIR}/v1`]: (
         '# 这一版(v1)\n\n' +
         '**你改这两处:**\n' +
         '- `slide-specifications.md` — 每一页的 stable ID、Page Image、Text Frame/Visual Brief 和 notes\n' +
         '- `overrides/` — 只放这一版偏离 backbone 的东西(比如这版单独换配色);空 = 全继承 backbone\n\n' +
-        '**临时/备份:** `_scratch/` — 改源前的 `.bak`、草稿（上严下松：别丢到 deck 根）\n\n' +
+        '**临时/备份:** `_scratch/` — 改源前的 `.bak`、草稿（上严下松：别丢到 deck 根）\n' +
+        '**持久打磨轨迹:** `_polish/` — 本版磨了啥、为什么、磨到哪（人读 Markdown，不跨版本）\n\n' +
         '**别碰:** `_generated/` — 那是机器生成的成品,改源文件后会被覆盖重建。\n\n' +
         '**生成/更新:** 跟你的 AI agent 说人话(「第 5 页换个例子」),或自己跑:\n' +
         '`node ppt_maker_harness/scripts/ppt_flow.mjs build <这个版本目录>`\n'
@@ -1450,6 +1477,7 @@ const _DIR_READMES = {
         '整个目录可以 `rm -rf` 掉,需要时从源文件重新生成。\n'
     ),
     [`${VERSIONS_DIR}/v1/${SCRATCH_SUBDIR}`]: SCRATCH_DIR_README,
+    [`${VERSIONS_DIR}/v1/${POLISH_SUBDIR}`]: POLISH_DIR_README,
 };
 
 function renderDeckGuide(deckName) {
@@ -1470,6 +1498,9 @@ production identity, node, gates, and recovery actions always come from state/st
 
 Never hand-edit \`${VERSIONS_DIR}/vN/${GENERATED_SUBDIR}/\`; edit its source and rerun the
 owning path. Put version-local temporary work only in \`${VERSIONS_DIR}/vN/${SCRATCH_SUBDIR}/\`.
+Keep the version-private human polish trail (what was polished, why, where it stands) in
+\`${VERSIONS_DIR}/vN/${POLISH_SUBDIR}/\` — Markdown narrative, non-pipeline, never copied to a
+successor version.
 
 ## Operating rules
 
@@ -1762,8 +1793,9 @@ deck_\${NAME}/
     │   │       │   └── ${GEN_PAGE_IMAGE_DERIVED_PAGES_SUBDIR}/<slide_id>/{${PAGE_DERIVED_ARTIFACT_FILENAMES.source_receipt}, ${PAGE_DERIVED_ARTIFACT_FILENAMES.layout}, ${PAGE_DERIVED_ARTIFACT_FILENAMES.render_model}, ${PAGE_DERIVED_ARTIFACT_FILENAMES.generation_spec}, ${PAGE_DERIVED_ARTIFACT_FILENAMES.image2_request}, ${PAGE_DERIVED_ARTIFACT_FILENAMES.framed_header_html} (Framed only), ${PAGE_DERIVED_ARTIFACT_FILENAMES.artifact_index}}
     │   │       ├── ${GEN_PAGE_IMAGE_REVIEW_SUBDIR}/{complete-page-review.png, complete-page-coverage.json}
     │   │       └── ${GEN_PAGE_IMAGE_FINAL_SUBDIR}/{final-slide-manifest.json, NN_slideID.png, projection.png, delivery-media/{NN_slideID.jpg}, delivery-media-manifest.json, deck.pptx, notes-receipt.json}
-    │   └── ${SCRATCH_SUBDIR}/                         ← version-local temporary output only
-    └── v2/  (--new-version v1 → copies source delta only; clean ${GENERATED_SUBDIR}/ + ${SCRATCH_SUBDIR}/; backbone referenced)
+    │   ├── ${SCRATCH_SUBDIR}/                         ← version-local temporary output only
+    │   └── ${POLISH_SUBDIR}/                          ← version-private human-readable polish trail · non-pipeline
+    └── v2/  (--new-version v1 → copies source delta only; clean ${GENERATED_SUBDIR}/ + ${SCRATCH_SUBDIR}/; ${POLISH_SUBDIR}/ not copied; backbone referenced)
 `;
 }
 
@@ -1808,7 +1840,7 @@ export function selfCheck() {
     }
 
     const tree = renderTree();
-    for (const n of [UPSTREAM_DIR, BACKBONE_DIR, VERSIONS_DIR, GENERATED_SUBDIR, SCRATCH_SUBDIR, SLIDE_SPECS_NAME, STATE_DIR, LESSONS_DIR, BACKBONE_STORY_OUTLINE, BACKBONE_ASSETS_SUBDIR, ASSET_MANIFEST_FILE, PAGE_DESIGN_SYSTEM_FILE, IMAGE2_PROVIDER_PROFILE_FILE]) {
+    for (const n of [UPSTREAM_DIR, BACKBONE_DIR, VERSIONS_DIR, GENERATED_SUBDIR, SCRATCH_SUBDIR, POLISH_SUBDIR, SLIDE_SPECS_NAME, STATE_DIR, LESSONS_DIR, BACKBONE_STORY_OUTLINE, BACKBONE_ASSETS_SUBDIR, ASSET_MANIFEST_FILE, PAGE_DESIGN_SYSTEM_FILE, IMAGE2_PROVIDER_PROFILE_FILE]) {
         if (!tree.includes(n)) {
             problems.push(`renderTree() is missing canonical entry ${JSON.stringify(n)} (stale hardcoded literal?)`);
         }

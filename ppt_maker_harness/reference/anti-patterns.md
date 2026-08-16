@@ -59,8 +59,9 @@ decision when complete. A file existing on disk is not acceptance.
 ## 8. Invent run-bundle paths
 
 Use the layout owner and the glossary before adding files or directories. Run-bundle
-root controls are intentionally strict; `_scratch/` and `_generated/` have distinct
-purposes and neither is a replacement source owner.
+root controls are intentionally strict; `_scratch/`, `_polish/`, and `_generated/` have distinct
+purposes — temp/bak, persistent human polish trail, and rebuildable output — and none of the
+three is a replacement source owner.
 
 ## 9. Resume an unsupported run as current production
 
