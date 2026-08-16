@@ -13,7 +13,7 @@ method graph is:
 | 00 | Run bundle and operation-scoped readiness |
 | 01 | Page Image Workflow source, stable slide identity, and workflow receipt |
 | 02 | Visual language and shared reference inputs |
-| 03 | Framed semantic rules, protected geometry, local header-overlay composition |
+| 03 | Framed semantic rules, protected composition, local header-overlay composition |
 | 04 | Pure display/raw contract and raw-to-final publication |
 | 05 | Shared final manifest consumption, projection, PPTX, notes, delivery review |
 | 06 | Workflow-aware refresh classification and structural routing |

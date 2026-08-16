@@ -1,7 +1,7 @@
 # Plan: 当前层旧痕迹深度审计（current-layer legacy-trace audit）
 
-> 类型: 分析/审计 | 更新: 2026-08-16 | 状态: 部分吸收（CLS-038），残留映射为 3 个串行 change + 1 个 deck 工作流
-> 当前下一步: 启动 Change 1 `align-current-layer-terminology`（见文末 Progress Tracker）
+> 类型: 分析/审计 | 更新: 2026-08-16 | 状态: Change 1 已 archive（spec + 文档 + CONTEXT 对齐），残留映射为 3 个串行 change（2 个 QUEUED）+ 1 个 deck 工作流
+> 当前下一步: 启动 Change 2 `remove-retired-plumbing-and-harden-detectors`（见文末 Progress Tracker）
 > 审计日期: 2026-08-16 | 基准: `npm test` core 全绿（exit 0）| 方法: 7 路只读子代理 + 主 Agent 独立复核 | 写操作: 零（全程只读，未改任何文件）
 
 ## 一句话
@@ -402,16 +402,17 @@
 | 项 | 状态 |
 |---|---|
 | 审计本身 | ✅ 完成（45 条 finding；7 条已由 CLS-038 吸收） |
-| Change 1 `align-current-layer-terminology` | **NEXT**（未启动） |
-| Change 2 `remove-retired-plumbing-and-harden-detectors` | QUEUED |
+| Change 1 `align-current-layer-terminology` | ✅ 已 archive（2026-08-16，spec 10 文件 + 文档 10 文件 + CONTEXT + 1 重命名；`protected geometry/zone`、retired mode 短语、`export action`、`quick intake` 清零） |
+| Change 2 `remove-retired-plumbing-and-harden-detectors` | **NEXT**（未启动） |
 | Change 3 `align-serialization-schema-mirror` | QUEUED |
 | Deck Wave 5（H-3 / L-4 / L-5） | BLOCKED（等 deck owner 决策/授权；非 OpenSpec） |
 
 ### 进度清单
 
-- [ ] **Change 1：`align-current-layer-terminology`**（Wave 1+4 合并）
-  - finding：M-1（spec 6 文件 + 文档 11 文件）、M-2（3 spec + CONTEXT 反向修正）、M-3 剩余
-    （node-specification ×9 + playbook-execution ×2 + environment-check 组织轴）、M-8、M-9、L-2
+- [x] **Change 1：`align-current-layer-terminology`**（Wave 1+4 合并；2026-08-16 archive）
+  - finding：M-1（spec 7 文件 + 文档 10 文件；06-iteration 当前树无命中）、M-2（3 spec + CONTEXT
+    反向修正）、M-3 剩余（node-specification ×9 + playbook-execution ×2 + environment-check
+    组织轴 ×4 requirement）、M-8、M-9、L-2
   - capability：node-specification、harness-charter、image-production、image-generation、
     visual-config、workflow-inspection、pipeline-orchestration、playbook-execution、cli-surface、
     environment-check（+ CONTEXT.md 术语权威修正）
@@ -424,6 +425,9 @@
     M-8 路径/文件名、L-2 文档低危清零；`openspec validate --strict`、`npm test`、`npm run test:sweep` 通过
   - 生命周期：scaffold → proposal/specs/design/tasks（planning 齐）→ **`/polish-openspec-change`
     （≥2 轮 risk-led，结论 `ready for apply` 才继续）** → apply → archive
+  - 验证记录：`openspec validate --all --strict` 27 项通过；`npm test` core 通过；
+    `npm run test:sweep` 652 项通过；`git diff --check` 通过；polish Pass 2 补齐
+    playbook-execution resume-ritual M-3 与 environment-check 第 4 个 requirement 两处缺口
 
 - [ ] **Change 2：`remove-retired-plumbing-and-harden-detectors`**（Wave 2）
   - finding：M-5 #1-5（build plumbing 死代码/空壳层/JSDoc）、M-5 #7 收尾（profile 展示名
@@ -469,6 +473,8 @@
 
 ### 当前下一步（Next action）
 
-启动 Change 1：`openspec new change "align-current-layer-terminology"` → 写 proposal（引用本文件
-M-1/M-2/M-3/M-8/M-9/L-2 编号与受影响 capability；明确"只改散文、不动序列化字段"红线）→ 按
-OpenSpec 流程（specs → design → tasks → polish → apply → archive）推进。
+启动 Change 2：`openspec new change "remove-retired-plumbing-and-harden-detectors"` → 写
+proposal（引用本文件 M-5 #1-5 / #7 展示名、M-7、L-3、D-1 剩余词表、D-2/D-3/D-4 编号与受影响
+capability：cli-surface、environment-check、harness-script-layout + tests；目标=删死代码 +
+探测器词表/校验扩面防回归）→ 按 OpenSpec 流程（specs → design → tasks → polish → apply →
+archive）推进。

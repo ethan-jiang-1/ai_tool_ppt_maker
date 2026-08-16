@@ -216,8 +216,9 @@ provider compliance.
 _Avoid_: Reserved Header Region, a blank band, a guaranteed collision prevention mechanism
 
 **Protected Zone**:
-The name Harness implementation still uses for a Provider Avoidance Constraint.
-It is not the canonical name for a Reserved Header Region.
+曾用旧名，现已不再使用；仅历史文档可见。它曾指 Framed 的本地 Reserved
+Header Region 或 Provider Avoidance Constraint，但当前层术语已分别用这两个
+规范词（见上），实现中已无此名。
 _Avoid_: Reserved Header Region, a second local renderer, a hard spatial guarantee
 
 **Presentation Scope**:

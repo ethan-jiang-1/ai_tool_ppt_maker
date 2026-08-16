@@ -1,7 +1,9 @@
 ## Purpose
 
 Define Image Production as the active Page Image Workflow capability family.
+
 ## Requirements
+
 ### Requirement: Production final files use NN_slideID naming
 
 The final-slide manifest SHALL name each production file `NN_slideID.png`,
@@ -81,8 +83,8 @@ deck-level presentation quality.
 
 - **WHEN** a reviewer receives complete Pure page evidence
 - **THEN** the owner presents the provider page and its current bindings
-- **AND** it does not expose Framed protected-zone, header-renderer, or
-  composite controls
+- **AND** it does not expose Framed Reserved Header Region, header-renderer,
+  or composite controls
 
 ### Requirement: Pilot remains a preview-only sample and cost control
 

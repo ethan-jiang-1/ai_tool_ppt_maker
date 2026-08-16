@@ -33,5 +33,5 @@ Controller node, human confirmation, or review gate.
 
 Visual decisions are reviewed through current Page Image raw and final
 evidence. A local Framed refresh is legal only when compiled provider input,
-protected geometry, raw contract, and local header profile remain exact; source,
+protected composition, raw contract, and local header profile remain exact; source,
 visual-brief, or reference changes return to raw planning.

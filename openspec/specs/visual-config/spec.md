@@ -281,7 +281,7 @@ output, review decision, or lifecycle state.
 Visual Config SHALL expose only the validated immutable selected class
 projection and its canonical binding to Pure callers. Framed SHALL not read,
 inherit, or treat the Pure visual-system record or digest as a local-header
-profile, protected geometry, or provider constraint.
+profile, protected composition, or provider constraint.
 
 #### Scenario: A current Pure source resolves one deck system
 
@@ -295,7 +295,8 @@ profile, protected geometry, or provider constraint.
 - **WHEN** a current Framed source is prepared beside a valid Pure visual-system record
 - **THEN** Framed retains its visual-language and resolved Header Rendering
   Policy inputs without the Pure record or digest
-- **AND** it does not derive a local profile, protected zone, or input digest from that record
+- **AND** it does not derive a local profile, Reserved Header Region, or input
+  digest from that record
 
 ### Requirement: Invalid Pure visual-system source stops before dependent work
 

@@ -29,7 +29,7 @@ workflow choice and is never silently rewritten or interpreted as current.
 Use the smallest owner-valid path:
 
 - Header Text & Style Refresh only for Framed work that proves exact equality
-  of compiled provider input, protected geometry, raw contract, and local header profile.
+  of compiled provider input, protected composition, raw contract, and local header profile.
 - Generated Image Rebuild for every provider-visible content, header-literal,
   visual, geometry, or profile change.
 - Notes-Only Refresh for speaker notes through `05-delivery`.

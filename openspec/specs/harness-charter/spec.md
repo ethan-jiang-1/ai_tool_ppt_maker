@@ -4,7 +4,9 @@
 
 Define active PPT Maker Harness guidance for Page Image Workflow production, ownership-aware
 refresh, structural versioning, and bounded retired-input handling.
+
 ## Requirements
+
 ### Requirement: Harness guidance defines the external ownership boundary
 
 Active Harness guidance SHALL identify the Human as owner of Deck content and
@@ -176,8 +178,8 @@ text, quotes, callouts, and supporting copy. Pure has the provider render the
 entire page including `kicker`, `title`, and `subtitle`. Framed adds a
 transparent deterministic local overlay for only those three header fields and
 sends their exact literals to the provider as context not to render. The
-Framed protected zone is a composition constraint, not a blank band or a
-text-free-page rule.
+Framed Provider Avoidance Constraint is a composition constraint, not a blank
+band or a text-free-page rule.
 
 #### Scenario: Framed guidance does not assign callouts to a local frame
 
@@ -189,7 +191,7 @@ content
 ### Requirement: Harness guidance routes changes by actual provider inputs
 
 Active guidance SHALL classify Page Image changes from actual compiled
-provider-input, protected-geometry, raw-contract, and profile bindings. A
+provider-input, protected-composition, raw-contract, and profile bindings. A
 Framed title/subtitle/kicker literal changes provider context and normally
 requires raw rebuild. A local overlay refresh is available only after the
 owner proves every provider input and relevant deterministic contract is

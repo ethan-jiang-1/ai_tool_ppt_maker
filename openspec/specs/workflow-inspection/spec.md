@@ -2,7 +2,9 @@
 
 ## Purpose
 Define the read-only workflow-observation projection that gives MD Controllers and CLI observers one ordered, owner-issued next action for an exact run without reconstructing mode, gate, recovery, or completion policy.
+
 ## Requirements
+
 ### Requirement: Inspection remains separate from collaboration projection refresh
 
 `inspectWorkflow({ runDir })` SHALL remain a zero-authority-write evaluator: it
@@ -66,11 +68,11 @@ alternate projection.
 
 For an exact current run, Inspection SHALL obtain the selected adapter's direct
 facts for Style Master readiness, compiled provider-input digest, protected
-geometry and local profile where applicable, plan/authorization/attempt
+composition and local profile where applicable, plan/authorization/attempt
 status, Pilot scope, Complete Page Review, and delivery. Its primary action
 SHALL name the earliest protected invariant or legal current step. A Framed
 provider-free overlay refresh is actionable only after direct proof that
-compiled provider input, protected geometry, raw contract, and local profile
+compiled provider input, protected composition, raw contract, and local profile
 are unchanged; a header literal change therefore projects raw rebuild.
 
 The review projection SHALL be one Complete Page Review action: Framed shows

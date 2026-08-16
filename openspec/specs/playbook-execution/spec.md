@@ -1,7 +1,9 @@
 ## Purpose
 
 Define how MD Controller playbooks under `ppt_maker_harness/playbook/` drive an agent through a deck lifecycle: registered controller inventory is owned by the normative controller manifest, while playbooks provide intent routing, ownership-aware refresh paths, state initialization, gates, and shared-node reuse. Execution state lives in `_state/state.yaml` beside static project metadata.
+
 ## Requirements
+
 ### Requirement: MD Controller playbooks are housed by the Harness
 
 MD Controller playbooks and their normative controller inventory SHALL reside
@@ -51,20 +53,40 @@ execution state, or replace a current Controller route before that handoff.
   owner mutation
 
 ### Requirement: Existing-deck sessions start with whole-workflow resume ritual
-For an exact run, an existing-deck session SHALL begin with state/status inspection and use its shared workflow inspection as progress truth. The Controller SHALL resolve source marker, schema, exact run version, durable mode, and Controller identity before selecting a resume node. A usable current state resumes its active current Controller/node after presenting the full workflow position. A current one-to-one canonical defect is repaired only by its owning mutation path behind existing fences; observation remains non-writing. Pre-current schema, topology-only version identity, retired Controller/node, missing/retired marker, or unrecoverable state SHALL return the one owner-issued typed next action with no state seed, alias, inferred mode, or current execution graph.
+
+For an exact run, an existing-deck session SHALL begin with state/status
+inspection and use its shared workflow inspection as progress truth. The
+Controller SHALL resolve source marker, schema, exact run version, durable
+workflow, and Controller identity before selecting a resume node. A usable
+current state resumes its active current Controller/node after presenting the
+full workflow position. A current one-to-one canonical defect is repaired only
+by its owning mutation path behind existing fences; observation remains
+non-writing. Pre-current schema, topology-only version identity, retired
+Controller/node, missing/retired marker, or unrecoverable state SHALL return
+the one owner-issued typed next action with no state seed, alias, inferred
+workflow, or current execution graph.
 
 #### Scenario: Current execution resumes with durable identity
-- **WHEN** a run has a current marker, mode, and in-progress current Controller state
-- **THEN** the Agent presents whole-workflow position and resumes that exact Controller/node
+
+- **WHEN** a run has a current marker, workflow, and in-progress current
+  Controller state
+- **THEN** the Agent presents whole-workflow position and resumes that exact
+  Controller/node
 
 #### Scenario: Historical execution does not become a current route
+
 - **WHEN** observation finds pre-current state or a retired identity
-- **THEN** the Agent presents the one bounded owner-issued typed next action without writing state or choosing a replacement node
+- **THEN** the Agent presents the one bounded owner-issued typed next action
+  without writing state or choosing a replacement node
 
 #### Scenario: Identity recovery remains a hard-stop
-- **WHEN** the current inspection result reports an identity, evidence, journal, or CAS hard-stop
-- **THEN** the Controller names the protected invariant and the one owner-issued next action
-- **AND** it does not manufacture a continuation, confirmation, or state replacement from historical fields
+
+- **WHEN** the current inspection result reports an identity, evidence,
+  journal, or CAS hard-stop
+- **THEN** the Controller names the protected invariant and the one
+  owner-issued next action
+- **AND** it does not manufacture a continuation, confirmation, or state
+  replacement from historical fields
 
 ### Requirement: State file is created on playbook start
 When a current initialized run begins a playbook execution, _state/state.yaml SHALL be created if absent or validated/updated if already present. The playbook and current_node fields SHALL be set as required by the selected current playbook. Run-bundle init SHALL seed current state so the common path has a state file before the first node. Playbook start SHALL tolerate a pre-seeded current file. It SHALL not synthesize state for a markerless, pre-current, topology-only, or retired-controller run; those records use the state owner's one bounded typed next action.
@@ -345,8 +367,8 @@ SHALL use direct owner facts to determine any remaining paid work, not task-card
 state or file presence.
 
 A Framed provider-free local overlay refresh is permitted only when its owner
-proves the compiled provider input, protected geometry, raw contract, and local
-profile are unchanged. A changed header literal normally changes provider
+proves the compiled provider input, protected composition, raw contract, and
+local profile are unchanged. A changed header literal normally changes provider
 context and routes to raw rebuild. Notes-only work remains delivery-owned;
 structural or whole-workflow changes use previewed exact-hash versioning.
 

@@ -236,7 +236,10 @@ existing Visual Config identity-resolution use.
 ### Requirement: Framed composition evidence preserves one human review decision
 
 The existing Complete Page Review SHALL remain the only acceptance decision for
-Framed provider output. It SHALL continue to bind the exact provider page and
+Framed provider output; its one-decision contract is owned by `image-production`
+(`Complete Page Review makes one complete-page decision`), and this requirement
+defines only the Framed-specific evidence contribution without restating that
+contract. It SHALL continue to bind the exact provider page and
 production-equivalent transparent-header composite to the composition-bound raw
 lineage. Its existing Framed review contribution SHALL display exactly one
 normalized `reserved_header` guide rectangle and one normalized `body_safe`
@@ -318,11 +321,11 @@ for its exact version/workflow scope under one active Page Image Task Mandate.
 The plan and each ordered stable `slide_id` item SHALL bind the selected
 adapter's compiled provider-input digest, raw-contract digest, generation
 profile, Style Master selection, Task Mandate reference, and policy-specific
-header profile or protected geometry where applicable. A materialized provider
-page becomes current only through the exact plan/batch, mandate-bound grant,
-submitted terminal attempt, verified bytes, and immutable provenance chain. An
-ID match, filename, task projection, copied bytes, last grant digest, or Task
-Mandate alone SHALL not establish current raw evidence.
+header profile or protected composition where applicable. A materialized
+provider page becomes current only through the exact plan/batch, mandate-bound
+grant, submitted terminal attempt, verified bytes, and immutable provenance
+chain. An ID match, filename, task projection, copied bytes, last grant digest,
+or Task Mandate alone SHALL not establish current raw evidence.
 
 The common progressive owner SHALL consume only a validated typed plan from the
 selected adapter. It SHALL retain immutable full plans, batches, grants,
@@ -939,9 +942,9 @@ normalized Page Class and the version's selected workflow. The binding SHALL
 retain the normalized class, selected profile identity, and inherited-value
 provenance required to establish the compiled input's exact direct sources. For
 Framed, every raw contract and provider-input binding SHALL use the profile and
-protected geometry resolved for that same stable page ID. Framed SHALL use only
-its resolved local header/protected-region facts and Pure SHALL use only its
-resolved whole-page Pure facts.
+protected composition resolved for that same stable page ID. Framed SHALL use
+only its resolved local header/protected-region facts and Pure SHALL use only
+its resolved whole-page Pure facts.
 
 The adapter SHALL not accept a caller-supplied profile, reuse a projection from
 another workflow or class, consult a derived file, or revive raw evidence

@@ -12,4 +12,5 @@ not imply provider authorization. Structural apply is source-only; unresolved
 raw work is reported as `needs_render`.
 
 An unsupported source/state pair is byte-preserving and stops at the generic
-export action. Do not rename, infer, or manually repair it as normal work.
+`repair-current-protocol-identity` action. Do not rename, infer, or manually repair
+it as normal work.

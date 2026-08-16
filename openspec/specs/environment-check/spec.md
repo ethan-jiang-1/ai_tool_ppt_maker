@@ -20,16 +20,32 @@ continuation.
 - **AND** it receives existing bounded readiness evidence rather than a retired-root fallback
 
 ### Requirement: Zero-dependency runtime check
-`scripts/00-setup/env-check.mjs` SHALL have zero static npm dependencies. Its pre-install closure contains only Node built-ins, shared CLI bootstrap/error helpers, and the pure executable inventory; those helpers import neither a production adapter nor an npm dependency. It SHALL remain runnable before `npm install` so it can diagnose the Node/npm/package foundation. It MAY dynamically import the installed Framed runtime only after package presence checks establish npm dependencies; missing packages are normal check failures rather than load failures. `ppt_flow doctor` remains the Commander-based normal command after installation, while direct env-check is the documented recovery command.
 
-Base runtime/font inspection is owned by the import-safe `00-setup` interface, which SHALL NOT import a provider implementation. The direct adapter and root doctor may lazily call the Page Image Workflow raw-readiness diagnostic only after prerequisites pass and raw generation is explicitly selected. Base mode SHALL not load provider implementation.
+`scripts/00-setup/env-check.mjs` SHALL have zero static npm dependencies. Its
+pre-install closure contains only Node built-ins, shared CLI bootstrap/error
+helpers, and the pure executable inventory; those helpers import neither a
+production adapter nor an npm dependency. It SHALL remain runnable before
+`npm install` so it can diagnose the Node/npm/package foundation. It MAY
+dynamically import the installed Framed runtime only after package presence
+checks establish npm dependencies; missing packages are normal check failures
+rather than load failures. `ppt_flow doctor` remains the Commander-based normal
+command after installation, while direct env-check is the documented recovery
+command.
+
+Base runtime/font inspection is owned by the import-safe `00-setup` interface,
+which SHALL NOT import a provider implementation. The direct adapter and root
+doctor may lazily call the Page Image Workflow raw-readiness diagnostic only
+after prerequisites pass and raw generation is explicitly selected. The
+provider-free base scope SHALL not load provider implementation.
 
 #### Scenario: Run without node_modules
+
 - **WHEN** `node scripts/00-setup/env-check.mjs` runs in a fresh directory with no `node_modules/`
 - **THEN** the script executes and emits actionable missing-package results
 - **AND** it does not fail during top-level module loading
 
 #### Scenario: Base mode does not initialize a provider
+
 - **WHEN** direct `00-setup` env-check runs without raw generation selected
 - **THEN** no provider or credential implementation is loaded while local Framed readiness remains checkable
 
@@ -46,55 +62,62 @@ The env check SHALL verify at startup that Node.js belongs to the checked-in sup
 
 ### Requirement: API key verification
 
-In Image2 mode, the env check SHALL verify that image-generation credentials can resolve at least one usable API key, consistent with `resolveVendors` / Image2 contract:
+In the Image2-inclusive scope, the env check SHALL verify that image-generation
+credentials can resolve at least one usable API key, consistent with
+`resolveVendors` / Image2 contract:
 
 - **Shared key path:** non-empty `IMAGE2_API_KEY`.
 
-When no shared key is available, `api_key` SHALL fail the Image2-mode verdict. Fix text SHALL name `IMAGE2_API_KEY`. Base mode SHALL omit this check and SHALL not load or require the key for readiness.
+When no shared key is available, `api_key` SHALL fail the Image2-inclusive
+verdict. Fix text SHALL name `IMAGE2_API_KEY`. The provider-free base scope
+SHALL omit this check and SHALL not load or require the key for readiness.
 
 #### Scenario: Canonical IMAGE2 key
 
 - **WHEN** `.env` contains non-empty `IMAGE2_API_KEY`
-- **AND** Image2 mode is selected
+- **AND** the Image2-inclusive scope is selected
 - **THEN** `api_key` passes and detail identifies `IMAGE2_API_KEY`
 
 #### Scenario: Missing key
 
 - **WHEN** no `IMAGE2_API_KEY` is set
-- **AND** Image2 mode is selected
+- **AND** the Image2-inclusive scope is selected
 - **THEN** `api_key` fails and fix names `IMAGE2_API_KEY`
 
 #### Scenario: Missing key does not affect base mode
 
-- **WHEN** no `IMAGE2_API_KEY` is set and env-check runs in base mode
+- **WHEN** no `IMAGE2_API_KEY` is set and env-check runs in the provider-free
+  base scope
 - **THEN** no `api_key` check is emitted
 - **AND** the missing key does not affect base READY
 
 ### Requirement: Image API base URL is a hard requirement
 
-In Image2 mode, the env check SHALL require a resolvable single image API
-endpoint configuration via a non-empty `IMAGE2_BASE_URL` that passes the same
-one-endpoint normalization used by current Page Image production operations. A
-value containing a comma SHALL be malformed configuration, rather than a list
-of endpoints.
+In the Image2-inclusive scope, the env check SHALL require a resolvable single
+image API endpoint configuration via a non-empty `IMAGE2_BASE_URL` that passes
+the same one-endpoint normalization used by current Page Image production
+operations. A value containing a comma SHALL be malformed configuration,
+rather than a list of endpoints.
 
 When none is set or the value is malformed, `image_base_url` SHALL be **`fail`**
-and the Image2-mode verdict SHALL be NOT READY. The check SHALL NOT claim a
-silent default endpoint when URL is unset, split a configured value, or treat
-that value as a failover list. Fix text SHALL name `IMAGE2_BASE_URL`. Base mode
-SHALL omit this check. A failed `image_base_url` check SHALL prevent `--smoke`
-or `--probe-vendors` from starting provider network work.
+and the Image2-inclusive verdict SHALL be NOT READY. The check SHALL NOT claim
+a silent default endpoint when URL is unset, split a configured value, or
+treat that value as a failover list. Fix text SHALL name `IMAGE2_BASE_URL`. The
+provider-free base scope SHALL omit this check. A failed `image_base_url`
+check SHALL prevent `--smoke` or `--probe-vendors` from starting provider
+network work.
 
 #### Scenario: Canonical IMAGE2 base URL
 
 - **WHEN** `.env` contains `IMAGE2_BASE_URL=https://example/v1`
-- **AND** Image2 mode is selected
+- **AND** the Image2-inclusive scope is selected
 - **THEN** `image_base_url` passes
 
 #### Scenario: Comma-separated base URL fails before a live probe
 
 - **WHEN** `IMAGE2_BASE_URL` contains a comma-separated value
-- **AND** Image2 mode with `--smoke` or `--probe-vendors` is selected
+- **AND** the Image2-inclusive scope with `--smoke` or `--probe-vendors` is
+  selected
 - **THEN** `image_base_url` is `fail` and env-check is NOT READY before a
   provider POST
 - **AND** it does not submit to any portion of the configured value or present
@@ -103,12 +126,12 @@ or `--probe-vendors` from starting provider network work.
 #### Scenario: Missing base URL fails doctor
 
 - **WHEN** a shared key is present but no base URL variable is set
-- **AND** Image2 mode is selected
+- **AND** the Image2-inclusive scope is selected
 - **THEN** `image_base_url` is `fail` and env-check is NOT READY
 
 #### Scenario: Missing base URL does not affect base mode
 
-- **WHEN** no base URL is set and env-check runs in base mode
+- **WHEN** no base URL is set and env-check runs in the provider-free base scope
 - **THEN** no `image_base_url` check is emitted
 
 ### Requirement: Environment check emits one declared current report
@@ -472,8 +495,8 @@ addition to the existing Image2 API key and one normalized base URL. The check
 SHALL report the identifier's presence and bounded identity only; it SHALL not
 expose credentials/base URL, infer route/model/budget capability from those
 values, or persist the identifier as State, authorization, or provider
-evidence. Base and Framed-local modes SHALL omit this check and remain
-provider-free.
+evidence. The provider-free base scope and Framed-local scope SHALL omit this
+check and remain provider-free.
 
 The installed exact-run doctor SHALL resolve the selected Run Bundle's
 confirmed profile through its owning source validator and require the runtime

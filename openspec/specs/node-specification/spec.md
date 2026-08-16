@@ -458,7 +458,7 @@ matching prose such as `Fatal error:`.
 
 `readState` SHALL retain tolerant YAML parsing and deterministic canonical
 repair for a usable declared-current record, but SHALL classify source marker,
-exact run version, durable mode, and Controller identity before any repair
+exact run version, durable workflow, and Controller identity before any repair
 write. Its closed purpose SHALL remain `observe|execute`; `state`, `status`,
 checks, and validation SHALL use `observe` and make no
 state/history/metadata/generated/provider write. An owner-authorized execution
@@ -468,7 +468,7 @@ relationship, and are not fenced by a gate journal, reset, or transition.
 
 A schema outside the declared current shape, topology-only execution binding,
 undeclared Controller/node identity, markerless/undeclared source, or impossible
-source/mode pair SHALL never be transformed into a current state, mode,
+source/workflow pair SHALL never be transformed into a current state, workflow,
 Controller, or transition checkpoint.
 When the direct source/state/evidence protocol cannot establish the declared
 current contract, it SHALL return the `production-protocol`
@@ -501,7 +501,7 @@ preference.
 - **WHEN** a state outside the declared current shape, topology-only binding, or
   undeclared transition/node identity is supplied
 - **THEN** observation and execution reject it without alias migration,
-  source/mode inference, or state replacement
+  source/workflow inference, or state replacement
 - **AND** the returned repair action does not require the user to edit raw YAML
 
 #### Scenario: Current state cannot preserve evidence
@@ -520,7 +520,7 @@ preference.
 classify syntactic defects; write emits only canonical stringify output plus the
 existing `#` header. A successful parse does not authorize a write. Observation
 remains byte-preserving. An owner-authorized execute path may stringify a usable
-declared-current record only after its source/mode/Controller identity and
+declared-current record only after its source/workflow/Controller identity and
 one-to-one repair are verified and all fences permit the write. Undeclared,
 ambiguous, or evidence-unpreservable input returns one bounded owner-issued
 typed next action without writeback. Failure to establish current protocol
@@ -595,10 +595,10 @@ An owner-authorized canonicalization MAY convert a scalar decision only in a dec
 current shape while preserving whole-workflow timing, execution identities,
 controller working sets, stack semantics, typed records, atomic writes, and
 reserved system records. A supported state SHALL bind one exact current
-source/mode pair and its exact normalized run version. Read or execute MAY
+source/workflow pair and its exact normalized run version. Read or execute MAY
 perform only lossless canonicalization of an already supported record when every
 affected field has a one-to-one meaning and no gate, reset, or transition fence
-is active. It SHALL not infer a source, mode, controller, run version,
+is active. It SHALL not infer a source, workflow, controller, run version,
 execution binding, or review evidence from metadata, generated artifacts,
 invocation order, source preference, or directory topology.
 
@@ -620,8 +620,8 @@ execution is incomplete and preserves reserved records.
 
 #### Scenario: Current state remains durable
 
-- **WHEN** a declared-current state has an exact supported source/mode pair and
-  normalized active execution version
+- **WHEN** a declared-current state has an exact supported source/workflow pair
+  and normalized active execution version
 - **THEN** state retains its current execution, stack, decisions, waits, gates,
   reset/refinement evidence, and reserved records
 - **AND** canonical observation does not invent a second routing authority
@@ -632,22 +632,22 @@ execution is incomplete and preserves reserved records.
   current supported contract
 - **THEN** it returns the owner-issued protocol repair action without rewriting
   state bytes
-- **AND** it does not create a mode record, execution, alternate projection, or
-  transition checkpoint
+- **AND** it does not create a workflow record, execution, alternate projection,
+  or transition checkpoint
 
 #### Scenario: Unsupported state rejection is byte-preserving
 
 - **WHEN** an undeclared state, an undeclared transition execution, or a
   topology-only execution binding is supplied to observe or execute
-- **THEN** the state validator rejects it before `healState`, alias mapping, marker
-  inference, or default-state creation
+- **THEN** the state validator rejects it before `healState`, alias mapping,
+  marker inference, or default-state creation
 - **AND** `state.yaml`, `history.jsonl`, gate journals, and version directories
   remain byte-identical
 
 #### Scenario: Source or mode is inconsistent
 
 - **WHEN** a declared-current state has a missing, malformed, or mismatched
-  source/mode fact
+  source/workflow fact
 - **THEN** observation and execution fail before Controller, journal, staging,
   or target mutation
 - **AND** no metadata or generated artifact is used to repair the relationship
@@ -1147,7 +1147,7 @@ draft-route, or handoff output.
   and one valid `method_module`
 - **THEN** canonical parsing accepts its lifecycle location subject to its
   existing dependency, workflow, and manifest checks
-- **AND** it does not derive a second lifecycle phase or production mode
+- **AND** it does not derive a second lifecycle phase or production identity
 
 ### Requirement: State identity is a minimal state-owned invalidation fence
 

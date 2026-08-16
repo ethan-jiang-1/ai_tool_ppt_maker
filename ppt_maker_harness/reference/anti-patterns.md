@@ -26,7 +26,7 @@ overrides to source.
 
 ## 3. Rebuild raw images for a Framed text-only edit
 
-Only when compiled provider input, protected geometry, raw contract, and local
+Only when compiled provider input, protected composition, raw contract, and local
 header profile remain exact may a Framed header-overlay change use Header Text &
 Style Refresh. Any provider-visible or header-literal change uses Generated Image
 Rebuild. Notes use Notes-Only Refresh.

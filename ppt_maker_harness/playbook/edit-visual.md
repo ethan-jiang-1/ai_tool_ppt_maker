@@ -17,7 +17,7 @@ produces: [target-framed-visual-refresh-route]
 entry: [slide_specs_exists]
 exit: [slide_specs_valid]
 ```
-**Step 1 — CLI**: Framed visual, protected-geometry, selected Page Class, or
+**Step 1 — CLI**: Framed visual, protected-composition, selected Page Class, or
 header-profile changes use the selected Framed raw rebuild route. Repair a bad
 presentation package at its named source and rerun this checkpoint.
 

@@ -1,6 +1,9 @@
 # Intent Discovery Uses A Separate Route Catalog
 
-Status: Accepted
+Status: Superseded
+
+> **Superseded**：Intent Route Catalog 已退役（`harness_coherence.mjs` 将其列为禁用陈旧指引）。
+> 现行 = MD Controllers + controller manifest + Diagnostic Recovery Handoff；下文为历史记录。
 
 The PPT Maker Harness contains a versioned Intent Route Catalog beside, but independent from, the Controller manifest. The Agent interprets a user's natural-language goal; the catalog validates the selected route's first safe discovery step. Lifecycle nodes, owner CLIs, exact hashes, authorizations, and state remain owned by their current sources. This makes novice-oriented discovery explicit and auditable without creating a second controller or a third production CLI.
 

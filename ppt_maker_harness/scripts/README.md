@@ -33,4 +33,3 @@ contract; only `05-delivery` writes final projection, PPTX, or notes.
   branching.
 - Direct executable inventory is unchanged: target method modules are imported
   interfaces, not new CLI commands.
-  coverage without reading run-bundle or generated data.

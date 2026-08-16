@@ -31,7 +31,7 @@ stable IDs. Read the bound Page Image Workflow; do not infer one from a
 slide, generated file, or position.
 
 **Step 2 — MD**: Route Framed Header Text & Style Refresh only after the owner
-proves compiled provider input, protected geometry, raw contract, and local
+proves compiled provider input, protected composition, raw contract, and local
 header profile are unchanged. Route header-literal, Provider Content Schema,
 visual, geometry, and profile changes to Generated Image Rebuild; notes-only
 work to Delivery; and structural or whole-workflow changes to Structural

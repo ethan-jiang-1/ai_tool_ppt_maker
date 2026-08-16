@@ -17,7 +17,7 @@ produces: [target-framed-refresh-route]
 entry: [slide_specs_exists]
 exit: [slide_specs_valid]
 ```
-**Step 1 — CLI**: Use Framed local header-overlay refresh only when compiled provider input, protected geometry, raw contract, and the local header profile remain current.
+**Step 1 — CLI**: Use Framed local header-overlay refresh only when compiled provider input, protected composition, raw contract, and the local header profile remain current.
 
 ### refresh-target-pure-text
 ```yaml

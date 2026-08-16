@@ -1,7 +1,9 @@
 ## Purpose
 
 Define marker-first orchestration through the public Page Image Workflow lifecycle on the checked-in supported Node runtime. It owns source receipt, raw planning, authorization, generation, review, finalization, assembly, notes, delivery review, and structural routing.
+
 ## Requirements
+
 ### Requirement: Order-dependent views display position and stable identity
 
 Status, selector diagnostics, raw-review labels, and structural impact output SHALL
@@ -20,14 +22,14 @@ formal ID as the cross-version reference.
 The selected Page Image Workflow owner SHALL classify a requested change from
 the direct current source receipt, normalized Page Class, selected
 workflow-specific presentation projection and its provenance, compiled
-provider-input digest, protected geometry, raw contract, generation profile,
+provider-input digest, protected composition, raw contract, generation profile,
 local header profile, and final evidence bindings. It SHALL not classify a
 change solely from a field name, task card, rendered file, conversation summary,
 or an unselected class/profile source file.
 
 Any change to Provider Content Schema, narrative context, visual direction,
 generation profile, normalized Page Class, selected deck default, selected
-workflow-specific profile, protected geometry, workflow, or a header literal
+workflow-specific profile, protected composition, workflow, or a header literal
 that is bound as Framed context not to render SHALL require raw rebuild and a
 new Complete Page Review. A valid complete-package change only to an unselected
 class or sibling profile SHALL leave the page's current compiled bindings and
@@ -36,8 +38,8 @@ the whole package a source/configuration hard-stop before classification or raw
 planning; it SHALL preserve existing immutable evidence and SHALL NOT create a
 raw rebuild, local refresh, authorization, or review. Framed local overlay
 refresh is provider-free only when the compiled provider input, resolved
-projection, protected geometry, raw contract, and local profile are all exactly
-unchanged. Notes-only changes remain delivery-owned, and structural or
+projection, protected composition, raw contract, and local profile are all
+exactly unchanged. Notes-only changes remain delivery-owned, and structural or
 whole-workflow changes remain preview-first exact-hash versioning work.
 
 #### Scenario: Framed title change becomes raw rebuild
@@ -69,7 +71,7 @@ whole-workflow changes remain preview-first exact-hash versioning work.
 #### Scenario: Proven local overlay refresh remains provider-free
 
 - **WHEN** a Framed local presentation change preserves every required
-  provider-input, resolved-projection, geometry, raw-contract, and profile binding
+  provider-input, resolved-projection, composition, raw-contract, and profile binding
 - **THEN** the classifier routes to the selected local overlay owner
 - **AND** it does not create authorization, provider work, or a synthetic Pilot
   route

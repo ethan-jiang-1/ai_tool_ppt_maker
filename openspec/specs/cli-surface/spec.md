@@ -361,12 +361,13 @@ the owner proves the full current equality contract.
 
 For Framed planning, review, and finalization, the CLI producer SHALL classify
 the earliest independent failure among closed source content/header fields,
-transparent header preset/profile, protected geometry, current compiled input,
-provider page, and bound evidence. A header fit failure belongs to bounded
-`source_validation`; missing browser/font capability belongs to `environment`;
-a contradiction among checked-in deterministic contracts belongs to `internal`.
-No diagnostic SHALL reintroduce a local body/callout renderer, a text-free
-underlay rule, a force option, or provider-blaming for a pre-submit failure.
+transparent header preset/profile, protected composition, current compiled
+input, provider page, and bound evidence. A header fit failure belongs to
+bounded `source_validation`; missing browser/font capability belongs to
+`environment`; a contradiction among checked-in deterministic contracts
+belongs to `internal`. No diagnostic SHALL reintroduce a local body/callout
+renderer, a text-free underlay rule, a force option, or provider-blaming for a
+pre-submit failure.
 
 #### Scenario: Framed header overflow is source validation
 

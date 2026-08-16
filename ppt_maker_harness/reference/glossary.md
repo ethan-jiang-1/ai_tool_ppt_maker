@@ -54,9 +54,9 @@ pixel to the Provider. The selected route is
 Use the ownership/invalidation paths `Header Text & Style Refresh`, `Generated
 Image Rebuild`, `Notes-Only Refresh`, and `Structural Versioning Path`. A
 Framed header-overlay change can use the first path only with exact compiled
-provider input, protected geometry, raw contract, and local profile; all other
+provider input, protected composition, raw contract, and local profile; all other
 pixel-relevant changes rebuild raw work. An undeclared pair is byte-preserving and receives the generic current-protocol-invalid
-export action; it is never a current route.
+`repair-current-protocol-identity` action; it is never a current route.
 
 Style Master candidate work is scoped to one `vN + framed|pure` tuple. A
 selection is authoritative only after the state acceptance record and its

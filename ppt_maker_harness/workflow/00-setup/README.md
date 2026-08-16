@@ -21,7 +21,7 @@ agent_action: navigate
 
 - **Soft bundle** = `ppt_maker_harness/`（方法论参考，只读）
 - **Run bundle** = 你为每个项目创建的文件系统实例（目录 + 代码 + 配置 + 产出物）
-- **Charter** = `../charter/` — Harness 宪法：结构宪法 (CONSTITUTION)、流程宪法 (WORKFLOW)、行为宪法 (AGENT_CONTRACT)
+- **Charter** = `../../charter/` — Harness 宪法：结构宪法 (CONSTITUTION)、流程宪法 (WORKFLOW)、行为宪法 (AGENT_CONTRACT)
 
 当你开始一个 PPT 项目，第一步就是按本目录的指导创建 run bundle。之后所有的设计、生产、迭代都在这个 run bundle 中进行。
 
@@ -42,11 +42,11 @@ agent_action: navigate
 
 | 文件 | 内容 |
 |------|------|
-| `reference/quick-start.md` | 人类上手——5 分钟找到你的路径 |
-| `reference/glossary.md` | 术语表——Run Bundle、Source File、Derived Artifact 等 |
-| `reference/anti-patterns.md` | 常见错误——跳过内容设计、手改 _generated/、临场发挥目录结构 |
+| `../../reference/quick-start.md` | 人类上手——5 分钟找到你的路径 |
+| `../../reference/glossary.md` | 术语表——Run Bundle、Source File、Derived Artifact 等 |
+| `../../reference/anti-patterns.md` | 常见错误——跳过内容设计、手改 _generated/、临场发挥目录结构 |
 
-### 宪法 (在 `../charter/`)
+### 宪法 (在 `../../charter/`)
 
 | 文件 | 内容 |
 |------|------|

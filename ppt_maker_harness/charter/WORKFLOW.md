@@ -27,7 +27,7 @@ it is never inferred from a slide, artifact, directory, or deck type.
    vNext path.
 
 Framed header-overlay refresh is provider-free only when compiled provider input,
-protected geometry, raw contract, and local header profile remain exact. Any
+protected composition, raw contract, and local header profile remain exact. Any
 provider-visible or header-literal change rebuilds raw. Notes-only work belongs to
 delivery. `slide_id` is stable cross-version identity; `position` belongs only
 to the current snapshot. Structural work, including a Framed/Pure switch, is
