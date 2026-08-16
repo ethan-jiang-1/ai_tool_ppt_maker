@@ -49,6 +49,7 @@ OpenSpec change。
 - [`08-action-authority.md`](08-action-authority.md)：problem fact、domain next action 与 public CLI next 的实际所有权。
 - [`09-synthesis.md`](09-synthesis.md)：已证实事实、契约张力、未知问题、原计划假设审计和设计前退出条件。
 - [`10-remediation-priority-and-order.md`](10-remediation-priority-and-order.md)：按控制面伤害与因果依赖分别排序，区分紧急止损和永久修复顺序。
+- [`11-legacy-trace-relevance.md`](11-legacy-trace-relevance.md)：筛选 current-layer legacy audit 中应吸收到三个 change 的 finding，并明确其余延期边界。
 
 ## 证据纪律
 
