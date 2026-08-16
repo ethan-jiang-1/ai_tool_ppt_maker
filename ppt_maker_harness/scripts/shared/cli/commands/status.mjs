@@ -1,5 +1,6 @@
 import { registerCliJsonReport } from "../cli_error.mjs";
 import { collectStatus, emitFailed, enrichStatusWithState, printStatus, resolveRunAdapter } from "../command_support.mjs";
+import { commandReport } from "../command_result.mjs";
 import { PAGE_IMAGE_WORKFLOW_PIPELINE, PAGE_IMAGE_WORKFLOW_SELECTION_REQUIRED_MESSAGE } from "../../run-bundle/production_marker.mjs";
 
 // ---------------------------------------------------------------------------
@@ -23,8 +24,13 @@ export async function commandStatus(runDir, { json: asJson }) {
   }
   await enrichStatusWithState(status, resolved, route);
   if (asJson) {
-    registerCliJsonReport(status);
-    console.log(JSON.stringify(status, null, 2));
+    const report = commandReport({
+      operation: "status",
+      effect: { structure_issues: status.structure_issues.length },
+      fields: status,
+    });
+    registerCliJsonReport(report);
+    console.log(JSON.stringify(report, null, 2));
   } else {
     printStatus(status);
   }

@@ -19,6 +19,7 @@ import {
   resolveRunHarnessBinding,
 } from "../command_support.mjs";
 import { PAGE_IMAGE_WORKFLOW_PIPELINE } from "../../run-bundle/production_marker.mjs";
+import { commandReport } from "../command_result.mjs";
 
 export async function commandState(runDir, opts) {
 // Validate the closed state grammar before resolving a run, importing a
@@ -179,25 +180,29 @@ const inspectionSummary = workflowInspection.primary_action.summary || workflowI
 const inspectionNext = workflowInspection.primary_action.command || workflowInspection.primary_action.display_label || `${workflowInspection.primary_action.owner}:${workflowInspection.primary_action.action_id}`;
 
 if (opts.json) {
-  const report = {
-    durable_state: s,
-    production_identity: indexedCard.production_identity,
-    pipeline: s.pipeline || PAGE_IMAGE_WORKFLOW_PIPELINE,
-    state_present: existsSync(statePath(deckDir)),
-    playbook: indexedCard.playbook,
-    current_node: indexedCard.current_node,
-    gates: indexedCard.gates,
-    node_status: indexedCard.node_status,
-    waiting_for: indexedCard.waiting_for,
-    note: indexedCard.note,
-    completed_nodes: indexedCard.completed_nodes,
-    pending_nodes: indexedCard.pending_nodes,
-    eligible_candidates: indexedCard.eligible_candidates,
-    workflow_summary: inspectionSummary,
-    suggested_next: inspectionNext,
-    workflow_inspection: workflowInspection,
-    task_projection: { status: taskProjectionStatus },
-  };
+  const report = commandReport({
+    operation: "state",
+    effect: { task_projection: taskProjectionStatus },
+    fields: {
+      durable_state: s,
+      production_identity: indexedCard.production_identity,
+      pipeline: s.pipeline || PAGE_IMAGE_WORKFLOW_PIPELINE,
+      state_present: existsSync(statePath(deckDir)),
+      playbook: indexedCard.playbook,
+      current_node: indexedCard.current_node,
+      gates: indexedCard.gates,
+      node_status: indexedCard.node_status,
+      waiting_for: indexedCard.waiting_for,
+      note: indexedCard.note,
+      completed_nodes: indexedCard.completed_nodes,
+      pending_nodes: indexedCard.pending_nodes,
+      eligible_candidates: indexedCard.eligible_candidates,
+      workflow_summary: inspectionSummary,
+      suggested_next: inspectionNext,
+      workflow_inspection: workflowInspection,
+      task_projection: { status: taskProjectionStatus },
+    },
+  });
   registerCliJsonReport(report);
   console.log(JSON.stringify(report, null, 2));
   return;

@@ -64,6 +64,11 @@ to the current Controller or CLI owner:
 - Use a direct CLI owner only for its declared deterministic operation, such as
   `ppt_flow doctor` for exact-run readiness or `ppt_flow state` / `status` for
   observation. A direct CLI does not select a Controller path.
+- Shared verbs stay owner-scoped, never merged: `plan`, `authorize`, `generate`,
+  `review`, and `accept` each belong to a distinct command owner — `image2` owns
+  the receipt-bound raw lifecycle occurrence, `style-master` owns the candidate
+  lifecycle occurrence. Each occurrence keeps its own effect class; the
+  registered verb-collision table is the drift guard.
 - For a current failure or a stuck request, follow the shared
   [Diagnostic Recovery Handoff](charter/AGENT_CONTRACT.md#diagnostic-recovery-handoff).
   It preserves the current producer action before any inspection, location, or

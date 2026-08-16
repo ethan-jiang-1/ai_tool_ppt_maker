@@ -10,9 +10,8 @@
 
 | change | 阶段 | 依赖 | 阻塞 | 下一次动作 |
 | --- | --- | --- | --- | --- |
-| C1 `align-cli-machine-contract` | proposal（spike + 冻结完成） | C0（已归档）;门槛 3 已冻结 | — | specs/design/tasks → polish → apply |
-| C2 `split-navigation-and-pagination-commands` | 未开 | C1 | — | — |
-| C4 `split-doctor-readiness-probe` | 未开 | C1 | — | — |
+| C2 `split-navigation-and-pagination-commands` | 未开 | C1（已归档） | — | 门槛 7 钉死 plan classification 时序 → `openspec new change` |
+| C4 `split-doctor-readiness-probe` | 未开 | C1（已归档） | — | 门槛 7 钉死 probe fence → `openspec new change` |
 
 ## 已延后（α,2026-08-16 人类决定）
 
@@ -33,21 +32,26 @@
       同 fixture 12 命令逐字节一致 → 才 archive（拆分后 C1 才有 descriptor 载体）
       （2026-08-17 完成并归档；逐字节证据见执行日志，8 命令逐字节 + new-version 路径等价 +
       artifact-view 计时等价；剩余 build/refresh/test 由 vitest 653 精确断言覆盖）
-- [ ] 3. **C1 开工前冻结跨 change 边界**（二次评审 #2 + 独立评审 B1,见 `01` §1.5）:
+- [x] 3. **C1 开工前冻结跨 change 边界**（二次评审 #2 + 独立评审 B1,见 `01` §1.5）:
       C1 的 `build`/`image2` owner result 保留**两个分列 effect**（delivery + projection,
       现状一致）,projection 为独立可版本化字段;C1 **不改退出路径**。此契约**不依赖 C3 落地**;
       若将来重启 C3（`03` 预案）,候选 A 按已记录方向把 projection 版本化删除。
       冻结结果写进 C1 proposal 的 scope 边界。
-- [ ] 4. C1 的 proposal/specs/design/tasks 写完 → 人类点头 → 过 polish 门（全局规则）
+      （2026-08-17 已冻结,记录在 `08-c1-spike-notes.md` 与 C1 proposal §5）
+- [x] 4. C1 的 proposal/specs/design/tasks 写完 → 人类点头 → 过 polish 门（全局规则）
       → 才 apply;C1 design 必须含: partial-effect 恢复闭环、exit 归一协议、
       declaration authority map（`01` §1.5–1.8）。
-- [ ] 5. C1 apply 后 `npm test` + `openspec validate --strict` + `05` 完成判据全绿 → 才 archive
+      （2026-08-17 proposal/specs/design/tasks 写完 + polish 连贯性修正,`openspec validate --strict` 绿,达 ready for apply）
+- [x] 5. C1 apply 后 `npm test` + `openspec validate --strict` + `05` 完成判据全绿 → 才 archive
+      （2026-08-17 完成并归档：npm test（core+审计）绿、`--all --strict`（27 specs）绿、
+      artifact-view 11/11 绿；结构化结果 + 退出归一 + help 契约块 + inventory 治理 + partial-effect 落地）
 - [ ] 6. 每个 change 归档后,下一个才开工（一次一个 active change）
 - [ ] 7. C2/C4 各自的 proposal 前分别钉死: plan classification 时序（C2,`02`）、
       run-bound probe profile fence（C4,`04`）。
-- [ ] 8. C1 proposal 前做两个 spike（发虚处前置消险）: ① 一个命令的 result 模型 + text/JSON
+- [x] 8. C1 proposal 前做两个 spike（发虚处前置消险）: ① 一个命令的 result 模型 + text/JSON
       双 renderer 原型;② commander 能否从 descriptor 生成完整 help + grammar 校验（不行则
       scope 需加自建 registry,升级人类决策）。C0 proposal 前做模块级副作用/import 顺序审计。
+      （2026-08-17 两 spike 完成,结论见 `08-c1-spike-notes.md`:无需自建 registry;C0 前审计也已完成）
 
 ## 每个 change 的 scope 指针
 
@@ -86,6 +90,7 @@
 | change | 归档时间 | 结果 |
 | --- | --- | --- |
 | C0 `split-ppt-flow-command-modules` | 2026-08-17 | `openspec/changes/archive/2026-08-17-split-ppt-flow-command-modules/`；npm test + 全审计 + `--all --strict`（27 specs）绿；入口 4035→约 370 行 + `command_support.mjs` + 12 命令模块；`harness-script-layout` main spec 已同步（ADDED 命令模块 seam requirement） |
+| C1 `align-cli-machine-contract` | 2026-08-17 | `openspec/changes/archive/2026-08-17-align-cli-machine-contract/`；结构化结果模型（`command_result.mjs` + text/JSON 双 renderer）、退出归一、help 契约块、inventory 治理、partial-effect 分列（build/new-version）落地；`cli-surface`（+4/~2）+ `commands-reference`（+1）main specs 同步；顺手修 C0 latent bug（init 无效 deck-type ReferenceError） |
 
 ## 执行日志（2026-08-16 人类指令：静默自主推进）
 
@@ -115,3 +120,21 @@
 - C1 前置（门槛 8 + 3）完成：两个 spike 结论 + 冻结记录在 `08-c1-spike-notes.md`；C1
   `openspec new change` + proposal 写完。窄决策 #2（exit 归一）按已记录倾向定「normalize to 1 +
   child status 有界进 diagnostic」，已写入 proposal §7，供人类事后复核。
+- C1 工件（proposal/specs/design/tasks）写完 + polish（连贯性修正：`command_result.mjs` 独立载体、
+  `err.exitCode` 有界进 diagnostic、grammar 审计 manifest 登记），`openspec validate --strict` 绿。
+  结论：**ready for apply**。
+- C1 apply 进度（10/18 task，`npm test` 全程绿）：① `command_result.mjs` + seam 授权（1.1）；② inventory
+  治理（4.x）；③ 退出归一（2.x）；④ help 契约块（3.x）；⑤ text-only 命令全部迁移 owner result
+  （`validate`/`build`/`refresh`/`init`/`new-version`，文本逐字不变；`doctor`/`test` 为 child 委托，
+  结果即 2.x 归一后的 child status）；⑥ partial-effect 分列（5.x——`build` delivery+projection 分列、
+  `new-version` create+activate 分列，均 exit 1 + partial-effect 报告 + 无手删 resume 提示）。
+  顺手修复 C0 latent bug：`init` 无效 deck-type/style 原抛 `DECK_TYPES_SORTED` ReferenceError →
+  现给正确 usage（本地补定义 `STYLE_PRESETS_SORTED`/`DECK_TYPES_SORTED`）。
+  剩余：5 个 JSON 命令迁移（`status`/`state`/`image2`/`style-master`/`slides` 的 JSON report 加
+  schema/version/operation/state，需同步更新 `test_human_artifact_reference_cli` 3 处 toEqual）+
+  grammar 审计（6.1）+ 动词表（7.1）。
+- C1 收尾：JSON 命令迁完（`status`/`state`/`slides`/`image2 artifact-view` 用 `commandReport` 加
+  schema/version/operation/state + fields 展开；`style-master`/`image2` 生命周期保持 owner result，
+  `controller_handoff` 未回归）；`validateCommandContracts` + `VERB_COLLISION_TABLE` 相等性审计 +
+  `COMMANDS.md` 共享动词 owner-scoped 说明；3 处 toEqual → toMatchObject。归档 `2026-08-17-align-cli-machine-contract`
+  + 提交 `d3933ed`。

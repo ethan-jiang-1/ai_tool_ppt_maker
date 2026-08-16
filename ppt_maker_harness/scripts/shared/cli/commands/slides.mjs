@@ -1,6 +1,7 @@
 import { basename, dirname, join, relative, resolve, sep } from "node:path";
 import { readFileSync, writeFileSync, readdirSync, realpathSync, renameSync } from "node:fs";
 import { CLI_ERROR_CODES, CLI_DIAGNOSTIC_SCHEMA, createCliNext, emitCliError, registerCliJsonReport } from "../cli_error.mjs";
+import { commandReport } from "../command_result.mjs";
 import { resolveRunHarnessBinding } from "../command_support.mjs";
 import { checkBundle, deckRoot, findSlideSpecs, nextVersionName, SCRATCH_SUBDIR } from "../../run-bundle/bundle_layout.mjs";
 import { PAGE_IMAGE_WORKFLOW_PIPELINE, probeProductionMarker } from "../../run-bundle/production_marker.mjs";
@@ -52,8 +53,13 @@ function readCanonicalSlideSource(runDir) {
 
 function renderSlidesResult(result, asJson) {
   if (asJson) {
-    registerCliJsonReport(result);
-    console.log(JSON.stringify(result, null, 2));
+    const report = commandReport({
+      operation: "slides",
+      effect: { kind: result.kind },
+      fields: result,
+    });
+    registerCliJsonReport(report);
+    console.log(JSON.stringify(report, null, 2));
     return;
   }
   if (result.kind === "slide-list") {

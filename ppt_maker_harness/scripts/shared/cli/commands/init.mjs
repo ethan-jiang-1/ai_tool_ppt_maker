@@ -1,10 +1,22 @@
 import { basename, join, resolve } from "node:path";
 import { emitFailed, emitUsage, HARNESS_DIR } from "../command_support.mjs";
+import { commandResult } from "../command_result.mjs";
 import { DECK_TYPE_TEMPLATES, STYLE_PRESETS, VERSIONS_DIR, initBundle } from "../../run-bundle/bundle_layout.mjs";
 
 // ---------------------------------------------------------------------------
 // Command: init
 // ---------------------------------------------------------------------------
+
+const STYLE_PRESETS_SORTED = () => [...STYLE_PRESETS].sort();
+const DECK_TYPES_SORTED = () => Object.keys(DECK_TYPE_TEMPLATES).sort();
+
+function renderInitText(result) {
+  const lines = [`✓ Initialized ${result.facts.resolved}`];
+  for (const line of result.facts.log) lines.push(`  - ${line}`);
+  lines.push("  production_identity: unbound until the source workflow is selected and accepted by State");
+  lines.push(`\nNext: ppt_flow.mjs status ${result.facts.v1Path}`);
+  return lines.join("\n");
+}
 
 /**
  * init — Create a conformant run bundle.
@@ -61,11 +73,12 @@ export function commandInit(deckDir, { deckType, style }) {
     return 1;
   }
 
-  console.log(`✓ Initialized ${resolved}`);
-  for (const line of log) console.log(`  - ${line}`);
-  console.log("  production_identity: unbound until the source workflow is selected and accepted by State");
-  console.log(
-    `\nNext: ppt_flow.mjs status ${join(resolved, VERSIONS_DIR, "v1")}`
-  );
+  const ownerResult = commandResult({
+    operation: "init",
+    state: "success",
+    effect: { deckDir: resolved, deckType, style },
+    facts: { resolved, log, v1Path: join(resolved, VERSIONS_DIR, "v1") },
+  });
+  console.log(renderInitText(ownerResult));
   return 0;
 }

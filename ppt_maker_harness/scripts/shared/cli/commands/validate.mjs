@@ -1,7 +1,12 @@
 import { join } from "node:path";
 import { CLI_ERROR_CODES, CLI_DIAGNOSTIC_SCHEMA, createCliNext, emitCliError, projectProblemFactsDiagnostic } from "../cli_error.mjs";
 import { PPT_FLOW_ENTRY, emitFailed, resolveRunAdapter, targetImage2Operations } from "../command_support.mjs";
+import { commandResult } from "../command_result.mjs";
 import { SLIDE_SPECS_NAME } from "../../run-bundle/bundle_layout.mjs";
+
+function renderValidateText(result) {
+  return `✓ Target Page Image ${result.facts.workflow} receipt validated: ${result.facts.slides} slide(s)`;
+}
 
 export async function commandValidate(runDir) {
   const route = await resolveRunAdapter(runDir, "ppt_flow.validate.identity");
@@ -17,7 +22,13 @@ export async function commandValidate(runDir) {
   try {
     // Stage 2: source/state identity binding.
     const source = operations.resolveSource(route.run_dir);
-    console.log(`✓ Target Page Image ${route.workflow} receipt validated: ${source.receipt.slides.length} slide(s)`);
+    const result = commandResult({
+      operation: "validate",
+      state: "success",
+      effect: { workflow: route.workflow, slides: source.receipt.slides.length },
+      facts: { workflow: route.workflow, slides: source.receipt.slides.length },
+    });
+    console.log(renderValidateText(result));
     return 0;
   } catch (error) {
     if (error?.message === "TARGET_SOURCE_STATE_IDENTITY_MISMATCH") {

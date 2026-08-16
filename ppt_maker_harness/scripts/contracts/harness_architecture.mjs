@@ -36,6 +36,7 @@ export const FOUNDATION_METHOD_MODULE_ADJACENCY = Object.freeze({
 export const PUBLIC_SHARED_INTERFACES = Object.freeze([
   "shared/cli/cli_bootstrap.mjs",
   "shared/cli/cli_error.mjs",
+  "shared/cli/command_result.mjs",
   "shared/cli/command_support.mjs",
   "shared/cli/commands/build.mjs",
   "shared/cli/commands/doctor.mjs",

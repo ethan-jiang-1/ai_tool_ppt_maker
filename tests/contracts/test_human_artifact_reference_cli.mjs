@@ -196,7 +196,7 @@ describe("human artifact reference CLI", () => {
       const stateBefore = readFileSync(join(deck, "_state", "state.yaml"));
       const result = flow(["image2", "artifact-view", runDir]);
       expect(result.status, result.stderr).toBe(0);
-      expect(JSON.parse(result.stdout)).toEqual({
+      expect(JSON.parse(result.stdout)).toMatchObject({
         run_dir: runDir,
         workflow: "pure",
         artifact_view: paths.human_navigation_index,
@@ -267,7 +267,7 @@ describe("human artifact reference CLI", () => {
 
       const result = flow(["image2", "artifact-view", runDir]);
       expect(result.status, result.stderr).toBe(0);
-      expect(JSON.parse(result.stdout)).toEqual({
+      expect(JSON.parse(result.stdout)).toMatchObject({
         run_dir: runDir,
         workflow: "pure",
         artifact_view: paths.human_navigation_index,
@@ -354,7 +354,7 @@ describe("human artifact reference CLI", () => {
       const stateBefore = readFileSync(join(deck, "_state", "state.yaml"));
       const result = flow(["image2", "artifact-view", runDir]);
       expect(result.status, result.stderr).toBe(0);
-      expect(JSON.parse(result.stdout)).toEqual({
+      expect(JSON.parse(result.stdout)).toMatchObject({
         run_dir: runDir,
         workflow: "pure",
         artifact_view: paths.human_navigation_index,

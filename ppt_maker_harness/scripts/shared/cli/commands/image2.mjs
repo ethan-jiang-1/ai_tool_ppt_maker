@@ -1,4 +1,5 @@
 import { CLI_ERROR_CODES, CLI_DIAGNOSTIC_SCHEMA, createCliNext, emitCliError, registerCliJsonReport } from "../cli_error.mjs";
+import { commandReport } from "../command_result.mjs";
 import {
   PAGE_IMAGE_OPERATIONS,
   emitUsage,
@@ -31,13 +32,17 @@ async function commandTargetPageImageImage2(operation, route, opts = {}) {
   try {
     if (operation === "artifact-view") {
       const output = await rebuildTargetPageImageArtifactView(route);
-      const result = {
-        run_dir: output.run_dir,
-        workflow: output.workflow,
-        artifact_view: output.path,
-        human_navigation_root: output.root,
-        ...(output.pending_successor ? { next_action: output.pending_successor.next_action } : {}),
-      };
+      const result = commandReport({
+        operation: "image2",
+        effect: { artifact_view: output.path },
+        fields: {
+          run_dir: output.run_dir,
+          workflow: output.workflow,
+          artifact_view: output.path,
+          human_navigation_root: output.root,
+          ...(output.pending_successor ? { next_action: output.pending_successor.next_action } : {}),
+        },
+      });
       console.log(JSON.stringify(result, null, 2));
       return 0;
     }

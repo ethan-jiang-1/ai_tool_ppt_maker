@@ -9,6 +9,10 @@ import {
   PPT_FLOW_COMMAND_INVENTORY,
   parseCliErrorLine,
 } from "../../ppt_maker_harness/scripts/shared/cli/cli_error.mjs";
+import {
+  COMMAND_CONTRACTS,
+  validateCommandContracts,
+} from "../../ppt_maker_harness/scripts/shared/cli/command_result.mjs";
 
 const ENV_CHECK = "ppt_maker_harness/scripts/00-setup/env-check.mjs";
 const PPT_FLOW = "ppt_maker_harness/scripts/ppt_flow.mjs";
@@ -84,10 +88,11 @@ describe("command-surface entry seams", () => {
     }
   });
 
-  it("keeps the twelve-command normal entry and accurately names verification tiers", () => {
-    expect(PPT_FLOW_COMMAND_INVENTORY).toEqual([
-      "doctor", "init", "status", "validate", "build", "refresh", "slides", "new-version", "test", "state", "style-master", "image2",
-    ]);
+  it("keeps the closed audited command inventory entry and accurately names verification tiers", () => {
+    expect(PPT_FLOW_COMMAND_INVENTORY.length).toBeGreaterThan(0);
+    expect(new Set(PPT_FLOW_COMMAND_INVENTORY).size).toBe(PPT_FLOW_COMMAND_INVENTORY.length);
+    const contracts = validateCommandContracts({ contracts: COMMAND_CONTRACTS, inventory: PPT_FLOW_COMMAND_INVENTORY });
+    expect(contracts.issues, contracts.issues.join("; ")).toEqual([]);
     const help = run(PPT_FLOW, ["--help"]);
     expect(help.status, help.stderr).toBe(0);
     expect(help.stdout).toContain("test");

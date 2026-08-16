@@ -292,9 +292,13 @@ export function sanitizeCliDiagnostic(input, { fallbackOnInvalid = true } = {}) 
     const invocation = sanitizeInvocation(input.delegated.invocation, state);
     const childCode = CODE_VALUES.has(input.delegated.child_code) ? input.delegated.child_code : undefined;
     const childWhere = boundedString(input.delegated.child_where, CLI_BOUNDS.whereChars, state, { safe: true });
+    const childStatus = Number.isSafeInteger(input.delegated.child_status) && input.delegated.child_status > 0
+      ? input.delegated.child_status
+      : undefined;
     if (invocation) delegated.invocation = invocation;
     if (childCode) delegated.child_code = childCode;
     if (childWhere) delegated.child_where = childWhere;
+    if (childStatus !== undefined) delegated.child_status = childStatus;
     if (Object.keys(delegated).length) out.delegated = delegated;
   }
 
@@ -820,7 +824,7 @@ export function normalizeDelegatedExit(rawCode, childError) {
   return code;
 }
 
-export function buildDelegatedDiagnostic({ invocation, childError, category, stage, operation, next, overflow = false }) {
+export function buildDelegatedDiagnostic({ invocation, childError, category, stage, operation, next, overflow = false, childStatus = undefined }) {
   // A complete child envelope is the producer for its own recovery action.
   // Truncated capture cannot establish that the final child envelope is whole.
   const child = !overflow && childError?.diagnostic && hasSupportedCliDiagnostic(childError)
@@ -830,6 +834,7 @@ export function buildDelegatedDiagnostic({ invocation, childError, category, sta
     invocation,
     ...(childError?.code ? { child_code: childError.code } : {}),
     ...(childError?.where ? { child_where: childError.where } : {}),
+    ...(childStatus !== undefined ? { child_status: childStatus } : {}),
   };
   if (child) {
     return sanitizeCliDiagnostic({

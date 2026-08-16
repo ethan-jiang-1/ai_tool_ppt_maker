@@ -127,6 +127,11 @@ shared_contracts:
     field: schema
     anchors:
       - scripts/contracts/cli_return_audit.mjs#CLI_RETURN_AUDIT_SCHEMA
+  - name: command-result
+    value: pptmaker-command-result
+    field: schema
+    anchors:
+      - scripts/shared/cli/command_result.mjs#COMMAND_RESULT_SCHEMA
   - name: source-test-ownership
     value: pptmaker-source-test-ownership
     field: schema

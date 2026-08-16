@@ -40,6 +40,7 @@ export async function commandTest() {
         invocation: { program: "npm", args: ["test"] },
         overflow: captured.overflow,
         operation: "test",
+        childStatus: code,
         next: createCliNext("edit_source", {
           default: "Inspect the test failures in a direct test run, fix source code or tests, then rerun.",
           invocation: { program: "npm", args: ["test"] },
@@ -47,5 +48,5 @@ export async function commandTest() {
       })
     );
   }
-  return code;
+  return code === 0 ? 0 : 1;
 }

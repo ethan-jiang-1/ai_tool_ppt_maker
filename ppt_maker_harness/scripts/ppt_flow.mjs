@@ -34,6 +34,11 @@ import {
   exitWithCode,
 } from "./shared/cli/command_support.mjs";
 
+import {
+  COMMAND_CONTRACTS,
+  renderContractBlock,
+} from "./shared/cli/command_result.mjs";
+
 const __filename = fileURLToPath(import.meta.url);
 
 const STYLE_PRESETS_SORTED = () => [...STYLE_PRESETS].sort();
@@ -77,6 +82,7 @@ Examples:
       "--probe-vendors",
       "Add Image2 presence and live-probe every resolved vendor (not --smoke)"
     )
+    .addHelpText("after", renderContractBlock(COMMAND_CONTRACTS.doctor))
     .action(async (opts) => {
       if (opts.smoke && opts.probeVendors) {
         exitUsage(
@@ -120,6 +126,7 @@ Examples:
       "--style <style>",
       `Style preset: ${STYLE_PRESETS_SORTED().join(", ")}`
     )
+    .addHelpText("after", renderContractBlock(COMMAND_CONTRACTS.init))
     .action(async (deckDir, opts) => {
       const { commandInit } = await import("./shared/cli/commands/init.mjs");
       const code = commandInit(deckDir, {
@@ -138,6 +145,7 @@ Examples:
       "Path to version dir (e.g., deck_xxx/3_versions/v1)"
     )
     .option("--json", "Output machine-readable JSON")
+    .addHelpText("after", renderContractBlock(COMMAND_CONTRACTS.status))
     .action(async (runDir, opts) => {
       if (opts.json) setCliOutputMode("json");
       const { commandStatus } = await import("./shared/cli/commands/status.mjs");
@@ -150,6 +158,7 @@ Examples:
     .command("validate")
     .description("Validate slide specs before image generation")
     .argument("<run_dir>", "Path to version dir")
+    .addHelpText("after", renderContractBlock(COMMAND_CONTRACTS.validate))
     .action(async (runDir) => {
       const { commandValidate } = await import("./shared/cli/commands/validate.mjs");
       const code = await commandValidate(runDir);
@@ -161,6 +170,7 @@ Examples:
     .command("build")
     .description("Build the complete final deck")
     .argument("<run_dir>", "Path to version dir")
+    .addHelpText("after", renderContractBlock(COMMAND_CONTRACTS.build))
     .action(async (runDir) => {
       const { commandBuild } = await import("./shared/cli/commands/build.mjs");
       const code = await commandBuild(runDir);
@@ -179,6 +189,7 @@ Examples:
     )
     .option("--only <ids>", "For title/visual: comma-separated slide IDs")
     .option("--all", "For title/visual: explicitly select all pages")
+    .addHelpText("after", renderContractBlock(COMMAND_CONTRACTS.refresh))
     .action(async (runDir, opts) => {
       if (!["title", "visual", "notes"].includes(opts.kind)) {
         exitUsage("ppt_flow.refresh.kind", "--kind must be title, visual, or notes.", "Pass a supported refresh kind");
@@ -208,6 +219,7 @@ Examples:
     .option("--apply", "Apply the confirmed preview")
     .option("--plan-sha256 <hash>", "Exact hash from the confirmed preview; required for narrative publication")
     .option("--json", "Output one machine-readable report")
+    .addHelpText("after", renderContractBlock(COMMAND_CONTRACTS.slides))
     .action(async (subcommand, runDir, selectors, opts) => {
       const allowed = new Set(["list", "resolve", "normalize", "move", "delete", "insert", "narrative-plan", "apply-plan"]);
       if (!allowed.has(subcommand)) {
@@ -257,6 +269,7 @@ Examples:
     .description("Create a clean downstream version")
     .argument("<run_dir>", "Path to source version dir")
     .option("--name <name>", "Explicit version name, e.g. v3")
+    .addHelpText("after", renderContractBlock(COMMAND_CONTRACTS["new-version"]))
     .action(async (runDir, opts) => {
       const { commandNewVersion } = await import("./shared/cli/commands/new-version.mjs");
       const code = await commandNewVersion(runDir, {
@@ -269,6 +282,7 @@ Examples:
   program
     .command("test")
     .description("Run bounded core verification")
+    .addHelpText("after", renderContractBlock(COMMAND_CONTRACTS.test))
     .action(async () => {
       const { commandTest } = await import("./shared/cli/commands/test.mjs");
       const code = await commandTest();
@@ -283,6 +297,7 @@ Examples:
     .option("--json", "JSON output")
     .option("--validate-state", "Validate persisted state and evidence without writing")
     .option("--repair-known-execution-mismatch", "Repair only the exact BUG-066 execution-mismatch state signature")
+    .addHelpText("after", renderContractBlock(COMMAND_CONTRACTS.state))
     .action(async (runDir, opts) => {
       const { commandState } = await import("./shared/cli/commands/state.mjs");
       await commandState(runDir, opts);
@@ -300,6 +315,7 @@ Examples:
     .option("--candidate-id <slot-id>", "Eligible reviewed candidate ID for proceed")
     .option("--reason <text>", "Bounded human reason for exact unknown-plan abandonment")
     .addHelpText("after", "\ninspect -> plan -> authorize -> generate -> review -> accept\nA zero-generated local plan skips authorize and generate.\n")
+    .addHelpText("after", renderContractBlock(COMMAND_CONTRACTS["style-master"]))
     .action(async (operation, runDir, opts) => {
       const { commandStyleMaster } = await import("./shared/cli/commands/style-master.mjs");
       const code = await commandStyleMaster(operation, runDir, opts);
@@ -319,6 +335,7 @@ Examples:
     .option("--decision <decision>", "Pilot: proceed, repair, or redirect; Complete Page Review: proceed or repair")
     .option("--json", "Output one machine-readable success report")
     .addHelpText("after", "\nartifact-view rebuilds only the current Human Navigation Path; it performs no provider work or state/task-projection write.\nplan -> pilot | expansion -> authorize -> generate (one item) -> pilot-review/pilot-accept | Complete Page Review -> build\nPilot accepts repeated exact --slide-id values; all paid work requires exact plan and batch hashes.\n")
+    .addHelpText("after", renderContractBlock(COMMAND_CONTRACTS.image2))
     .action(async (operation, runDir, opts) => {
       if (opts.json) setCliOutputMode("json");
       const { commandImage2 } = await import("./shared/cli/commands/image2.mjs");
@@ -347,7 +364,7 @@ Examples:
         where: "ppt_flow.main",
         diagnostic: { schema: CLI_DIAGNOSTIC_SCHEMA, category: "usage", operation: "parse-command", next: createCliNext("fix_arguments", { invocation: { program: "node", args: [__filename, "--help"] }, default: "Inspect --help, correct the command arguments, then rerun." }) },
       },
-      typeof err?.exitCode === "number" && err.exitCode !== 0 ? err.exitCode : 1
+      1
     );
   }
 }

@@ -1,8 +1,17 @@
 import { CLI_ERROR_CODES, CLI_DIAGNOSTIC_SCHEMA, createCliNext, emitCliError } from "../cli_error.mjs";
 import { emitCurrentProtocolError, emitFailed, emitUsage, pageImageDiagnosticReasonKind, resolveRunAdapter, targetImage2Operations } from "../command_support.mjs";
+import { commandResult } from "../command_result.mjs";
 
 // Command: refresh
 // ---------------------------------------------------------------------------
+
+function renderNotesText(result) {
+  return `✓ Target Page Image notes refreshed: ${result.facts.notesInjected} slide(s)`;
+}
+
+function renderFramedText(result) {
+  return `✓ Target Framed refresh delivered without provider submission: ${result.facts.assemblyPath}`;
+}
 
 async function commandPageImageRefresh(route, {
   kind,
@@ -22,7 +31,13 @@ async function commandPageImageRefresh(route, {
       if (kind === "notes") {
         if (only || all) return emitUsage("ppt_flow.refresh.target.notes", "Target Page Image notes refresh accepts no slide selectors", "Rerun notes against the current shared target delivery.");
         const result = await operations.refreshNotes(route.run_dir);
-        console.log(`✓ Target Page Image notes refreshed: ${result.delivery.notes.notesInjected} slide(s)`);
+        const ownerResult = commandResult({
+          operation: "refresh",
+          state: "success",
+          effect: { kind, notesInjected: result.delivery.notes.notesInjected },
+          facts: { kind, notesInjected: result.delivery.notes.notesInjected },
+        });
+        console.log(renderNotesText(ownerResult));
         return 0;
       }
       if (route.workflow !== "framed") {
@@ -32,7 +47,13 @@ async function commandPageImageRefresh(route, {
       if (!only && !all) return emitUsage("ppt_flow.refresh.target.title", "Framed header overlay refresh requires --only or --all", "Select exact current Framed stable IDs before a provider-free refresh.");
       const slideIds = only ? only.split(",").map((id) => id.trim()).filter(Boolean) : null;
       const result = await operations.refreshFramedText(route.run_dir, { slideIds });
-      console.log(`✓ Target Framed refresh delivered without provider submission: ${result.delivery.assembly.path}`);
+      const ownerResult = commandResult({
+        operation: "refresh",
+        state: "success",
+        effect: { kind, assemblyPath: result.delivery.assembly.path },
+        facts: { kind, assemblyPath: result.delivery.assembly.path },
+      });
+      console.log(renderFramedText(ownerResult));
       return 0;
     } catch (error) {
       if (error?.code === "current_protocol_invalid") {
