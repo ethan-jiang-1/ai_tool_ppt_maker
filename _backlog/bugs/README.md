@@ -1,6 +1,6 @@
 # Active Bugs — 活跃 bug 列表
 
-> 最后更新: 2026-08-16 | `_backlog/bugs/` — 活跃 bug 在此
+> 最后更新: 2026-08-19 | `_backlog/bugs/` — 活跃 bug 在此
 >
 > **bug 编号归档索引在 `_done/_fixed_bugs/`；新 bug 必须取所有已分配 BUG 编号后的下一个值，避免与活跃条目冲突。** 本文件只列活跃 bug。
 
@@ -17,8 +17,6 @@
 
 | ID | Severity | Title |
 |----|----------|-------|
-| [BUG-071](BUG-071-pilot-review-masks-reconcile-after-store-lock.md) | P1 | `pilot-review` 的 store-lock 诊断没有区分生成进行中与需要 reconcile 的提交 |
-| [BUG-072](BUG-072-progressive-state-cursor-does-not-advance.md) | P1 | Progressive Page Image 已进入 pilot review，但 State 仍报告最早的内容编写节点 |
 
 ---
 
@@ -26,7 +24,7 @@
 
 ## 类别分布
 
-P0: 0 | P1: 5 | P2: 1 | P3: 0
+P0: 0 | P1: 3 | P2: 1 | P3: 0
 
 ---
 

@@ -2108,6 +2108,115 @@ export function recordTargetProgressiveAuthorizeCliHandoff(deckDir, {
   });
 }
 
+function progressiveCheckpointHandoffFailure(code) {
+  const error = new Error(code);
+  error.code = code;
+  throw error;
+}
+
+/**
+ * Advance the durable create-deck cursor to the Controller node matching the
+ * raw owner's current checkpoint action, bound to a successful image2
+ * mutation transition. This handoff is a Controller projection of owner facts:
+ * it marks every active node strictly before the checkpoint whose record is
+ * absent or in_progress as completed (their purpose is proven by the owner
+ * inspection that produced the checkpoint), records the checkpoint node as
+ * in_progress (waiting_for for human gates), and never fabricates per-node
+ * evidence. It is invoked only from the image2 command path; observation never
+ * calls it.
+ */
+export function recordTargetProgressiveCheckpointCliHandoff(deckDir, {
+  runVersion,
+  runDir,
+  checkpoint_node,
+  action_id = null,
+  plan_hash = null,
+  batch_hash = null,
+  requires_human = false,
+  waiting_for = null,
+  expectedStateSha = null,
+  playbookDir = DEFAULT_PLAYBOOK_DIR,
+} = {}) {
+  for (const [label, value] of Object.entries({ plan_hash, batch_hash })) {
+    if (value != null && !SHA256_RE.test(value)) throw new TypeError(`${label} must be a lowercase SHA-256`);
+  }
+  const nodeId = checkpoint_node == null ? null : String(checkpoint_node);
+  if (!nodeId || !/^[a-z][a-z0-9-]{0,127}$/.test(nodeId)) {
+    progressiveCheckpointHandoffFailure("TARGET_PROGRESSIVE_CHECKPOINT_NODE_INVALID");
+  }
+  const context = targetEvidenceContext(deckDir, { runVersion, runDir, purpose: "execute" });
+  if (context.state.playbook !== "create-deck" ||
+    !validTargetEvidenceRecord(context.record, context.exactVersion) ||
+    context.record.source_epoch !== context.identityRecord.source_epoch ||
+    context.record.workflow !== context.inspection.workflow) {
+    progressiveCheckpointHandoffFailure("TARGET_PROGRESSIVE_CHECKPOINT_STATE_INVALID");
+  }
+  const workflow = context.record.workflow;
+  const index = buildPlaybookIndex(playbookDir);
+  if (!validatePlaybookIndex(index).valid) {
+    progressiveCheckpointHandoffFailure("TARGET_PROGRESSIVE_CHECKPOINT_MANIFEST_INVALID");
+  }
+  const active = controllerActiveNodeIds(index, "create-deck", workflow);
+  const checkpointIndex = active.indexOf(nodeId);
+  if (checkpointIndex < 0) {
+    progressiveCheckpointHandoffFailure("TARGET_PROGRESSIVE_CHECKPOINT_NODE_UNKNOWN");
+  }
+  const currentIndex = active.indexOf(context.state.current_node);
+  if (currentIndex < 0 || currentIndex > checkpointIndex) {
+    progressiveCheckpointHandoffFailure("TARGET_PROGRESSIVE_CHECKPOINT_NODE_CONFLICT");
+  }
+  const base = Object.freeze({
+    ok: true,
+    run_version: context.exactVersion,
+    workflow,
+    node_id: nodeId,
+    action_id: action_id || null,
+  });
+  if (currentIndex === checkpointIndex) {
+    return Object.freeze({
+      ...base,
+      status: "current",
+      from_node: context.state.current_node,
+      to_node: nodeId,
+    });
+  }
+
+  const next = structuredClone(context.state);
+  delete next.durable_state_present;
+  delete next._healed;
+  delete next._heal_pending;
+  let completedCount = 0;
+  for (let i = 0; i < checkpointIndex; i += 1) {
+    const prior = active[i];
+    const record = next.nodes?.[prior];
+    if (!record || record.status === "in_progress") {
+      setNodeStatus(next, prior, "completed", {}, { runVersion: context.exactVersion });
+      completedCount += 1;
+    }
+  }
+  const extra = {};
+  if (requires_human && waiting_for) extra.waiting_for = String(waiting_for);
+  setNodeStatus(next, nodeId, "in_progress", extra, { runVersion: context.exactVersion });
+  writeState(deckDir, next, { expectedStateSha: expectedStateSha ?? context.stateSha, updatedAt: nowIso() });
+  appendHistory(deckDir, {
+    type: "page_image_progressive_checkpoint_cli_handoff",
+    run_version: context.exactVersion,
+    workflow,
+    node_id: nodeId,
+    action_id: action_id || null,
+    ...(plan_hash ? { plan_sha256: plan_hash } : {}),
+    ...(batch_hash ? { batch_sha256: batch_hash } : {}),
+    ...(requires_human ? { requires_human: true } : {}),
+  });
+  return Object.freeze({
+    ...base,
+    status: "advanced",
+    from_node: context.state.current_node,
+    to_node: nodeId,
+    completed_count: completedCount,
+  });
+}
+
 function styleMasterAuthorizeNodeId(workflow) {
   if (!["framed", "pure"].includes(workflow)) return null;
   return `authorize-target-${workflow}-style-master`;

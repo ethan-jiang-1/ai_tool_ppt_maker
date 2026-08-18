@@ -61,6 +61,7 @@ export const CLI_NEXT_ACTIONS = Object.freeze([
   "plan_style_master_successor",
   "export",
   "report_internal",
+  "wait_then_reread",
 ]);
 
 export const CLI_BOUNDS = Object.freeze({

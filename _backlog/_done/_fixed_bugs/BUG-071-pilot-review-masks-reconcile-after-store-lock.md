@@ -1,6 +1,6 @@
 # BUG-071: `pilot-review` 的 store-lock 诊断没有区分生成进行中与需要 reconcile 的提交
 
-> 严重级别: P1 | 发现: 2026-08-16 | 状态: 活跃
+> 严重级别: P1 | 发现: 2026-08-16 | 状态: 已修复 (2026-08-19)
 
 ## 现场结论与范围校正
 
@@ -95,3 +95,15 @@ writer、无 reconcileable attempt 的异常 contention 才应要求报告/修�
 inspection 的状态区分，并增加“真实 live writer”“无 live writer + unresolved attempt”“异常
 lock、无 unresolved attempt”三条分支覆盖。回归断言需确保只有第二条允许 exact reconcile，
 并且任何分支都不能诱导删除 lock 或重发 provider request。
+
+## 修复记录
+
+- **2026-08-19** 由 OpenSpec change `progressive-pilot-state-and-diagnostics`（归档于
+  `openspec/changes/archive/2026-08-19-progressive-pilot-state-and-diagnostics/`）修复：
+  - store lock 携带 `owner.json`（pid/started_at/scope）并做存活判定（`process.kill(pid,0)`）；
+  - raw-owner 锁包装按三分支 enrich `next_action`（wait / exact reconcile selector / anomaly）；
+  - CLI failure mapping 三分支：`wait_then_reread`（新 closed action）/ `reconcile` + 精确
+    `attempt_sha256` / `report_internal`；任何分支 hint 禁止删除 lock、重建 batch、provider
+    retry 或重发 item；
+  - `image2 reconcile` 是唯一允许的证明式死锁 reclaim 路径。
+  - 回归：`tests/shared/image2/test_progressive_store_lock_diagnostics.mjs`（7 用例）。

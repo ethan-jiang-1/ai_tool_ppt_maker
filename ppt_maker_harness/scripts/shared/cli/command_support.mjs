@@ -886,6 +886,65 @@ export function image2CapabilityFailureDiagnostic({ common, route, error, reason
   return null;
 }
 
+const STORE_LOCK_FORBIDDEN_HINT = "Re-read the exact raw-owner facts after confirming no other writer process is active; do not delete the lock, rebuild the batch, retry the provider request, or resubmit the item.";
+
+/**
+ * Three-branch failure mapping for `progressive_raw_store_locked`. Only the
+ * dead-writer-with-unresolved-attempt branch may offer `reconcile`; a live or
+ * unprovable writer waits; a proven-dead writer without a reconcilable attempt
+ * is reported as an anomaly. No branch suggests lock deletion or resubmission.
+ */
+function progressiveStoreLockedFailure(error, common) {
+  const ownerAction = error?.next_action || null;
+  const lockOwner = error?.details?.lock_owner || null;
+  const waitSelector = ownerAction?.action_id === "wait_progressive_raw_completion" ||
+    lockOwner?.alive === true ||
+    lockOwner?.alive == null;
+  if (waitSelector) {
+    return {
+      code: CLI_ERROR_CODES.FAILED,
+      message: "Another progressive raw-owner writer holds the store lock; re-read exact owner facts after it exits.",
+      hint: STORE_LOCK_FORBIDDEN_HINT,
+      diagnostic: {
+        ...common,
+        category: "gate",
+        ...(lockOwner?.pid ? { subject: { kind: "progressive_raw_lock", id: String(lockOwner.pid) } } : {}),
+        next: createCliNext("wait_then_reread", {
+          requiresHuman: false,
+          default: "Wait for the active raw-owner writer to exit, then re-run the same command to re-read exact owner facts.",
+        }),
+      },
+    };
+  }
+  if (ownerAction?.action_id === "reconcile_progressive_raw_attempt" && ownerAction?.attempt_sha256) {
+    return {
+      code: CLI_ERROR_CODES.FAILED,
+      message: "A persisted provider submission must be reconciled before progressive work can continue.",
+      hint: `Run image2 reconcile with the exact plan and attempt selectors; ${STORE_LOCK_FORBIDDEN_HINT}`,
+      diagnostic: {
+        ...common,
+        category: "artifact",
+        subject: { kind: "progressive_raw_attempt", id: ownerAction.attempt_sha256 },
+        next: createCliNext("reconcile", {
+          default: "Reconcile the exact submitted attempt without resubmitting it.",
+        }),
+      },
+    };
+  }
+  return {
+    code: CLI_ERROR_CODES.FAILED,
+    message: "The progressive raw-owner store lock has no live writer and no reconcilable attempt.",
+    hint: STORE_LOCK_FORBIDDEN_HINT,
+    diagnostic: {
+      ...common,
+      category: "internal",
+      next: createCliNext("report_internal", {
+        default: "Report the unexplained progressive raw-owner lock with its exact run, plan, and lock-owner facts.",
+      }),
+    },
+  };
+}
+
 export function targetPageImageFailure(operation, route, error) {
   const reason = pageImageDiagnosticReasonKind(error?.code);
   const common = {
@@ -913,6 +972,9 @@ export function targetPageImageFailure(operation, route, error) {
   if (capabilityFailure) return capabilityFailure;
 
   if (reason.startsWith("progressive_raw")) {
+    if (reason === "progressive_raw_store_locked") {
+      return progressiveStoreLockedFailure(error, common);
+    }
     if (reason === "progressive_raw_attempt_chain_invalid") {
       return {
         code: CLI_ERROR_CODES.FAILED,
@@ -1852,6 +1914,47 @@ export async function refreshProgressiveControllerTaskProjection(runDir, { workf
   if (!eligibility.eligible) return Object.freeze({ status: "not-applicable" });
   const { refreshPageProductionTaskProjection } = await import("../../shared/workflow/page_production_task_projection.mjs");
   return refreshPageProductionTaskProjection({ runDir, inspection, state: eligibility.state });
+}
+
+/**
+ * Advance the durable create-deck cursor to the Controller node matching the
+ * raw owner's current checkpoint after a successful image2 mutation. The
+ * checkpoint comes from the shared owner-action mapping; a hard-stop
+ * inspection or a checkpoint without a Controller node skips the handoff
+ * without failing the already-successful operation. Shared by the image2
+ * command path and the cursor integration tests.
+ */
+export async function advanceProgressiveControllerCheckpoint(route, { workflowInspection = null } = {}) {
+  const inspection = workflowInspection || (await import("../../shared/workflow/inspect_workflow.mjs"))
+    .inspectWorkflow({ runDir: route.run_dir });
+  const { progressiveControllerCheckpoint } = await import("../../shared/workflow/progressive_controller_task_projection_eligibility.mjs");
+  let checkpoint = null;
+  try {
+    checkpoint = progressiveControllerCheckpoint(inspection);
+  } catch {
+    return Object.freeze({ status: "skipped", reason: "checkpoint-unavailable" });
+  }
+  if (!checkpoint?.controller_node) {
+    return Object.freeze({ status: "skipped", reason: "no-controller-node" });
+  }
+  const action = inspection?.primary_action || {};
+  const planHash = typeof action.plan_hash === "string" && PAGE_IMAGE_HASH_RE.test(action.plan_hash) ? action.plan_hash : null;
+  const batchHash = typeof action.batch_hash === "string" && PAGE_IMAGE_HASH_RE.test(action.batch_hash) ? action.batch_hash : null;
+  const planShort = planHash ? planHash.slice(0, 8) : null;
+  const batchShort = batchHash ? batchHash.slice(0, 8) : null;
+  const { recordTargetProgressiveCheckpointCliHandoff } = await import("../../shared/state/state.mjs");
+  const handoff = recordTargetProgressiveCheckpointCliHandoff(route.deck_dir, {
+    runDir: route.run_dir,
+    checkpoint_node: checkpoint.controller_node,
+    action_id: checkpoint.action_id,
+    plan_hash: planHash,
+    batch_hash: batchHash,
+    requires_human: checkpoint.requires_human,
+    waiting_for: checkpoint.requires_human
+      ? `Human decision on ${checkpoint.action_id}${planShort ? ` for plan ${planShort}` : ""}${batchShort ? ` batch ${batchShort}` : ""}`
+      : null,
+  });
+  return Object.freeze({ status: handoff.status, handoff, checkpoint });
 }
 
 export function artifactReferenceEntry({ label, artifactType, purpose, locator, kind, sha256 }) {

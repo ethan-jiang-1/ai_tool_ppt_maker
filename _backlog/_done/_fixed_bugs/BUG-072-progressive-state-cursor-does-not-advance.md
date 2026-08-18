@@ -1,6 +1,6 @@
 # BUG-072: Progressive Page Image 已进入 pilot review，但 State 仍报告最早的内容编写节点
 
-> 严重级别: P1 | 发现: 2026-08-16 | 状态: 活跃
+> 严重级别: P1 | 发现: 2026-08-16 | 状态: 已修复 (2026-08-19)
 
 ## 症状
 
@@ -109,3 +109,20 @@ observation 写入新的 lifecycle state；正确更新应绑定到已有的 suc
 pilot review，然后断言 cursor 为各自 `review-target-*-pilot`、上游 authoring nodes 不再 eligible、
 以及 workflow inspection 和 task projection 一致。再覆盖 `pilot-accept proceed` 后 cursor 正确
 移动到 expansion，而不是跳回 content authoring。
+
+## 修复记录
+
+- **2026-08-19** 由 OpenSpec change `progressive-pilot-state-and-diagnostics`（归档于
+  `openspec/changes/archive/2026-08-19-progressive-pilot-state-and-diagnostics/`）修复：
+  - 新增 State CLI handoff `recordTargetProgressiveCheckpointCliHandoff`：每次成功 image2
+    mutation 后沿 active Controller 节点序单调推进 durable cursor 到 owner checkpoint 节点
+    （checkpoint 节点恒 `in_progress`，human-gate 附 `waiting_for`），并把 checkpoint 之前
+    缺失/在途节点投影为 `completed`——满足 `getEligibleNextNodes` 的位置无关语义，上游
+    authoring 节点不再 eligible；
+  - `image2.mjs` 每个成功操作后：inspectWorkflow → checkpoint handoff（authorize 先于既有
+    authorize handoff）→ task projection refresh（同一 inspection）；
+  - `state --json` / `status` / task projection 恢复同一 resume position；`pilot-accept
+    proceed` 后 cursor 到 `plan-target-*-expansion`；
+  - 观察命令（state/status）永不写 state；lock 失败不改变 cursor/节点/历史。
+  - 回归：`tests/shared/workflow/test_progressive_checkpoint_cursor.mjs`（3 用例，含 BUG-072
+    红色断言三项关系的 fixture 化）。

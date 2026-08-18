@@ -46,6 +46,7 @@ import {
   readHistoricalCutoverProgressiveRawScopeHead,
   readProgressiveRawPlanDirectRecords,
   readProgressiveRawScopeHead,
+  reclaimProgressiveRawPlanLockIfStale,
   stageProgressiveRawPlanContainer,
   withProgressiveRawPlanLock,
   writeHistoricalCutoverProgressiveRawItemAttempt,
@@ -814,14 +815,53 @@ async function withCurrentProgressiveRawPlanLock(runDir, {
   const current = requireCurrentPlan(loadPlanByHead(runDir, workflow), plan_hash);
   requireCurrentTaskMandate(current, task_mandate);
   requireCurrentPlan(current, plan_hash, expected_plan);
-  return withProgressiveRawPlanLock(runDir, {
-    plan_sha256: current.plan.sha256,
-    action: async () => {
-      const reloaded = requireCurrentPlan(loadPlanByHead(runDir, workflow), plan_hash);
-      requireCurrentTaskMandate(reloaded, task_mandate);
-      return ownerAction(requireCurrentPlan(reloaded, plan_hash, expected_plan));
-    },
-  });
+  try {
+    return await withProgressiveRawPlanLock(runDir, {
+      plan_sha256: current.plan.sha256,
+      action: async () => {
+        const reloaded = requireCurrentPlan(loadPlanByHead(runDir, workflow), plan_hash);
+        requireCurrentTaskMandate(reloaded, task_mandate);
+        return ownerAction(requireCurrentPlan(reloaded, plan_hash, expected_plan));
+      },
+    });
+  } catch (error) {
+    if (error?.code !== "progressive_raw_store_locked") throw error;
+    // Enrich the store-lock failure with the exact owner-side next action so
+    // the CLI can distinguish live writer / reconcilable attempt / anomaly.
+    const lockOwner = error?.details?.lock_owner || null;
+    const details = error?.details || {};
+    if (lockOwner && lockOwner.alive === true) {
+      fail("progressive_raw_store_locked", error.message, {
+        nextAction: action("wait_progressive_raw_completion", {
+          kind: "guide",
+          requires_human: false,
+          summary: "A live generation writer holds the raw-owner lock; re-read inspection after it exits.",
+        }),
+        details,
+      });
+    }
+    if (lockOwner && lockOwner.alive === false) {
+      let snapshot = null;
+      try {
+        snapshot = loadPlanByHead(runDir, workflow);
+      } catch {
+        // An unreadable snapshot keeps the original store-lock facts only.
+      }
+      const unresolved = snapshot ? unresolvedAction(snapshot) : null;
+      if (unresolved) {
+        fail("progressive_raw_store_locked", error.message, {
+          nextAction: unresolved,
+          details: { ...details, lock_owner: { ...lockOwner, anomaly: false } },
+        });
+      }
+      fail("progressive_raw_store_locked", error.message, {
+        details: { ...details, lock_owner: { ...lockOwner, anomaly: true } },
+      });
+    }
+    // Unprovable owner (missing/malformed record, race window): conservative
+    // wait; the CLI maps the original facts without a reconcile selector.
+    throw error;
+  }
 }
 
 function unresolvedAction(snapshot) {
@@ -1765,7 +1805,7 @@ async function reconcileHistoricalCutoverAttempt({
 export async function reconcileProgressiveRawAttempt({ runDir, workflow, plan_hash, attempt_sha256, expected_plan = null, lookup = null } = {}) {
   digest(plan_hash, "plan_hash");
   digest(attempt_sha256, "attempt_sha256");
-  return withProgressiveRawPlanLock(runDir, {
+  const reconcileOnce = () => withProgressiveRawPlanLock(runDir, {
     plan_sha256: plan_hash,
     action: async () => {
       const headState = loadScopeHeadState(runDir, workflow);
@@ -1867,6 +1907,16 @@ export async function reconcileProgressiveRawAttempt({ runDir, workflow, plan_ha
       });
     },
   });
+  try {
+    return await reconcileOnce();
+  } catch (error) {
+    if (error?.code !== "progressive_raw_store_locked") throw error;
+    // Only the reconcile path may reclaim a lock whose owner record proves the
+    // owning process is dead; the exact attempt selector is the work object.
+    const reclaimed = reclaimProgressiveRawPlanLockIfStale(runDir, { plan_sha256: plan_hash });
+    if (!reclaimed.reclaimed) throw error;
+    return await reconcileOnce();
+  }
 }
 
 /** Persist generic Pilot evidence only after every selected review tuple is attributable and current. */

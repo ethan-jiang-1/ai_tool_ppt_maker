@@ -1,6 +1,6 @@
 # Fixed Bugs Index — 已修复 bug 归档
 
-> 最后更新: 2026-08-16 | `_backlog/_done/_fixed_bugs/` — 已修复 bug 的归档目录。
+> 最后更新: 2026-08-19 | `_backlog/_done/_fixed_bugs/` — 已修复 bug 的归档目录。
 > 接收来自 [`../../bugs/`](../../bugs/) 的 bug。`_` 前缀 = coding agent 默认忽略。
 >
 > **本目录是 bug 编号的归档索引；新 bug 使用所有已分配 BUG 编号后的下一个值，避免与活跃条目冲突。**
@@ -83,6 +83,8 @@ bug 修完后从 `_backlog/bugs/` 通过 `git mv` 移入本目录：
 | [BUG-068](BUG-068-image2-plan-masks-visual-language-errors.md) | 2026-08-16 | `image2 plan` 已知 source defect 不再降级 internal（Change 1） |
 | [BUG-069](BUG-069-validate-conflates-source-and-state.md) | 2026-08-16 | `validate` 分离 source-valid/state-stale 投影（Change 3） |
 | [BUG-070](BUG-070-doctor-ready-does-not-reach-image2-authorize.md) | 2026-08-16 | doctor READY 与 exact authorize/generate 共享受限 startup env（Change 2） |
+| [BUG-071](BUG-071-pilot-review-masks-reconcile-after-store-lock.md) | 2026-08-19 | `pilot-review` store-lock 失败回执区分 live writer / unresolved attempt / 异常锁三分支（change: progressive-pilot-state-and-diagnostics） |
+| [BUG-072](BUG-072-progressive-state-cursor-does-not-advance.md) | 2026-08-19 | progressive checkpoint CLI handoff 单调推进 durable cursor，state/status/task projection 一致（change: progressive-pilot-state-and-diagnostics） |
 
 **Next available bug ID: BUG-073**
 

@@ -56,15 +56,18 @@ const STAGING_NAME_RE = /^(?:plan|record|materialization)-[A-Za-z0-9][A-Za-z0-9_
 const WORKFLOWS = new Set(["framed", "pure"]);
 
 export class ProgressiveRawStoreError extends Error {
-  constructor(code, message) {
+  constructor(code, message, options = null) {
     super(message);
     this.name = "ProgressiveRawStoreError";
     this.code = code;
+    if (options && typeof options === "object" && options.details != null) {
+      this.details = options.details;
+    }
   }
 }
 
-function fail(code, message) {
-  throw new ProgressiveRawStoreError(code, message);
+function fail(code, message, options = undefined) {
+  throw new ProgressiveRawStoreError(code, message, options);
 }
 
 function assertDigest(value, label) {
@@ -212,18 +215,84 @@ function writeBytesAtomic(pathname, bytes) {
   }
 }
 
+const LOCK_OWNER_FILE = "owner.json";
+
+function lockOwnerPath(lockPath) {
+  return join(lockPath, LOCK_OWNER_FILE);
+}
+
+/** Best-effort liveness probe. A reused PID can only cause a false "alive". */
+function processAlive(pid) {
+  if (!Number.isSafeInteger(pid) || pid <= 0) return false;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return error?.code === "EPERM";
+  }
+}
+
+/**
+ * Read lock-owner facts without ever treating an unprovable owner as dead.
+ * A missing or unreadable owner record is a conservative "alive" (null alive)
+ * so the diagnostic never fabricates an anomaly from a race window or a
+ * pre-metadata legacy lock.
+ */
+function readLockOwnerFacts(lockPath) {
+  let record = null;
+  let present = false;
+  try {
+    const bytes = readFileSync(lockOwnerPath(lockPath));
+    present = true;
+    const parsed = JSON.parse(bytes.toString("utf8"));
+    record = parsed && typeof parsed === "object" ? parsed : null;
+  } catch {
+    // ENOENT (missing/race) or malformed record: unprovable, never dead.
+    present = false;
+    record = null;
+  }
+  const pid = record && Number.isSafeInteger(record.pid) && record.pid > 0 ? record.pid : null;
+  return Object.freeze({
+    owner_record_present: present,
+    pid,
+    started_at: typeof record?.started_at === "string" ? record.started_at : null,
+    scope: typeof record?.scope === "string" ? record.scope : null,
+    alive: pid === null ? null : processAlive(pid),
+  });
+}
+
+function writeLockOwner(lockPath, scope) {
+  const owner = {
+    pid: process.pid,
+    started_at: new Date().toISOString(),
+    scope: typeof scope === "string" && scope ? scope : basename(lockPath),
+  };
+  writeBytesAtomic(lockOwnerPath(lockPath), canonicalBytes(owner));
+}
+
+/** Remove only a lock we provably own: its metadata file first, then the dir. */
+function cleanupExclusiveDirectoryLock(lockPath) {
+  try { rmSync(lockOwnerPath(lockPath), { force: true }); } catch { /* best effort cleanup */ }
+  try { rmdirSync(lockPath); } catch { /* Never remove an unproven lock. */ }
+}
+
 function withExclusiveDirectoryLock(lockPath, action) {
   mkdirSync(dirname(lockPath), { recursive: true, mode: 0o700 });
   try {
     mkdirSync(lockPath, { mode: 0o700 });
   } catch (error) {
-    if (error?.code === "EEXIST") fail("progressive_raw_store_locked", "another progressive raw-owner mutation is in progress for this exact scope");
+    if (error?.code === "EEXIST") {
+      fail("progressive_raw_store_locked", "another progressive raw-owner mutation is in progress for this exact scope", {
+        details: { lock_owner: readLockOwnerFacts(lockPath) },
+      });
+    }
     throw error;
   }
   try {
+    writeLockOwner(lockPath, basename(lockPath));
     return action();
   } finally {
-    try { rmdirSync(lockPath); } catch { /* Never remove an unproven lock. */ }
+    cleanupExclusiveDirectoryLock(lockPath);
   }
 }
 
@@ -232,13 +301,18 @@ async function withExclusiveDirectoryLockAsync(lockPath, action) {
   try {
     mkdirSync(lockPath, { mode: 0o700 });
   } catch (error) {
-    if (error?.code === "EEXIST") fail("progressive_raw_store_locked", "another progressive raw-owner mutation is in progress for this exact plan");
+    if (error?.code === "EEXIST") {
+      fail("progressive_raw_store_locked", "another progressive raw-owner mutation is in progress for this exact plan", {
+        details: { lock_owner: readLockOwnerFacts(lockPath) },
+      });
+    }
     throw error;
   }
   try {
+    writeLockOwner(lockPath, basename(lockPath));
     return await action();
   } finally {
-    try { rmdirSync(lockPath); } catch { /* Never remove an unproven lock. */ }
+    cleanupExclusiveDirectoryLock(lockPath);
   }
 }
 
@@ -513,6 +587,22 @@ export async function withProgressiveRawPlanLock(runDir, { plan_sha256, action }
   return withExclusiveDirectoryLockAsync(paths.plan_lock, async () => {
     return action();
   });
+}
+
+/**
+ * Prove-dead reclaim, used by the reconcile path only. When the plan lock's
+ * owner record proves the owning process is dead, remove that dead lock so the
+ * exact reconcile can proceed; an unprovable owner (missing/malformed record,
+ * alive pid) is never reclaimed.
+ */
+export function reclaimProgressiveRawPlanLockIfStale(runDir, { plan_sha256 } = {}) {
+  const paths = progressiveRawStorePaths(runDir, { plan_sha256 });
+  const facts = readLockOwnerFacts(paths.plan_lock);
+  if (!facts.owner_record_present || facts.alive !== false) {
+    return Object.freeze({ reclaimed: false, facts });
+  }
+  cleanupExclusiveDirectoryLock(paths.plan_lock);
+  return Object.freeze({ reclaimed: true, facts });
 }
 
 export function writeProgressiveRawBatch(runDir, { plan, batch } = {}) {

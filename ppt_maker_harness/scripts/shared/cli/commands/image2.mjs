@@ -1,6 +1,7 @@
 import { CLI_ERROR_CODES, CLI_DIAGNOSTIC_SCHEMA, createCliNext, emitCliError, registerCliJsonReport } from "../cli_error.mjs";
 import {
   PAGE_IMAGE_OPERATIONS,
+  advanceProgressiveControllerCheckpoint,
   emitUsage,
   progressiveUnsupportedOption,
   refreshProgressiveControllerTaskProjection,
@@ -50,14 +51,6 @@ async function commandTargetPageImageImage2(operation, route, opts = {}) {
       const batchHash = requiredPageImageHash(operation, "--batch-hash", opts.batchHash, "batch");
       if (!planHash || !batchHash) return 1;
       output = await operations.authorize(route.run_dir, { planHash, batchHash });
-      const { recordTargetProgressiveAuthorizeCliHandoff } = await import("../../../shared/state/state.mjs");
-      const controllerHandoff = recordTargetProgressiveAuthorizeCliHandoff(route.deck_dir, {
-        runDir: route.run_dir,
-        planHash,
-        batchHash,
-        grantHash: output.grant_hash,
-      });
-      output = Object.freeze({ ...output, controller_handoff: controllerHandoff });
     } else if (operation === "generate") {
       const planHash = requiredPageImageHash(operation, "--plan-hash", opts.planHash, "full plan");
       const batchHash = requiredPageImageHash(operation, "--batch-hash", opts.batchHash, "batch");
@@ -105,8 +98,27 @@ async function commandTargetPageImageImage2(operation, route, opts = {}) {
       if (!planHash || !attemptSha256) return 1;
       output = await operations.reconcile(route.run_dir, { planHash, attemptSha256 });
     }
-    await refreshProgressiveControllerTaskProjection(route.run_dir);
-    console.log(JSON.stringify(output, null, 2));
+    // Bind the successful owner transition to the durable Controller cursor,
+    // then rebuild the collaboration card from the same inspection. Authorize
+    // first advances the cursor to the authorize node so the existing authorize
+    // CLI handoff can complete it with its grant evidence.
+    const { inspectWorkflow } = await import("../../../shared/workflow/inspect_workflow.mjs");
+    const inspection = inspectWorkflow({ runDir: route.run_dir });
+    const checkpointHandoff = await advanceProgressiveControllerCheckpoint(route, { workflowInspection: inspection });
+    if (operation === "authorize") {
+      const planHash = requiredPageImageHash(operation, "--plan-hash", opts.planHash, "full plan");
+      const batchHash = requiredPageImageHash(operation, "--batch-hash", opts.batchHash, "batch");
+      const { recordTargetProgressiveAuthorizeCliHandoff } = await import("../../../shared/state/state.mjs");
+      const controllerHandoff = recordTargetProgressiveAuthorizeCliHandoff(route.deck_dir, {
+        runDir: route.run_dir,
+        planHash,
+        batchHash,
+        grantHash: output.grant_hash,
+      });
+      output = Object.freeze({ ...output, controller_handoff: controllerHandoff });
+    }
+    await refreshProgressiveControllerTaskProjection(route.run_dir, { workflowInspection: inspection });
+    console.log(JSON.stringify({ ...output, controller_checkpoint: checkpointHandoff }, null, 2));
     return 0;
   } catch (error) {
     const failure = targetPageImageFailure(operation, route, error);
