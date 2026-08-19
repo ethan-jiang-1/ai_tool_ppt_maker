@@ -5,3 +5,6 @@
 # version temp/bak (keep README)
 3_versions/*/_scratch/*
 !3_versions/*/_scratch/README.md
+# regenerable provider iteration records (plans/attempts/batches/review JSON + generated PNGs)
+1_upstream_raw_material/page-image-style-master-iterations/
+1_upstream_raw_material/page-image-workflow-iterations/

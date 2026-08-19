@@ -1,19 +1,19 @@
 schema: pptmaker-image2-provider-profile
-profile_id: duck-gpt-image-2
-endpoint_profile: duckcoding-v1
+profile_id: packy-gpt-image-2
+endpoint_profile: packy-v1-edits
 owner_declaration:
   authority: deck-author
   status: confirmed
 operations:
   style-master-text-generation:
-    route_id: duckcoding-image2
+    route_id: packy-image2-edits
     model: gpt-image-2
     prompt_budget:
-      limit: 16000
+      limit: 21241
       unit: unicode-code-points
   page-image-reference-generation:
-    route_id: duckcoding-image2
+    route_id: packy-image2-edits
     model: gpt-image-2
     prompt_budget:
-      limit: 16000
+      limit: 21241
       unit: unicode-code-points

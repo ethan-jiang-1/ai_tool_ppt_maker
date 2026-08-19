@@ -8,11 +8,11 @@
 - Run：`3_versions/v1`
 - 类型：keynote
 - Pipeline：`page-image-workflow`
-- 当前内容阶段：12 页主体结构已 materialize；现扩展为 13 页，新增独立 Q&A closing 页，待 v2 structural page plan
-- 当前 Harness node：`author-target-narrative-sources`
-- Workflow：尚未选择 `framed` 或 `pure`
+- 当前内容阶段：唯一 v1 的 14 页正文第一轮已补齐（1 开启页 + 12 中间页 + 1 结束页）
+- 当前 Harness node：`recommend-target-pure-pilot`
+- Workflow：`pure`，production identity 为 `source_epoch: 2`
 - Provider work：未开始；没有授权、raw image、final image、PPTX 或 delivery evidence
-- 当前目标：保留 v1 作为已 materialize 的 12 页版本，按 13 页结构创建 v2 structural page plan
+- 当前目标：正文与本地 Style Master 已就绪；后续从 provider-free Pilot scope 选择进入页面生产
 
 ## 当前叙事主线
 
@@ -35,8 +35,8 @@ Central Claim：
 - **Block 2（第 4–6 页）**：软件是先锋。以 Martin Fowler Deer Valley → Engelberg 的语气转变为主证据；解释工作单元如何扩展、`Agent = Model + Harness`、Guides + Sensors 和验证回路。AI 成为协作主体的判断在 Harness 机制之后得出。
 - **第 7 页：跨行业转场**。软件天然拥有数字上下文、可调用工具和确定性验证；企业还必须补上业务上下文、权限、审计、确定性执行、人工升级和结果责任。
 - **Block 3（第 8–10 页）**：三个案例已经确认并各自独占一页。第 8 页 Block（问题所有权/DRI/层级），第 9 页 Cloudflare（Builders/Sellers/Measurers 与内部 Cloudflare OS），第 10 页 JPMorgan（核心基础设施、LLM Suite、培训和自然流失再部署）。
-- **Block 4（第 11–12 页）**：第 11 页用组织公式归纳三条路径的共同机制；第 12 页落到一把手的最小启动动作，以一个有负责人、有权限、有指标、有风险边界和停止条件的真实业务闭环收束。
-- **Block 5（第 13 页）**：独立 Q&A closing 页，只提供开放追问入口，不新增结论或未经支持的证据。
+- **Block 4（第 11–13 页）**：第 11 页用组织公式归纳三条路径的共同机制；第 12 页落到一把手的最小启动动作，第 13 页把探索闭环推进到机制化。
+- **Block 5（第 14 页）**：独立 Q&A closing 页，只提供开放追问入口，不新增结论或未经支持的证据。
 
 ## 两条核心公式
 
@@ -67,16 +67,16 @@ Central Claim：
 
 ## 下一步
 
-1. 由 Deck Author 明确选择本版本 `framed` 或 `pure` workflow。
-2. 按当前 `create-deck` Controller 基于 13 页结构准备 v2 page-grouping candidate 和 narrative page-plan preview；v1 保持不变。
-3. 三个案例必须分别保留为第 8、9、10 页，不在候选中合并。
-4. 只有 page plan 经过人确认后，才 materialize slide source；不要提前生成图片或 PPTX。
+1. 保持当前唯一 v1、`pure` workflow 和 14 页顺序，不创建 v2。
+2. 三个案例继续分别保留为第 8、9、10 页，不在后续视觉生产中合并。
+3. 当前 raw plan hash 为 `6bf8d9cf1ea95df9562714fdf905473fcca575fa4b7d2f48a764d90cb5424fea`，14 页全部 `unsubmitted`。
+4. 下一步由 progressive raw owner 选择代表性 Pilot scope；尚未授权任何 provider submit。
 
 ## 当前边界与恢复提示
 
 - 不要编辑 `_generated/`、`_state/state.yaml` 或任何 receipt/state bytes。
-- `ppt_flow status <run-dir>` 当前结构检查正常，显示 `author-target-narrative-sources`、content pending、visual pending、无 raw/final/PPTX。
-- `bundle_layout --check deck_ai_org_transform_keynote` 目前另报 `RUN_BUNDLE.md` 的 exact Harness binding 未验证（`harness_binding_invalid`）。这是 owner-issued hard-stop，需要人确认重建当前 Bundle；不要拿另一份 Bundle、路径或默认 Harness 覆盖现有 bytes。
+- `ppt_flow status <run-dir>` 当前结构检查正常，content/visual gates approved、source receipt current、无 raw/final/PPTX。
+- `bundle_layout --check 3_versions/v1` 已通过；Harness binding 可解析。
 - `deck_ai_sdlc_keynote/` 是完全独立的参考项目。本轮只读了它的 outline，没有修改；其 `git diff` 为空。
 
 ## 交接协议（下一次会话先读这里）
@@ -90,13 +90,13 @@ Central Claim：
 1. 先用 `RUN_BUNDLE.md` 定位并验证当前 deck，再读 `deck-guide.md`。
 2. 针对 `3_versions/v1` 读取 `ppt_flow state --json` 与 `ppt_flow status`。
 3. 阅读本文件、`2_backbone/story-outline.md`、`2_backbone/manuscript/source-relations.md`，必要时回溯 `1_upstream_raw_material/material-index.md` 及对应 `source-*` 链接。
-4. 继续做叙事和页面分组讨论；没有人确认前，不选择 `framed/pure`，不进入 provider、图片或 PPTX 生产。
+4. 从当前 owner-issued Pilot scope 选择继续；不要从旧 plan、备份或手写 state 推断授权。
 
 当前最重要的未决事项：
 
-- 13 页结构与三家企业案例已经定稿；标题文字仍可在不改变结构的前提下继续打磨，Q&A 为独立 closing 页。
-- 本版本的全局 Page Image workflow 由人明确选择 `framed` 或 `pure`。
-- `RUN_BUNDLE.md` 的 harness binding invalid 需要 owner 要求的人类确认重建；在确认前保持原 bytes 不动。
+- 14 页结构与三家企业案例已经定稿；第 1 页是 opening，第 14 页是独立 closing Q&A，中间 12 页保留主体论证。
+- 本版本的全局 Page Image workflow 已明确选择 `pure`。
+- 本地 Style Master `local-existing` 已接受；当前尚无 provider authorization、raw、final 或 PPTX。
 
 边界提醒：`1_upstream_raw_material/` 只按外部材料来源组织，不按 Block 组织；Block 1–4
 是下游叙事概念。`dpt_*` 是外部 source of record，`2_backbone/` 是共享内容主干，

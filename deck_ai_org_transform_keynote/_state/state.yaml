@@ -10,15 +10,15 @@ production_identity:
   by_version:
     3_versions/v1:
       workflow: pure
-      source_epoch: 1
+      source_epoch: 2
 playbook: create-deck
-current_node: author-target-narrative-sources
+current_node: generate-target-pure-pilot
 execution_id: exec-9d7e40f2-5dea-4a38-b833-4d8419b59a10
 execution_started_at: 2026-08-19T04:53:32.372Z
 run_version: v1
 continuation_target_version: v1
 started_at: 2026-08-19T04:53:32.372Z
-updated_at: 2026-08-19T08:29:21.270Z
+updated_at: 2026-08-19T10:09:28.473Z
 nodes:
   checkpoint-intake:
     status: completed
@@ -26,6 +26,98 @@ nodes:
     run_version: v1
     evidence: {}
     completed: 2026-08-19T04:53:32.373Z
+  author-target-narrative-sources:
+    status: completed
+    execution_id: exec-9d7e40f2-5dea-4a38-b833-4d8419b59a10
+    run_version: v1
+    evidence: {}
+    completed: 2026-08-19T09:58:05.616Z
+  select-target-page-image-workflow:
+    status: completed
+    execution_id: exec-9d7e40f2-5dea-4a38-b833-4d8419b59a10
+    run_version: v1
+    evidence: {}
+    completed: 2026-08-19T09:58:05.616Z
+  configure-target-page-image-visual-system:
+    status: completed
+    execution_id: exec-9d7e40f2-5dea-4a38-b833-4d8419b59a10
+    run_version: v1
+    evidence: {}
+    completed: 2026-08-19T09:58:05.616Z
+  author-target-page-image-content:
+    status: completed
+    execution_id: exec-9d7e40f2-5dea-4a38-b833-4d8419b59a10
+    run_version: v1
+    evidence: {}
+    completed: 2026-08-19T09:58:05.616Z
+  inspect-target-pure-style-master:
+    status: completed
+    execution_id: exec-9d7e40f2-5dea-4a38-b833-4d8419b59a10
+    run_version: v1
+    evidence: {}
+    completed: 2026-08-19T09:58:05.616Z
+  plan-target-pure-style-master:
+    status: completed
+    execution_id: exec-9d7e40f2-5dea-4a38-b833-4d8419b59a10
+    run_version: v1
+    evidence: {}
+    completed: 2026-08-19T09:58:05.616Z
+  authorize-target-pure-style-master:
+    status: completed
+    execution_id: exec-9d7e40f2-5dea-4a38-b833-4d8419b59a10
+    run_version: v1
+    evidence: {}
+    completed: 2026-08-19T09:58:05.616Z
+  generate-target-pure-style-master:
+    status: completed
+    execution_id: exec-9d7e40f2-5dea-4a38-b833-4d8419b59a10
+    run_version: v1
+    evidence: {}
+    completed: 2026-08-19T09:58:05.616Z
+  abandon-target-pure-style-master:
+    status: completed
+    execution_id: exec-9d7e40f2-5dea-4a38-b833-4d8419b59a10
+    run_version: v1
+    evidence: {}
+    completed: 2026-08-19T09:58:05.616Z
+  review-target-pure-style-master:
+    status: completed
+    execution_id: exec-9d7e40f2-5dea-4a38-b833-4d8419b59a10
+    run_version: v1
+    evidence: {}
+    completed: 2026-08-19T09:58:05.616Z
+  promote-target-pure-style-master:
+    status: completed
+    execution_id: exec-9d7e40f2-5dea-4a38-b833-4d8419b59a10
+    run_version: v1
+    evidence: {}
+    completed: 2026-08-19T09:58:05.616Z
+  plan-target-pure-progressive-raw:
+    status: completed
+    execution_id: exec-9d7e40f2-5dea-4a38-b833-4d8419b59a10
+    run_version: v1
+    evidence: {}
+    completed: 2026-08-19T09:58:05.616Z
+  recommend-target-pure-pilot:
+    status: completed
+    execution_id: exec-9d7e40f2-5dea-4a38-b833-4d8419b59a10
+    run_version: v1
+    evidence: {}
+    started: 2026-08-19T10:09:09.742Z
+    completed: 2026-08-19T10:09:17.997Z
+  authorize-target-pure-pilot:
+    status: completed
+    execution_id: exec-9d7e40f2-5dea-4a38-b833-4d8419b59a10
+    run_version: v1
+    evidence: {}
+    started: 2026-08-19T10:09:17.997Z
+    completed: 2026-08-19T10:09:28.473Z
+  generate-target-pure-pilot:
+    status: in_progress
+    execution_id: exec-9d7e40f2-5dea-4a38-b833-4d8419b59a10
+    run_version: v1
+    evidence: {}
+    started: 2026-08-19T10:09:28.473Z
 gates:
   content: pending
   visual: pending
@@ -39,10 +131,53 @@ page_image_target_evidence:
     3_versions/v1:
       schema: page-image-workflow-target-state
       run_version: v1
-      source_epoch: 1
-      source_receipt_sha256: 71b85ab3131ba948882feb4f1de73f310f59896678a0ab0b4cd3408468ff71a0
+      source_epoch: 2
+      source_receipt_sha256: 670f50fe94ad062209de86cf124f40000453501d72530f9f4eed698718ac0493
       workflow: pure
       provider_authorization_sha256: null
+      accepted_raw_evidence_sha256: null
+      final_manifest_sha256: null
+      delivery_receipt_sha256: null
+page_image_style_master:
+  by_version:
+    3_versions/v1:
+      schema: page-image-style-master-selection
+      run_version: v1
+      workflow: pure
+      plan_sha256: 2a6462a45ace878fbbe5de7b9e38b9da276b1969521e39a10f651d204c0b348b
+      candidate_id: local-existing
+      candidate_sha256: 08010017a0824e41b9e7174c6ca0df20e64c86288222c10ebc1da9e40f0a9661
+      candidate_media_type: image/png
+      candidate_width: 1536
+      candidate_height: 864
+      candidate_provenance_sha256: a9d04114bb78799fdd58c389e0382f79ef4b17c2ed2b6dbe490077bc58ec0748
+      style_intent_sha256: 9c8aa0a6715e20ece7c3b1ddb18641b04af26811b3e7234d0fc05ca0cd4c0505
+      style_context_sha256: e4260aff7d13801e2dd4fbc5800765cc533445ab87a4c817a2df5131bff3863a
+      candidate_generation_profile_sha256: 9aaebf3e220c3a0c2934221384f560455ba9674849bf2293771ee0c29ba4b230
+      previous_selection_sha256: f4b1929264813b6053269717763d89f8ae6087e2440b136dcd81db9475a2bf4e
+      review_decision_sha256: 86311d478d2fb469c2f50f172e99dbb84ae95438e58e8b9d546dac5f25beccb1
+      accepted_at: 2026-08-19T10:07:48.542Z
+page_image_task_mandate:
+  by_version:
+    3_versions/v1:
+      schema: page-image-task-mandate
+      run_version: v1
+      workflow: pure
+      execution_id: exec-9d7e40f2-5dea-4a38-b833-4d8419b59a10
+      execution_started_at: 2026-08-19T04:53:32.372Z
+      issued_at: 2026-08-19T09:58:05.308Z
+      scope: normal-page-image-production
+page_image_progressive_handoff:
+  by_version:
+    3_versions/v1:
+      schema: page-image-workflow-handoff
+      run_version: v1
+      source_epoch: 2
+      source_receipt_sha256: 670f50fe94ad062209de86cf124f40000453501d72530f9f4eed698718ac0493
+      workflow: pure
+      raw_work_plan_sha256: ec5e5a4abce18c2cf67d5d3bed6548a9501687ad80e1f129b506661be54b1d6c
+      partial_pilot_decision_sha256: null
+      complete_raw_review_sha256: null
       accepted_raw_evidence_sha256: null
       final_manifest_sha256: null
       delivery_receipt_sha256: null
