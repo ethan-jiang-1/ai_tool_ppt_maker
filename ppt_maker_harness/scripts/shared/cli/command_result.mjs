@@ -77,6 +77,7 @@ export const COMMAND_CONTRACTS = Object.freeze({
   slides: { exitCodes: DEFAULT_EXIT_CODES, stdout: "preview/report, or one --json report", stderr: DEFAULT_STDERR, decisionEnums: ["list", "resolve", "normalize", "move", "delete", "insert", "apply-plan"] },
   paginate: { exitCodes: DEFAULT_EXIT_CODES, stdout: "narrative plan/apply report", stderr: DEFAULT_STDERR, decisionEnums: ["plan", "apply"] },
   "new-version": { exitCodes: DEFAULT_EXIT_CODES, stdout: "created-version line", stderr: DEFAULT_STDERR },
+  "reset-unproduced-v1": { exitCodes: DEFAULT_EXIT_CODES, stdout: "reset receipt, or one --json report", stderr: DEFAULT_STDERR },
   test: { exitCodes: DEFAULT_EXIT_CODES, stdout: "core verification output", stderr: DEFAULT_STDERR },
   state: {
     exitCodes: Object.freeze({ 0: "success", 1: "JS-controlled failure", 2: "replacement/current-repair hard-stop" }),

@@ -7,7 +7,7 @@
 
 ## 进度
 
-每个 change 独立滚完再开下一个。当前滚 Change 3。
+每个 change 独立滚完再开下一个。当前滚 Change 4。
 
 ### Change 1 `restore-draft-and-cli-projections`（073, 074, 078, 079, 085）
 
@@ -27,11 +27,11 @@
 
 ### Change 3 `reset-unproduced-v1`（081）
 
-- [ ] propose
-- [ ] polish 到 apply-ready
-- [ ] apply
-- [ ] archive
-- [ ] BUG-081 移入 enhancement 完成处（随仓库惯例）
+- [x] propose
+- [x] polish 到 apply-ready
+- [x] apply
+- [x] archive
+- [x] BUG-081 移入 `_fixed_bugs/`
 
 ### Change 4 `bind-image2-transport-capability-vector`（090）
 

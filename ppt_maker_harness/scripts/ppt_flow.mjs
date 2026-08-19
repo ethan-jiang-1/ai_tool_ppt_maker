@@ -2,7 +2,7 @@
 /**
  * ppt_flow.mjs — Node.js ESM pipeline script (split entry).
  *
- * Thin entry: registers the 12 commands and lazily dispatches to
+ * Thin entry: registers the closed ppt_flow inventory and lazily dispatches to
  * shared/cli/commands/*.mjs. Shared glue lives in shared/cli/command_support.mjs.
  * This is the default human/agent entry point.
  *
@@ -322,6 +322,24 @@ Examples:
       const { commandNewVersion } = await import("./shared/cli/commands/new-version.mjs");
       const code = await commandNewVersion(runDir, {
         name: opts.name || null,
+      });
+      process.exit(code);
+    });
+
+  // ---- reset-unproduced-v1 ----
+  program
+    .command("reset-unproduced-v1")
+    .description("Abandon an unpublished unique v1 page structure and restore the authoring draft")
+    .argument("<run_dir>", "Path to the exact v1 version dir")
+    .option("--confirm-abandon", "Deck Author confirms abandoning this unpublished v1 structure")
+    .option("--json", "Output one machine-readable report")
+    .addHelpText("after", renderContractBlock(COMMAND_CONTRACTS["reset-unproduced-v1"]))
+    .action(async (runDir, opts) => {
+      if (opts.json) setCliOutputMode("json");
+      const { commandResetUnproducedV1 } = await import("./shared/cli/commands/reset-unproduced-v1.mjs");
+      const code = commandResetUnproducedV1(runDir, {
+        confirmAbandon: Boolean(opts.confirmAbandon),
+        json: opts.json ?? false,
       });
       process.exit(code);
     });

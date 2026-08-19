@@ -18,6 +18,8 @@ export const CLI_ERROR_CODES = Object.freeze({
 
 export const PPT_FLOW_COMMAND_INVENTORY = Object.freeze([
   "doctor",
+  "preflight",
+  "probe",
   "init",
   "status",
   "validate",
@@ -25,9 +27,8 @@ export const PPT_FLOW_COMMAND_INVENTORY = Object.freeze([
   "refresh",
   "slides",
   "paginate",
-  "preflight",
-  "probe",
   "new-version",
+  "reset-unproduced-v1",
   "test",
   "state",
   "style-master",

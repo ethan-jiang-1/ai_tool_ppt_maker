@@ -159,6 +159,7 @@
     "shared/cli/commands/preflight.mjs",
     "shared/cli/commands/probe.mjs",
     "shared/cli/commands/refresh.mjs",
+    "shared/cli/commands/reset-unproduced-v1.mjs",
     "shared/cli/commands/slides.mjs",
     "shared/cli/commands/state.mjs",
     "shared/cli/commands/status.mjs",
@@ -168,7 +169,9 @@
    ],
    "executables": [],
    "unit_integration": [
+    "tests/shared/cli/test_image2_cursor_projection_partial_effect.mjs",
     "tests/shared/cli/test_process_cli_error.mjs",
+    "tests/shared/cli/test_process_reset_unproduced_v1.mjs",
     "tests/shared/cli/test_process_source_config_diagnostics.mjs",
     "tests/shared/cli/test_process_status_next_and_style_master_json.mjs",
     "tests/shared/cli/test_process_target_diagnostics.mjs",
@@ -271,7 +274,8 @@
    "interfaces": [
     "shared/run-bundle/bundle_layout.mjs",
     "shared/run-bundle/page_image_paths.mjs",
-    "shared/run-bundle/production_marker.mjs"
+    "shared/run-bundle/production_marker.mjs",
+    "shared/run-bundle/reset_unproduced_v1.mjs"
    ],
    "executables": [
     "shared/run-bundle/bundle_layout.mjs",
@@ -281,6 +285,7 @@
     "tests/shared/run-bundle/test_page_image_layout.mjs",
     "tests/shared/run-bundle/test_process_harness_binding.mjs",
     "tests/shared/run-bundle/test_process_lessons.mjs",
+    "tests/shared/run-bundle/test_reset_unproduced_v1.mjs",
     "tests/shared/run-bundle/test_run_bundle_locator.mjs",
     "tests/shared/run-bundle/test_version_polish_directory.mjs"
    ],

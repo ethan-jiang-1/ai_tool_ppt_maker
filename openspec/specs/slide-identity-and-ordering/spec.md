@@ -222,6 +222,13 @@ clean vNext structural publication path. The initial-draft exception uses the
 same source-byte and exact-plan checks; it is not a general in-place structural
 edit path.
 
+An owner-issued unproduced-v1 reset that restored that exact seed and cleared
+rebuildable local v1 evidence SHALL make the same initial-draft exception
+available again. It SHALL NOT create a general in-place edit path for non-seed
+source, SHALL NOT apply when irreversible provider or delivery records exist,
+and SHALL NOT replace the confirmed paginate exact-plan publication that
+follows the reset.
+
 #### Scenario: Confirmed page plan creates a clean source target
 - **WHEN** an exact confirmed narrative page plan has current matching inputs and target
   bindings
@@ -238,6 +245,17 @@ edit path.
   draft with the same exact-plan checks, current source-State binding, and zero
   provider calls
 - **AND** a later structural publication cannot use this initial-draft path
+  unless an owner-issued unproduced-v1 reset has restored that seed and cleared
+  rebuildable local v1 evidence
+
+#### Scenario: Owner reset restores the initial-draft publication path
+- **WHEN** unique v1 has already received its first page source and source-bound
+  evidence, has no irreversible provider or delivery record, and the owner reset
+  has restored the exact current deck-type seed
+- **THEN** a later confirmed page plan MAY materialize in that same v1 with the
+  same exact-plan checks and zero provider calls
+- **AND** the same command SHALL refuse and keep every byte when any
+  irreversible record exists, leaving publication on the existing vNext path
 
 #### Scenario: Initial State binding is interrupted after source publication
 - **WHEN** an initial exact apply has already written its exact target source

@@ -16,6 +16,7 @@ decisions.
 | "Change how this page looks." | The exact deck, the visible goal, and which pages are affected | The appropriate visual-change path and a reviewable result | Any disclosed remote work and visual acceptance | Local work or provider-variable work |
 | "Update the speaker notes." | The exact deck and the note changes | Updated notes and their normal delivery check | Review of the notes | Short local work |
 | "Add, remove, reorder, or rethink pages." | The exact deck and the intended new structure | A preview of a clean next version before changes are published | Approval of the proposed structure | Human decision, then local work |
+| "Keep this unpublished first version and redo the pages." | Confirm the folder is still only v1 and that no provider images or PPTX exist | The first version restored to an unpublished draft, then a new page plan as v1 | Confirm abandoning the current unpublished structure | Short local work |
 | "Which image channel is working?" | Whether you want an offline check or a live diagnostic | A channel-health report in plain language | Live diagnostics require an exact disclosed submit count and your confirmation | Local check or provider-variable work |
 | "I am stuck" or "this failed." | The current error report or the symptom you can describe | A four-part plain-language answer: what happened, what it affects, what the Agent can mechanically do, and the one decision or confirmation needed from you | None unless that one action reaches a real decision or cost boundary | Short inspection |
 | "I cannot find the presentation to continue." | A handoff card or an exact local path | The supported way to locate the intended run | Supply the exact local locator; the Agent will not guess | Short human/Agent exchange |
@@ -64,6 +65,10 @@ to the current Controller or CLI owner:
 - Use a direct CLI owner only for its declared deterministic operation, such as
   `ppt_flow doctor` for exact-run readiness or `ppt_flow state` / `status` for
   observation. A direct CLI does not select a Controller path.
+- An unpublished unique v1 that has never received provider grant, attempt,
+  raw/final images, PPTX, or delivery may be abandoned through owner-issued
+  `ppt_flow reset-unproduced-v1 <v1> --confirm-abandon`, then paginated again as
+  v1. Any irreversible record still requires the existing vNext path.
 - Shared verbs stay owner-scoped, never merged: `plan`, `authorize`, `generate`,
   `review`, and `accept` each belong to a distinct command owner — `image2` owns
   the receipt-bound raw lifecycle occurrence, `style-master` owns the candidate

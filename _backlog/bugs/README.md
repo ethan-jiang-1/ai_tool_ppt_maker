@@ -5,7 +5,6 @@
 
 | ID | Severity | Role | Title |
 |----|----------|------|-------|
-| [BUG-081](BUG-081-no-reset-path-for-unproduced-materialized-v1.md) | P1 | enhancement | 未生产的 v1 一旦 materialize 就无法撤销重做，强制用户进入 v2 |
 | [BUG-090](BUG-090-image2-provider-capability-differences-require-adaptive-routing.md) | P1 | enhancement | Provider profile 无法表达 Image2 多 vendor 能力差异 → 路由无法随机应变 |
 
 ---

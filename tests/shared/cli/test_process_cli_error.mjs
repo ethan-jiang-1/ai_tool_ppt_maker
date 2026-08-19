@@ -298,6 +298,11 @@ describe("cli_error", () => {
       "doctor": "tests/00-setup/test_process_env_check.mjs",
       "init": "tests/shared/run-bundle/test_page_image_layout.mjs",
       "new-version": "tests/01-content/test_clean_page_image_new_version_cli.mjs",
+      "reset-unproduced-v1": "tests/shared/cli/test_process_reset_unproduced_v1.mjs",
+      "paginate": "tests/01-content/test_narrative_page_plan_cli.mjs",
+      "preflight": CLI_SURFACE_FILE,
+      "probe": CLI_SURFACE_FILE,
+      "artifacts": "tests/contracts/test_human_artifact_reference_cli.mjs",
       "test": CLI_SURFACE_FILE,
     };
     const commandCase = {
@@ -320,6 +325,21 @@ describe("cli_error", () => {
         contextual: "creates a clean target that validates through the draft route",
         success: "creates a clean target that validates through the draft route",
         usage: "hard-stops an undeclared source before creating a successor",
+      },
+      "tests/shared/cli/test_process_reset_unproduced_v1.mjs": {
+        contextual: "hard-stops irreversible evidence without writes",
+        success: "resets unproduced unique v1 and republishes as initial-draft",
+        usage: "rejects missing confirm flag and non-v1 run-dir without writes",
+      },
+      "tests/01-content/test_narrative_page_plan_cli.mjs": {
+        contextual: "previews then publishes only through its exact hash with no provider work",
+        success: "previews then publishes only through its exact hash with no provider work",
+        usage: "documents preview and exact narrative publication in public help",
+      },
+      "tests/contracts/test_human_artifact_reference_cli.mjs": {
+        contextual: "projects a matching-binding pending Style Master successor before stale raw inspection and preserves failed-view bytes",
+        success: "rebuilds a current Pure partial view without state mutation or provider work",
+        usage: "lists the explicit operation in public help and hard-stops an undeclared marker before writing a view",
       },
       "tests/00-setup/test_process_env_check.mjs": {
         contextual: "rejects version suffixes outside the narrow allowlist",
@@ -347,7 +367,7 @@ describe("cli_error", () => {
         delegated: delegatedCommands.has(entry) ? focused(CLI_ERROR_FILE, CLI_DELEGATED) : na("Command does not delegate to a child process."),
         interruption: focused(CLI_ERROR_FILE, CLI_INTERRUPTION),
         prose_success: focused(file, probe.success),
-        json_success: ["status", "state", "image2"].includes(entry) ? focused(file, probe.success) : na("No documented JSON success mode."),
+        json_success: ["status", "state", "image2", "reset-unproduced-v1"].includes(entry) ? focused(file, probe.success) : na("No documented JSON success mode."),
       }];
     }));
     expect(Object.keys(executableAudit).sort()).toEqual([...EXECUTABLE_INVENTORY].sort());

@@ -92,6 +92,7 @@ bug 修完后从 `_backlog/bugs/` 通过 `git mv` 移入本目录：
 | [BUG-079](BUG-079-init-next-step-missing-upstream-and-self-contradictory.md) | 2026-08-20 | `ppt_flow init` 与 `bundle_layout --init` Next 同一句 `status <v1Path>`（change: restore-draft-and-cli-projections） |
 | [BUG-085](BUG-085-delivery-no-review-hint-and-status-next-goes-silent.md) | 2026-08-20 | `status` Next 投影 `workflow_inspection.primary_action`（change: restore-draft-and-cli-projections） |
 | [BUG-088](BUG-088-terminal-pilot-checkpoint-node-conflict.md) | 2026-08-20 | durable cursor 投影 owner checkpoint（可后退）；owner 已落盘 + 投影失败是 `partial-effect`（change: project-cursor-to-owner-checkpoint） |
+| [BUG-081](BUG-081-no-reset-path-for-unproduced-materialized-v1.md) | 2026-08-20 | 未生产 unique v1 可通过 `reset-unproduced-v1 --confirm-abandon` 回到 init draft（change: reset-unproduced-v1） |
 
 **Next available bug ID: BUG-093**
 
