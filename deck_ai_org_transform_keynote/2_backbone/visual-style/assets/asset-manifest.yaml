@@ -1,4 +1,33 @@
 # Page Image asset manifest — optional local asset catalog.
 # Bind registered IDs only through current source reference fields.
 
-assets: {}
+assets:
+  # ---- AI agent / coding tool brand marks (from the "agent × OS" narrative) ----
+  claude:
+    path: svg/claude.svg
+    kind: svg
+    description: Claude (Anthropic AI assistant) 24x24 icon mark
+  claude-full:
+    path: svg/claude-full.svg
+    kind: svg
+    description: Claude 全色 wordmark (anthropic-brand, gilbarbara) — 若用横排名字
+  anthropic-full:
+    path: svg/anthropic-full.svg
+    kind: svg
+    description: Anthropic 全色 wordmark (gilbarbara)
+  openai:
+    path: svg/openai.svg
+    kind: svg
+    description: OpenAI 全色 wordmark+icon (gilbarbara) — Codex 用 OpenAI 品牌
+  trae:
+    path: svg/trae.svg
+    kind: svg
+    description: Trae (字节 ByteDance) 24x24 icon mark
+  cursor:
+    path: svg/cursor.svg
+    kind: svg
+    description: Cursor (Anysphere) 24x24 icon mark
+  workbuddy:
+    path: svg/workbuddy.svg
+    kind: svg
+    description: WorkBuddy (腾讯 Tencent) 官方 40x40 logo — 源 workbuddy.qq.com

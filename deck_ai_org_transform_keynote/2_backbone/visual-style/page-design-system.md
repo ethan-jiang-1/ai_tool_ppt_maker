@@ -25,6 +25,8 @@ TONE: Warm, intellectual, human. Confident but curious. Sketch style signals 'th
 
 SUBJECTS ARE CONTEMPORARY: All human figures and objects are present-day — modern casual / business-casual clothing (tees, hoodies, open collars, sneakers), current devices (laptops, phones, monitors, large screens), present-day workplaces (open-plan desks, standing desks, whiteboards). The etching / cross-hatch look is a DRAWING TECHNIQUE (historical); the SUBJECTS are not. On people & objects, FORBIDDEN: period costume, 19th-century dress, top hats, waistcoats, quills, parchment, antique props — UNLESS a slide's own prompt deliberately invokes a historical metaphor (e.g., the Roman-legion pyramid on the hierarchy slide).
 
+HUMAN REPRESENTATION (HARD RULE): Unless a slide explicitly specifies a European or North American setting where the people are visibly and contextually part of that background, depict every human figure as ethnically Chinese / East Asian, in contemporary Chinese professional or everyday settings. Do not default to white or Western-looking people. Convey Chinese identity through natural facial appearance and present-day context, never through stereotyped costume, exotic props, flags, or decorative cultural symbols. When ethnicity is not narratively important, the default remains Chinese / East Asian.
+
 SKETCH QUALITY: Visible hand-drawn lines. Slight irregularity. Cross-hatched shadows. Sepia ink on cream paper. Deliberate, not messy.
 
 CONSISTENCY: Every slide must feel like a page from the same sketchbook.
