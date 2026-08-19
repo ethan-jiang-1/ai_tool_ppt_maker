@@ -25,7 +25,7 @@
 - 原始材料：`../../1_upstream_raw_material/source-enterprise-six-cases/`
 - 交叉上游摘要：`../../1_upstream_raw_material/ai-era-bpm-digest.md`
 - 交叉原始材料：`../../1_upstream_raw_material/source-ai-era-bpm/`
-- 主要吸收：重构而非部署、采用跑在系统前面、Block 的问题所有权与 DRI、流程生命周期压缩、目标驱动与确定性执行分离。
+- 主要吸收：重构而非部署、采用跑在系统前面、Block 的问题所有权与 DRI、Cloudflare 的角色重组与内部平台、JPMorgan 的核心基础设施与人才再部署、目标驱动与确定性执行分离。
 - 表达边界：企业案例不做不可比排名；公司自报 ROI 和战略叙事需标记证据强度。
 
 ## 04：一把手工程

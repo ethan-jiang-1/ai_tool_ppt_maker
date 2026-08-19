@@ -6,3 +6,5 @@
 ## 来源关系
 
 讲稿素材与 `1_upstream_raw_material/` 的对应关系见 [source-relations.md](source-relations.md)。讲稿只负责表达；外部事实和证据边界回溯到上游摘要及其 `source-*` symlink。
+
+公式的层级关系见 [formula-map.md](formula-map.md)。
