@@ -7,7 +7,7 @@
 
 ## 进度
 
-每个 change 独立滚完再开下一个。当前滚 Change 4。
+每个 change 独立滚完再开下一个。四个 change 均已 archive。
 
 ### Change 1 `restore-draft-and-cli-projections`（073, 074, 078, 079, 085）
 
@@ -35,11 +35,11 @@
 
 ### Change 4 `bind-image2-transport-capability-vector`（090）
 
-- [ ] propose
-- [ ] polish 到 apply-ready
-- [ ] apply
-- [ ] archive
-- [ ] BUG-090 移入 enhancement 完成处；092 A 路关闭保持悬挂 B 路
+- [x] propose
+- [x] polish 到 apply-ready
+- [x] apply
+- [x] archive
+- [x] BUG-090 移入 enhancement 完成处；092 A 路关闭保持悬挂 B 路
 
 ## 背景 / 现状
 
@@ -218,7 +218,7 @@ Change 1 的诊断/Next、081 reseed、090 transport、改 `known_failure` 语�
 | 087 | [`_suspended_bugs/`](../_done/_suspended_bugs/README.md)（by design；Change 2 才处理全失败后的 cursor/internal） |
 | 089 | [`_suspended_bugs/`](../_done/_suspended_bugs/README.md)（量错了 inspection.`prompt`） |
 | 091 | [`_suspended_bugs/`](../_done/_suspended_bugs/README.md)（PAGE CLASS OVERRIDE 留 deck-local） |
-| 092 | [`_suspended_bugs/`](../_done/_suspended_bugs/README.md)（不开 scratch→PPTX；官方路径等 Change 4） |
+| 092 | [`_suspended_bugs/`](../_done/_suspended_bugs/README.md)（不开 scratch→PPTX；A 路随 Change 4 / BUG-090） |
 
 ## 风险 / 取舍
 

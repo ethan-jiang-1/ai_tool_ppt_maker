@@ -27,7 +27,6 @@ import {
 // The public runtime facade is the only root-level transport entry point.
 export { validateBoundPageImageProviderRequest };
 import {
-  PAGE_IMAGE_REQUEST_SIZE,
   PAGE_IMAGE_NATIVE_RAW_PNG,
 } from "./page_image_media_contract.mjs";
 import {
@@ -69,7 +68,9 @@ import {
   validateTargetAcceptedRawEvidenceLocalComposeRebind,
 } from "../state/state.mjs";
 import {
+  DEFAULT_PAGE_IMAGE_TRANSPORT,
   evaluateImage2PromptBudget,
+  pageImageTransportRequestSize,
   resolveImage2ProviderProfile,
   selectImage2ProviderOperation,
 } from "./provider_profile.mjs";
@@ -250,7 +251,8 @@ function requireSafeProviderRequestInspectionTransport(request, providerProfileS
     canonicalJson(profile.output) !== canonicalJson(PAGE_IMAGE_NATIVE_RAW_PNG)) {
     throw new PageImageTargetRuntimeError("target_provider_request_inspection_invalid", "provider request inspection requires the canonical selected transport profile");
   }
-  return Object.freeze({ model: profile.provider.model, size: PAGE_IMAGE_REQUEST_SIZE });
+  const transport = profile.provider.transport || DEFAULT_PAGE_IMAGE_TRANSPORT;
+  return Object.freeze({ model: profile.provider.model, size: pageImageTransportRequestSize(transport) });
 }
 
 function promptMeasurementForRequest(request) {
@@ -715,6 +717,7 @@ export function buildTargetRawGenerationProfile({ runDir, deckDir, receipt } = {
       operation: operationProfile.operation,
       model: operationProfile.model,
       prompt_budget: operationProfile.prompt_budget,
+      transport: operationProfile.transport || DEFAULT_PAGE_IMAGE_TRANSPORT,
     },
     output: PAGE_IMAGE_NATIVE_RAW_PNG,
     reference_transport: { style_master: "image-reference", identity_reference: identitySelected ? "image-reference" : "none" },

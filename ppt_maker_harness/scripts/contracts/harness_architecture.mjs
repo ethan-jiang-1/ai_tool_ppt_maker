@@ -400,12 +400,28 @@ function findForbiddenCapabilityField(value, path = "") {
   return null;
 }
 
+function validPageImageTransport(value) {
+  return sameKeys(value, ["http_operation", "encoding", "width", "height", "dimension_multiple", "completion"]) &&
+    ((value.http_operation === "generations" && value.encoding === "json") ||
+      (value.http_operation === "edits" && value.encoding === "multipart")) &&
+    Number.isSafeInteger(value.width) && value.width > 0 &&
+    Number.isSafeInteger(value.height) && value.height > 0 &&
+    (value.dimension_multiple === 1 || value.dimension_multiple === 16) &&
+    value.width % value.dimension_multiple === 0 &&
+    value.height % value.dimension_multiple === 0 &&
+    (value.completion === "sync" || value.completion === "async-poll");
+}
+
 function validOperationProfile(operation, value) {
-  return sameKeys(value, ["operation", "route_id", "model", "prompt_budget"]) &&
+  const keys = operation === "page-image-reference-generation"
+    ? ["operation", "route_id", "model", "prompt_budget", "transport"]
+    : ["operation", "route_id", "model", "prompt_budget"];
+  return sameKeys(value, keys) &&
     operation === value.operation && typeof value.route_id === "string" && /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/.test(value.route_id) &&
     typeof value.model === "string" && value.model.length > 0 &&
     sameKeys(value.prompt_budget, ["limit", "unit"]) && Number.isSafeInteger(value.prompt_budget.limit) && value.prompt_budget.limit > 0 &&
-    IMAGE2_PROMPT_BUDGET_UNITS.has(value.prompt_budget.unit);
+    IMAGE2_PROMPT_BUDGET_UNITS.has(value.prompt_budget.unit) &&
+    (operation !== "page-image-reference-generation" || validPageImageTransport(value.transport));
 }
 
 /**
@@ -451,7 +467,9 @@ export function evaluateImage2CapabilityConformance(snapshot = {}) {
       provider.profile_id !== profile?.profile_id || provider.profile_sha256 !== profile?.profile_sha256 ||
       provider.endpoint_profile !== profile?.endpoint_profile || provider.operation !== operation ||
       provider.route_id !== declared?.route_id || provider.model !== declared?.model ||
-      JSON.stringify(provider.prompt_budget) !== JSON.stringify(declared?.prompt_budget) || !sha256(chain?.generation_profile_sha256)) {
+      JSON.stringify(provider.prompt_budget) !== JSON.stringify(declared?.prompt_budget) ||
+      JSON.stringify(provider.transport ?? null) !== JSON.stringify(declared?.transport ?? null) ||
+      !sha256(chain?.generation_profile_sha256)) {
       issues.push({ code: "image2-capability-generation-profile-unbound", path: "chains", message: "generation profile must bind the selected full capability projection and digest" });
       continue;
     }

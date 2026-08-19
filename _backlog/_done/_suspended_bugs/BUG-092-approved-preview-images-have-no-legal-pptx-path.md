@@ -54,4 +54,6 @@ raw lifecycle）。本条钉的是它们在交付层的合流：人已经点头�
 **Category:** enhancement
 **State:** wontfix
 
-章程禁止 `_scratch/` 提权进 `_generated/`。不另开 preview→PPTX。官方 delivery 随 BUG-090 的能力矢量 enhancement。理由见本卡 triage 段。
+章程禁止 `_scratch/` 提权进 `_generated/`。不另开 preview→PPTX。官方 generate
+A 路已由 `bind-image2-transport-capability-vector`（BUG-090）关闭；B 路
+scratch→PPTX 仍悬挂。理由见本卡 triage 段。

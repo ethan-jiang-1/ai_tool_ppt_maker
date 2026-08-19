@@ -46,6 +46,14 @@ function image2CapabilitySnapshot({ limit = 16000, unit = "unicode-code-points" 
     route_id: "page-image-route",
     model: "page-image-model",
     prompt_budget: { limit, unit },
+    transport: {
+      http_operation: "generations",
+      encoding: "json",
+      width: 2000,
+      height: 1125,
+      dimension_multiple: 1,
+      completion: "async-poll",
+    },
   };
   const compiled_prompt = JSON.stringify({ schema: "page-image-pure-provider-input", slide_id: "PureGo", instruction: "Render the complete page." });
   const measured = unit === "utf8-bytes" ? Buffer.byteLength(compiled_prompt) :

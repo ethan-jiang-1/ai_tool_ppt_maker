@@ -17,7 +17,19 @@ export function confirmedImage2ProviderProfileSource({
   pageImageModel = "test-page-image-model",
   styleMasterBudget = { limit: 32768, unit: "utf8-bytes" },
   pageImageBudget = { limit: 32768, unit: "utf8-bytes" },
+  pageImageTransport = null,
 } = {}) {
+  const transportYaml = pageImageTransport
+    ? [
+        "    transport:",
+        `      http_operation: ${pageImageTransport.http_operation}`,
+        `      encoding: ${pageImageTransport.encoding}`,
+        `      width: ${pageImageTransport.width}`,
+        `      height: ${pageImageTransport.height}`,
+        `      dimension_multiple: ${pageImageTransport.dimension_multiple}`,
+        `      completion: ${pageImageTransport.completion}`,
+      ]
+    : [];
   return [
     "schema: pptmaker-image2-provider-profile",
     `profile_id: ${profileId}`,
@@ -38,6 +50,7 @@ export function confirmedImage2ProviderProfileSource({
     "    prompt_budget:",
     `      limit: ${pageImageBudget.limit}`,
     `      unit: ${pageImageBudget.unit}`,
+    ...transportYaml,
     "",
   ].join("\n");
 }

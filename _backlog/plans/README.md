@@ -17,11 +17,9 @@
 
 ## 活跃列表
 
-| 计划 | 一句话 | 来源 |
-| --- | --- | --- |
-| [repair-active-bugs-in-four-openspec-changes.md](repair-active-bugs-in-four-openspec-changes.md) | 四 change 名已 final；流水线 propose→polish→apply→archive | BUG-073…092 |
+当前没有活跃 plan。
 
-**Next available plan ID: CLS-043**（移入 `_closed_plans/` 时分配；CLS-001…042 已用）
+**Next available plan ID: CLS-044**（移入 `_closed_plans/` 时分配；CLS-001…043 已用）
 
 ---
 

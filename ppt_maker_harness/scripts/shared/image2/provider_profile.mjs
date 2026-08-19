@@ -23,9 +23,26 @@ export const IMAGE2_PROMPT_BUDGET_UNITS = Object.freeze([
   "utf8-bytes",
 ]);
 export const IMAGE2_PROVIDER_PROMPT_SAFETY_MAX_UTF8_BYTES = 32_768;
+export const PAGE_IMAGE_OPERATION = "page-image-reference-generation";
+export const DEFAULT_PAGE_IMAGE_TRANSPORT = Object.freeze({
+  http_operation: "generations",
+  encoding: "json",
+  width: 2000,
+  height: 1125,
+  dimension_multiple: 1,
+  completion: "async-poll",
+});
 
 const OPERATION_SET = new Set(IMAGE2_PROVIDER_OPERATIONS);
 const UNIT_SET = new Set(IMAGE2_PROMPT_BUDGET_UNITS);
+const PAGE_IMAGE_TRANSPORT_KEYS = Object.freeze([
+  "http_operation",
+  "encoding",
+  "width",
+  "height",
+  "dimension_multiple",
+  "completion",
+]);
 const UTF8_DECODER = new TextDecoder("utf-8", { fatal: true });
 
 export class Image2ProviderProfileError extends Error {
@@ -137,20 +154,59 @@ function pendingProfile(value, source) {
   failProfile("image2_provider_profile_pending", "Image2 provider profile declaration is pending", { source });
 }
 
+export function isLegalPageImageTransport(value) {
+  if (!exactKeys(value, PAGE_IMAGE_TRANSPORT_KEYS)) return false;
+  const pairingOk = (value.http_operation === "generations" && value.encoding === "json")
+    || (value.http_operation === "edits" && value.encoding === "multipart");
+  return pairingOk
+    && Number.isSafeInteger(value.width) && value.width > 0
+    && Number.isSafeInteger(value.height) && value.height > 0
+    && (value.dimension_multiple === 1 || value.dimension_multiple === 16)
+    && value.width % value.dimension_multiple === 0
+    && value.height % value.dimension_multiple === 0
+    && (value.completion === "sync" || value.completion === "async-poll");
+}
+
+export function pageImageTransportRequestSize(transport) {
+  return `${transport.width}x${transport.height}`;
+}
+
+function resolvePageImageTransport(value, source) {
+  const resolved = value === undefined ? DEFAULT_PAGE_IMAGE_TRANSPORT : value;
+  if (!isLegalPageImageTransport(resolved)) {
+    failProfile("image2_provider_profile_shape_invalid", "Image2 provider profile has an invalid operation declaration", { source });
+  }
+  return freeze({
+    http_operation: resolved.http_operation,
+    encoding: resolved.encoding,
+    width: resolved.width,
+    height: resolved.height,
+    dimension_multiple: resolved.dimension_multiple,
+    completion: resolved.completion,
+  });
+}
+
 function validateOperation(operation, value, source) {
-  if (!OPERATION_SET.has(operation) || !exactKeys(value, ["route_id", "model", "prompt_budget"]) ||
+  const isPageImage = operation === PAGE_IMAGE_OPERATION;
+  const keys = isPageImage && Object.hasOwn(value || {}, "transport")
+    ? ["route_id", "model", "prompt_budget", "transport"]
+    : ["route_id", "model", "prompt_budget"];
+  if (!OPERATION_SET.has(operation) || !exactKeys(value, keys) ||
+    (!isPageImage && Object.hasOwn(value || {}, "transport")) ||
     !isImage2ProviderProfileId(value.route_id) || typeof value.model !== "string" || !value.model.trim() ||
     !exactKeys(value.prompt_budget, ["limit", "unit"]) ||
     !Number.isSafeInteger(value.prompt_budget.limit) || value.prompt_budget.limit <= 0 ||
     !UNIT_SET.has(value.prompt_budget.unit)) {
     failProfile("image2_provider_profile_shape_invalid", "Image2 provider profile has an invalid operation declaration", { source });
   }
-  return freeze({
+  const resolved = {
     operation,
     route_id: value.route_id,
     model: value.model,
     prompt_budget: freeze({ limit: value.prompt_budget.limit, unit: value.prompt_budget.unit }),
-  });
+  };
+  if (isPageImage) resolved.transport = resolvePageImageTransport(value.transport, source);
+  return freeze(resolved);
 }
 
 function confirmedProfile(value, source) {
@@ -214,7 +270,7 @@ export function selectImage2ProviderOperation(profile, operation) {
     failProfile("image2_provider_profile_operation_invalid", "Image2 provider profile does not declare the required operation");
   }
   const selected = profile.operations[operation];
-  return freeze({
+  const selectedOperation = {
     profile_id: profile.profile_id,
     profile_sha256: profile.profile_sha256,
     endpoint_profile: profile.endpoint_profile,
@@ -222,7 +278,9 @@ export function selectImage2ProviderOperation(profile, operation) {
     operation,
     model: selected.model,
     prompt_budget: freeze({ ...selected.prompt_budget }),
-  });
+  };
+  if (selected.transport) selectedOperation.transport = freeze({ ...selected.transport });
+  return freeze(selectedOperation);
 }
 
 export function evaluateImage2PromptBudget({ prompt, operationProfile } = {}) {

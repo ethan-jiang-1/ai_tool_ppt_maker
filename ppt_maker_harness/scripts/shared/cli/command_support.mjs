@@ -45,9 +45,13 @@ import {
 import { sha256Bytes } from "../identity/byte_hash.mjs";
 import {
   inspectExactPageImagePng,
-  PAGE_IMAGE_REQUEST_SIZE,
   PAGE_IMAGE_NATIVE_RAW_PNG,
 } from "../image2/page_image_media_contract.mjs";
+import {
+  DEFAULT_PAGE_IMAGE_TRANSPORT,
+  isLegalPageImageTransport,
+  pageImageTransportRequestSize,
+} from "../image2/provider_profile.mjs";
 import { pageImageOrdinalImageFilename } from "../image2/page_image_artifacts.mjs";
 import { inspectCurrentFinalSlideManifestFromRun } from "../image2/page_image_final_manifest.mjs";
 import { writeHumanArtifactNavigation } from "../image2/page_image_human_artifact_reference.mjs";
@@ -1611,6 +1615,63 @@ export function targetPageImagePngBytesFromProvider(payload) {
   return inspected.bytes;
 }
 
+function boundPageImageTransport(provider) {
+  const transport = provider?.transport || DEFAULT_PAGE_IMAGE_TRANSPORT;
+  if (!isLegalPageImageTransport(transport)) {
+    const error = new Error("Target Page Image provider request is not bound to a legal transport vector");
+    error.code = "PAGE_IMAGE_PROVIDER_REQUEST_INVALID";
+    throw error;
+  }
+  return transport;
+}
+
+function pageImageProviderSubmitCall({ credentials, providerIdempotencyKey, vector, model, prompt, styleMaster, images }) {
+  const size = pageImageTransportRequestSize(vector);
+  const url = `${credentials.base_url}/images/${vector.http_operation}`;
+  const headers = {
+    Authorization: `Bearer ${credentials.api_key}`,
+    "Idempotency-Key": providerIdempotencyKey,
+  };
+  if (vector.encoding === "json") {
+    return {
+      url,
+      options: {
+        method: "POST",
+        redirect: "error",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model,
+          prompt,
+          n: 1,
+          size,
+          image: images[0],
+          images,
+          image_urls: images,
+        }),
+      },
+    };
+  }
+  const form = new FormData();
+  form.append("model", model);
+  form.append("prompt", prompt);
+  form.append("n", "1");
+  form.append("size", size);
+  form.append(
+    "image",
+    new Blob([styleMaster.bytes], { type: styleMaster.candidate_media_type || "image/png" }),
+    "image.png",
+  );
+  return {
+    url,
+    options: {
+      method: "POST",
+      redirect: "error",
+      headers,
+      body: form,
+    },
+  };
+}
+
 /** Submit an opaque target adapter request without re-evaluating its workflow. */
 export function targetPageImageSubmitFactory(plan, {
   credentialResolver = null,
@@ -1688,30 +1749,22 @@ export function targetPageImageSubmitFactory(plan, {
     const images = [imageBytesDataUrl(styleMaster.bytes, styleMaster.candidate_media_type)];
     const identityPath = slide.visual_language?.identity_reference?.provider_reference?.path;
     if (identityPath) images.push(imageDataUrl(identityPath));
-    const body = {
+    const vector = boundPageImageTransport(boundRequest.generation_profile.provider);
+    const submitCall = pageImageProviderSubmitCall({
+      credentials,
+      providerIdempotencyKey,
+      vector,
       model: boundRequest.generation_profile.provider.model,
       prompt: boundRequest.compiled_provider_input.utf8,
-      n: 1,
-      size: PAGE_IMAGE_REQUEST_SIZE,
-      image: images[0],
+      styleMaster,
       images,
-      image_urls: images,
-    };
+    });
     // The same deadline owns the submit response and every task poll spawned
     // by that submit. It begins immediately before the provider POST.
     const deadline = createImage2ProviderDeadline({ now, timeoutMs: transportTiming.timeoutMs });
     const payload = await readImage2ProviderResponseJson({
-      url: `${credentials.base_url}/images/generations`,
-      options: {
-        method: "POST",
-        redirect: "error",
-        headers: {
-          Authorization: `Bearer ${credentials.api_key}`,
-          "Content-Type": "application/json",
-          "Idempotency-Key": providerIdempotencyKey,
-        },
-        body: JSON.stringify(body),
-      },
+      url: submitCall.url,
+      options: submitCall.options,
       fetchImpl,
       deadline,
       knownFailure: pageImageProviderResponseKnownFailure,
@@ -1720,6 +1773,9 @@ export function targetPageImageSubmitFactory(plan, {
     });
     const taskId = pageImageProviderTaskId(payload);
     if (taskId && !pageImageProviderHasInlineImage(payload)) {
+      if (vector.completion === "sync") {
+        throw pageImageProviderResponseKnownFailure("task_response_invalid");
+      }
       return resolveImage2ProviderTask({
         baseUrl: credentials.base_url,
         apiKey: credentials.api_key,

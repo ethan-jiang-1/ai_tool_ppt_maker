@@ -258,14 +258,26 @@ non-empty lower-kebab `route_id`, one non-empty provider `model`, and
 `unit` SHALL be exactly `unicode-code-points`, `utf16-code-units`, or
 `utf8-bytes`. No numeric limit is a reserved profile kind or code-path selector.
 
+The `page-image-reference-generation` operation MAY include exactly one
+`transport` mapping with `http_operation` (`generations` | `edits`),
+`encoding` (`json` | `multipart`), positive integer `width` and `height`,
+`dimension_multiple` (`1` | `16`), and `completion` (`sync` | `async-poll`).
+Omitted `transport` SHALL resolve to `generations`, `json`, width `2000`,
+height `1125`, `dimension_multiple` `1`, and `completion` `async-poll`.
+Width and height SHALL be divisible by `dimension_multiple`. The only legal
+pairings are `generations`+`json` and `edits`+`multipart`. `style-master-text-generation`
+SHALL NOT declare `transport`. The source SHALL contain no vendor-product name
+as a schema key.
+
 The source and resolved binding SHALL contain no API key, credential, base URL,
 authorization, State fact, provider response, remote probe result, filesystem
 path, or inferred model/route capability. The binding's canonical digest SHALL
-cover every confirmed source capability fact while its origin/path remains
-diagnostic-only. Missing, pending, malformed, unknown, mixed, or unconfirmed
-facts SHALL produce one non-bypassable source-repair hard-stop at the consuming
-provider-free planning checkpoint without a binding or digest; the owner SHALL
-not guess from `.env`, a model alias, inspection, prior plan, or remote failure.
+cover every confirmed source capability fact, including the resolved transport
+vector, while its origin/path remains diagnostic-only. Missing, pending,
+malformed, unknown, mixed, unconfirmed, or illegal-combo facts SHALL produce
+one non-bypassable source-repair hard-stop at the consuming provider-free
+planning checkpoint without a binding or digest; the owner SHALL not guess from
+`.env`, a model alias, inspection, prior plan, or remote failure.
 
 #### Scenario: Confirmed profile resolves two explicit operations
 
@@ -274,6 +286,23 @@ not guess from `.env`, a model alias, inspection, prior plan, or remote failure.
   operation profiles and one canonical digest over all confirmed facts
 - **AND** neither operation inherits a route, model, limit, or unit from the
   other or from runtime environment values
+
+#### Scenario: Omitted page-image transport resolves to the current default
+
+- **WHEN** a confirmed `page-image-reference-generation` operation omits
+  `transport`
+- **THEN** the resolved binding uses generations, JSON, `2000x1125`, multiple 1,
+  and async-poll
+- **AND** that default remains a legal explicit declaration
+
+#### Scenario: Illegal transport pairing is rejected before a binding
+
+- **WHEN** a confirmed source declares `edits` with `json`, `generations` with
+  `multipart`, a vendor-named field, or a size not divisible by
+  `dimension_multiple`
+- **THEN** the source validator hard-stops before a generation profile, plan,
+  grant, attempt, or network request
+- **AND** it does not infer a substitute combo
 
 #### Scenario: Invalid override cannot reveal backbone fallback
 

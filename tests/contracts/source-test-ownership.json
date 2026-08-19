@@ -231,6 +231,7 @@
     "tests/shared/image2/test_human_artifact_reference.mjs",
     "tests/shared/image2/test_page_derived_data.mjs",
     "tests/shared/image2/test_page_image_media_contract.mjs",
+    "tests/shared/image2/test_page_image_transport_vector.mjs",
     "tests/shared/image2/test_png_raster_projection.mjs",
     "tests/shared/image2/test_progressive_raw_owner.mjs",
     "tests/shared/image2/test_progressive_store_lock_diagnostics.mjs",

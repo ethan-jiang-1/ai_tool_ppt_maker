@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import {
+  DEFAULT_PAGE_IMAGE_TRANSPORT,
   IMAGE2_PROMPT_BUDGET_UNITS,
   IMAGE2_PROVIDER_PROMPT_SAFETY_MAX_UTF8_BYTES,
   Image2PromptBudgetError,
@@ -39,7 +40,35 @@ const PENDING_SOURCE = [
   "",
 ].join("\n");
 
-function confirmedSource({ profileId = "image2-production", pageLimit = 12347, pageUnit = "unicode-code-points" } = {}) {
+function confirmedSource({
+  profileId = "image2-production",
+  pageLimit = 12347,
+  pageUnit = "unicode-code-points",
+  pageTransport = null,
+  styleMasterTransport = false,
+} = {}) {
+  const pageTransportYaml = pageTransport
+    ? [
+        "    transport:",
+        `      http_operation: ${pageTransport.http_operation}`,
+        `      encoding: ${pageTransport.encoding}`,
+        `      width: ${pageTransport.width}`,
+        `      height: ${pageTransport.height}`,
+        `      dimension_multiple: ${pageTransport.dimension_multiple}`,
+        `      completion: ${pageTransport.completion}`,
+      ]
+    : [];
+  const styleTransportYaml = styleMasterTransport
+    ? [
+        "    transport:",
+        "      http_operation: generations",
+        "      encoding: json",
+        "      width: 2000",
+        "      height: 1125",
+        "      dimension_multiple: 1",
+        "      completion: async-poll",
+      ]
+    : [];
   return [
     "schema: pptmaker-image2-provider-profile",
     `profile_id: ${profileId}`,
@@ -54,12 +83,14 @@ function confirmedSource({ profileId = "image2-production", pageLimit = 12347, p
     "    prompt_budget:",
     "      limit: 4000",
     "      unit: utf8-bytes",
+    ...styleTransportYaml,
     "  page-image-reference-generation:",
     "    route_id: page-image-route",
     "    model: owner-model-page-image",
     "    prompt_budget:",
     `      limit: ${pageLimit}`,
     `      unit: ${pageUnit}`,
+    ...pageTransportYaml,
     "",
   ].join("\n");
 }
@@ -134,8 +165,10 @@ describe("Image2 provider profile", () => {
         operation: "page-image-reference-generation",
         model: "owner-model-page-image",
         prompt_budget: { limit: 12347, unit: "unicode-code-points" },
+        transport: DEFAULT_PAGE_IMAGE_TRANSPORT,
       });
       expect(style.model).toBe("owner-model-style-master");
+      expect(style).not.toHaveProperty("transport");
     } finally {
       rmSync(fixture.root, { recursive: true, force: true });
     }
@@ -267,6 +300,44 @@ describe("Image2 provider profile", () => {
       expect(readFileSync(join(successor, "overrides", "visual-style", IMAGE2_PROVIDER_PROFILE_FILE), "utf8"))
         .toBe(confirmedSource({ profileId: "version-specific" }));
       expect(existsSync(join(successor, "_generated", "page_image_workflow", "raw", "plan-manifest.json"))).toBe(false);
+    } finally {
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
+  });
+
+  it("resolves omitted page-image transport to the current generations default", () => {
+    const fixture = temporaryBundle();
+    try {
+      writeFileSync(image2ProviderProfileAsset(fixture.runDir), confirmedSource(), "utf8");
+      const omitted = resolveImage2ProviderProfile(fixture.runDir);
+      writeFileSync(
+        image2ProviderProfileAsset(fixture.runDir),
+        confirmedSource({ pageTransport: DEFAULT_PAGE_IMAGE_TRANSPORT }),
+        "utf8",
+      );
+      const explicit = resolveImage2ProviderProfile(fixture.runDir);
+      expect(omitted.operations["page-image-reference-generation"].transport).toEqual(DEFAULT_PAGE_IMAGE_TRANSPORT);
+      expect(explicit.profile_sha256).toBe(omitted.profile_sha256);
+    } finally {
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects illegal page-image transport before a binding", () => {
+    const fixture = temporaryBundle();
+    try {
+      const source = image2ProviderProfileAsset(fixture.runDir);
+      const illegal = [
+        { http_operation: "edits", encoding: "json", width: 2000, height: 1125, dimension_multiple: 1, completion: "async-poll" },
+        { http_operation: "generations", encoding: "multipart", width: 2000, height: 1125, dimension_multiple: 1, completion: "async-poll" },
+        { http_operation: "generations", encoding: "json", width: 2000, height: 1125, dimension_multiple: 16, completion: "async-poll" },
+      ];
+      for (const pageTransport of illegal) {
+        writeFileSync(source, confirmedSource({ pageTransport }), "utf8");
+        expectProfileFailure(() => resolveImage2ProviderProfile(fixture.runDir), "image2_provider_profile_shape_invalid");
+      }
+      writeFileSync(source, confirmedSource({ styleMasterTransport: true }), "utf8");
+      expectProfileFailure(() => resolveImage2ProviderProfile(fixture.runDir), "image2_provider_profile_shape_invalid");
     } finally {
       rmSync(fixture.root, { recursive: true, force: true });
     }
