@@ -1,0 +1,29 @@
+# BUG-086: 下游关键术语全黑话，无任何白话释义（Style Master/raw/pilot/provider/receipt/manifest…）
+
+> 严重级别: P1 | 发现: 2026-08-19 | 状态: 活跃
+
+## 症状
+
+下游从 Style Master 到交付的全程，核心名词对小白零释义。`reference/glossary.md` 只是"路径/记录位置图"，**不释行为含义**；Gate 处也不引用它。受影响的术语（扫描自 `create-deck.md` / `glossary.md` / `BOOTSTRAP.md`）：
+
+- **Style Master**（`create-deck.md:146-240` 等约 40 处）——从无"your deck's visual style / 你这套 PPT 的视觉风格"一句白话。
+- **raw**（`:254/:362`）——"Receipt-bound raw image evidence"≠"你要审的那张生成的图"。
+- **pilot / expansion**（`:256-322`）——未入词表，只作节点名。
+- **provider / profile / gate / receipt / manifest / Task Mandate**（散见于全 flow）——无 lay gloss。
+- **proceed/repair/redirect、reserved_header/protected_composition/composite**——见 BUG-084。
+- **production-protocol/current-protocol-invalid/repair-current-protocol-identity**（`WORKFLOW.md:37-44`、`BOOTSTRAP.md:62-64`）——报错时抛给小白的 panic 词汇，无白话。
+
+对比强烈：**目录层**（`bundle_layout.mjs` `_DIR_READMES`）写得极友好（"改这两个文件 / 别碰 _generated / 跟你的 AI agent 说人话「第 5 页换个例子」"），一旦进入 **controller 层** `create-deck.md` 全是黑话。同一个用户从"你说人话，agent 干活"的安全手（`quick-start.md:16-17`）跌进"present validated real candidate bytes … inside reserved_header"。
+
+## 根因
+
+面向小白的友好写法只存在于"静止目录说明"，而下沉的"流程/Gate 节点"是 owner/agent 命令语言，恰恰是小白最容易慌的地方。没有把"术语→白话"作为全流程文案的强制格式（见 novice-guidance-terminology-plus-plain-language）。
+
+## 复现
+
+1. 打开 `ppt_maker_harness/playbook/create-deck.md`，从 `select-target-page-image-workflow`（`:114`）读到 `:376`。
+2. 数：无一处给 Style Master/raw/pilot/provider 等名词一句 lay gloss。
+
+## 修复关联
+
+待后续 findings 汇齐后统一进 OpenSpec change（术语白话化：为每个 review/decision 点统一"术语→白话→下一步"；扩展 `glossary.md` 为行为释义表并在 Gate 处链接引用；这承载用户明确的原则——术语保留、旁边配白话，见 novice-guidance-terminology-plus-plain-language）。

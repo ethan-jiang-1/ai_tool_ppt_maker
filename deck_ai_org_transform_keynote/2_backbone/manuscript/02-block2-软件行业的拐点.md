@@ -4,9 +4,13 @@
 
 ## 从犹豫到下决心
 
-软件行业可能是最早把 AI 杠杆压到完整工作流上的行业。一个很生动的切片是 Martin Fowler 召集的两次 retreat：同一群资深从业者，几个月前还在说“更多的是不确定”，几个月后已经在讨论生产环境、harness engineering、token 经济和风险分层。
+第 4 页先把观念翻转推到台前。这不是会议名录，而是 Thoughtworks 与 Martin Fowler 召集的同一西方圈层：年初还在怀疑，年中已经转向。材料是 2026 年 2 月到 6/7 月，口播可说不到半年。台上的人按西方人来画。
 
-这不代表整个行业已经没有问题。它更像一个真实发生的拐点：有些人和团队已经跨过了“要不要用”的门槛，开始研究“怎样稳定地用、怎样判断做对了没有、怎样把成本和风险管住”。
+年初：Fowler 自称 a total, absolute skeptic；Vella 说 there is more uncertainty than certainty。年中：The evidence is in；Everybody in the room was shipping it in production。中间转折是 Fowler 自己的那句：The game is how fast can we tell whether this is right。
+
+Kent Beck 属于同一代、同一话语圈，但只钉验证：TDD is a superpower with AI agents。不能把“半年从保守到拥抱”安到 Beck 个人头上。
+
+这是西方早期采用者社区的切片。后面挑战更多。不能读成全行业已经完成转型，更不能读成中国企业已经发生同样的事。
 
 软件之所以跑得快，是因为它同时具备三样东西：完整的数字上下文、可以调用的工具，以及几乎即时的反馈。Agent 可以读代码库、改文件、跑测试、查看错误，再继续迭代。硅基系统的广度、吞吐和协作速度，在这样的环境里最容易被释放。
 

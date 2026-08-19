@@ -1,0 +1,58 @@
+# BUG-090: provider profile 无法表达 Image2 多 vendor 能力差异 → 路由无法"随机应变"
+
+> 严重级别: P1 | 发现: 2026-08-19 | 状态: 活跃
+
+## 症状
+
+"Image2" 只是一个操作名，背后是**多个 vendor/provider**，各自能力与限制不同（operation 类型、prompt 上限、同步/异步、尺寸规则、传输编码）。当前 provider profile 只记录 route ID / model / prompt budget / profile id，无法表达这些差异，导致**一旦用户换了 vendor，Harness 不会随机应变，必然走错 endpoint 或直接失败**。
+
+现场实证（Packy 为其中一例，泛化后用户可能完全不用这一家）：
+- Packy 的 `gpt-image-2`：走 `POST /v1/images/edits` + multipart，native size `2048x1152`，可承载 20,002 code points 的长 compiled prompt；但 `generations` 在本地返回 `403 region_restricted`，`edits` 对 `2000x1125` 返回 `400`（要求宽高为 16 倍数）。
+- Harness transport 固定发 JSON `POST /v1/images/generations`、`2000x1125`、同时序列化 `image`/`images`/`image_urls`——因此即便 `.env`/profile 都声明 Packy，标准 `image2 generate` 也到不了已证明可用的 Packy route。
+
+## 根因
+
+provider profile 的 schema 只捕获单向的"model + budget"，**没有捕获该 vendor 的能力矢量**：
+- 支持的 operation（generations vs edits）、HTTP 端点
+- 请求编码（JSON vs multipart）、reference-image 字段
+- native/请求尺寸规则（宽高约束、步长/16 倍数）
+- 同步 vs 异步（poll 任务模型）与超时
+- prompt length 上限 / 截断策略
+- 地区限制（例如 region_restricted）
+
+因此 raw compiler、preflight、authorize、transport 全部绑定同一份单一路由，无法按选用 vendor 自适应；不支持的组合要到 provider submit 之后才暴露。
+
+## 期望（泛化：随机应变，而非绑死 Packy）
+
+- provider profile 进化成一份**能力描述**（capability profile）：声明可用的 operation 集合、编码、尺寸、同步/异步、prompt 上限、参考图传递方式。
+- raw 编译、preflight、authorization、transport 统一绑定同一份该 vendor 的能力描述；选择哪个 route 由"用户选 vendor + 能力匹配"共同决定。
+- 用户在 Deck Author 声明里选一家 vendor 后，Harness 用其能力自动选对 endpoint/编码/尺寸；未支持组合在零远端阶段拒绝。
+- 不把 Packy 写死进 schema/名称：泛化后用户不用 Packy 也能享受同样自适应。
+- 保留当前"行为挺好"的兼容路径（generations + 2000x1125 仍可用），我只把"能力感知/自适应路由"作为扩展维度。
+
+## 当前绕行
+
+Packy 只用于 `v1/_scratch/` 的 deck-local 视觉预览；不得把这些 PNG 复制到 `_generated/` 或伪造成当前 raw evidence。
+
+## 验收难 / 测试策略
+
+这是一个**灵活适配策略**，而非单一确定性行为，传统"跑一个命令断言输出"很难覆盖。建议把验收目标定为"可观察的能力感知 + 安全失败"，而不是"每个 vendor 都能跑通"：
+
+- 用**已有可证明的 vendor**（如 Packy，`_lessons/image2-vendor-experiments.md` 已留真实调用证据）作为一条是的契约测试：profile 声明 `edits + multipart + 2048x1152` 时，transport 选择的 endpoint/编码/尺寸与声明的矢量一致，能进入正式 receipt chain。
+- 对**未声明的组合**，断言它在**零远端调用阶段**被拒（错误类别明确、有白话 next），而不是打到 provider 后才发现。
+- 对**假 vendor / mock transport**：注入一个"只支持异步 + 小 prompt"的假 capability，断言 preflight/authorize/transport 都顺着能力走，且超限组合被拦。
+- **不绑定 Packy 名字做验收**：用它的数据作样本证明机制，但断言都落在"能力矢量"语义上（operation/encoding/size/sync-async/prompt-limit），换一家 vendor 重新自探（run bundle 的 `_lessons/`）即可。
+
+## 修复关联
+
+待进 OpenSpec change：新增/扩展 provider capability profile schema（operation/encoding/size/sync-async/prompt-limit），并把 raw compiler/preflight/authorize/transport 接到能力感知路由。相关：BUG-089（prompt budget 超限）、BUG-087（known_failure 恢复）。教训已记：Image2 多 vendor 差异化 → 能力描述 + 随机应变（记忆 deck-image2-vendor-capability-adaptive）。
+
+## 分层的分工（Harness = 指导 + 鼓励 run bundle 自探，而非绑死实现）
+
+Deck Author 反复强调的形态：**画图（Image2 API 调用）由 run bundle 里自己试探**，Harness 给的是"指导 + 鼓励"，不是把每种 vendor 的具体调用写死进框架：
+
+- **Harness 给指导**：规范的能力描述（operation/encoding/size/sync-async/prompt-limit）与安全的调用边界（零远端拒绝、receipt chain、授权 gate）——即标准。
+- **run bundle 自探**：不同 vendor 的不同调整（Edits vs generations、尺寸倍数、同步/异步轮询）由该 deck/该 vendor 的 `_lessons/` 自己试探出来并沉淀；Harness 不替它记住每家的细节。
+- **互相尊重**：framework 不该因"一家 vendor 的怪癖"而放大固定接口；把怪癖留在 run bundle 的 lessons（像 Current 这张 deck 的 `_lessons/image2-vendor-experiments.md`）。泛化后换 vendor 时，run bundle 用同一套能力矢量重新自探即可。
+
+因此 BUG-090 的修复落点同时包含：① profile schema 加能力矢量（能表达差异）；② 允许/鼓励 run bundle 对一个 vendor 自探并写 `_lessons/`；③ Harness 只定安全契约与零远端拒绝，不绑定任何具体 vendor 的操作形态。

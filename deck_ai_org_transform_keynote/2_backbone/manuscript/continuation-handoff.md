@@ -17,11 +17,12 @@
 ## 当前叙事主线
 
 ```text
-个人能力全面开花
-→ AI 成为新的协作主体
-→ 软件最先跑通人机协作回路
-→ 企业重做工作流、责任和组织接口
-→ 一把手定位瓶颈并创造转型条件
+熟悉的工具已经涌现，个人工作方式变了
+→ 组织价值没有自动出现
+→ Thoughtworks / Fowler 圈层约半年从保守转向拥抱，Beck 把问题钉在验证上
+→ 工作单元变完整，Agent = Model + Harness
+→ 企业重做责任角色、价值链角色和基础设施
+→ 一把手没有标准动作，只有不同入口和学习闭环
 ```
 
 Central Claim：
@@ -30,13 +31,13 @@ Central Claim：
 
 ## 标题页、五段结构与页数
 
-- **第 1 页：独立标题页**。标题暂沿用 Story Outline 当前标题；本页不承担主体论证。
-- **Block 1（第 2–3 页）**：个人能力全面开花，并建立“个人已经变了、组织价值没有自动出现”的第一处断层。杠杆与支点是本段的核心隐喻。
-- **Block 2（第 4–6 页）**：软件是先锋。以 Martin Fowler Deer Valley → Engelberg 的语气转变为主证据；解释工作单元如何扩展、`Agent = Model + Harness`、Guides + Sensors 和验证回路。AI 成为协作主体的判断在 Harness 机制之后得出。
+- **第 1 页：独立标题页**。本页不承担主体论证。
+- **Block 1（第 2–3 页）**：第 2 页用 WorkBuddy、Cursor、Claude Code、Codex、Trae 证明个人已经变了；第 3 页只讲第一处断层。杠杆物理不再做独立页面。
+- **Block 2（第 4–6 页）**：第 4 页突出 Thoughtworks / Fowler 的半年转向，以及 Kent Beck 的验证判断；第 5–6 页再讲工作单元和 `Agent = Model + Harness`。
 - **第 7 页：跨行业转场**。软件天然拥有数字上下文、可调用工具和确定性验证；企业还必须补上业务上下文、权限、审计、确定性执行、人工升级和结果责任。
-- **Block 3（第 8–10 页）**：三个案例已经确认并各自独占一页。第 8 页 Block（问题所有权/DRI/层级），第 9 页 Cloudflare（Builders/Sellers/Measurers 与内部 Cloudflare OS），第 10 页 JPMorgan（核心基础设施、LLM Suite、培训和自然流失再部署）。
-- **Block 4（第 11–13 页）**：第 11 页用组织公式归纳三条路径的共同机制；第 12 页落到一把手的最小启动动作，第 13 页把探索闭环推进到机制化。
-- **Block 5（第 14 页）**：独立 Q&A closing 页，只提供开放追问入口，不新增结论或未经支持的证据。
+- **Block 3（第 8–10 页）**：第 8 页 Block 三种角色（个人贡献者 / DRI / player-coach），第 9 页 Cloudflare（Builders/Sellers/Measurers），第 10 页 JPMorgan。
+- **Block 4（第 11–13 页）**：第 11 页组织公式；第 12 页多种入口的启发，不是唯一处方；第 13 页探索闭环变成组织学习。
+- **Block 5（第 14 页）**：独立 Q&A closing 页。
 
 ## 两条核心公式
 
@@ -62,7 +63,7 @@ Central Claim：
 
 - 叙事骨架：[../../2_backbone/story-outline.md](../story-outline.md)
 - 公式关系：[formula-map.md](formula-map.md)
-- 核心隐喻：[../core-metaphor.md](../core-metaphor.md)：AI 是杠杆，面对困难关键是找到离问题最近的支点
+- 核心隐喻：[../core-metaphor.md](../core-metaphor.md)：个人已经拿到工具，组织价值不会自动出现；公式里的 AI 杠杆仍是管理用语
 - 四段讲稿：`01-block1-杠杆与支点.md`、`02-block2-软件行业的拐点.md`、`03-block3-从提效到重构.md`、`04-block4-一把手工程.md`
 
 ## 下一步

@@ -1,4 +1,4 @@
-# BUG-077: 新 deck 上级"下一步"文案缺失且互相矛盾，跳过上游素材与全流程预告
+# BUG-079: 新 deck 上级"下一步"文案缺失且互相矛盾，跳过上游素材与全流程预告
 
 > 严重级别: P1 | 发现: 2026-08-19 | 状态: 活跃
 
@@ -25,4 +25,4 @@
 
 ## 修复关联
 
-待后续 findings 汇齐后统一进 OpenSpec change（onboarding 面向小白的全旅程引导：统一/收敛 `init` 的 next 单源；把"先喂上游素材"作为第一步写进文案；给出"你已完成第 N / M 步"的进度锚）。
+待后续 findings 汇齐后统一进 OpenSpec change（onboarding 面向小白的全旅程引导：统一/收敛 `init` 的 next 单源；把"先喂上游素材"作为第一步写进文案；给出"你已完成第 N / M 步"的进度锚；文案统一为"术语 → 白话 → 下一步"格式——但保留术语，见记忆 novice-guidance-terminology-plus-plain-language）。

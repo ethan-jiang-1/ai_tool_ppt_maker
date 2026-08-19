@@ -33,14 +33,48 @@ items:
 > **SPEAKER NOTE**: 先把全场主命题立住：变化已经发生，但只有被业务和组织接住，才会成为转型。标题页不展开论证。
 
 ## Slide 02: `OrgGap`
-**KICKER**: 第一处断层
-**TITLE**: 个人已经变了，组织价值没有自动出现
-**SUBTITLE**: AI 转型最先发生在一个人的工作方式里，而不是企业战略里。
+**KICKER**: 工具已经涌现
+**TITLE**: 一个人，把很多事串起来了
+**SUBTITLE**: WorkBuddy、Cursor、Claude Code、Codex、Trae，正在变成同一个人的工作回路。
 **VISUAL BRIEF**:
 ```yaml
 recipe: org-transform
-composition: left-to-right-flow
-motifs: [fulcrum-lever]
+composition: centered-constellation
+motifs: [responsibility-owner]
+negative_constraints:
+  - no-watermark
+```
+
+**SLIDE BODY**:
+```yaml
+items:
+  - role: label
+    literal: "WorkBuddy｜办公 Agent"
+  - role: label
+    literal: "Cursor｜Coding Agent"
+  - role: label
+    literal: "Claude Code｜Coding Agent"
+  - role: label
+    literal: "Codex｜Coding Agent"
+  - role: label
+    literal: "Trae｜Coding Agent"
+  - role: supporting_copy
+    literal: "写代码、写文案、做分析、做创作、做原型"
+  - role: callout
+    literal: "不是多了一个团队，是同一个人能把整条回路跑完"
+```
+
+> **SPEAKER NOTE**: 画面只留一个人。工具是他手里的家伙，不是五个并列主角，也不要一群人各用一个工具。WorkBuddy 是办公 Agent，其余是 Coding Agent。因为工具足够多样，同一个人开始什么都能干。
+
+## Slide 03: `WorkArc`
+**KICKER**: 第一处断层
+**TITLE**: 个人已经拿到工具，组织价值没有自动出现
+**SUBTITLE**: 少数人已经闭环；组织还没有把这些能力接到真实问题上。
+**VISUAL BRIEF**:
+```yaml
+recipe: org-transform
+composition: centered-constellation
+motifs: [responsibility-owner]
 negative_constraints:
   - no-logo
   - no-watermark
@@ -52,50 +86,21 @@ items:
   - role: label
     literal: "已经形成新工作方式"
   - role: supporting_copy
-    literal: "写代码、写文案、做分析、做创作、做原型，开始被一个人串进同一条工作回路"
+    literal: "少数人把工具串成了可重复的个人回路"
   - role: label
-    literal: "正在路上"
+    literal: "组织尚未接住"
   - role: supporting_copy
-    literal: "组织尚未提供足够的场景、信心与反馈"
+    literal: "还缺少真实场景、信心、权限与反馈"
   - role: callout
-    literal: "个人能力梯度已经出现"
+    literal: "个人变了，不等于组织已经获得价值"
 ```
 
-> **SPEAKER NOTE**: 让听众承认：这不是等待未来的命题，变化已经从个人工作方式开始。但变化并不均匀，少数人已经形成闭环，更多人仍缺少真实场景和组织反馈。
-
-## Slide 03: `WorkArc`
-**KICKER**: 杠杆与支点
-**TITLE**: AI 放大的不是组织，而是组织已有的能力
-**SUBTITLE**: 杠杆的关键不是更用力，而是找到离困难最近的支点。
-**VISUAL BRIEF**:
-```yaml
-recipe: org-transform
-composition: specialist-generalist
-motifs: [fulcrum-lever, responsibility-owner]
-negative_constraints:
-  - no-logo
-  - no-watermark
-```
-
-**SLIDE BODY**:
-```yaml
-items:
-  - role: label
-    literal: "杠杆｜AI"
-  - role: label
-    literal: "支点｜离困难最近的真实问题"
-  - role: label
-    literal: "被撬动｜可验证的业务结果"
-  - role: callout
-    literal: "支点选错，噪声、等待和错误判断也会被放大"
-```
-
-> **SPEAKER NOTE**: AI 会放大能力，也会放大系统弱点。企业真正要回答的不是“要不要上 AI”，而是要撬动哪个困难、支点在哪里、谁能看见结果、谁对结果负责。软件行业随后成为第一个完整接住杠杆的样本。
+> **SPEAKER NOTE**: 不要讲杠杆和支点的物理关系。这一页只把断层立住：工具已经到人，价值还没有到组织。口播可留一句遇强则强、遇弱则弱。转场到软件：那些最有话语权的人，自己是怎样转过来的。
 
 ## Slide 04: `CodeRise`
-**KICKER**: 软件先行
-**TITLE**: 软件行业先跑通了完整工作回路
-**SUBTITLE**: 结构化上下文、可调用工具和快速反馈，让 AI 从回答进入执行。
+**KICKER**: 观念变了
+**TITLE**: 年初还在怀疑，年中已经转向
+**SUBTITLE**: Thoughtworks 与 Fowler 的西方圈层。后面挑战更多。
 **VISUAL BRIEF**:
 ```yaml
 recipe: org-transform
@@ -110,22 +115,24 @@ negative_constraints:
 ```yaml
 items:
   - role: label
-    literal: "2026.02｜Deer Valley"
+    literal: "年初｜Thoughtworks / Fowler"
   - role: quote
-    literal: "更多的是不确定"
-  - role: label
-    literal: "2026.04｜Harness engineering"
-  - role: callout
-    literal: "从模型能不能写，转向多快知道写得对不对"
-  - role: label
-    literal: "2026.06/07｜Engelberg"
+    literal: "Fowler：a total, absolute skeptic"
   - role: quote
-    literal: "Evidence is in"
-  - role: supporting_copy
-    literal: "同一早期采用者社区的前后切片，不代表整个行业已无摩擦完成转型"
+    literal: "Vella：there is more uncertainty than certainty"
+  - role: label
+    literal: "年中｜同一批西方人，已经在生产里做"
+  - role: quote
+    literal: "The evidence is in."
+  - role: quote
+    literal: "Everybody in the room was shipping it in production."
+  - role: quote
+    literal: "Fowler：The game is how fast can we tell whether this is right."
+  - role: quote
+    literal: "Beck：TDD is a superpower with AI agents"
 ```
 
-> **SPEAKER NOTE**: 同一批 Martin Fowler retreat 参与者在约 5 个月内完成语气翻转：从怀疑，到 Harness engineering，再到生产议题。来源是早期采用者社区的真实切片；METR、Stanford、MIT NANDA 等反证提醒我们，收益仍取决于任务类型、Harness 与验证能力。
+> **SPEAKER NOTE**: 这一页讲观念翻转，不是会议名录。材料是 2026 年 2 月到 6/7 月，台上用年初/年中，口播可说不到半年。台上的人按西方人来画。半年转向属于 Thoughtworks / Fowler 社区，不要安到 Beck 头上；Beck 只钉验证。金句来自 Fowler 原始报告，不新编。后面挑战更多。
 
 ## Slide 05: `ModFit`
 **KICKER**: 工作单元改变
@@ -191,9 +198,8 @@ items:
 
 ## Slide 07: `OrgLink`
 **KICKER**: 跨行业转场
-**TITLE**: 企业要迁移的不是 Coding Agent，而是工作回路
-**SUBTITLE**: 企业流程还要补上业务上下文、权限、审计、人工升级和结果责任。
-**PAGE CLASS**: transition
+**TITLE**: Coding Agent 正在变成会干活的 Agent
+**SUBTITLE**: Agent 在适配人的工作方式；企业要接住的是这种能力，不是一个产品名。
 **VISUAL BRIEF**:
 ```yaml
 recipe: org-transform
@@ -207,6 +213,10 @@ negative_constraints:
 **SLIDE BODY**:
 ```yaml
 items:
+  - role: callout
+    literal: "Agent 接着干、能改、能反馈，围着人转"
+  - role: supporting_copy
+    literal: "人负责目标和升级"
   - role: diagram_text
     literal: "目标与上下文"
   - role: diagram_text
@@ -221,17 +231,17 @@ items:
     literal: "权限、审计、记录与结果责任不能消失"
 ```
 
-> **SPEAKER NOTE**: 软件只是先行样本。企业不能复制表面上的 Coding Agent，而要把推理和确定性执行分开，让过程产生反馈，并在不确定或高风险节点交还给人。
+> **SPEAKER NOTE**: 企业听众不必先懂 Coding Agent。软件里那个很能干的东西，本质是 Agent 在适配人：它能接着干、能改、能反馈。企业要接住的是这种会干活的 Agent，不是一个叫 Coding Agent 的产品。下面回路只是后面案例要接的接口，不是整页主角。
 
 ## Slide 08: `BlkOwn`
 **KICKER**: 案例一 / Block
-**TITLE**: 从岗位所有权，转向问题所有权
-**SUBTITLE**: DRI 在 90 天内成为一个问题的 CEO；AI 提供上下文、工具与协调能力。
+**TITLE**: 只保留三种角色，不设永久中层
+**SUBTITLE**: 个人贡献者做事；DRI 对问题负责；player-coach 下场带。
 **VISUAL BRIEF**:
 ```yaml
 recipe: org-transform
-composition: centered-constellation
-motifs: [responsibility-owner]
+composition: three-column
+motifs: [platform-stack]
 negative_constraints:
   - no-logo
   - no-watermark
@@ -241,16 +251,24 @@ negative_constraints:
 ```yaml
 items:
   - role: label
-    literal: "原始瓶颈｜信息与协调依赖层级"
-  - role: label
-    literal: "重做接口｜岗位所有权 → 问题所有权"
-  - role: callout
-    literal: "选择路径｜DRI 在 90 天内成为“问题的 CEO”"
+    literal: "个人贡献者｜做事"
   - role: supporting_copy
-    literal: "证据边界｜信息透明、能力可调用、结果可验证是前提；不是通用裁员答案"
+    literal: "直接交付，不再把信息交给常设中层转发"
+  - role: label
+    literal: "DRI｜问题的负责人"
+  - role: supporting_copy
+    literal: "90 天内成为这个问题的 CEO，调度跨职能能力"
+  - role: label
+    literal: "player-coach｜下场带"
+  - role: supporting_copy
+    literal: "仍然做事，同时带人；不是永久中层"
+  - role: callout
+    literal: "从岗位所有权，转向问题所有权"
+  - role: supporting_copy
+    literal: "信息透明、能力可调用、结果可验证是前提；不是通用裁员答案"
 ```
 
-> **SPEAKER NOTE**: Block 的关键不是“用了 AI”，而是把责任从岗位层级移到问题所有权。DRI 模型只有在信息透明、工具可调用、结果可验证时才成立，否则只是把责任压给个人。来源：企业 AI 转型六案例研究。
+> **SPEAKER NOTE**: 三种角色是这一页的主画面，DRI 只是其中一种。对照下一页 Cloudflare 的 Builders / Sellers / Measurers：Block 讲责任怎么分配，Cloudflare 讲价值链怎么切。不要把裁员当主线。来源：Dorsey 与 Botha《From Hierarchy to Intelligence》。
 
 ## Slide 09: `ClouOS`
 **KICKER**: 案例二 / Cloudflare
@@ -342,14 +360,14 @@ items:
 > **SPEAKER NOTE**: 三个案例入口不同，但最终都要提高 AI 杠杆、降低组织摩擦、保护人才密度。这个公式用来定位瓶颈，不用来计算精确 ROI。来源：腾讯研究院报告，作为研究启发而非通用定律。
 
 ## Slide 12: `OrgMove`
-**KICKER**: 一把手的第一步
-**TITLE**: 先给一个真实问题，一个完整闭环
-**SUBTITLE**: 找到已经自发使用 AI 的人，让成果被看见；给他负责人、权限、指标、边界和停止条件。
+**KICKER**: 一把手的启发
+**TITLE**: 没有标准动作，路径可以不同
+**SUBTITLE**: 完整闭环是一个建议；也可以先看见人、先透明，或按公式选第一刀。
 **VISUAL BRIEF**:
 ```yaml
 recipe: org-transform
-composition: title-pause
-motifs: [fulcrum-lever]
+composition: centered-constellation
+motifs: [platform-stack]
 negative_constraints:
   - no-logo
   - no-watermark
@@ -359,22 +377,18 @@ negative_constraints:
 ```yaml
 items:
   - role: label
-    literal: "真实问题"
+    literal: "看见已经在用的人｜让成果浮出水面"
   - role: label
-    literal: "结果负责人"
+    literal: "一个真实问题，一个完整闭环｜负责人、权限、指标、边界、停止条件"
   - role: label
-    literal: "数据与工具权限"
+    literal: "先透明，先做原型｜不必先建中台"
   - role: label
-    literal: "验证指标"
-  - role: label
-    literal: "风险边界"
-  - role: label
-    literal: "停止条件"
+    literal: "按公式选第一刀｜缺人才、缺杠杆，还是摩擦太大"
   - role: callout
-    literal: "先验证一个闭环是否改变结果，而不是先做全员部署"
+    literal: "这是建议，不是唯一处方"
 ```
 
-> **SPEAKER NOTE**: 不从全员部署开始。先找到已经自发使用 AI 的人，让成果被看见，再把一个边界清晰的真实问题完整交给一个人或小组。来源：腾讯研究院报告的最小启动动作。
+> **SPEAKER NOTE**: 这一页给人启发和选择，不要讲成六要素检查清单。完整闭环只是其中一条。下一页才是：无论选哪条入口，都要变成组织学习。来源：腾讯研究院最小启动动作、Anthropic 透明即协调、第 11 页组织公式。
 
 ## Slide 13: `LoopGo`
 **KICKER**: 从试验到机制
@@ -409,7 +423,7 @@ items:
     literal: "成功和失败都必须形成可复用的组织证据"
 ```
 
-> **SPEAKER NOTE**: 一把手不替团队规定唯一答案，而是判断瓶颈在哪里，让真实试验产生证据，再把有效答案产品化或机制化。失败也要留下边界、原因和停止条件，成为下一轮组织学习。
+> **SPEAKER NOTE**: 无论上一页选哪条入口，这一页只回答如何变成组织学习。不要再重复启动清单。失败也要留下边界、原因和停止条件。
 
 ## Slide 14: `AskNow`
 **KICKER**: Q&A
@@ -420,7 +434,7 @@ items:
 ```yaml
 recipe: org-transform
 composition: title-pause
-motifs: [fulcrum-lever]
+motifs: []
 negative_constraints:
   - no-logo
   - no-watermark

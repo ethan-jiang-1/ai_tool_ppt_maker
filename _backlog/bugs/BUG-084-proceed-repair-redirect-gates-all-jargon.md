@@ -1,0 +1,24 @@
+# BUG-084: 人类审图 Gate 的 proceed/repair/redirect 全黑话，从未换成人话
+
+> 严重级别: P1 | 发现: 2026-08-19 | 状态: 活跃
+
+## 症状
+
+下游一共约 8 个人类 Gate，全部要用户从 `proceed | repair | redirect` 里选一个，但这个三元组在 CLI / playbook 里**从不给小白解释**，判据更是纯机器语言：
+
+- 决策三元组只在枚举校验处出现：`style-master.mjs:70` "--decision must be proceed, repair, or redirect"、`command_support.mjs:1254` 同上；三个词的含义只藏在 `create-deck.md`（`:78-80` `:309` `:363`）而 `:363` 的判据是"provider-generated typography, labels, readable body content, or key subjects visibly inside `reserved_header`（or obscuring the local overlay in the composite）"——`reserved_header`/`protected_composition`/`composite` 对小白零定义（定义只在 `BOOTSTRAP.md:37` 的 CSS-pixel 机器语言）。
+- Gate 措辞是"Record `proceed/repair/redirect`"（如 `create-deck.md:226-227`、`:362-363`），从没出现"你看屏幕上的图、你判断、你选"；`anti-patterns.md:54-57` 的唯一白话提示藏在附录。
+- **Complete Raw Review Gate（`create-deck.md:362-363`）是全场最差**：唯一要求用户做视觉/质量判断的地方，判据却全黑话；这一步 `proceed` 直接解锁付费全画布定稿（`:365-376` 无进一步成本门），小白一旦把"repair 该选的结果选成 proceed"就等于已订上付费工作——正是"报错后不知所措"的最糟形态。
+
+## 根因
+
+`proceed/repair/redirect` 是内部状态机动词，从未在决策点映射成人话（接受 / 微调重做 / 换方向）。Gate 措辞面向"Agent 记录决定"而非"人类看图判断"。缺少一个在所有 review Gate 统一复用的"术语→白话→图→下一步"模板。
+
+## 复现
+
+1. 跑任一 `style-master review <v1> --plan-hash <sha>` 或 `image2 review <v1> --plan-hash <sha>`。
+2. 输出只有 JSON（`style-master.mjs:97`/`image2.mjs:120`）与枚举校验；无可读的"这是图、你看、选哪个、分别什么意思"。
+
+## 修复关联
+
+待后续 findings 汇齐后统一进 OpenSpec change（所有 review Gate：统一"你看屏幕上的图 → 三个选择的白话含义（接受/微调/换方向）→ 若文字/标题与你给的页眉重叠则选微调"模板；把 `reserved_header` 等黑话用白话替换；连同 harness 端成功输出一起，见 BUG-082/novice-guidance-terminology-plus-plain-language）。

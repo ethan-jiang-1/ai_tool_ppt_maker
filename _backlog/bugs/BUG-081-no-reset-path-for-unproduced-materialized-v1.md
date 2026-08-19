@@ -1,0 +1,74 @@
+# BUG-081: 未生产的 v1 一旦 materialize 就无法撤销重做，强制用户进入 v2
+
+> 严重级别: P1 | 发现: 2026-08-19 | 状态: 活跃
+
+## 用户症状
+
+Deck Author 在 v1 尚未产生任何 provider 图片、final image 或 PPTX 时调整页数，
+明确要求继续把这份尚未生产的 Deck 作为唯一 v1。当前 Harness 却因为 v1 已执行过一次
+`paginate apply`，强制所有后续增页进入 v2。
+
+这把内部的 source materialization checkpoint 暴露成了用户必须理解和承担的版本边界。
+用户眼中 Deck 从未生产或发布，却被 Agent 反复拒绝继续使用 v1，违反“人类拥有内容、
+Agent 拥有过程”以及 Deck Author 不应成为 schema/lifecycle debugger 的约束。
+
+## 当前实例证据
+
+当前 `deck_ai_org_transform_keynote/3_versions/v1`：
+
+- `production_identity` 可解析，`workflow: pure`、`source_epoch: 1`；
+- 存在 Page Source Receipt；
+- `raw_images: 0`；
+- `final_images: 0`；
+- `pptx: []`；
+- 没有发生页面 provider production。
+
+但 `paginate plan` 的 `initialDraftEligibility()` 只接受 exact initial seed 且无
+source-bound evidence。只要首次 `paginate apply` 已写入 source receipt，后续结构调整就固定返回
+`publication: next-version`，目标只能是 `v2`。
+
+## 最小复现
+
+1. 初始化一个新 Deck 的 v1。
+2. 对第一版页面规划执行一次 `paginate apply`，但不授权或生成任何页面图片，不构建 PPTX。
+3. Deck Author 在内容打磨期要求增加页面，并明确要求最终仍是唯一 v1。
+4. 对新 candidate 执行 `paginate plan`。
+5. 观察结果固定为 `publication: next-version`、`target_run_version: v2`；当前没有 CLI
+   可以撤销这次未生产的 v1 materialization 并重新初始化 v1。
+
+## 根因
+
+系统把首次 Page Source materialization 同时当成了不可逆的 Work Version 边界，但没有按
+外部副作用区分两类状态：
+
+- 已有不可逆记录：provider 授权、提交、费用、raw acceptance、final 或 delivery；
+- 只有本地可重建事实：Page Source、source receipt、production identity 和本地零候选计划。
+
+前者必须保留历史并走 vNext；后者仍处于用户认知中的内容打磨期，却缺少 owner-issued
+abandon/reset/reseed 路径。
+
+## 期望行为
+
+增加一个显式、原子、可审计的 v1 draft reset/reseed 操作，仅在以下条件全部成立时可用：
+
+- 目标严格是 `v1`；
+- 没有 provider grant、submit、attempt、费用或 unknown commit；
+- 没有 raw/final/PPTX/delivery evidence；
+- 当前 source/state identity 可完整解析；
+- Deck Author 明确要求放弃尚未生产的 v1 页面结构并继续使用 v1。
+
+该操作应由 owner 一次性完成，而不是要求 Agent 手改多个文件：
+
+- 清理仅属于被放弃 source epoch 的可重建 derived artifacts；
+- 清理对应的非外部副作用 state evidence；
+- 重新建立 v1 authoring draft 或直接原子绑定新的 exact Page Source；
+- 保证 source、receipt、production identity、execution lease 和 Controller 状态一致；
+- 输出明确回执，证明没有删除任何不可逆 provider/decision record。
+
+如果存在任何不可逆记录，操作必须 hard-stop，并继续要求 vNext。
+
+## 回归信号
+
+需要端到端测试覆盖：v1 已 materialize、但 raw/final/PPTX 均为零时，显式 reset/reseed 后
+可以再次以 `target_run_version: v1` materialize 新页数；一旦加入 provider attempt 或其他
+不可逆记录，同一操作必须拒绝且保持所有 bytes 不变。

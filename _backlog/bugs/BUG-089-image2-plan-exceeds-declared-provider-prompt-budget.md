@@ -1,0 +1,42 @@
+# BUG-089: Image2 raw plan 可超过 provider profile 声明的 prompt budget
+
+> 严重级别: P1 | 发现: 2026-08-19 | 状态: 活跃
+
+## 症状
+
+`deck_ai_org_transform_keynote/3_versions/v1` 切换到 Micu `gpt-image-2` 后，raw plan
+成功建立并进入授权/生成；但 `AiLeap` 的 compiled provider prompt 实际为 20,002 个
+Unicode code points，而 provider profile 声明的上限是 16,000：
+
+```text
+utf16_length: 20002
+unicode_code_points: 20002
+utf8_bytes: 20354
+declared prompt_budget.limit: 16000 unicode-code-points
+```
+
+远端 Micu 路由随后以 HTTP 400 拒绝，请求错误明确说明 prompt 约 20,002 chars，
+该路由最大约 4,000。将同一模型、尺寸和凭证改为 1,314 字符的短 prompt 后，生成
+成功，证明模型、尺寸、凭证和参考图字段均可用。
+
+## 影响
+
+- 本地 plan/authorize 都能成功，但每张图到 provider 才失败并消耗一次提交。
+- profile 的声明上限没有成为 raw plan 的有效 admission boundary。
+- provider 的真实 route limit 与 deck profile 不一致时，失败发现得太晚，且表现为
+  item-level `known_failure`。
+
+## 期望
+
+- raw plan 在发布前必须验证每个 compiled prompt 的 Unicode code points 不超过
+  当前 provider profile 的 `prompt_budget.limit`。
+- 超限时应在零远端调用阶段拒绝，并指出具体 slide、实际长度、声明上限和修复 owner。
+- provider profile 应能准确表达 Micu route 的约 4,000 字符限制；修正 profile 后，
+  compiler 应生成或要求生成满足该上限的 provider input，而不是只把超长 prompt
+  送到远端。
+
+## 当前绕行
+
+为先完成视觉 Pilot，Agent 使用 1,314–1,603 字符的 deck-local 短 prompt，通过同一
+Micu `gpt-image-2`、同一 `2000x1125` 请求和同一 Style Master 参考图生成预览；结果
+只保存在 `v1/_scratch/pilot-preview-micu/`，没有伪造 `_generated` evidence。

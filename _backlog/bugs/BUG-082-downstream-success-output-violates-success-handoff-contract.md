@@ -1,0 +1,29 @@
+# BUG-082: 下游成功输出违反"成功交接"契约——image2/style-master 直吐 JSON，build/refresh 单行无下一步
+
+> 严重级别: P1 | 发现: 2026-08-19 | 状态: 活跃
+
+## 症状
+
+下游（Style Master、图片生成、交付）命令成功后，给小白用户的可读输出大多违反 `AGENT_CONTRACT.md §Human-facing CLI success handoff`（要求每条成功都按「Purpose / Outcome / Next human action」给"下一步人动作"）：
+
+- `ppt_maker_harness/scripts/shared/cli/commands/image2.mjs:121`：`console.log(JSON.stringify({ ...output, controller_checkpoint }, null, 2))`——**成功后直甩一大坨 JSON**，无 Purpose/Outcome/Next。
+- `ppt_maker_harness/scripts/shared/cli/commands/style-master.mjs:103`：`console.log(JSON.stringify(output, null, 2))`——同样只吐 JSON。
+- `ppt_maker_harness/scripts/shared/cli/commands/build.mjs:9`：`✓ Target Page Image {workflow} delivery assembled: {path}`——只有一行，无下一步（要不要审、去哪里看成品）。
+- `ppt_maker_harness/scripts/shared/cli/commands/refresh.mjs:9`（notes）`/ :13`（framed）：`✓ ... refreshed: ...`——单行，无下一步。
+
+对小白：生成图 / 推进到某节点后，完全不知道**下一步该干嘛、要不要看什么、要不要确认什么**。这正是下游最容易"不知所措"的地方。
+
+## 根因
+
+成功路径的渲染没有约束为契约的三段式。契约 `AGENT_CONTRACT.md` 声明了 Purpose/Outcome/Next，但实现端 `image2`/`style-master` 直接序列化整个 owner output（含大量 machine fields），`build`/`refresh` 只给一行摘要——都没有落实"唯一人动作"。工具人视角（MD）能读，纯人类用户读不动。
+
+## 复现
+
+1. 对一个已选 `framed` 或 `pure`、已完成 source/plan 的 v1：
+   `node ppt_maker_harness/scripts/ppt_flow.mjs image2 plan <v1> --plan-hash <sha>`
+   或 `style-master inspect <v1>`——观察成功输出是整段 JSON 无 human 三段式。
+2. `ppt_flow build <v1>`——观察只有一行"assembled: <path>"，无下一步提示。
+
+## 修复关联
+
+待后续 findings 汇齐后统一进 OpenSpec change（下游成功交接：`image2`/`style-master` 成功只给 owner-issued 简表 + 「下一步人动作」，JSON 侧保留给 `--json` 模式；`build`/`refresh` 补 Purpose/Outcome/Next）。这属于 AGENT_CONTRACT 成功交接契约的实现欠账。

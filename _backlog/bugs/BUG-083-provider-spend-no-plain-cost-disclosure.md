@@ -1,0 +1,26 @@
+# BUG-083: provider 花钱授权无价格/单位白话披露，Task Mandate 下自动记录
+
+> 严重级别: P1 | 发现: 2026-08-19 | 状态: 活跃
+
+## 症状
+
+下游 `authorize`/`generate` 会让用户真实花钱，但全程没有任何货币金额或单位披露；且授权在 Task Mandate 下自动记录，用户点过就完成支付授权。
+
+- `ppt_maker_harness/scripts/shared/cli/commands/image2.mjs:57-67`、`style-master.mjs:63-69` 调 `applyImage2StartupEnv` 静默启用 provider 传输——用户一说 `authorize` 就开始走真实 provider 通道。
+- 全文唯一"花钱"相关文案只有 `command_support.mjs:2433` "Style Master candidate generation requires its exact current cost authorization." 与 `:2442` "Obtain human approval for the exact current Style Master candidate cost"——只有 "cost" 一词，**无任何货币数字、单张价格、批次金额或可预算的单位**。
+- playbook 侧也只在 `create-deck.md:27`（"Ordinary in-scope provider cost is covered by the Task Mandate"）、`:268/:500`（"paid membership, and maximum submissions"）、`:322/:554`（"remaining paid scope"）出现——"paid membership" 与 "submission" 都是未释义的单位，不是可预算的金额。
+- `create-deck.md:185/:281/:335/:513/:567` 的 authorize 均为 auto-recorded：小白点过即完成付费授权，决策点没有人类可读的成本摘要。
+
+## 根因
+
+成本只在"词"层披露（cost / paid membership / submission），从未在"钱/量"层披露（这多少钱、共几次、超了怎么办）。设计上把"远程成本"交给 Task Mandate 兜底（`BOOTSTRAP.md:46/48`），但没有在决策点给出小白可看懂、可决定的成本事实。
+
+## 复现
+
+1. 对已选 workflow、完成 style-master 与 raw plan 的 v1：跑 `ppt_flow image2 authorize <v1> --plan-hash <sha> --batch-hash <sha>`。
+2. 观察输出（`image2.mjs:120` JSON）：无任何货币/数量/预算信息；授权已被自动记录。
+3. 想确认"我这次要花多少钱/共几张"无处可查。
+
+## 修复关联
+
+待后续 findings 汇齐后统一进 OpenSpec change（成本披露：每个 `authorize` 决策点在执行前给出可预算的货币/单位/次数/上限，做个不可省略的确认门；把术语"provider / submission / paid membership"过一遍白话，见 novice-guidance-terminology-plus-plain-language）。
