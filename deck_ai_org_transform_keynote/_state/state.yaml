@@ -1,0 +1,33 @@
+# _state/state.yaml — MD Controller execution state (not a hand-edit playground)
+# Schema authority: ppt_maker_harness/charter/NODE-SPEC.md
+# API: ppt_maker_harness/scripts/shared/state/state.mjs
+# CLI: node ppt_maker_harness/scripts/ppt_flow.mjs state <runDir> [--json|--validate-state]
+# Fields: pipeline, production_identity.by_version, page_image_task_mandate.by_version, playbook, current_node, execution_id, nodes.*, gates.*, deck.*, playbook_stack
+# MD Controller source: ppt_maker_harness/playbook/*.md
+# Read boundary: observation validates the declared current authority and never rewrites, infers, or continues unsupported state
+pipeline: page-image-workflow
+production_identity:
+  by_version: {}
+playbook: create-deck
+current_node: author-target-narrative-sources
+execution_id: exec-9d7e40f2-5dea-4a38-b833-4d8419b59a10
+execution_started_at: 2026-08-19T04:53:32.372Z
+run_version: v1
+continuation_target_version: v1
+started_at: 2026-08-19T04:53:32.372Z
+updated_at: 2026-08-19T04:53:32.373Z
+nodes:
+  checkpoint-intake:
+    status: completed
+    execution_id: exec-9d7e40f2-5dea-4a38-b833-4d8419b59a10
+    run_version: v1
+    evidence: {}
+    completed: 2026-08-19T04:53:32.373Z
+gates:
+  content: pending
+  visual: pending
+deck:
+  name: ai_org_transform_keynote
+  type: keynote
+  style: dark-executive
+playbook_stack: []

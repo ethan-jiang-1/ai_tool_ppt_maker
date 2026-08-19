@@ -1,0 +1,9 @@
+schema: pptmaker-image2-provider-profile
+profile_id: null
+endpoint_profile: null
+owner_declaration:
+  authority: deck-author
+  status: pending
+operations:
+  style-master-text-generation: null
+  page-image-reference-generation: null

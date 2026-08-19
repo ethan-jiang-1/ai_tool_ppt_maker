@@ -1,0 +1,7 @@
+# ai_org_transform_keynote — project metadata (static config + pipeline gates)
+# Playbook execution progress / playbook gates live in _state/state.yaml — see _state/README.md
+deck_name: ai_org_transform_keynote
+topic: 
+audience: 
+language: 
+one_thing_to_remember: 

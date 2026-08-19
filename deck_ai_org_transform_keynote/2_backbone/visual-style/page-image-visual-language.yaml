@@ -1,0 +1,33 @@
+schema: pptmaker-page-image-visual-language
+recipes:
+  editorial-systems:
+    provider_clause: architectural editorial scene, layered amber and cobalt light, quiet depth
+    workflows: [framed, pure]
+    composition_ids: [centered-constellation]
+    motif_ids: [connected-nodes]
+    identity_subject_classes: [none]
+compositions:
+  centered-constellation:
+    provider_clause: centered focal form with balanced negative space
+    workflows: [framed, pure]
+    min_motifs: 0
+    max_motifs: 1
+motifs:
+  connected-nodes:
+    provider_clause: luminous connected nodes with measured spacing
+    workflows: [framed, pure]
+    recipe_ids: [editorial-systems]
+    composition_ids: [centered-constellation]
+relationships:
+  layer-stack:
+    provider_clause: nested translucent planes rising from broad base to focused apex
+    workflows: [framed, pure]
+    recipe_ids: [editorial-systems]
+    composition_ids: [centered-constellation]
+    reading_order: bottom-to-top
+  causal-flow:
+    provider_clause: connected luminous forms progressing from left origin to right outcome
+    workflows: [framed, pure]
+    recipe_ids: [editorial-systems]
+    composition_ids: [centered-constellation]
+    reading_order: left-to-right
