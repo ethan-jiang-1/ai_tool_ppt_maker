@@ -7,7 +7,10 @@
 # Read boundary: observation validates the declared current authority and never rewrites, infers, or continues unsupported state
 pipeline: page-image-workflow
 production_identity:
-  by_version: {}
+  by_version:
+    3_versions/v1:
+      workflow: pure
+      source_epoch: 1
 playbook: create-deck
 current_node: author-target-narrative-sources
 execution_id: exec-9d7e40f2-5dea-4a38-b833-4d8419b59a10
@@ -15,7 +18,7 @@ execution_started_at: 2026-08-19T04:53:32.372Z
 run_version: v1
 continuation_target_version: v1
 started_at: 2026-08-19T04:53:32.372Z
-updated_at: 2026-08-19T04:53:32.373Z
+updated_at: 2026-08-19T08:29:21.270Z
 nodes:
   checkpoint-intake:
     status: completed
@@ -31,3 +34,15 @@ deck:
   type: keynote
   style: dark-executive
 playbook_stack: []
+page_image_target_evidence:
+  by_version:
+    3_versions/v1:
+      schema: page-image-workflow-target-state
+      run_version: v1
+      source_epoch: 1
+      source_receipt_sha256: 71b85ab3131ba948882feb4f1de73f310f59896678a0ab0b4cd3408468ff71a0
+      workflow: pure
+      provider_authorization_sha256: null
+      accepted_raw_evidence_sha256: null
+      final_manifest_sha256: null
+      delivery_receipt_sha256: null

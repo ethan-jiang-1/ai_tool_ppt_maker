@@ -1,0 +1,40 @@
+schema: pptmaker-image2-reference-registry
+profiles:
+  amber-agent:
+    subject_class: amber-light-form
+    maximum_identity_subjects: 1
+    compatible_restrictions: [none, no-generic-metal-robot]
+    incompatible_restrictions: [no-identity-subject]
+    roles:
+      guide:
+        reference_path: guide.png
+        reference_sha256: cb81bcc0ed59fa44922bac3f3cd610de562ece4046d0186aba06ae98f46719d2
+        role_clause: neutral androgynous amber glass silhouette with lean human proportions, no facial features, no fingers, translucent base wash, fine curved cross-hatching, internal topological network of glowing white-gold nodes on thin straight lines forming hexagonal mesh densest in chest, soft golden-amber edge glow, left arm cradles a book, right hand open palm in an offering gesture, standing beside a person shoulder to shoulder, modest and unassuming
+      collaborating:
+        reference_path: collaborating.png
+        reference_sha256: 3c6d32bc8796b655b49f89674a09b193220f7dbdbda3b00762183c11d1d19ccf
+        role_clause: neutral androgynous amber glass silhouette with lean human proportions, no facial features, no fingers, translucent base wash, fine curved cross-hatching, internal topological network of glowing white-gold nodes on thin straight lines forming hexagonal mesh densest in chest, soft golden-amber edge glow, working alongside a person, sharing the same task, equal and reciprocal, hands open in a shared gesture
+      yan:
+        reference_path: guide.png
+        reference_sha256: cb81bcc0ed59fa44922bac3f3cd610de562ece4046d0186aba06ae98f46719d2
+        role_clause: neutral androgynous amber glass silhouette with lean human proportions, no facial features, no fingers, translucent base wash, fine curved cross-hatching, internal topological network of glowing white-gold nodes on thin straight lines forming hexagonal mesh densest in chest, soft golden-amber edge glow, sitting beside a person, focused, pen in hand, calm and precise
+      zhu:
+        reference_path: collaborating.png
+        reference_sha256: 3c6d32bc8796b655b49f89674a09b193220f7dbdbda3b00762183c11d1d19ccf
+        role_clause: neutral androgynous amber glass silhouette with lean human proportions, no facial features, no fingers, translucent base wash, fine curved cross-hatching, internal topological network of glowing white-gold nodes on thin straight lines forming hexagonal mesh densest in chest, soft golden-amber edge glow, standing beside a person, hands reaching outward, dynamic and energetic
+      duo:
+        reference_path: guide.png
+        reference_sha256: cb81bcc0ed59fa44922bac3f3cd610de562ece4046d0186aba06ae98f46719d2
+        role_clause: neutral androgynous amber glass silhouette with lean human proportions, no facial features, no fingers, translucent base wash, fine curved cross-hatching, internal topological network of glowing white-gold nodes on thin straight lines forming hexagonal mesh densest in chest, soft golden-amber edge glow, beside a person, fine threads radiating outward to connect other helpers
+      he:
+        reference_path: guide.png
+        reference_sha256: cb81bcc0ed59fa44922bac3f3cd610de562ece4046d0186aba06ae98f46719d2
+        role_clause: neutral androgynous amber glass silhouette with lean human proportions, no facial features, no fingers, translucent base wash, fine curved cross-hatching, internal topological network of glowing white-gold nodes on thin straight lines forming hexagonal mesh densest in chest, soft golden-amber edge glow, beside a person, examining through a lens, methodical and verifying
+      cha:
+        reference_path: collaborating.png
+        reference_sha256: 3c6d32bc8796b655b49f89674a09b193220f7dbdbda3b00762183c11d1d19ccf
+        role_clause: neutral androgynous amber glass silhouette with lean human proportions, no facial features, no fingers, translucent base wash, fine curved cross-hatching, internal topological network of glowing white-gold nodes on thin straight lines forming hexagonal mesh densest in chest, soft golden-amber edge glow, beside a person, scanning flowing data, alert and watchful
+      suan:
+        reference_path: guide.png
+        reference_sha256: cb81bcc0ed59fa44922bac3f3cd610de562ece4046d0186aba06ae98f46719d2
+        role_clause: neutral androgynous amber glass silhouette with lean human proportions, no facial features, no fingers, translucent base wash, fine curved cross-hatching, internal topological network of glowing white-gold nodes on thin straight lines forming hexagonal mesh densest in chest, soft golden-amber edge glow, beside a person, contemplating calculations, precise and numerical

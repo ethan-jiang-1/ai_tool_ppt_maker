@@ -46,10 +46,10 @@ profiles:
       roles: { primary_text: primary, secondary_text: secondary, accent: accent, surface: neutral }
     layout:
       zones:
-        title: { x: 0.08, y: 0.08, width: 0.84, height: 0.22 }
-        content: { x: 0.08, y: 0.34, width: 0.84, height: 0.54 }
+        title: { x: 0.16, y: 0.25, width: 0.68, height: 0.24 }
+        content: { x: 0.25, y: 0.62, width: 0.50, height: 0.16 }
       whitespace: generous
-      families: [editorial-hero, diagram-led, data-led]
+      families: [editorial-hero]
   transition:
     typography:
       voices:
@@ -71,10 +71,10 @@ profiles:
       roles: { primary_text: primary, secondary_text: secondary, accent: accent, surface: neutral }
     layout:
       zones:
-        title: { x: 0.08, y: 0.08, width: 0.84, height: 0.22 }
-        content: { x: 0.08, y: 0.34, width: 0.84, height: 0.54 }
+        title: { x: 0.16, y: 0.25, width: 0.68, height: 0.24 }
+        content: { x: 0.25, y: 0.62, width: 0.50, height: 0.16 }
       whitespace: generous
-      families: [editorial-hero, diagram-led, data-led]
+      families: [editorial-hero]
   closing:
     typography:
       voices:
@@ -96,7 +96,7 @@ profiles:
       roles: { primary_text: primary, secondary_text: secondary, accent: accent, surface: neutral }
     layout:
       zones:
-        title: { x: 0.08, y: 0.08, width: 0.84, height: 0.22 }
-        content: { x: 0.08, y: 0.34, width: 0.84, height: 0.54 }
+        title: { x: 0.16, y: 0.25, width: 0.68, height: 0.24 }
+        content: { x: 0.25, y: 0.62, width: 0.50, height: 0.16 }
       whitespace: generous
-      families: [editorial-hero, diagram-led, data-led]
+      families: [editorial-hero]

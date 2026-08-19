@@ -8,11 +8,11 @@
 - Run：`3_versions/v1`
 - 类型：keynote
 - Pipeline：`page-image-workflow`
-- 当前内容阶段：叙事 source 已反复打磨，尚未进入 page plan 确认
+- 当前内容阶段：12 页主体结构已 materialize；现扩展为 13 页，新增独立 Q&A closing 页，待 v2 structural page plan
 - 当前 Harness node：`author-target-narrative-sources`
 - Workflow：尚未选择 `framed` 或 `pure`
 - Provider work：未开始；没有授权、raw image、final image、PPTX 或 delivery evidence
-- 当前目标：先把约 10 页的叙事打磨稳定，再进入页面规划
+- 当前目标：保留 v1 作为已 materialize 的 12 页版本，按 13 页结构创建 v2 structural page plan
 
 ## 当前叙事主线
 
@@ -28,12 +28,15 @@ Central Claim：
 
 > AI 转型不是把 AI 加到原来的组织上，而是让个人能力跃迁进入新的工作回路，再被业务流程和组织机制接住，最终沉淀为可持续的组织能力。
 
-## 四段结构与页数
+## 标题页、五段结构与页数
 
-- **Block 1（1–2 页）**：个人能力全面开花。WorkBuddy、Trae、豆包、Codex、Claude Code 等让代码、文案、分析、创作和原型能力进入个人；少数人已形成新工作方式，多数人在观望或路上。解释碳基个体的知识/注意力/专业边界与硅基系统的广度、吞吐；引出 Agent 作为协作主体，以及人机、机机、机人接口。
-- **Block 2（3–5 页）**：软件是先锋。以 Martin Fowler Deer Valley → Engelberg 的约 5 个月语气转变为主证据；软件研发从“人想、人写、人验”走向更完整的 SDLC 工作回路；解释 `Agent = Model + Harness`、Guides × Sensors、验证回路。保留早期采用者偏差和人类仍负责目标、边界、验证、高风险判断的限定。
-- **Block 3（6–8 页）**：企业不是复制工具，而是重做组织接口。主案例固定为三个组织考量清晰的样本：Block（问题所有权/DRI/层级）、Cloudflare（Builders/Sellers/Measurers 与内部 Cloudflare OS）、JPMorgan（核心基础设施、LLM Suite、培训和自然流失再部署）。BPM 材料提供目标驱动、确定性执行、权限、审计和人工升级的流程边界。
-- **Block 4（9–10 页）**：一把手工程。用组织公式诊断瓶颈，强调一把手不照抄案例，而是提高杠杆、降低摩擦、保护人才密度；最小启动动作是让已经自发使用 AI 的人被看见，再围绕真实问题做有限闭环试点。
+- **第 1 页：独立标题页**。标题暂沿用 Story Outline 当前标题；本页不承担主体论证。
+- **Block 1（第 2–3 页）**：个人能力全面开花，并建立“个人已经变了、组织价值没有自动出现”的第一处断层。杠杆与支点是本段的核心隐喻。
+- **Block 2（第 4–6 页）**：软件是先锋。以 Martin Fowler Deer Valley → Engelberg 的语气转变为主证据；解释工作单元如何扩展、`Agent = Model + Harness`、Guides + Sensors 和验证回路。AI 成为协作主体的判断在 Harness 机制之后得出。
+- **第 7 页：跨行业转场**。软件天然拥有数字上下文、可调用工具和确定性验证；企业还必须补上业务上下文、权限、审计、确定性执行、人工升级和结果责任。
+- **Block 3（第 8–10 页）**：三个案例已经确认并各自独占一页。第 8 页 Block（问题所有权/DRI/层级），第 9 页 Cloudflare（Builders/Sellers/Measurers 与内部 Cloudflare OS），第 10 页 JPMorgan（核心基础设施、LLM Suite、培训和自然流失再部署）。
+- **Block 4（第 11–12 页）**：第 11 页用组织公式归纳三条路径的共同机制；第 12 页落到一把手的最小启动动作，以一个有负责人、有权限、有指标、有风险边界和停止条件的真实业务闭环收束。
+- **Block 5（第 13 页）**：独立 Q&A closing 页，只提供开放追问入口，不新增结论或未经支持的证据。
 
 ## 两条核心公式
 
@@ -64,9 +67,9 @@ Central Claim：
 
 ## 下一步
 
-1. 继续只做内容/叙事审校，确认十页结构和三个主案例。
-2. 由 Deck Author 明确选择本版本 `framed` 或 `pure` workflow。
-3. 按当前 `create-deck` Controller 进入 visual profile、page grouping candidate 和 narrative page-plan preview。
+1. 由 Deck Author 明确选择本版本 `framed` 或 `pure` workflow。
+2. 按当前 `create-deck` Controller 基于 13 页结构准备 v2 page-grouping candidate 和 narrative page-plan preview；v1 保持不变。
+3. 三个案例必须分别保留为第 8、9、10 页，不在候选中合并。
 4. 只有 page plan 经过人确认后，才 materialize slide source；不要提前生成图片或 PPTX。
 
 ## 当前边界与恢复提示
@@ -91,7 +94,7 @@ Central Claim：
 
 当前最重要的未决事项：
 
-- 约十页结构和三家企业案例是否最终定稿（当前候选为 Block、Cloudflare、JPMorgan）。
+- 13 页结构与三家企业案例已经定稿；标题文字仍可在不改变结构的前提下继续打磨，Q&A 为独立 closing 页。
 - 本版本的全局 Page Image workflow 由人明确选择 `framed` 或 `pure`。
 - `RUN_BUNDLE.md` 的 harness binding invalid 需要 owner 要求的人类确认重建；在确认前保持原 bytes 不动。
 

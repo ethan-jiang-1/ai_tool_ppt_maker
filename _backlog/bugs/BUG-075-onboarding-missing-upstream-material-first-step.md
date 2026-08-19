@@ -1,0 +1,21 @@
+# BUG-075: 新 deck 流程缺少"先喂上游素材"前置引导
+
+> 严重级别: P2 | 发现: 2026-08-19 | 状态: 活跃
+
+## 症状
+
+`ppt_flow init deck_<NAME>` 搭好 run bundle 后，`1_upstream_raw_material/` 目录存在但不作为流程第一步出现。create-deck 流程直接进入叙事/backbone 阶段，用户没有被引导先把素材丢进上游。体验上是"框架搭了，但不知道从哪开始"。
+
+## 根因
+
+契约/流程层缺失"素材收集"gate。`ppt_maker_harness/playbook/create-deck.md` 的 `checkpoint-intake`（第 28 行）只要求 "Confirm the topic, audience, source truth, and visual direction"，随后直接进入 `author-target-narrative-sources`（第 38 行）；`ppt_maker_harness/BOOTSTRAP.md` Step 0–2 也没有"先丢素材"的引导。素材收集不是叙事的前提节点，因此被跳过。
+
+## 复现
+
+1. `node ppt_maker_harness/scripts/ppt_flow.mjs init deck_<NAME> --deck-type keynote`
+2. 观察 create-deck 流程提示：只确认主题/受众/素材真相/视觉方向，随后即要求写 Story Outline。
+3. 用户未被要求"先把自己知道的素材丢进 `1_upstream_raw_material/`，想不清无所谓，素材丢够再进入第二步"。
+
+## 修复关联
+
+待后续 findings 汇齐后统一进 OpenSpec change（涉及 create-deck flow：`checkpoint-intake` / `BOOTSTRAP.md` Step 0–2 增加"上游素材收集"前置 gate 与话术引导）。

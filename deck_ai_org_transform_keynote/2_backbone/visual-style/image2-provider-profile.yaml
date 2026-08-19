@@ -1,9 +1,19 @@
 schema: pptmaker-image2-provider-profile
-profile_id: null
-endpoint_profile: null
+profile_id: duck-gpt-image-2
+endpoint_profile: duckcoding-v1
 owner_declaration:
   authority: deck-author
-  status: pending
+  status: confirmed
 operations:
-  style-master-text-generation: null
-  page-image-reference-generation: null
+  style-master-text-generation:
+    route_id: duckcoding-image2
+    model: gpt-image-2
+    prompt_budget:
+      limit: 16000
+      unit: unicode-code-points
+  page-image-reference-generation:
+    route_id: duckcoding-image2
+    model: gpt-image-2
+    prompt_budget:
+      limit: 16000
+      unit: unicode-code-points

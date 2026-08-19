@@ -1,0 +1,43 @@
+# BUG-077: Pure visual-language registry rejects the org-transform recipe
+
+> Severity: P1 | Found: 2026-08-19 | Status: active
+
+## Symptoms
+
+Running the provider-free narrative plan for `deck_ai_org_transform_keynote/3_versions/v1`
+failed before candidate validation could complete. The current deck-local
+`page-image-visual-language.yaml` was rejected because:
+
+- `platform-stack` used the non-ASCII word `cliche` with an accented character;
+- the `org-transform` recipe declared legacy motifs whose `recipe_ids` did not include
+  `org-transform`;
+- `fulcrum-lever` contained the forbidden content token `text`.
+
+The failure blocked the Pure workflow even though the candidate used only registered
+org-transform compositions and motifs.
+
+## Root cause
+
+Visual-language registry records are validated as a whole for printable ASCII and
+recipe/motif compatibility, while the deck-local recipe extension was edited without a
+closed compatibility audit. Content-neutral visual clauses also reject words that can
+override source-owned text rendering.
+
+## Reproduction
+
+1. Use the current `deck_ai_org_transform_keynote/2_backbone/visual-style/page-image-visual-language.yaml`.
+2. Run `ppt_flow paginate plan` for the v1 Pure candidate.
+3. Observe registry errors for the clause character, incompatible motif declarations,
+   and the forbidden `text` token before a page plan is produced.
+
+## Current mitigation
+
+The deck registry now limits `org-transform` to its four compatible motifs, removes the
+forbidden content wording, and uses printable ASCII. The candidate plan then validates
+successfully with zero provider calls.
+
+## Fix association
+
+Keep the registry linter as the enforcement point, but add a deck-authoring check or
+fixture that validates a newly added recipe and all selected motifs together before the
+visual profile is considered ready.

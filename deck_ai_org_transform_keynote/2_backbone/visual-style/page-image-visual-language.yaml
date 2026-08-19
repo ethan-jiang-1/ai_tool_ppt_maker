@@ -1,23 +1,195 @@
 schema: pptmaker-page-image-visual-language
 recipes:
   editorial-systems:
-    provider_clause: architectural editorial scene, layered amber and cobalt light, quiet depth
+    provider_clause: sparse decorative sketch accents on cream paper, sepia ink, amber highlights, generous negative space, small marginal marks, fine cross-hatching
     workflows: [framed, pure]
-    composition_ids: [centered-constellation]
-    motif_ids: [connected-nodes]
-    identity_subject_classes: [none]
+    composition_ids: [minimal, title-pause, centered-constellation, left-to-right-flow, timeline, two-column, three-column, chain, funnel, stack, parallel-chains, confluence, information-rise, evidence-shift]
+    motif_ids: [connected-nodes, layered-pathways, soft-grid, flowing-artifacts, shift-connector, decision-path, evidence-cards]
+    identity_subject_classes: [none, amber-light-form]
+  collaborative-work:
+    provider_clause: sparse decorative sketch of shared work, amber light accents, generous negative space, subtle marginal marks
+    workflows: [framed, pure]
+    composition_ids: [field-of-work, hub-spoke, two-column, stack, centered-constellation, specialist-generalist, framed-workspace]
+    motif_ids: [shared-work-surface, connected-nodes, soft-grid, role-contrast, frame-boundary, five-domain-map, readable-schematic]
+    identity_subject_classes: [none, amber-light-form]
+  org-transform:
+    provider_clause: warm editorial sketch of organizational change, cream paper, sepia ink, restrained amber connectors, visible work interfaces, generous negative space, fine cross-hatching
+    workflows: [pure]
+    composition_ids: [title-pause, centered-constellation, left-to-right-flow, timeline, three-column, chain, stack, confluence, evidence-shift, specialist-generalist, framed-workspace]
+    motif_ids: [fulcrum-lever, verification-rails, responsibility-owner, platform-stack]
+    identity_subject_classes: [none, amber-light-form]
 compositions:
-  centered-constellation:
-    provider_clause: centered focal form with balanced negative space
+  minimal:
+    provider_clause: centered focal accent with generous negative space, unmarked surface
     workflows: [framed, pure]
     min_motifs: 0
     max_motifs: 1
+  title-pause:
+    provider_clause: one small restrained etching at the lower edge or far periphery; leave at least three quarters of the canvas unmarked, including a broad centered upper reading zone and an uncluttered field
+    workflows: [framed, pure]
+    min_motifs: 0
+    max_motifs: 1
+  centered-constellation:
+    provider_clause: centered focal accent with balanced negative space, unmarked surface
+    workflows: [framed, pure]
+    min_motifs: 0
+    max_motifs: 3
+  left-to-right-flow:
+    provider_clause: clear left to right movement across an open unmarked field
+    workflows: [framed, pure]
+    min_motifs: 1
+    max_motifs: 3
+  field-of-work:
+    provider_clause: subtle grounded surface accent, calm depth, unmarked
+    workflows: [framed, pure]
+    min_motifs: 1
+    max_motifs: 3
+  timeline:
+    provider_clause: clear left to right progression of three sparse stages, open unmarked field
+    workflows: [framed, pure]
+    min_motifs: 1
+    max_motifs: 3
+  two-column:
+    provider_clause: two balanced side by side panels separated by open space, unmarked
+    workflows: [framed, pure]
+    min_motifs: 0
+    max_motifs: 3
+  three-column:
+    provider_clause: three balanced side by side panels, clear left to right order
+    workflows: [framed, pure]
+    min_motifs: 0
+    max_motifs: 3
+  hub-spoke:
+    provider_clause: one central focal accent with sparse radiating connections, generous negative space
+    workflows: [framed, pure]
+    min_motifs: 1
+    max_motifs: 3
+  chain:
+    provider_clause: horizontal sequence of sparse linked nodes, clear left to right order
+    workflows: [framed, pure]
+    min_motifs: 1
+    max_motifs: 3
+  funnel:
+    provider_clause: wide opening narrowing to a small focal point, clear downward flow
+    workflows: [framed, pure]
+    min_motifs: 0
+    max_motifs: 2
+  stack:
+    provider_clause: horizontal bands stacked vertically, clear downward order
+    workflows: [framed, pure]
+    min_motifs: 1
+    max_motifs: 3
+  parallel-chains:
+    provider_clause: two parallel horizontal sequences with matched spacing
+    workflows: [framed, pure]
+    min_motifs: 1
+    max_motifs: 3
+  confluence:
+    provider_clause: two sparse streams flowing inward to merge at one focal point
+    workflows: [framed, pure]
+    min_motifs: 1
+    max_motifs: 3
+  information-rise:
+    provider_clause: large editorial worktable on the right with upward flowing unmarked information artifacts, generous open left reading area, clear visual emphasis, no continuous border or corner ornament
+    workflows: [framed, pure]
+    min_motifs: 1
+    max_motifs: 2
+  evidence-shift:
+    provider_clause: two distinct side by side environments, left alpine gathering with tentative light marks, right contemporary workshop with confident organized marks, one broad amber connector crosses center, no continuous border or corner ornament
+    workflows: [framed, pure]
+    min_motifs: 1
+    max_motifs: 2
+  specialist-generalist:
+    provider_clause: left focused human specialist at a compact desk, right amber light form with varied unmarked work artifacts, warm collaborative contrast with generous separation, no continuous border or corner ornament
+    workflows: [framed, pure]
+    min_motifs: 2
+    max_motifs: 3
+  framed-workspace:
+    provider_clause: large warm translucent rectangular boundary centered in body, one amber light form within two contrasting work zones, one calm human outside touching boundary lightly, generous open reading area, no continuous border or corner ornament
+    workflows: [framed, pure]
+    min_motifs: 2
+    max_motifs: 3
 motifs:
   connected-nodes:
-    provider_clause: luminous connected nodes with measured spacing
+    provider_clause: luminous connected nodes with measured spacing, abstract decorative element
+    workflows: [framed, pure]
+    recipe_ids: [editorial-systems, collaborative-work]
+    composition_ids: [minimal, centered-constellation, left-to-right-flow, field-of-work, timeline, two-column, three-column, hub-spoke, chain, funnel, stack, parallel-chains, confluence, framed-workspace]
+  layered-pathways:
+    provider_clause: layered pathways with gentle directional energy, abstract decorative element
     workflows: [framed, pure]
     recipe_ids: [editorial-systems]
-    composition_ids: [centered-constellation]
+    composition_ids: [minimal, centered-constellation, left-to-right-flow, field-of-work, timeline, two-column, three-column, hub-spoke, chain, funnel, stack, parallel-chains, confluence]
+  soft-grid:
+    provider_clause: subtle structural grid with restrained glow, abstract decorative element
+    workflows: [framed, pure]
+    recipe_ids: [editorial-systems, collaborative-work]
+    composition_ids: [minimal, centered-constellation, left-to-right-flow, field-of-work, timeline, two-column, three-column, hub-spoke, chain, funnel, stack, parallel-chains, confluence, evidence-shift]
+  shared-work-surface:
+    provider_clause: shared work surface with quiet collaborative posture, abstract decorative element
+    workflows: [framed, pure]
+    recipe_ids: [collaborative-work]
+    composition_ids: [minimal, centered-constellation, left-to-right-flow, field-of-work, timeline, two-column, three-column, hub-spoke, chain, funnel, stack, parallel-chains, confluence, specialist-generalist, framed-workspace]
+  flowing-artifacts:
+    provider_clause: small unmarked information artifacts rising in a measured upward flow, abstract decorative element
+    workflows: [framed, pure]
+    recipe_ids: [editorial-systems]
+    composition_ids: [information-rise]
+  decision-path:
+    provider_clause: one clear amber path carrying a document into a focal point, with broad spacing
+    workflows: [framed, pure]
+    recipe_ids: [editorial-systems]
+    composition_ids: [information-rise]
+  shift-connector:
+    provider_clause: one broad amber connector bridging a tentative left scene to an organized right scene, abstract decorative element
+    workflows: [framed, pure]
+    recipe_ids: [editorial-systems]
+    composition_ids: [evidence-shift]
+  role-contrast:
+    provider_clause: focused human posture beside expansive amber light form, quiet collaborative contrast, abstract decorative element
+    workflows: [framed, pure]
+    recipe_ids: [collaborative-work]
+    composition_ids: [specialist-generalist]
+  five-domain-map:
+    provider_clause: five clearly separated medium-size work artifacts arranged as one balanced capability constellation
+    workflows: [framed, pure]
+    recipe_ids: [collaborative-work]
+    composition_ids: [specialist-generalist]
+  frame-boundary:
+    provider_clause: warm translucent rectangular boundary with soft geometric depth, abstract decorative element
+    workflows: [framed, pure]
+    recipe_ids: [collaborative-work]
+    composition_ids: [framed-workspace]
+  evidence-cards:
+    provider_clause: two medium-size framed evidence surfaces, each clearly anchored to its respective scene
+    workflows: [framed, pure]
+    recipe_ids: [editorial-systems]
+    composition_ids: [evidence-shift]
+  readable-schematic:
+    provider_clause: one bold workflow diagram with a few large stages, explicit arrows, and a sparse overall structure
+    workflows: [framed, pure]
+    recipe_ids: [collaborative-work]
+    composition_ids: [framed-workspace]
+  fulcrum-lever:
+    provider_clause: hand-drawn lever resting on a clear fulcrum close to the problem, one restrained amber point of force, unmarked form
+    workflows: [pure]
+    recipe_ids: [org-transform]
+    composition_ids: [title-pause, centered-constellation, left-to-right-flow, specialist-generalist]
+  verification-rails:
+    provider_clause: fine sepia guardrails carrying a workflow through small checkpoints, sparse amber feedback marks, no control-panel sci-fi
+    workflows: [pure]
+    recipe_ids: [org-transform]
+    composition_ids: [chain, left-to-right-flow, framed-workspace, stack]
+  responsibility-owner:
+    provider_clause: one calm human owner at the center of a bounded problem field, connected to a few shared capabilities, clear accountability without hierarchy tower
+    workflows: [pure]
+    recipe_ids: [org-transform]
+    composition_ids: [hub-spoke, centered-constellation, specialist-generalist]
+  platform-stack:
+    provider_clause: layered editorial infrastructure stack with a warm shared foundation, visible tools and governance rails, no server-room cliche
+    workflows: [pure]
+    recipe_ids: [org-transform]
+    composition_ids: [stack, three-column, information-rise, centered-constellation]
 relationships:
   layer-stack:
     provider_clause: nested translucent planes rising from broad base to focused apex
@@ -28,6 +200,24 @@ relationships:
   causal-flow:
     provider_clause: connected luminous forms progressing from left origin to right outcome
     workflows: [framed, pure]
+    recipe_ids: [editorial-systems, collaborative-work]
+    composition_ids: [left-to-right-flow]
+    reading_order: left-to-right
+  specialist-generalist:
+    provider_clause: clear left to right relationship from focused individual work to broad collaborative capability
+    workflows: [framed, pure]
+    recipe_ids: [collaborative-work]
+    composition_ids: [specialist-generalist]
+    reading_order: left-to-right
+  evidence-shift:
+    provider_clause: clear left to right relationship from tentative gathering to confident collaborative activity through one amber connector
+    workflows: [framed, pure]
     recipe_ids: [editorial-systems]
-    composition_ids: [centered-constellation]
+    composition_ids: [evidence-shift]
+    reading_order: left-to-right
+  framed-autonomy:
+    provider_clause: one human remains outside a warm rectangular boundary while one amber light form acts freely within it
+    workflows: [framed, pure]
+    recipe_ids: [collaborative-work]
+    composition_ids: [framed-workspace]
     reading_order: left-to-right
