@@ -2115,15 +2115,11 @@ function progressiveCheckpointHandoffFailure(code) {
 }
 
 /**
- * Advance the durable create-deck cursor to the Controller node matching the
+ * Project the durable create-deck cursor onto the Controller node matching the
  * raw owner's current checkpoint action, bound to a successful image2
- * mutation transition. This handoff is a Controller projection of owner facts:
- * it marks every active node strictly before the checkpoint whose record is
- * absent or in_progress as completed (their purpose is proven by the owner
- * inspection that produced the checkpoint), records the checkpoint node as
- * in_progress (waiting_for for human gates), and never fabricates per-node
- * evidence. It is invoked only from the image2 command path; observation never
- * calls it.
+ * mutation transition. Forward still completes prior absent/in_progress nodes.
+ * Rewind changes only current_node and the checkpoint in_progress record.
+ * Observation never calls it.
  */
 export function recordTargetProgressiveCheckpointCliHandoff(deckDir, {
   runVersion,
@@ -2162,7 +2158,7 @@ export function recordTargetProgressiveCheckpointCliHandoff(deckDir, {
     progressiveCheckpointHandoffFailure("TARGET_PROGRESSIVE_CHECKPOINT_NODE_UNKNOWN");
   }
   const currentIndex = active.indexOf(context.state.current_node);
-  if (currentIndex < 0 || currentIndex > checkpointIndex) {
+  if (currentIndex < 0) {
     progressiveCheckpointHandoffFailure("TARGET_PROGRESSIVE_CHECKPOINT_NODE_CONFLICT");
   }
   const base = Object.freeze({

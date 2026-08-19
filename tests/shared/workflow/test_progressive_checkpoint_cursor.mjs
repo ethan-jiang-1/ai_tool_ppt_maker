@@ -193,10 +193,10 @@ describe("progressive checkpoint cursor", () => {
     }
   });
 
-  it("fails closed on backward, unknown, and mismatched checkpoint handoffs", async () => {
+  it("fails closed on unknown and mismatched checkpoint handoffs and projects backward", async () => {
     const value = await fixture();
     try {
-      const { recordTargetProgressiveCheckpointCliHandoff, readState, writeState } = await import("../../../ppt_maker_harness/scripts/shared/state/state.mjs");
+      const { recordTargetProgressiveCheckpointCliHandoff, readState, writeState, setNodeStatus } = await import("../../../ppt_maker_harness/scripts/shared/state/state.mjs");
       const expectCode = (fn, code) => {
         let caught = null;
         try { fn(); } catch (error) { caught = error; }
@@ -216,14 +216,24 @@ describe("progressive checkpoint cursor", () => {
         checkpoint_node: "review-target-pure-pilot",
       }), "execution_run_version_mismatch");
 
-      // Backward advance: cursor ahead of the owner checkpoint.
+      // Backward projection: cursor ahead of the owner checkpoint.
       const state = readState(value.deck, { purpose: "observe", runDir: value.runDir });
-      state.current_node = "plan-target-pure-expansion";
+      setNodeStatus(state, "generate-target-pure-pilot", "in_progress", {}, { runVersion: "v1" });
+      const generateBefore = structuredClone(state.nodes["generate-target-pure-pilot"]);
       writeState(value.deck, state);
-      expectCode(() => recordTargetProgressiveCheckpointCliHandoff(value.deck, {
+      const rewound = recordTargetProgressiveCheckpointCliHandoff(value.deck, {
         runDir: value.runDir,
-        checkpoint_node: "review-target-pure-pilot",
-      }), "TARGET_PROGRESSIVE_CHECKPOINT_NODE_CONFLICT");
+        checkpoint_node: "recommend-target-pure-pilot",
+      });
+      expect(rewound).toMatchObject({
+        ok: true,
+        to_node: "recommend-target-pure-pilot",
+      });
+      const after = readState(value.deck, { purpose: "observe", runDir: value.runDir });
+      expect(after.current_node).toBe("recommend-target-pure-pilot");
+      expect(after.nodes?.["recommend-target-pure-pilot"]?.status).toBe("in_progress");
+      expect(after.nodes?.["generate-target-pure-pilot"]?.status).toBe("in_progress");
+      expect(after.nodes?.["generate-target-pure-pilot"]?.started).toBe(generateBefore.started);
     } finally {
       rmSync(value.root, { recursive: true, force: true });
     }

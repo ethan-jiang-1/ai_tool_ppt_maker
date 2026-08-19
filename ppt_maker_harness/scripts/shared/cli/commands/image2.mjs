@@ -1,4 +1,5 @@
-import { CLI_ERROR_CODES, CLI_DIAGNOSTIC_SCHEMA, createCliNext, emitCliError, registerCliJsonReport } from "../cli_error.mjs";
+import { CLI_ERROR_CODES, CLI_DIAGNOSTIC_SCHEMA, createCliNext, emitCliError } from "../cli_error.mjs";
+import { commandResult } from "../command_result.mjs";
 import {
   PAGE_IMAGE_OPERATIONS,
   advanceProgressiveControllerCheckpoint,
@@ -104,7 +105,36 @@ async function commandTargetPageImageImage2(operation, route, opts = {}) {
     // CLI handoff can complete it with its grant evidence.
     const { inspectWorkflow } = await import("../../../shared/workflow/inspect_workflow.mjs");
     const inspection = inspectWorkflow({ runDir: route.run_dir });
-    const checkpointHandoff = await advanceProgressiveControllerCheckpoint(route, { workflowInspection: inspection });
+    let checkpointHandoff;
+    try {
+      checkpointHandoff = await advanceProgressiveControllerCheckpoint(route, { workflowInspection: inspection });
+    } catch (projectionError) {
+      const result = commandResult({
+        operation: `image2.${operation}`,
+        state: "partial-effect",
+        effect: output,
+        partial: { cursor_projection: { status: "failed", code: projectionError?.code || null } },
+        facts: { output },
+      });
+      console.log(JSON.stringify(result, null, 2));
+      emitCliError({
+        code: CLI_ERROR_CODES.FAILED,
+        message: "Image2 owner records persisted but the Controller cursor projection failed.",
+        hint: "Resume from workflow_inspection.primary_action; do not hand-edit _state. The owner write was not rolled back.",
+        where: `ppt_flow.image2.target.${operation}.cursor`,
+        diagnostic: {
+          schema: CLI_DIAGNOSTIC_SCHEMA,
+          category: "artifact",
+          operation: `image2.${operation}`,
+          reason: { kind: "progressive_checkpoint_projection_failed" },
+          source: { path: route.run_dir },
+          next: createCliNext("repair_prerequisite", {
+            default: "Resume from the owner-issued inspection action; the image2 mutation already persisted.",
+          }),
+        },
+      });
+      return 1;
+    }
     if (operation === "authorize") {
       const planHash = requiredPageImageHash(operation, "--plan-hash", opts.planHash, "full plan");
       const batchHash = requiredPageImageHash(operation, "--batch-hash", opts.batchHash, "batch");
