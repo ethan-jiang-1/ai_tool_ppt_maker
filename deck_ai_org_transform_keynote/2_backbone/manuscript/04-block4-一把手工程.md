@@ -1,6 +1,7 @@
 # Block 4 讲稿素材：一把手工程
 
 > 状态：研究启发稿，待结合演讲者经验、听众行业和现场时长继续改写。
+> 来源：`../../1_upstream_raw_material/tensen-report-digest.md`、`../../1_upstream_raw_material/enterprise-six-cases-digest.md`；原文回溯：`../../1_upstream_raw_material/source-tensen-report/`、`../../1_upstream_raw_material/source-enterprise-six-cases/`
 
 ## 这一段要回答什么
 

@@ -96,8 +96,6 @@ dpt_rb_*
 *.heic
 *.tiff
 
-# raw upstream material (large source images, regenerable)
-**/1_upstream_raw_material/
 
 skills-lock.json
 .agents

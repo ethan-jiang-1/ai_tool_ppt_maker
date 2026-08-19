@@ -1,6 +1,7 @@
 # Block 1 讲稿素材：杠杆与支点
 
 > 状态：研究启发稿，待结合演讲者口吻和开场案例继续改写。
+> 来源：`../../1_upstream_raw_material/tensen-report-digest.md`；原文回溯：`../../1_upstream_raw_material/source-tensen-report/`
 
 ## 开场判断
 
