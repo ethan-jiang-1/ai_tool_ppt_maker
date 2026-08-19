@@ -170,6 +170,7 @@
    "unit_integration": [
     "tests/shared/cli/test_process_cli_error.mjs",
     "tests/shared/cli/test_process_source_config_diagnostics.mjs",
+    "tests/shared/cli/test_process_status_next_and_style_master_json.mjs",
     "tests/shared/cli/test_process_target_diagnostics.mjs",
     "tests/shared/cli/test_project_problem_facts.mjs"
    ],

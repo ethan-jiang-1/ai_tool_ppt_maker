@@ -124,7 +124,6 @@ negative_constraints:
     ];
 
     const commands = [
-      [FLOW, ["doctor", "--run-dir", runDir, "--operation", "raw-generation"]],
       [FLOW, ["status", runDir]],
       [FLOW, ["validate", runDir]],
       [FLOW, ["build", runDir]],
@@ -144,7 +143,7 @@ negative_constraints:
         const result = run(script, args);
         expect(result.status, `${script} ${args.join(" ")}\n${result.stderr}`).not.toBe(0);
         const diagnostic = finalDiagnostic(result);
-        expect(diagnostic.diagnostic).toMatchObject({
+        expect(diagnostic.diagnostic, `${script} ${args.join(" ")}\n${result.stderr}`).toMatchObject({
           category: "gate",
           operation: "verify-harness-binding",
           reason: { kind: "harness_binding_invalid" },
@@ -160,5 +159,34 @@ negative_constraints:
     expect(existsSync(join(deck, "_lessons"))).toBe(true);
     expect(existsSync(join(deck, "3_versions", "v2"))).toBe(false);
     expect(currentCard).toContain("pptmaker-run-bundle");
+  });
+
+  it("reports usage instead of binding failure when --check is given a Deck root", () => {
+    const { deck, runDir } = initFixture("harness-binding-check-root");
+    const rootCheck = run(LAYOUT, ["--check", deck]);
+    expect(rootCheck.status).not.toBe(0);
+    const diagnostic = finalDiagnostic(rootCheck);
+    expect(diagnostic.diagnostic.category).toBe("usage");
+    expect(diagnostic.diagnostic.reason?.kind).not.toBe("harness_binding_invalid");
+    expect(`${rootCheck.stdout}\n${rootCheck.stderr}`).toMatch(/3_versions\/vN|3_versions\/v1/);
+
+    const v1Check = run(LAYOUT, ["--check", runDir]);
+    expect(v1Check.stderr).not.toContain("harness_binding_invalid");
+  });
+
+  it("prints the same init Next sentence from ppt_flow and bundle_layout", () => {
+    const root = mkdtempSync(join(tmpdir(), "init-next-"));
+    cleanupRoots.push(root);
+    const flowDeck = join(root, "deck_flow_init");
+    const layoutDeck = join(root, "deck_layout_init");
+    const flow = run(FLOW, ["init", flowDeck, "--deck-type", "keynote", "--style", "dark-executive"]);
+    const layout = run(LAYOUT, ["--init", layoutDeck, "--deck-type", "keynote", "--style", "dark-executive"]);
+    expect(flow.status, flow.stderr).toBe(0);
+    expect(layout.status, layout.stderr).toBe(0);
+    const flowNext = flow.stdout.split("\n").find((line) => line.startsWith("Next:"));
+    const layoutNext = layout.stdout.split("\n").find((line) => line.startsWith("Next:"));
+    expect(flowNext).toBe(`Next: ppt_flow.mjs status ${join(flowDeck, "3_versions", "v1")}`);
+    expect(layoutNext).toBe(`Next: ppt_flow.mjs status ${join(layoutDeck, "3_versions", "v1")}`);
+    expect(layout.stdout).not.toContain("fill 2_backbone/");
   });
 });

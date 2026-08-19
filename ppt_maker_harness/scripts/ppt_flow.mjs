@@ -362,9 +362,11 @@ Examples:
     .option("--decision <decision>", "Visual-direction decision: proceed, repair, or redirect")
     .option("--candidate-id <slot-id>", "Eligible reviewed candidate ID for proceed")
     .option("--reason <text>", "Bounded human reason for exact unknown-plan abandonment")
+    .option("--json", "Output one machine-readable report")
     .addHelpText("after", "\ninspect -> plan -> authorize -> generate -> review -> accept\nA zero-generated local plan skips authorize and generate.\n")
     .addHelpText("after", renderContractBlock(COMMAND_CONTRACTS["style-master"]))
     .action(async (operation, runDir, opts) => {
+      if (opts.json) setCliOutputMode("json");
       const { commandStyleMaster } = await import("./shared/cli/commands/style-master.mjs");
       const code = await commandStyleMaster(operation, runDir, opts);
       process.exit(code);

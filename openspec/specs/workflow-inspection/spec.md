@@ -110,11 +110,19 @@ construct an alternate route. No export, migration, conversion, adoption,
 compatibility reader, or protocol-specific recovery action is current.
 
 A declared fresh authoring draft SHALL retain its existing
-narrative/workflow-selection action. A state-owned defect after current protocol
-identity is established SHALL retain its state owner; only a one-to-one,
-fence-clear repair is write-eligible. An exact requested/active Work Version
-mismatch SHALL retain its execution-version owner. Inspection SHALL not replace
-those current outcomes with protocol repair.
+narrative/workflow-selection action. That draft includes a current
+`page-image-workflow` source whose `production.workflow` is exactly `framed` or
+`pure` when that version has no `production_identity.by_version` entry. The
+predicate is empty identity, not empty workflow. Inspection SHALL NOT add a
+new provider-evidence scanner for this draft route. When identity is absent
+and the existing declared-draft resolver returns null, the pair remains an
+invalid production record and keeps this hard-stop.
+
+A state-owned defect after current protocol identity is established SHALL
+retain its state owner; only a one-to-one, fence-clear repair is
+write-eligible. An exact requested/active Work Version mismatch SHALL retain
+its execution-version owner. Inspection SHALL not replace those current
+outcomes with protocol repair.
 
 #### Scenario: An invalid current-shaped marker is observed
 
@@ -131,6 +139,23 @@ those current outcomes with protocol repair.
   production identity
 - **THEN** it returns the existing narrative/workflow-selection owner action
 - **AND** it does not synthesize an invalid protocol pair or repair action
+
+#### Scenario: Selected workflow without identity remains a fresh draft
+
+- **WHEN** the current source declares `production.workflow` `framed` or `pure`
+  and that version has no `production_identity.by_version` entry and the
+  existing declared-draft resolver accepts the pair
+- **THEN** inspection returns the existing narrative or paginate-apply owner
+  action for that draft
+- **AND** it does not emit `current-protocol-invalid` or
+  `repair-current-protocol-identity`
+
+#### Scenario: A pair the draft resolver rejects stays protocol-invalid
+
+- **WHEN** that version has no identity record and the existing declared-draft
+  resolver does not accept the pair
+- **THEN** inspection keeps the `production-protocol` hard-stop
+- **AND** it does not invent a second draft predicate
 
 #### Scenario: Exact Work Version mismatch remains execution-owned
 

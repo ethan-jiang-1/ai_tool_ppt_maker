@@ -1,6 +1,6 @@
 # Active Plans — 活跃 plan/分析文档列表
 
-> 最后更新: 2026-08-15 | `_backlog/plans/` — 活跃 plan 在此，完成移入 [`../_done/_closed_plans/`](../_done/_closed_plans/)。
+> 最后更新: 2026-08-20 | `_backlog/plans/` — 活跃 plan 在此，完成移入 [`../_done/_closed_plans/`](../_done/_closed_plans/)。
 >
 > **plan 没有编号，文件名即标识。完成后文件名不变，位置即状态。**
 
@@ -19,7 +19,9 @@
 
 | 计划 | 一句话 | 来源 |
 | --- | --- | --- |
-**Next available plan ID: CLS-043**（移入 `_closed_plans/` 时分配；CLS-001…041 已用）
+| [repair-active-bugs-in-four-openspec-changes.md](repair-active-bugs-in-four-openspec-changes.md) | 四 change 名已 final；流水线 propose→polish→apply→archive | BUG-073…092 |
+
+**Next available plan ID: CLS-043**（移入 `_closed_plans/` 时分配；CLS-001…042 已用）
 
 ---
 

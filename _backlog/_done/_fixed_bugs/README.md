@@ -1,6 +1,6 @@
 # Fixed Bugs Index — 已修复 bug 归档
 
-> 最后更新: 2026-08-19 | `_backlog/_done/_fixed_bugs/` — 已修复 bug 的归档目录。
+> 最后更新: 2026-08-20 | `_backlog/_done/_fixed_bugs/` — 已修复 bug 的归档目录。
 > 接收来自 [`../../bugs/`](../../bugs/) 的 bug。`_` 前缀 = coding agent 默认忽略。
 >
 > **本目录是 bug 编号的归档索引；新 bug 使用所有已分配 BUG 编号后的下一个值，避免与活跃条目冲突。**
@@ -85,8 +85,15 @@ bug 修完后从 `_backlog/bugs/` 通过 `git mv` 移入本目录：
 | [BUG-070](BUG-070-doctor-ready-does-not-reach-image2-authorize.md) | 2026-08-16 | doctor READY 与 exact authorize/generate 共享受限 startup env（Change 2） |
 | [BUG-071](BUG-071-pilot-review-masks-reconcile-after-store-lock.md) | 2026-08-19 | `pilot-review` store-lock 失败回执区分 live writer / unresolved attempt / 异常锁三分支（change: progressive-pilot-state-and-diagnostics） |
 | [BUG-072](BUG-072-progressive-state-cursor-does-not-advance.md) | 2026-08-19 | progressive checkpoint CLI handoff 单调推进 durable cursor，state/status/task projection 一致（change: progressive-pilot-state-and-diagnostics） |
+| [BUG-077](BUG-077-pure-visual-language-registry-rejects-org-transform.md) | 2026-08-20 | Visual-language linter 已拒非 ASCII / 不兼容 motif / 禁词 `text`；triage 关闭为 already implemented |
+| [BUG-073](BUG-073-bundle-check-root-misdiagnoses-binding.md) | 2026-08-20 | `--check` 先认 `3_versions/vN`；Deck root 是 usage 不是 binding（change: restore-draft-and-cli-projections） |
+| [BUG-074](BUG-074-initial-workflow-selection-current-protocol-invalid.md) | 2026-08-20 | 已选 framed/pure 且 identity 空仍是 declared fresh draft（change: restore-draft-and-cli-projections） |
+| [BUG-078](BUG-078-style-master-inspect-json-flag-inconsistent.md) | 2026-08-20 | `style-master inspect --json` 注册为同一 owner result 的 JSON renderer（change: restore-draft-and-cli-projections） |
+| [BUG-079](BUG-079-init-next-step-missing-upstream-and-self-contradictory.md) | 2026-08-20 | `ppt_flow init` 与 `bundle_layout --init` Next 同一句 `status <v1Path>`（change: restore-draft-and-cli-projections） |
+| [BUG-085](BUG-085-delivery-no-review-hint-and-status-next-goes-silent.md) | 2026-08-20 | `status` Next 投影 `workflow_inspection.primary_action`（change: restore-draft-and-cli-projections） |
+| [BUG-088](BUG-088-terminal-pilot-checkpoint-node-conflict.md) | 2026-08-20 | durable cursor 投影 owner checkpoint（可后退）；owner 已落盘 + 投影失败是 `partial-effect`（change: project-cursor-to-owner-checkpoint） |
 
-**Next available bug ID: BUG-073**
+**Next available bug ID: BUG-093**
 
 ---
 
@@ -96,3 +103,14 @@ bug 修完后从 `_backlog/bugs/` 通过 `git mv` 移入本目录：
 
 - [BUG-038](../_suspended_bugs/BUG-038-text-frame-dark-overlay-conflicts-warm-editorial.md) — historical compositor path retired; current Framed theme no longer reproduces the report.
 - [BUG-039](../_suspended_bugs/BUG-039-async-generate-naming-mismatch.md) — historical scratch-generator naming split is absent from the current raw owner.
+- [BUG-075](../_suspended_bugs/BUG-075-onboarding-missing-upstream-material-first-step.md) — 2026-08-20 triage wontfix: Agent owns process.
+- [BUG-076](../_suspended_bugs/BUG-076-missing-layer-boundary-1-2-3-charter.md) — 2026-08-20 triage wontfix: layer table is not a prose DAG.
+- [BUG-080](../_suspended_bugs/BUG-080-onboarding-no-progress-map-and-no-plain-framed-pure.md) — 2026-08-20 triage wontfix: Agent translates framed/pure.
+- [BUG-082](../_suspended_bugs/BUG-082-downstream-success-output-violates-success-handoff-contract.md) — 2026-08-20 triage wontfix: CLI JSON stays Agent-facing.
+- [BUG-083](../_suspended_bugs/BUG-083-provider-spend-no-plain-cost-disclosure.md) — 2026-08-20 triage wontfix: no price list.
+- [BUG-084](../_suspended_bugs/BUG-084-proceed-repair-redirect-gates-all-jargon.md) — 2026-08-20 triage wontfix: Gate enum stays machine contract.
+- [BUG-086](../_suspended_bugs/BUG-086-downstream-terminology-all-jargon.md) — 2026-08-20 triage wontfix: glossary stays a path map.
+- [BUG-087](../_suspended_bugs/BUG-087-image2-known-failure-has-no-item-recovery.md) — 2026-08-20 triage wontfix: known_failure exit 0 is successful recording; full-fail break is BUG-088.
+- [BUG-089](../_suspended_bugs/BUG-089-image2-plan-exceeds-declared-provider-prompt-budget.md) — 2026-08-20 triage wontfix: measured the inspection request JSON, not compiled prompt.
+- [BUG-091](../_suspended_bugs/BUG-091-special-page-class-accepts-forbidden-body-items.md) — 2026-08-20 triage wontfix: PAGE CLASS OVERRIDE stays deck-local.
+- [BUG-092](../_suspended_bugs/BUG-092-approved-preview-images-have-no-legal-pptx-path.md) — 2026-08-20 triage wontfix: no scratch→PPTX bypass.

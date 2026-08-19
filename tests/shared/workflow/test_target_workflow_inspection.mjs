@@ -181,6 +181,73 @@ production:
     }
   });
 
+  it("projects a selected workflow without identity as a fresh authoring draft", () => {
+    const root = mkdtempSync(join(tmpdir(), "workflow-inspect-selected-draft-"));
+    const deck = join(root, "deck_target_page_image");
+    const runDir = join(deck, "3_versions", "v1");
+    try {
+      initBundle(deck, null, "keynote", "dark-executive");
+      writeFileSync(join(runDir, "slide-specifications.md"), `---
+identity:
+  scheme: mnemonic
+production:
+  pipeline: page-image-workflow
+  workflow: pure
+---
+
+## Slide 01: \`DeckGo\`
+
+**TITLE**: Selected-workflow draft
+`);
+      const before = treeSnapshot(deck);
+      const inspection = inspectWorkflow({ runDir });
+      expect(inspection.root_cause.kind).not.toBe("current-protocol-invalid");
+      expect(inspection.primary_action.action_id).not.toBe("repair-current-protocol-identity");
+      expect(inspection.evidence_summary.workflow).toBe("pure");
+      expect(["author-target-narrative-sources", "author-target-page-image-content"]).toContain(
+        inspection.primary_action.action_id,
+      );
+      expect(treeSnapshot(deck)).toEqual(before);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps protocol invalid when the draft resolver rejects a selected-workflow pair", () => {
+    const root = mkdtempSync(join(tmpdir(), "workflow-inspect-rejected-draft-"));
+    const deck = join(root, "deck_target_page_image");
+    const runDir = join(deck, "3_versions", "v1");
+    try {
+      initBundle(deck, null, "keynote", "dark-executive");
+      writeFileSync(join(runDir, "slide-specifications.md"), `---
+identity:
+  scheme: mnemonic
+production:
+  pipeline: page-image-workflow
+  workflow: pure
+---
+
+## Slide 01: \`DeckGo\`
+
+**TITLE**: Rejected draft
+`);
+      const statePath = join(deck, "_state", "state.yaml");
+      const state = readFileSync(statePath, "utf8").replace(
+        /current_node: author-target-narrative-sources/,
+        "current_node: deliver-target-page-image",
+      );
+      writeFileSync(statePath, state);
+      const inspection = inspectWorkflow({ runDir });
+      expect(inspection).toMatchObject({
+        posture: "hard-stop",
+        root_cause: { kind: "current-protocol-invalid" },
+        primary_action: { action_id: "repair-current-protocol-identity" },
+      });
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("fails closed on a selected workflow source that cannot establish progressive planning prerequisites", () => {
     const value = fixture();
     try {

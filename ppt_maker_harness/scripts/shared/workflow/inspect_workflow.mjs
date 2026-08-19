@@ -335,6 +335,39 @@ function currentPageImageMarker(runDir) {
   }
 }
 
+function selectedWorkflowAuthoringDraftResult(runDir, draftRoute) {
+  const workflow = draftRoute.workflow;
+  const evidenceSummary = { pipeline: PAGE_IMAGE_WORKFLOW_PIPELINE, workflow, source_epoch: null };
+  if (draftRoute.current_node === "author-target-narrative-sources") {
+    return report({
+      runDir,
+      posture: "guide",
+      rootCause: { owner: "narrative-authoring", kind: "NARRATIVE_SOURCES_REQUIRED" },
+      primaryAction: ownerAction(
+        "01-content",
+        "author-target-narrative-sources",
+        "guide",
+        false,
+        "Write or repair the Story Outline and Design Constraints before paginating the selected workflow.",
+      ),
+      evidenceSummary,
+    });
+  }
+  return report({
+    runDir,
+    posture: "guide",
+    rootCause: { owner: "01-content", kind: "TARGET_PAGE_IMAGE_CONTENT_REQUIRED" },
+    primaryAction: ownerAction(
+      "01-content",
+      "author-target-page-image-content",
+      "guide",
+      false,
+      "Author the target Page Image source, then paginate apply the exact plan.",
+    ),
+    evidenceSummary,
+  });
+}
+
 /** Read-only current Page Image lifecycle projection. */
 export function inspectWorkflow({ runDir } = {}) {
   const resolved = resolve(runDir || "");
@@ -388,6 +421,10 @@ export function inspectWorkflow({ runDir } = {}) {
       primaryAction: ownerAction("run-bundle-layout", "repair-layout", "repair", false, "Repair the reported bundle-layout issue."),
       evidenceSummary: { pipeline: null, workflow: null, source_epoch: null },
     });
+  }
+  const selectedDraft = resolveTargetAuthoringDraftRoute(resolved);
+  if (selectedDraft) {
+    return selectedWorkflowAuthoringDraftResult(resolved, selectedDraft);
   }
   const stateProtocol = inspectStateProtocol(resolved, deckDir, marker);
   if (stateProtocol) return stateProtocol;

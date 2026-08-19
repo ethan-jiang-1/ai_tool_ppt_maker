@@ -2043,7 +2043,7 @@ function _main() {
         for (const line of created) {
             console.log(`  + ${line}`);
         }
-        console.log(`\nNext: fill 2_backbone/ + 3_versions/v1/slide-specifications.md, then run the pipeline.`);
+        console.log(`\nNext: ppt_flow.mjs status ${deckDir}/${VERSIONS_DIR}/v1`);
         console.log(`Verify anytime:  node ${__filename} --check ${deckDir}/${VERSIONS_DIR}/v1`);
         process.exit(0);
     }
@@ -2069,6 +2069,24 @@ function _main() {
 
     if (args.check) {
         const runDir = path.resolve(args.check);
+        if (!isVersionDir(runDir)) {
+            emitCliError({
+                code: CLI_ERROR_CODES.USAGE,
+                message: `--check requires an exact ${VERSIONS_DIR}/vN run directory.`,
+                hint: `Pass deck_<name>/${VERSIONS_DIR}/v1, not a Deck root.`,
+                where: "bundle_layout.check.target",
+                diagnostic: {
+                    schema: CLI_DIAGNOSTIC_SCHEMA,
+                    category: "usage",
+                    operation: "parse-arguments",
+                    source: { path: runDir },
+                    next: createCliNext("fix_arguments", {
+                        default: `Pass an exact ${VERSIONS_DIR}/vN run directory, e.g. deck_name/${VERSIONS_DIR}/v1.`,
+                    }),
+                },
+            });
+            process.exit(1);
+        }
         if (!args.structureOnly && !verifyCurrentBindingForCli(runDir, "bundle_layout.check.binding")) {
             process.exit(1);
         }

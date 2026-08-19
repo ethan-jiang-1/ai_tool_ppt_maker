@@ -541,6 +541,13 @@ export function collectStatus(runDir) {
  * @param {object} status
  * @param {string} runDir
  */
+function projectInspectionNext(inspection) {
+  const action = inspection?.primary_action || {};
+  return action.command || action.display_label || (action.owner && action.action_id
+    ? `${action.owner}:${action.action_id}`
+    : action.action_id || null);
+}
+
 export async function enrichStatusWithState(status, runDir, route = null) {
   const { readState, buildResumeCard, statePath, inspectRunProductionIdentity } = await import("../../shared/state/state.mjs");
   const root = deckRoot(runDir);
@@ -586,6 +593,8 @@ export async function enrichStatusWithState(status, runDir, route = null) {
   });
   status.playbook = card.playbook;
   status.current_node = card.current_node;
+  status.workflow_inspection = workflowInspection;
+  status.suggested_next = projectInspectionNext(workflowInspection);
   return status;
 }
 
@@ -651,30 +660,10 @@ export function printStatus(status) {
     return;
   }
 
-  /** @type {string[]} */
-  const nextSteps = [];
-  const rd = status.run_dir;
-
-  if (!status.style_master) nextSteps.push(`Create the Page Image visual profile before raw planning: ${rd}`);
-  if (
-    ["approved", "waived"].includes(status.content_gate) &&
-    ["approved", "waived"].includes(status.visual_gate) &&
-    status.style_master
-  ) {
-    if (status.pptx.length === 0) {
-      nextSteps.push(`Build full deck: ppt_flow.mjs build ${rd}`);
-    }
-  }
-  if (status.pptx.length > 0) {
-    nextSteps.push(
-      `Future edits: ppt_flow.mjs refresh ${rd} --kind <title|visual|notes>`
-    );
-  }
-  if (nextSteps.length > 0) {
+  const inspectionNext = status.suggested_next || projectInspectionNext(status.workflow_inspection);
+  if (inspectionNext) {
     console.log("\nNext:");
-    for (const step of nextSteps) {
-      console.log(`  - ${step}`);
-    }
+    console.log(`  - ${inspectionNext}`);
   }
 }
 

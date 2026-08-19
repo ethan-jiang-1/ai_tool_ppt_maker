@@ -1,4 +1,5 @@
-import { emitCliError } from "../cli_error.mjs";
+import { emitCliError, registerCliJsonReport } from "../cli_error.mjs";
+import { commandReport } from "../command_result.mjs";
 import {
   STYLE_MASTER_OPERATIONS,
   STYLE_MASTER_PLAN_HASH_RE,
@@ -100,7 +101,16 @@ export async function commandStyleMaster(operation, runDir, opts = {}) {
     } else {
       output = await owner.abandonStyleMasterCandidates({ ...common, planSha256: planHash, reason: opts.reason });
     }
-    console.log(JSON.stringify(output, null, 2));
+    if (opts.json) {
+      const report = commandReport({
+        operation: `style-master.${operation}`,
+        fields: output,
+      });
+      registerCliJsonReport(report);
+      console.log(JSON.stringify(report, null, 2));
+    } else {
+      console.log(JSON.stringify(output, null, 2));
+    }
     return 0;
   } catch (error) {
     const failure = styleMasterFailure(operation, route, error);
