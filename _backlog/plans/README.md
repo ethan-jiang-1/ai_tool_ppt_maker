@@ -17,7 +17,7 @@
 
 ## 活跃列表
 
-- [image2-capability-tuple-and-lab.md](image2-capability-tuple-and-lab.md) — Image2 Call Shape + 独立 Lab + `_lab/` workspace；给评审 agent 的自包含设计包（文件名里的 tuple 已废，规范词是 Call Shape）
+- [image2-capability-tuple-and-lab.md](image2-capability-tuple-and-lab.md) — Image2 Call Shape + Lab 定稿；落地为 **一个** OpenSpec change `add-image2-call-shape-and-lab`。
 
 **Next available plan ID: CLS-044**（移入 `_closed_plans/` 时分配；CLS-001…043 已用）
 

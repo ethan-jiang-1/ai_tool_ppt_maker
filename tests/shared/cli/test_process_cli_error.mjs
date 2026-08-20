@@ -268,12 +268,14 @@ describe("cli_error", () => {
         "shared/run-bundle/bundle_layout.mjs": focused("tests/shared/run-bundle/test_page_image_layout.mjs", "reports malformed progressive page-production topology without selecting or cleaning it"),
         "00-setup/env-check.mjs": focused("tests/00-setup/test_process_env_check.mjs", "rejects version suffixes outside the narrow allowlist"),
         "shared/run-bundle/lessons.mjs": focused("tests/shared/run-bundle/test_process_lessons.mjs", "hard-stops a locatorless Deck before creating a lesson"),
+        "shared/image2/lab_cli.mjs": focused("tests/shared/image2/test_lab_cli.mjs", "hard-stops a non-vN run before fetch"),
         "ppt_flow.mjs": focused(CLI_SURFACE_FILE, CLI_SURFACE_CASE),
       }[entry];
       const jsonSuccess = {
         "00-setup/env-check.mjs": focused("tests/00-setup/test_process_env_check.mjs", "produces JSON with --json"),
         "ppt_flow.mjs": focused(CLI_SURFACE_FILE, CLI_SURFACE_CASE),
         "shared/run-bundle/lessons.mjs": focused("tests/shared/run-bundle/test_process_lessons.mjs", "supports --json output"),
+        "shared/image2/lab_cli.mjs": focused("tests/shared/image2/test_lab_cli.mjs", "prints plan_hash without fetching"),
       }[entry];
       return [entry, {
         help: focused(CLI_ERROR_FILE, CLI_HELP),
@@ -523,9 +525,14 @@ describe("cli_error", () => {
       allPass: false,
       foundationOk: true,
       checks: [{ check: "api_key", status: "fail", detail: "missing", fix: "configure locally" }],
+    }, CLI_JSON_REPORT_SCHEMAS.ENV_CHECK)).toMatchObject({ allPass: false });
+    expect(() => validateCliJsonReport({
+      allPass: false,
+      foundationOk: true,
+      checks: [],
       smoke: false,
       probeVendors: false,
-    }, CLI_JSON_REPORT_SCHEMAS.ENV_CHECK)).toMatchObject({ allPass: false });
+    }, CLI_JSON_REPORT_SCHEMAS.ENV_CHECK)).toThrow(/env-check/);
     expect(() => validateCliJsonReport({ allPass: false, checks: [] }, CLI_JSON_REPORT_SCHEMAS.ENV_CHECK)).toThrow(/env-check/);
     expect(validateCliJsonReport({ corrupted: true, error_count: 2 }, CLI_JSON_REPORT_SCHEMAS.STATE_FAILURE)).toEqual({ corrupted: true, error_count: 2 });
     expect(() => validateCliJsonReport({ corrupted: "yes", error_count: 2 }, CLI_JSON_REPORT_SCHEMAS.STATE_FAILURE)).toThrow(/state-failure/);
@@ -665,8 +672,9 @@ describe("cli_error", () => {
   it("every registered executable has side-effect-free help and one final current failure envelope", () => {
     const failureArgs = {
       "shared/run-bundle/bundle_layout.mjs": ["--structure-only"],
-      "00-setup/env-check.mjs": ["--smoke", "--probe-vendors"],
+      "00-setup/env-check.mjs": ["--smoke"],
       "shared/run-bundle/lessons.mjs": ["nosuch"],
+      "shared/image2/lab_cli.mjs": ["nosuch"],
       "ppt_flow.mjs": ["nosuch"],
     };
     expect(Object.keys(failureArgs).sort()).toEqual([...EXECUTABLE_INVENTORY].sort());

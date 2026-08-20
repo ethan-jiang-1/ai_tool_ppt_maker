@@ -69,7 +69,9 @@ export const PUBLIC_SHARED_INTERFACES = Object.freeze([
   "shared/page-image/page_image_presentation_envelope.mjs",
   "shared/page-image/page_image_source_receipt.mjs",
   "shared/image2/credentials.mjs",
+  "shared/image2/call_shape.mjs",
   "shared/image2/provider_profile.mjs",
+  "shared/image2/provider_executor.mjs",
   "shared/image2/runtime_profile_id.mjs",
   "shared/image2/startup_env.mjs",
   "shared/image2/content_address_store.mjs",
@@ -414,14 +416,14 @@ function validPageImageTransport(value) {
 
 function validOperationProfile(operation, value) {
   const keys = operation === "page-image-reference-generation"
-    ? ["operation", "route_id", "model", "prompt_budget", "transport"]
+    ? ["operation", "route_id", "model", "prompt_budget", "transport", "result_protocol"]
     : ["operation", "route_id", "model", "prompt_budget"];
   return sameKeys(value, keys) &&
     operation === value.operation && typeof value.route_id === "string" && /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/.test(value.route_id) &&
     typeof value.model === "string" && value.model.length > 0 &&
     sameKeys(value.prompt_budget, ["limit", "unit"]) && Number.isSafeInteger(value.prompt_budget.limit) && value.prompt_budget.limit > 0 &&
     IMAGE2_PROMPT_BUDGET_UNITS.has(value.prompt_budget.unit) &&
-    (operation !== "page-image-reference-generation" || validPageImageTransport(value.transport));
+    (operation !== "page-image-reference-generation" || (validPageImageTransport(value.transport) && value.result_protocol === "json-inline-b64"));
 }
 
 /**
@@ -469,6 +471,7 @@ export function evaluateImage2CapabilityConformance(snapshot = {}) {
       provider.route_id !== declared?.route_id || provider.model !== declared?.model ||
       JSON.stringify(provider.prompt_budget) !== JSON.stringify(declared?.prompt_budget) ||
       JSON.stringify(provider.transport ?? null) !== JSON.stringify(declared?.transport ?? null) ||
+      JSON.stringify(provider.result_protocol ?? null) !== JSON.stringify(declared?.result_protocol ?? null) ||
       !sha256(chain?.generation_profile_sha256)) {
       issues.push({ code: "image2-capability-generation-profile-unbound", path: "chains", message: "generation profile must bind the selected full capability projection and digest" });
       continue;
@@ -1381,8 +1384,42 @@ function validateImage2CapabilitySeam(files, issues) {
     }
   }
   const envCheck = files.get("00-setup/env-check.mjs") || "";
-  if (/from\s*["']yaml["']|parseDocument\s*\(|provider_profile\.mjs/.test(envCheck)) {
-    addIssue(issues, "image2-capability-preinstall-import", "00-setup/env-check.mjs", "direct pre-install environment checking cannot import YAML or the provider-profile seam");
+  const envCheckInternal = files.get("00-setup/internal/env_check.mjs") || "";
+  if (/from\s*["']yaml["']|parseDocument\s*\(|provider_profile\.mjs|provider_executor\.mjs|call_shape\.mjs/.test(envCheck + envCheckInternal)) {
+    addIssue(issues, "image2-capability-preinstall-import", "00-setup/env-check.mjs", "direct pre-install environment checking cannot import YAML, the provider-profile seam, or the provider executor");
+  }
+}
+
+function validateImage2CallShapeSeam(files, issues) {
+  const seams = [
+    ["shared/image2/call_shape.mjs", "validateCallShapeValue"],
+    ["shared/image2/provider_executor.mjs", "executePageImageProviderCall"],
+  ];
+  for (const [seam, name] of seams) {
+    const source = files.get(seam);
+    const declaration = new RegExp(`(?:export\\s+)?function\\s+${name}\\s*\\(`);
+    if (!source || !declaration.test(source)) {
+      addIssue(issues, "image2-call-shape-seam-incomplete", seam, `${name} must be implemented by the declared shared seam`);
+      continue;
+    }
+    for (const [path, text] of files) {
+      if (path === seam || path.startsWith("tests/") || path.startsWith("tests_e2e/")) continue;
+      if (declaration.test(text)) {
+        addIssue(issues, "image2-call-shape-seam-duplicate", path, `${name} may be implemented only by ${seam}`);
+      }
+    }
+  }
+  const decoder = /(?:export\s+)?function\s+imageBytesFromPageImageProvider\s*\(/;
+  for (const [path, text] of files) {
+    if (path.startsWith("tests/") || path.startsWith("tests_e2e/")) continue;
+    if (path !== "shared/cli/command_support.mjs" && decoder.test(text)) {
+      addIssue(issues, "image2-call-shape-seam-duplicate", path, "imageBytesFromPageImageProvider may be implemented only by shared/cli/command_support.mjs");
+    }
+  }
+  for (const path of files.keys()) {
+    if (path === "image2-lab" || path.startsWith("image2-lab/")) {
+      addIssue(issues, "image2-lab-method-stage", path, "Image2 Lab is a shared executable, not a twentieth method stage");
+    }
   }
 }
 
@@ -1464,6 +1501,7 @@ export function validateArchitectureSnapshot({ files: inputFiles, manifest = nul
   validatePageImageCoreSeam(files, issues);
   validatePageImageProviderInputCompilation(files, issues);
   validateImage2CapabilitySeam(files, issues);
+  validateImage2CallShapeSeam(files, issues);
   validateSharedWorkflowSemanticBoundaries(files, issues);
   validateSingleDeliveryOwner(files, issues);
   evaluateDiagnosticOwnerGuardConformance(files, issues, guidanceFiles);

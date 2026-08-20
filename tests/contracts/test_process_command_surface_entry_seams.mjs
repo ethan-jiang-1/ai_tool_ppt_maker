@@ -37,8 +37,8 @@ describe("command-surface entry seams", () => {
     expect(help.stdout).toContain("--json");
     expect(help.stdout).not.toContain("--mode <mode>");
     expect(help.stdout).toContain("--operation <operation>");
-    expect(help.stdout).toContain("--smoke");
-    expect(help.stdout).toContain("--probe-vendors");
+    expect(help.stdout).not.toContain("--smoke");
+    expect(help.stdout).not.toContain("--probe-vendors");
     expect(help.stdout).not.toContain("--image2");
 
     const accepted = run(ENV_CHECK, ["--json", "--operation", "framed-local-refresh"]);

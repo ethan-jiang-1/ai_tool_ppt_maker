@@ -66,6 +66,10 @@ _Avoid_: A Harness child directory, a sibling-only layout
 A non-secret operational lesson retained by one Run Bundle for its Deck's later work. It is read before guessing and does not automatically become Harness knowledge.
 _Avoid_: Global memory, workflow progress, secret, automatic promotion
 
+**Lab Workspace**:
+The required deck-root `_lab/` directory where Image2 Lab stores unconfirmed Call Shape plans and immutable trials. Empty scaffold does not block drawing when a confirmed Call Shape already exists. Lab success is not profile confirmation or generate authorization.
+_Avoid_: A version leaf, `_lessons/`, `_generated/`, a second production stage
+
 **Run Bundle**:
 The sole instance-specific workspace for one Deck, created and operated by the PPT Maker Harness; it contains that Deck's work versions and owns its inputs, state, and evolving artifacts, not reusable Harness source.
 _Avoid_: Harness instance, Harness project, a second workspace for the same Deck
@@ -254,6 +258,10 @@ _Avoid_: Implicit paraphrase, provider-authored facts, a blanket rewrite permiss
 **Page Image Workflow**:
 The Harness-owned route that uses Image2 knowledge to compile canonical content, visual direction, and composition constraints into auditable rendering inputs for a complete page. Pure compiles one full-page provider input; Framed coordinates a provider page input with a local header-renderer input, using Presentation-Adaptable Copy only when the source explicitly grants it.
 _Avoid_: A content author, a free-form prompt, a per-slide authority choice
+
+**Image2 Call Shape**:
+The closed, hashed value that says how this vendor's GPT Image 2 must be called for page-image work: model, prompt budget, transport pairing, and `result_protocol`. Credentials and base URL stay in `.env`. The named default is generations + json + 2000x1125 + multiple 1 + async-poll + `json-inline-b64`. Probe submits a confirmed Call Shape once; Image2 Lab discovers an unconfirmed candidate.
+_Avoid_: Capability tuple, a vendor product name as a YAML key, generate authorization, `_lab/` as the confirmed profile
 
 **Workflow Meanings**:
 `page-image-workflow` is the pipeline literal. `production.workflow: framed|pure`

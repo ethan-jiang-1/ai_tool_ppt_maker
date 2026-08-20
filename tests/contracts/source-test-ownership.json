@@ -170,6 +170,7 @@
    "executables": [],
    "unit_integration": [
     "tests/shared/cli/test_image2_cursor_projection_partial_effect.mjs",
+    "tests/shared/cli/test_image2_live_flag_residue.mjs",
     "tests/shared/cli/test_process_cli_error.mjs",
     "tests/shared/cli/test_process_reset_unproduced_v1.mjs",
     "tests/shared/cli/test_process_source_config_diagnostics.mjs",
@@ -203,8 +204,10 @@
   {
    "owner": "shared/image2",
    "interfaces": [
+    "shared/image2/call_shape.mjs",
     "shared/image2/content_address_store.mjs",
     "shared/image2/credentials.mjs",
+    "shared/image2/lab_cli.mjs",
     "shared/image2/page_derived_data.mjs",
     "shared/image2/page_image_artifacts.mjs",
     "shared/image2/page_image_complete_page_review.mjs",
@@ -215,20 +218,25 @@
     "shared/image2/page_image_raw_mechanics.mjs",
     "shared/image2/page_image_target_runtime.mjs",
     "shared/image2/png_raster_projection.mjs",
+    "shared/image2/provider_executor.mjs",
     "shared/image2/provider_profile.mjs",
     "shared/image2/runtime_profile_id.mjs",
     "shared/image2/startup_env.mjs",
     "shared/image2/style_master_plan.mjs",
     "shared/image2/style_master_scope.mjs"
    ],
-   "executables": [],
+   "executables": [
+    "shared/image2/lab_cli.mjs"
+   ],
    "unit_integration": [
     "tests/shared/image2/test_artifact_contracts.mjs",
+    "tests/shared/image2/test_call_shape.mjs",
     "tests/shared/image2/test_complete_page_review.mjs",
     "tests/shared/image2/test_content_address_store.mjs",
     "tests/shared/image2/test_credentials.mjs",
     "tests/shared/image2/test_final_manifest.mjs",
     "tests/shared/image2/test_human_artifact_reference.mjs",
+    "tests/shared/image2/test_lab_cli.mjs",
     "tests/shared/image2/test_page_derived_data.mjs",
     "tests/shared/image2/test_page_image_media_contract.mjs",
     "tests/shared/image2/test_page_image_transport_vector.mjs",

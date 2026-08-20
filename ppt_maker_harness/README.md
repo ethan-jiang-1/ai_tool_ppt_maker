@@ -20,7 +20,11 @@ ppt_maker_harness/
 └── schema/     authoritative Page Image production definitions
 ```
 
-`deck_*` and `dpt_*` are production data, not Harness source. The supported
+`deck_*` and `dpt_*` are production data, not Harness source. A Run Bundle's
+deck-root `_lab/` is user-owned discovery data for Image2 Call Shape trials,
+not a Harness implementation root. Shared Image2 validator, executor, and Lab
+CLI live under `scripts/shared/image2/`; they are not a twentieth method stage.
+The supported
 public Run Bundle creation command is `ppt_flow init`; `bundle_layout.mjs --init`
 is its layout owner's lower-level interface, not a second startup route.
 `_generated/` is always rebuildable derived data.

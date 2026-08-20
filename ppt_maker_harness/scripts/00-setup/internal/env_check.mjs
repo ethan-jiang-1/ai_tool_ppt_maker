@@ -10,7 +10,6 @@
  *     node scripts/00-setup/env-check.mjs           # human-readable
  *     node scripts/00-setup/env-check.mjs --json    # machine-readable
  *     node scripts/00-setup/env-check.mjs --operation raw-generation
- *     node scripts/00-setup/env-check.mjs --smoke   # + live Image2 submit probe (task_id)
  */
 
 import {
@@ -19,6 +18,7 @@ import {
   CLI_JSON_REPORT_SCHEMAS,
   createCliNext,
   emitCliError,
+  emitRetiredImage2LiveFlagUsage,
   registerCliJsonReport,
   setCliOutputMode,
 } from '../../shared/cli/cli_error.mjs';
@@ -51,7 +51,7 @@ export const BASE_CHECK_NAMES = Object.freeze([
   'chromium', 'html_fonts', 'framed_render_profile', 'html_runtime_smoke', 'fonts', 'disk_space', 'git',
 ]);
 export const IMAGE2_CHECK_NAMES = Object.freeze(['api_key', 'image_base_url', 'image2_provider_profile_id', 'page_image_raw_generator']);
-export const LIVE_CHECK_NAMES = Object.freeze(['image_smoke', 'image_probe_vendors']);
+export const LIVE_CHECK_NAMES = Object.freeze([]);
 export const PAGE_IMAGE_DOCTOR_PROFILES = Object.freeze(['framed-runtime', 'raw-generation']);
 export const PAGE_IMAGE_DOCTOR_OPERATIONS = Object.freeze([
   'framed-local-refresh',
@@ -707,7 +707,7 @@ export async function checkImageSmoke({ vendors: injectedVendors, fetchImpl = gl
         check: 'image_smoke',
         status: 'fail',
         detail: `HTTP ${resp.status} from ${await diagnostics.host(base) || 'provider'} (response body withheld)`,
-        fix: 'Verify IMAGE2_API_KEY and IMAGE2_BASE_URL; re-run doctor --smoke.',
+        fix: 'Verify IMAGE2_API_KEY and IMAGE2_BASE_URL; re-run ppt_flow probe <run-dir>.',
       };
     }
     const classified = await diagnostics.classify(data);
@@ -741,7 +741,7 @@ export async function checkImageSmoke({ vendors: injectedVendors, fetchImpl = gl
       check: 'image_smoke',
       status: 'fail',
       detail: msg,
-      fix: 'Fix credentials/network, then: node ppt_maker_harness/scripts/ppt_flow.mjs doctor --smoke',
+      fix: 'Fix credentials/network, then: node ppt_maker_harness/scripts/ppt_flow.mjs probe <run-dir>',
     };
   }
 }
@@ -770,7 +770,7 @@ export async function checkProbeVendors({
       check: 'image_probe_vendors',
       status: 'fail',
       detail: 'provider configuration could not be resolved',
-      fix: 'Fix IMAGE2_API_KEY and IMAGE2_BASE_URL, then re-run doctor --probe-vendors',
+      fix: 'Fix IMAGE2_API_KEY and IMAGE2_BASE_URL, then re-run ppt_flow probe <run-dir> or Image2 Lab',
     };
   }
 
@@ -884,7 +884,7 @@ export async function checkProbeVendors({
       : 'provider check failed',
     fix: anyOk
       ? null
-      : 'Check IMAGE2_API_KEY and IMAGE2_BASE_URL, then re-run doctor --probe-vendors.',
+      : 'Check IMAGE2_API_KEY and IMAGE2_BASE_URL, then re-run ppt_flow probe <run-dir> or Image2 Lab.',
     rows,
   };
 }
@@ -935,10 +935,7 @@ function formatText(results, allPass, { image2 = false, profiles = [], smoke = f
     lines.push('  ⛔ FOUNDATION NOT READY — supported Node.js (22/24/26) and npm must be set up FIRST.');
     lines.push('     Fix the [FOUNDATION] items above, then re-run.');
   } else if (allPass) {
-    if (smoke) {
-      lines.push('  ✓  READY — local prerequisites and endpoint connectivity-only evidence passed.');
-      lines.push('  Production prompt fit, media dimensions/decoding, async completion, and run authorization remain unverified.');
-    } else if (warns) {
+    if (warns) {
       lines.push(`  ✓  READY — foundation OK, no blockers. ${warns} advisory warning(s) above.`);
     } else {
       lines.push('  ✓  READY — all checks passed.');
@@ -1036,6 +1033,10 @@ export async function runEnvCheckCli(argv = process.argv, { providerApi = null }
     emitEnvCheckUsage('--image2 is no longer a public doctor flag', 'Use --operation raw-generation.');
     process.exit(1);
   }
+  if (wantSmoke || wantProbe) {
+    emitRetiredImage2LiveFlagUsage('env-check.arguments');
+    process.exit(1);
+  }
   if (argv.includes('--mode')) {
     emitEnvCheckUsage('--mode is not a current environment-check argument', 'Remove --mode; --operation selects the fixed Page Image readiness profile.');
     process.exit(1);
@@ -1046,55 +1047,12 @@ export async function runEnvCheckCli(argv = process.argv, { providerApi = null }
   }
   const resolvedOperation = operation ?? 'framed-local-refresh';
   const plan = pageImageDoctorPlan(resolvedOperation);
-  let profile = plan.profile;
-  let wantImage2 = plan.includeImage2 || wantSmoke || wantProbe;
-  let activeProfiles = plan.activeProfiles;
-  let deferredProfiles = plan.deferredProfiles;
-  if ((wantSmoke || wantProbe) && operation == null) {
-    profile = 'page-image-full';
-    wantImage2 = true;
-    activeProfiles = [...PAGE_IMAGE_DOCTOR_PROFILES];
-    deferredProfiles = [];
-  }
-
-  if (wantSmoke && wantProbe) {
-    console.error(
-      'Usage: pass only one of --smoke or --probe-vendors (mutually exclusive).'
-    );
-    emitCliError({
-      code: CLI_ERROR_CODES.USAGE,
-      message: '--smoke and --probe-vendors are mutually exclusive.',
-      hint: 'Choose the single live provider check that matches the task.',
-      where: 'env-check.arguments',
-      diagnostic: {
-        schema: CLI_DIAGNOSTIC_SCHEMA,
-        category: 'usage',
-        operation: 'parse-arguments',
-        next: createCliNext('fix_arguments', { default: 'Use --smoke for the first-vendor gate or --probe-vendors for the full channel report, not both.' }),
-      },
-    });
-    process.exit(1);
-  }
+  const profile = plan.profile;
+  const wantImage2 = plan.includeImage2;
+  const activeProfiles = plan.activeProfiles;
+  const deferredProfiles = plan.deferredProfiles;
 
   const { results } = await runAllChecks({ includeImage2: wantImage2, profile, providerApi });
-
-  if (wantSmoke || wantProbe) {
-    const selectedChecksReady = results.every((result) => result.status !== 'fail');
-    if (selectedChecksReady) {
-      if (wantProbe) {
-        results.push(await checkProbeVendors({ log: wantJson ? console.error : console.log, providerApi }));
-      } else {
-        results.push(await checkImageSmoke({ providerApi }));
-      }
-    } else {
-      results.push({
-        check: wantProbe ? 'image_probe_vendors' : 'image_smoke',
-        status: 'fail',
-        detail: 'skipped because base or Image2 presence checks are not ready',
-        fix: 'Repair the failed base/Image2 checks, then re-run after submit confirmation.',
-      });
-    }
-  }
 
   const profiles = pageImageProfileReports(results, { activeProfiles, deferredProfiles });
   const deferredChecks = new Set(
@@ -1109,8 +1067,6 @@ export async function runEnvCheckCli(argv = process.argv, { providerApi = null }
     allPass,
     foundationOk,
     checks: results,
-    smoke: wantSmoke,
-    probeVendors: wantProbe,
     image2: wantImage2,
     profile,
     operation: resolvedOperation,
@@ -1120,12 +1076,12 @@ export async function runEnvCheckCli(argv = process.argv, { providerApi = null }
     registerCliJsonReport(report, { schema: CLI_JSON_REPORT_SCHEMAS.ENV_CHECK });
     console.log(JSON.stringify(report, null, 2));
   } else {
-    console.log(formatText(results, allPass, { image2: wantImage2, profiles, smoke: wantSmoke }));
+    console.log(formatText(results, allPass, { image2: wantImage2, profiles }));
   }
 
   if (!allPass) {
     const failed = results.filter((result) => result.status === 'fail' && !deferredChecks.has(result.check));
-    const invocationArgs = [ENV_CHECK_CLI, ...(wantJson ? ['--json'] : []), '--operation', resolvedOperation, ...(wantSmoke ? ['--smoke'] : []), ...(wantProbe ? ['--probe-vendors'] : [])];
+    const invocationArgs = [ENV_CHECK_CLI, ...(wantJson ? ['--json'] : []), '--operation', resolvedOperation];
     emitCliError({
       code: CLI_ERROR_CODES.FAILED,
       message: `Environment check found ${failed.length} blocking requirement(s).`,
@@ -1134,7 +1090,7 @@ export async function runEnvCheckCli(argv = process.argv, { providerApi = null }
       diagnostic: {
         schema: CLI_DIAGNOSTIC_SCHEMA,
         category: 'environment',
-        operation: wantProbe ? 'probe-vendors' : wantSmoke ? 'smoke' : 'check',
+        operation: 'check',
         issues: failed.map((result) => ({
           message: `${result.check} is not ready`,
           subject: { kind: 'environment_check', id: result.check },

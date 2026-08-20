@@ -2,6 +2,7 @@
 
 Define the requirement that BOOTSTRAP.md Step 1 SHALL be a self-contained environment remediation guide for the Agent. It covers base local Framed-runtime readiness through `scripts/00-setup/env-check.mjs`, operation-scoped Page Image Workflow raw-generation readiness, and labeled user-profile-aware remediation for every emitted check.
 ## Requirements
+
 ### Requirement: Bootstrap guidance names the canonical Harness entry
 
 Bootstrap and top-level onboarding guidance SHALL identify
@@ -130,9 +131,10 @@ Active BOOTSTRAP and top-level onboarding SHALL describe operation-scoped
 readiness only for the current `page-image-workflow` contract declared by the
 schema serialization inventory. They SHALL state that ordinary foundation
 checks are offline, credentials are needed only when the selected operation
-submits to Image2, and a live probe requires disclosed separate authorization.
-They SHALL NOT name a version-suffixed, retired, compatibility, or alternative
-production contract.
+submits to Image2, and live Image2 work is either `ppt_flow probe <run-dir>`
+for a confirmed Call Shape or Image2 Lab for candidate discovery. They SHALL
+NOT name `env-check --smoke`, `--probe-vendors`, a version-suffixed, retired,
+compatibility, or alternative production contract as current live work.
 
 #### Scenario: An Agent starts current raw-generation readiness
 
@@ -152,6 +154,12 @@ production contract.
 - **WHEN** onboarding completes before a workflow is selected
 - **THEN** it defers that choice to the current source-authoring step
 - **AND** it does not preselect a historical marker
+
+#### Scenario: Live Image2 is probe or Lab
+
+- **WHEN** BOOTSTRAP covers Image2 connectivity or vendor-call discovery
+- **THEN** it names `ppt_flow probe` or Lab rather than env-check live flags
+- **AND** it states that empty `_lab/` does not block drawing
 
 ### Requirement: Public initialization guidance has one supported command entry
 

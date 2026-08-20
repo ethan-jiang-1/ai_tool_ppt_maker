@@ -48,7 +48,7 @@ const TERMINOLOGY_AUTHORITY_REQUIREMENTS = Object.freeze([
   }),
   Object.freeze({
     file: "ppt_maker_harness/COMMANDS.md",
-    required: ["MD Controllers", "controller manifest", "create-deck", "classify-change", "workflow_inspection.primary_action", "probe-image-channels"],
+    required: ["MD Controllers", "controller manifest", "create-deck", "classify-change", "workflow_inspection.primary_action", "probe-image-channels", "image2-lab"],
     forbidden: [["Intent", "Route", "Catalog"].join(" "), ["intent", "routes.json"].join("-")],
   }),
   Object.freeze({

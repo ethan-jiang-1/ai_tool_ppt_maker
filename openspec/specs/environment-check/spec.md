@@ -103,9 +103,8 @@ When none is set or the value is malformed, `image_base_url` SHALL be **`fail`**
 and the Image2-inclusive verdict SHALL be NOT READY. The check SHALL NOT claim
 a silent default endpoint when URL is unset, split a configured value, or
 treat that value as a failover list. Fix text SHALL name `IMAGE2_BASE_URL`. The
-provider-free base scope SHALL omit this check. A failed `image_base_url`
-check SHALL prevent `--smoke` or `--probe-vendors` from starting provider
-network work.
+provider-free base scope SHALL omit this check. Environment check SHALL NOT
+start provider network work in any mode.
 
 #### Scenario: Canonical IMAGE2 base URL
 
@@ -116,10 +115,8 @@ network work.
 #### Scenario: Comma-separated base URL fails before a live probe
 
 - **WHEN** `IMAGE2_BASE_URL` contains a comma-separated value
-- **AND** the Image2-inclusive scope with `--smoke` or `--probe-vendors` is
-  selected
-- **THEN** `image_base_url` is `fail` and env-check is NOT READY before a
-  provider POST
+- **AND** the Image2-inclusive scope is selected
+- **THEN** `image_base_url` is `fail` and env-check is NOT READY
 - **AND** it does not submit to any portion of the configured value or present
   the value as a failover list
 
@@ -143,25 +140,18 @@ retain one declared current set of top-level readiness booleans and generic
 check-array contract; it SHALL not expose secrets, name a Harness report
 generation, or add a second incompatible report
 schema. Every accepted JSON combination SHALL emit exactly one parseable JSON
-document on stdout. Live heartbeat, progress, and human Summary text SHALL be
-sent to stderr or represented inside structured check evidence, never
-prepended/appended to stdout JSON. Human text SHALL make clear whether it
-reports local or raw-generation readiness.
-
-For a successful `--smoke` invocation, the human conclusion SHALL qualify READY as local-prerequisite and
-endpoint-connectivity evidence only. It SHALL state that production prompt fit, requested or returned media
-dimensions, decoded media, async completion, and run authorization remain unverified, and SHALL NOT present
-smoke success as permission to start building decks or to generate Style Master or Page Image Workflow media. The
-existing machine-compatible overall status and JSON schema SHALL remain unchanged; JSON-compatible smoke check
-evidence SHALL carry the same qualification without exposing prompt, credential, or provider response content.
+document on stdout. Human Summary text SHALL be sent to stderr or represented
+inside structured check evidence, never prepended/appended to stdout JSON.
+Human text SHALL make clear whether it reports local or raw-generation
+readiness. The declared JSON contract SHALL NOT include live-probe, smoke, or
+vendors result fields.
 
 Direct `env-check --help` SHALL list only parser-accepted arguments:
-`--json`, `--operation <operation>`, `--smoke`, and `--probe-vendors`.
-`--operation` SHALL select the fixed current Page Image readiness profile;
-`--smoke` / `--probe-vendors` remain mutually exclusive. `--mode` is not a
-current argument and SHALL be rejected without mapping a fixed mode literal.
-`--image2` remains retired and SHALL be rejected with the operation-scoped
-replacement.
+`--json` and `--operation <operation>`. `--operation` SHALL select the fixed
+current Page Image readiness profile. `--smoke`, `--probe-vendors`, `--mode`,
+and `--image2` SHALL be rejected with a bounded usage diagnostic and zero
+provider work. `--smoke` and `--probe-vendors` SHALL name `ppt_flow probe
+<run-dir>` or Lab rather than becoming silent offline aliases.
 
 #### Scenario: Output format
 
@@ -173,25 +163,26 @@ replacement.
 
 #### Scenario: Successful smoke conclusion remains qualified
 
-- **WHEN** all selected checks and a `--smoke` submit pass
-- **THEN** the human conclusion and smoke check evidence describe connectivity-only success while retaining the
-  existing READY status and declared current report shape
-- **AND** neither form says that production prompt/media compatibility or a later generation authorization passed
+- **WHEN** a caller invokes `env-check --smoke` expecting a connectivity READY
+- **THEN** the command returns a usage migration diagnostic naming
+  `probe <run-dir>` or Lab
+- **AND** it does not emit a smoke READY conclusion or start an Image2 POST
 
 #### Scenario: JSON has one current shape
 
 - **WHEN** direct `env-check --json` runs for a supported local or
   raw-generation operation
 - **THEN** stdout is one document under the declared current report contract
-- **AND** operation-specific behavior is represented by included checks and
-  existing live-probe booleans rather than a duplicate diagnostic schema
+- **AND** operation-specific behavior is represented by included offline checks
+  rather than a duplicate diagnostic schema or live-probe booleans
 
 #### Scenario: Direct help and parser agree
 
 - **WHEN** a user reads direct `env-check --help` or passes a documented form
 - **THEN** every advertised flag is accepted by the parser with its documented
-  mode/operation constraints
-- **AND** no help or active documentation advertises `--image2` or `--mode`
+  operation constraints
+- **AND** no help or active documentation advertises `--image2`, `--mode`,
+  `--smoke`, or `--probe-vendors` as accepted live work
 
 #### Scenario: Retired Image2 flag is rejected safely
 
@@ -207,132 +198,19 @@ replacement.
   replacement
 - **AND** it starts no provider work or lifecycle operation
 
+#### Scenario: Retired smoke flag is rejected with migration text
+
+- **WHEN** a user passes direct `env-check --smoke` or `--probe-vendors`
+- **THEN** it returns a usage migration diagnostic naming `probe <run-dir>` or
+  Lab
+- **AND** it starts no Image2 network call
+
 #### Scenario: Live JSON stdout remains parseable
 
 - **WHEN** direct `env-check --json --smoke` or `env-check --json --probe-vendors` runs
-- **THEN** stdout parses as exactly one declared-current JSON document
-- **AND** live progress or human summary lines do not appear outside that document on stdout
-
-### Requirement: Live Image2 smoke states its connectivity-only evidence boundary
-
-`env-check --smoke` SHALL describe a successful live Image2 submission as connectivity evidence for the selected
-endpoint and credential pair only. A successful smoke result SHALL NOT claim that a production Style Master or
-Page Image Workflow prompt is within a provider limit, that the provider will honor a requested image size, that a
-sync or async result will decode as valid media, or that a current run is authorized to generate. The smoke
-request remains the existing single minimal live probe and SHALL not be expanded into a production-like prompt,
-image decode, or task-completion workflow.
-
-The provider-free Style Master `plan` operation remains the authoritative deterministic preflight for its
-compiled prompt bound. Human and JSON-compatible smoke output SHALL preserve the existing report schema while
-making this evidence boundary clear without exposing prompt, credential, or provider response content.
-
-#### Scenario: Smoke success is not presented as Style Master production readiness
-
-- **WHEN** `probe --smoke` receives an accepted sync image reference or task identifier
-- **THEN** it reports successful endpoint connectivity with a statement that production prompt and media
-  compatibility are not verified by the probe
-- **AND** it does not claim that Style Master generation can proceed or that a provider response meets a native media contract
-
-#### Scenario: Smoke remains a single minimal submission
-
-- **WHEN** `probe --smoke` runs against a configured Image2 endpoint
-- **THEN** it performs only the existing one minimal POST and does not fetch image bytes, poll an async task, or
-  submit a compiled Style Master prompt
-- **AND** it creates no grant, attempt, authorization, receipt, workflow state, or run-bundle artifact
-
-#### Scenario: Plan owns Style Master prompt preflight
-
-- **WHEN** a Style Master provider brief cannot meet its deterministic Harness-owned bound
-- **THEN** `style-master plan` fails before authorization regardless of a prior successful smoke result
-- **AND** the smoke report is not interpreted as competing readiness authority
-
-### Requirement: Optional --smoke performs one live credential probe
-
-`env-check.mjs` SHALL accept `--smoke`. `--smoke` SHALL select
-raw-generation readiness for its diagnostic. After local and raw-generation
-presence checks pass, it SHALL perform exactly one minimal live Image2 POST
-attempt against the **first** vendor from `resolveVendors`. The diagnostic
-request SHALL disable automatic redirect following and SHALL NOT retry a
-redirect, transient response, timeout, or ambiguous network failure. Success
-SHALL be an extractable image ref **or** a task id, using the same exported
-extract helpers as the client (no forked parser). Full async image completion
-is NOT required. Without `--smoke` and without `--probe-vendors`, env-check
-SHALL NOT make Image2 network calls. The zero-static-dependency startup
-contract remains; dynamic-importing sibling ESM after prerequisites pass is
-allowed.
-
-#### Scenario: --smoke fails on bad credentials
-
-- **WHEN** credentials resolve but the API rejects the probe
-- **AND** `env-check --smoke` runs
-- **THEN** overall status is NOT READY
-- **AND** the report indicates the smoke/probe failed
-
-#### Scenario: --smoke succeeds on task_id without waiting for image
-
-- **WHEN** the API accepts submit and returns a task id
-- **AND** `env-check --smoke` runs
-- **THEN** the smoke check passes without waiting for image completion
-
-#### Scenario: --smoke succeeds on sync image without task_id
-
-- **WHEN** the API accepts submit and returns an extractable image ref with no task id
-- **AND** `env-check --smoke` runs
-- **THEN** the smoke check passes
-
-#### Scenario: Default doctor stays offline
-
-- **WHEN** `env-check` runs without `--smoke` and without `--probe-vendors`
-- **THEN** it does not perform an Image2 network probe
-- **AND** the base browser smoke remains local-only
-
-#### Scenario: --smoke redirect or ambiguous failure is not retried
-
-- **WHEN** the diagnostic POST receives a 307/308 redirect, times out, or fails with an ambiguous network error
-- **THEN** the smoke check fails without following the redirect
-- **AND** no second POST attempt occurs in that invocation
-
-### Requirement: Optional --probe-vendors reports every Image2 channel
-
-`env-check.mjs` SHALL accept `--probe-vendors`, which SHALL select
-raw-generation readiness. After local and raw-generation presence checks pass,
-it SHALL make exactly one live POST attempt to each entry returned by the
-current resolver in order, using the same success rule as `--smoke`: an image
-reference or task ID. Each diagnostic request SHALL disable automatic redirect
-following and SHALL not retry a redirect, transient response, timeout, or
-ambiguous network failure. The current credential source remains unchanged; the
-array-generic resolver behavior shall not introduce an alternate credential
-schema.
-
-The report SHALL disclose the ordered total submission count before execution
-can be presented by an Agent for confirmation. It SHALL log bounded progress
-and per-channel results without API key values, list working channels first by
-ascending elapsed time followed by failed channels in original order, and exit
-0 only when at least one channel succeeds. It SHALL not write `.env`, a
-lesson, authorization, grant, attempt, receipt, or workflow state. Passing
-both live flags SHALL be a usage error.
-
-#### Scenario: Probe lists every channel outcome
-
-- **WHEN** the resolver supplies three ordered entries and a confirmed
-  `--probe-vendors` invocation runs
-- **THEN** output includes one result per entry and exactly three provider
-  submissions occur
-- **AND** no credential value appears in the output
-
-#### Scenario: Probe does not retry a channel
-
-- **WHEN** one channel returns a redirect, times out, or has an ambiguous
-  network failure
-- **THEN** that channel reports a failed result without a second POST attempt
-- **AND** later ordered channels are handled only by their own one permitted
-  attempt
-
-#### Scenario: Live flags cannot be combined
-
-- **WHEN** both `--smoke` and `--probe-vendors` are passed
-- **THEN** the process exits non-zero with a bounded usage diagnostic
-- **AND** no provider submission occurs
+- **THEN** the failure remains one bounded usage diagnostic without mixing
+  live progress into a readiness JSON document
+- **AND** no Image2 network call occurs
 
 ### Requirement: Git safety observation is advisory, bounded, and scope-honest
 
@@ -445,17 +323,17 @@ SHALL not locate a Deck, infer a run, create/resume a controller, begin a
 production workflow, or authorize provider work.
 
 Normal raw-generation readiness SHALL remain exact-run-bound through
-`ppt_flow doctor --run-dir <run-dir> --operation raw-generation`. Direct
-`env-check` MAY provide an unbound operation-scoped report only at its
-pre-install/unavailable-main-entry recovery boundary; that report is not a
-normal provider-readiness continuation and cannot substitute for exact-run
-validation.
+`ppt_flow preflight <run-dir> --operation raw-generation` (`cli-surface` already
+retired `doctor --run-dir`). Direct `env-check` MAY provide an unbound
+operation-scoped report only at its pre-install/unavailable-main-entry recovery
+boundary; that report is not a normal provider-readiness continuation and cannot
+substitute for exact-run validation.
 
-Default direct and unified doctor checks SHALL be offline. `--smoke` makes one
-live first-channel submission and `--probe-vendors` makes one submission per
-resolved channel; an Agent SHALL disclose that count and obtain the existing
-human confirmation before invoking either live form. Successful readiness or
-probe evidence SHALL not authorize a later production action.
+Default direct and unified doctor checks SHALL be offline. Environment check
+SHALL make zero Image2 network calls in every mode, including raw-generation.
+Successful readiness SHALL not authorize a later production action. Live
+confirmed-Call-Shape connectivity belongs to `ppt_flow probe`; candidate
+discovery belongs to Image2 Lab.
 
 #### Scenario: Pre-install recovery stays available
 
@@ -476,16 +354,24 @@ probe evidence SHALL not authorize a later production action.
 
 - **WHEN** the installed `ppt_flow` entry is available and raw-generation
   readiness is requested for normal work
-- **THEN** the check requires the exact run before the operation-scoped doctor
+- **THEN** the check requires the exact run before operation-scoped preflight
   work begins
 - **AND** direct `env-check` is not presented as an unbound normal substitute
 
+#### Scenario: Raw-generation preflight and doctor make zero Image2 POSTs
+
+- **WHEN** `preflight <run-dir> --operation raw-generation` or offline `doctor`
+  runs with valid local credentials and profile identity
+- **THEN** it performs no Image2 network request
+- **AND** READY means local presence/syntax/match only
+
 #### Scenario: Live channel probe needs an explicit human boundary
 
-- **WHEN** an Agent offers smoke or all-channel diagnosis
-- **THEN** it states the exact maximum provider submission count and waits for
-  human confirmation before invocation
-- **AND** declining leaves offline evidence valid and makes zero live calls
+- **WHEN** an Agent offers live Image2 diagnosis
+- **THEN** it names `ppt_flow probe <run-dir>` or Lab and treats entering that
+  playbook as the Work Request
+- **AND** declining leaves offline env-check evidence valid and makes zero
+  live calls from doctor/env-check
 
 ### Requirement: Image2 readiness requires explicit runtime profile identity
 
@@ -498,24 +384,25 @@ values, or persist the identifier as State, authorization, or provider
 evidence. The provider-free base scope and Framed-local scope SHALL omit this
 check and remain provider-free.
 
-The installed exact-run doctor SHALL resolve the selected Run Bundle's
+The installed exact-run preflight SHALL resolve the selected Run Bundle's
 confirmed profile through its owning source validator and require the runtime
-identifier to exactly equal that profile's `profile_id`. Direct pre-install
-`env-check` has no Run Bundle authority and SHALL limit its result to presence
-and syntax; it SHALL not locate a Deck or claim source/profile equality. The
-direct entry SHALL preserve zero-static-npm-dependency startup and SHALL not
-import the YAML profile parser, production adapter, or provider implementation
-before package prerequisites pass.
+identifier to exactly equal that profile's `profile_id`. Offline `doctor` SHALL
+not take `--run-dir`. Direct pre-install `env-check` has no Run Bundle authority
+and SHALL limit its result to presence and syntax; it SHALL not locate a Deck or
+claim source/profile equality. The direct entry SHALL preserve
+zero-static-npm-dependency startup and SHALL not import the YAML profile parser,
+production adapter, provider implementation, or Call Shape executor before
+package prerequisites pass.
 
 A missing, malformed, or exact-run-mismatched identifier SHALL make selected
-raw-generation readiness NOT READY with one environment/profile repair action
-before a smoke/probe request. The check SHALL not select a fallback profile,
-rewrite the source, infer identity from a model alias or endpoint, or authorize
-later production work.
+raw-generation readiness NOT READY with one environment/profile repair action.
+The check SHALL not select a fallback profile, rewrite the source, infer
+identity from a model alias or endpoint, authorize later production work, or
+start a live probe.
 
 #### Scenario: Exact-run doctor matches source and runtime identity
 
-- **WHEN** installed raw-generation doctor receives an exact current run with
+- **WHEN** installed raw-generation preflight receives an exact current run with
   a confirmed profile and matching `IMAGE2_PROVIDER_PROFILE_ID`
 - **THEN** the profile-identity readiness check passes alongside the existing
   credential and base-URL checks
@@ -525,8 +412,7 @@ later production work.
 #### Scenario: Runtime profile mismatch fails before live diagnosis
 
 - **WHEN** an exact current run selects one confirmed profile but the runtime
-  identifier is missing, malformed, or different and `--smoke` or
-  `--probe-vendors` is requested
+  identifier is missing, malformed, or different
 - **THEN** raw-generation readiness is NOT READY before any provider POST
 - **AND** it returns the profile/environment repair action without fallback,
   source mutation, or credential disclosure
@@ -546,39 +432,6 @@ later production work.
 - **THEN** it omits API key, base URL, and provider-profile-ID checks
 - **AND** a missing runtime profile identity does not affect local foundation
   or Framed composition readiness
-
-### Requirement: Live probes do not establish prompt capability
-
-`doctor --smoke` and `--probe-vendors` SHALL retain their existing bounded live
-submission counts and connectivity-only evidence boundary when a runtime
-profile identity is present. Success SHALL NOT confirm the Run Bundle profile's
-route, model alias resolution, operation, prompt limit, count unit, production
-prompt fit, authorization, media compatibility, or later provider outcome. A
-live failure SHALL NOT rewrite, downgrade, or infer the profile source.
-
-The exact Style Master or Page Image provider-free plan remains the only
-deterministic evaluator of its final prompt against the selected operation
-profile. Live diagnostic requests SHALL remain minimal and SHALL NOT send a
-production compact prompt, inspect a production Bundle to build one, or create
-a plan, grant, attempt, capability record, or recovery route.
-
-#### Scenario: Successful smoke remains connectivity-only
-
-- **WHEN** a live smoke request succeeds under a syntactically valid runtime
-  profile identity
-- **THEN** human and structured evidence continue to qualify success as
-  endpoint/credential connectivity only
-- **AND** neither result confirms a 4K, 16K, or other prompt budget or permits
-  production work
-
-#### Scenario: Probe failure cannot become capability source
-
-- **WHEN** a live probe receives a prompt-related, route-related, or other
-  provider failure
-- **THEN** the diagnostic retains its existing bounded connectivity failure
-  handling
-- **AND** it does not parse that response into a limit/unit/profile, mutate the
-  Run Bundle source, or create an automatic retry/fallback
 
 ### Requirement: Doctor operations are backed by real owner readiness
 
@@ -619,8 +472,8 @@ report, JSON field, or diagnostic SHALL expose `image2-raw` as a profile name.
 
 ### Requirement: Exact-run readiness and its consumers share one restricted startup environment
 
-`ppt_flow doctor --run-dir <run-dir> --operation raw-generation` SHALL resolve
-its Image2 runtime facts through the same restricted startup loader used by the
+`ppt_flow preflight <run-dir> --operation raw-generation` SHALL resolve its
+Image2 runtime facts through the same restricted startup loader used by the
 exact-run `image2 authorize`/`generate` and Style Master authorize/generate
 entries, with the same precedence: explicit process environment first, the
 selected deck `.env` filling only missing declared keys, and the project/cwd
@@ -629,11 +482,12 @@ runtime keys (`IMAGE2_API_KEY`, `IMAGE2_BASE_URL`,
 `IMAGE2_PROVIDER_PROFILE_ID`), SHALL NOT overwrite explicit environment values,
 and SHALL NOT output values or secrets. A raw-generation READY result therefore
 implies that the same exact run's authorized consumer can resolve the same
-non-secret configuration without a shell export.
+non-secret configuration without a shell export. Offline `doctor` SHALL NOT
+take `--run-dir` and SHALL NOT become that exact-run loader entry.
 
 #### Scenario: Doctor READY reaches the exact authorize checkpoint
 
-- **WHEN** exact-run raw-generation doctor reports READY with the profile ID
+- **WHEN** exact-run raw-generation preflight reports READY with the profile ID
   present in the deck `.env` and absent from the shell
 - **THEN** the same exact run's `image2 authorize` resolves the same profile
   identity and proceeds to its existing grant preconditions
@@ -643,29 +497,5 @@ non-secret configuration without a shell export.
 
 - **WHEN** the shell exports one `IMAGE2_PROVIDER_PROFILE_ID` and the deck
   `.env` declares a different one
-- **THEN** doctor and authorize both resolve the explicit shell value
+- **THEN** preflight and authorize both resolve the explicit shell value
 - **AND** the deck `.env` value never overrides it
-
-### Requirement: Live probe binds an exact run with a pre-POST profile fence
-
-`probe <run-dir> [--smoke|--vendors]` SHALL first resolve the exact run's
-confirmed provider profile and require `IMAGE2_PROVIDER_PROFILE_ID` to match it;
-any missing, invalid, or mismatched profile SHALL stop the probe before any POST.
-Its success SHALL report connectivity only, not readiness, capability fit, or
-production authorization. `--smoke` SHALL submit once to the first vendor;
-`--probe-vendors` SHALL submit once per resolved vendor; the two modes SHALL be
-mutually exclusive, redirects SHALL not be retried, and output SHALL remain
-secret-safe.
-
-#### Scenario: A wrong, missing, or pending profile fails before any POST
-
-- **WHEN** `probe` cannot resolve or match the exact run's confirmed provider
-  profile
-- **THEN** it stops before any POST
-- **AND** it does not infer a fallback profile, alias, or migrate the run
-
-#### Scenario: Probe success is connectivity only
-
-- **WHEN** `probe` completes its bounded submits successfully
-- **THEN** it reports connectivity only
-- **AND** it does not grant readiness, capability, or production authorization

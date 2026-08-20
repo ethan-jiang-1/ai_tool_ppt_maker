@@ -68,18 +68,19 @@ describe('runtime and diagnostic guidance coherence', () => {
   });
 
   it('requires submit disclosure and confirmation before every documented live probe', () => {
-    expect(BOOTSTRAP).toMatch(/doctor --smoke[^\n]*提交 1 次/);
-    expect(BOOTSTRAP).toMatch(/doctor --probe-vendors[^\n]*恰好提交 1 次/);
-    expect(IMAGE_GUIDE).toMatch(/doctor --smoke[^\n]*提交 \*\*1 次\*\*/);
-    expect(IMAGE_GUIDE).toMatch(/doctor --probe-vendors[^\n]*每家 \*\*1 次\*\*/);
+    expect(BOOTSTRAP).toMatch(/ppt_flow probe <run-dir>/);
+    expect(BOOTSTRAP).toMatch(/Image2 Lab/);
+    expect(IMAGE_GUIDE).toMatch(/ppt_flow probe <run-dir>/);
+    expect(IMAGE_GUIDE).toMatch(/恰好提交 \*\*1 次\*\*/);
     const disclosure = PROBE_PLAYBOOK.indexOf('明确说出总 submit 数');
     const confirmation = PROBE_PLAYBOOK.indexOf('是否同意这次 live probe');
     const runProbe = PROBE_PLAYBOOK.indexOf('### run-probe');
-    const invocation = PROBE_PLAYBOOK.indexOf('doctor --probe-vendors', runProbe);
+    const invocation = PROBE_PLAYBOOK.indexOf('ppt_flow.mjs probe <run-dir>', runProbe);
     expect(disclosure).toBeGreaterThan(-1);
     expect(confirmation).toBeGreaterThan(disclosure);
     expect(invocation).toBeGreaterThan(confirmation);
-    expect(PROBE_PLAYBOOK).toContain('不自动运行 `doctor --smoke`');
+    expect(PROBE_PLAYBOOK).not.toContain('doctor --probe-vendors');
+    expect(PROBE_PLAYBOOK).not.toContain('probe --smoke');
     expect(PROBE_PLAYBOOK).not.toMatch(/^---$/m);
     expect(PROBE_PLAYBOOK).not.toContain('node:');
   });

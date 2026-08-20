@@ -141,10 +141,12 @@ obtain the user's content and necessary choices, then hand off to the current
 workflow, grant, or raw plan.
 
 Normal raw-generation readiness remains exact-run-bound:
-`ppt_flow doctor --run-dir <run-dir> --operation raw-generation`. Direct
+`ppt_flow preflight <run-dir> --operation raw-generation`. Direct
 `env-check` is a recovery entry only when the Harness is pre-install or the
 main entry is unavailable; it cannot substitute for normal run-bound readiness,
-locate a run, start a Controller, or authorize provider work.
+locate a run, start a Controller, or authorize provider work. `ppt_flow probe`
+proves confirmed Call Shape connectivity only. Image2 Lab discovers an
+unconfirmed Call Shape. An empty `_lab/` does not block drawing.
 
 Route Gap is conversational and non-persistent. Name whether the smallest
 missing extension is a Controller or owner capability, then wait for the human

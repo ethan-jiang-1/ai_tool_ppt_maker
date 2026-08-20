@@ -366,16 +366,11 @@ describe('00-env-check', () => {
   it.each([
     ['base', []],
     ['raw-generation', ['--operation', 'raw-generation']],
-    ['smoke', ['--smoke']],
-    ['probe-vendors', ['--probe-vendors']],
   ])('emits exactly one parseable JSON document in %s profile', (_profile, modeArgs) => {
-    const live = modeArgs.some((arg) => arg === '--smoke' || arg === '--probe-vendors');
-    const preload = join(process.cwd(), 'tests', 'helpers', 'fixtures', 'mock_image_probe_fetch.mjs');
     const script = join(process.cwd(), ENV_CHECK);
     let stdout;
     try {
       stdout = execFileSync('node', [
-        ...(live ? ['--import', preload] : []),
         script,
         '--json',
         ...modeArgs,
@@ -395,6 +390,8 @@ describe('00-env-check', () => {
     }
     const report = JSON.parse(stdout);
     expect(report.checks).toEqual(expect.any(Array));
+    expect(report).not.toHaveProperty('smoke');
+    expect(report).not.toHaveProperty('probeVendors');
     expect(stdout.trim().startsWith('{')).toBe(true);
     expect(stdout.trim().endsWith('}')).toBe(true);
   }, 35_000);
@@ -603,8 +600,8 @@ describe('env-check Image2 base URL hard fail', () => {
     }
   });
 
-  it('stops smoke before a live fetch when IMAGE2_BASE_URL is a comma list', () => {
-    const root = mkdtempSync(join(tmpdir(), 'env-comma-list-smoke-'));
+  it('stops Image2-inclusive checks before a live fetch when IMAGE2_BASE_URL is a comma list', () => {
+    const root = mkdtempSync(join(tmpdir(), 'env-comma-list-raw-'));
     const marker = join(root, 'fetches.log');
     const preload = join(process.cwd(), 'tests', 'helpers', 'fixtures', 'mock_image_probe_fetch.mjs');
     const script = join(process.cwd(), ENV_CHECK);
@@ -612,7 +609,7 @@ describe('env-check Image2 base URL hard fail', () => {
       let stdout = '';
       let exitCode = 0;
       try {
-        stdout = execFileSync('node', ['--import', preload, script, '--json', '--smoke'], {
+        stdout = execFileSync('node', ['--import', preload, script, '--json', '--operation', 'raw-generation'], {
           cwd: process.cwd(),
           encoding: 'utf8',
           timeout: 30_000,
@@ -631,9 +628,7 @@ describe('env-check Image2 base URL hard fail', () => {
       expect(exitCode).not.toBe(0);
       const report = JSON.parse(stdout);
       expect(report.checks.find((check) => check.check === 'image_base_url')).toMatchObject({ status: 'fail' });
-      expect(report.checks.find((check) => check.check === 'image_smoke')).toMatchObject({
-        status: 'fail', detail: expect.stringContaining('skipped'),
-      });
+      expect(report.checks.find((check) => check.check === 'image_smoke')).toBeUndefined();
       expect(existsSync(marker)).toBe(false);
     } finally {
       rmSync(root, { recursive: true, force: true });
@@ -641,56 +636,40 @@ describe('env-check Image2 base URL hard fail', () => {
   });
 });
 
-describe('env-check --smoke', () => {
-  it('keeps successful text and JSON smoke evidence connectivity-only with one POST each', () => {
-    const root = mkdtempSync(join(tmpdir(), 'env-smoke-connectivity-only-'));
+describe('env-check retired live flags', () => {
+  it('names probe or Lab and makes zero Image2 POSTs', () => {
+    const root = mkdtempSync(join(tmpdir(), 'env-retired-live-flag-'));
     const preload = join(process.cwd(), 'tests', 'helpers', 'fixtures', 'mock_image_probe_fetch.mjs');
     const script = join(process.cwd(), ENV_CHECK);
-    const apiKey = 'SMOKE_CONNECTIVITY_ONLY_SECRET';
-    const baseUrl = 'https://smoke.example.test/v1';
-    const runSmoke = (args, marker) => {
-      try {
-        return {
-          exitCode: 0,
-          stdout: execFileSync('node', ['--import', preload, script, ...args], {
-            cwd: process.cwd(),
-            encoding: 'utf8',
-            timeout: 30_000,
-            env: {
-              ...process.env,
-              IMAGE2_API_KEY: apiKey,
-              IMAGE2_BASE_URL: baseUrl,
-              IMAGE2_PROVIDER_PROFILE_ID: 'smoke-profile',
-              PPTMAKER_IMAGE_PROBE_MARKER: marker,
-            },
-          }),
-        };
-      } catch (error) {
-        return { exitCode: error.status ?? 1, stdout: String(error.stdout || '') };
-      }
-    };
+    const marker = join(root, 'fetches.log');
     try {
-      const textMarker = join(root, 'text-fetches.log');
-      const text = runSmoke(['--smoke'], textMarker);
-      expect(text.exitCode, text.stdout).toBe(0);
-      expect(text.stdout).toContain('connectivity-only evidence');
-      expect(text.stdout).toMatch(/prompt fit.*media dimensions\/decoding.*async completion.*run authorization remain unverified/i);
-      expect(text.stdout).not.toMatch(/start building decks|Style Master generation can proceed/i);
-      expect(text.stdout).not.toContain(apiKey);
-      expect(readFileSync(textMarker, 'utf8').trim().split('\n')).toEqual(['fetch']);
-
-      const jsonMarker = join(root, 'json-fetches.log');
-      const json = runSmoke(['--json', '--smoke'], jsonMarker);
-      expect(json.exitCode, json.stdout).toBe(0);
-      const report = JSON.parse(json.stdout);
-      expect(report).toMatchObject({ allPass: true });
-      expect(report.checks.find((check) => check.check === 'image_smoke')).toMatchObject({
-        status: 'ok',
-        detail: expect.stringContaining('connectivity-only evidence'),
+      let error;
+      try {
+        execFileSync('node', ['--import', preload, script, '--json', '--smoke'], {
+          cwd: process.cwd(),
+          encoding: 'utf8',
+          timeout: 30_000,
+          env: {
+            ...process.env,
+            IMAGE2_API_KEY: 'SMOKE_CONNECTIVITY_ONLY_SECRET',
+            IMAGE2_BASE_URL: 'https://smoke.example.test/v1',
+            IMAGE2_PROVIDER_PROFILE_ID: 'smoke-profile',
+            PPTMAKER_IMAGE_PROBE_MARKER: marker,
+          },
+        });
+      } catch (caught) {
+        error = caught;
+      }
+      expect(error).toBeTruthy();
+      expect(error.status).not.toBe(0);
+      expect(existsSync(marker)).toBe(false);
+      const diagnostic = parseCliErrorLine(String(error.stderr || '').trim().split(/\r?\n/).filter(Boolean).at(-1))?.diagnostic;
+      expect(diagnostic).toMatchObject({
+        category: 'usage',
+        reason: { kind: 'retired_image2_live_flag' },
       });
-      expect(JSON.stringify(report)).not.toMatch(/start building decks|Style Master generation can proceed/i);
-      expect(JSON.stringify(report)).not.toContain(apiKey);
-      expect(readFileSync(jsonMarker, 'utf8').trim().split('\n')).toEqual(['fetch']);
+      expect(`${error.stdout || ''}${error.stderr || ''}`).toMatch(/probe <run-dir>|lab_cli/);
+      expect(`${error.stdout || ''}${error.stderr || ''}`).not.toContain('SMOKE_CONNECTIVITY_ONLY_SECRET');
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
@@ -808,7 +787,7 @@ describe('env-check --probe-vendors', () => {
       out = `${e.stdout ?? ''}${e.stderr ?? ''}`;
     }
     expect(exitCode).not.toBe(0);
-    expect(out).toMatch(/mutually exclusive/i);
+    expect(out).toMatch(/retired|probe <run-dir>|lab_cli/i);
   });
 
   it('submits exactly once per injected resolver entry and keeps output secret-safe', async () => {
@@ -1063,7 +1042,7 @@ describe('exact-run Image2 doctor profile identity', () => {
   it.each([
     ['smoke', '--smoke'],
     ['vendor probe', '--probe-vendors'],
-  ])('fails a mismatched runtime profile before a %s POST and keeps diagnostics secret-safe', (_label, liveFlag) => {
+  ])('rejects retired %s flags on probe with zero POST', (_label, liveFlag) => {
     const { root, runDir } = createRunFixture();
     const marker = join(root, 'unexpected-post');
     const preload = join(process.cwd(), 'tests', 'helpers', 'fixtures', 'mock_image_probe_fetch.mjs');
@@ -1088,10 +1067,8 @@ describe('exact-run Image2 doctor profile identity', () => {
       expect(existsSync(marker)).toBe(false);
       const diagnostic = parseCliErrorLine(error.stderr.trim().split(/\r?\n/).filter(Boolean).at(-1))?.diagnostic;
       expect(diagnostic).toMatchObject({
-        category: 'environment',
-        operation: 'raw-generation-readiness',
-        reason: { kind: 'image2_provider_profile_id_mismatch' },
-        next: { action: 'repair_environment' },
+        category: 'usage',
+        reason: { kind: 'retired_image2_live_flag' },
       });
       expect(error.stderr).not.toContain('doctor-secret-key');
       expect(error.stderr).not.toContain('doctor-secret.example.test');
@@ -1117,6 +1094,43 @@ describe('exact-run Image2 doctor profile identity', () => {
         reason: { kind: 'image2_provider_profile_pending' },
         next: { action: 'edit_source' },
       });
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('pending probe points at Lab with zero fetch', () => {
+    const root = mkdtempSync(join(tmpdir(), 'probe-pending-lab-'));
+    const deck = join(root, 'deck_probe_pending');
+    execFileSync('node', [FLOW, 'init', deck, '--deck-type', 'keynote', '--style', 'dark-executive'], {
+      encoding: 'utf8',
+      timeout: 30_000,
+    });
+    const runDir = join(deck, '3_versions', 'v1');
+    const marker = join(root, 'unexpected-post');
+    const preload = join(process.cwd(), 'tests', 'helpers', 'fixtures', 'mock_image_probe_fetch.mjs');
+    try {
+      let error;
+      try {
+        execFileSync('node', ['--import', preload, FLOW, 'probe', runDir], {
+          encoding: 'utf8',
+          timeout: 30_000,
+          env: {
+            ...process.env,
+            IMAGE2_API_KEY: 'probe-pending-secret',
+            IMAGE2_BASE_URL: 'https://probe-pending.example.test/v1',
+            IMAGE2_PROVIDER_PROFILE_ID: 'doctor-image2-profile',
+            PPTMAKER_IMAGE_PROBE_MARKER: marker,
+          },
+        });
+      } catch (caught) {
+        error = caught;
+      }
+      expect(error).toBeTruthy();
+      expect(existsSync(marker)).toBe(false);
+      const diagnostic = parseCliErrorLine(String(error.stderr || '').trim().split(/\r?\n/).filter(Boolean).at(-1))?.diagnostic;
+      expect(diagnostic?.next?.default || '').toMatch(/Lab|lab_cli/);
+      expect(`${error.stdout || ''}${error.stderr || ''}`).not.toContain('probe-pending-secret');
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

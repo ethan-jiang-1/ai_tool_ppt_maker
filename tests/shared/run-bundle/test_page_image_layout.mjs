@@ -14,14 +14,19 @@ import {
   PAGE_IMAGE_DECK_DEFAULTS_FILE,
   PAGE_DESIGN_SYSTEM_FILE,
   IMAGE2_PROVIDER_PROFILE_FILE,
+  LAB_DIR,
+  LAB_FIXTURES_SUBDIR,
+  LAB_RUNS_SUBDIR,
   PAGE_IMAGE_PRESENTATION_FILES,
   PAGE_IMAGE_PRESENTATION_SUBDIR,
   PAGE_IMAGE_WORKFLOW_PATHS,
   checkBundle,
+  checkDeckRootControls,
   checkProgressivePageProductionHistoryLayout,
   checkStyleMasterLocalPng,
   checkStyleMasterHistoryLayout,
   createVersion,
+  ensureLabScaffold,
   image2ProviderProfileAsset,
   image2ProviderProfileOverrideAsset,
   initBundle,
@@ -498,6 +503,54 @@ describe("Page Image bundle layout", () => {
       const before = structuredClone(state);
       expect(inspectProductionIdentity({ state, runVersion: "v1", sourceMarker })).toMatchObject({ ok: false, code });
       expect(state).toEqual(before);
+    }
+  });
+
+  it("seeds a required empty _lab/ workspace that does not block drawing", () => {
+    const root = mkdtempSync(join(tmpdir(), "lab-layout-init-"));
+    try {
+      const deck = join(root, "deck_current");
+      initBundle(deck, null, "keynote", "dark-executive");
+      const lab = join(deck, LAB_DIR);
+      expect(existsSync(join(lab, "README.md"))).toBe(true);
+      expect(existsSync(join(lab, ".gitignore"))).toBe(true);
+      expect(existsSync(join(lab, LAB_FIXTURES_SUBDIR))).toBe(true);
+      expect(existsSync(join(lab, LAB_RUNS_SUBDIR))).toBe(true);
+      expect(checkDeckRootControls(deck)).toEqual([]);
+      expect(renderTree()).toContain(`${LAB_DIR}/`);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("reports missing _lab/ as repairable layout and heals it", () => {
+    const root = mkdtempSync(join(tmpdir(), "lab-layout-missing-"));
+    try {
+      const deck = join(root, "deck_current");
+      initBundle(deck, null, "keynote", "dark-executive");
+      rmSync(join(deck, LAB_DIR), { recursive: true, force: true });
+      expect(checkDeckRootControls(deck)).toEqual([`missing repairable Image2 Lab workspace: ${LAB_DIR}/`]);
+      ensureLabScaffold(deck);
+      expect(checkDeckRootControls(deck)).toEqual([]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("does not copy Lab trials into a new version", () => {
+    const root = mkdtempSync(join(tmpdir(), "lab-layout-new-version-"));
+    try {
+      const deck = join(root, "deck_current");
+      initBundle(deck, null, "keynote", "dark-executive");
+      const trial = join(deck, LAB_DIR, LAB_RUNS_SUBDIR, "v1", "trials", "trial-keep");
+      mkdirSync(trial, { recursive: true });
+      writeFileSync(join(trial, "trial.json"), "{\"schema\":\"pptmaker-image2-lab-trial\"}\n");
+      const successor = createVersion(join(deck, "3_versions", "v1"), "v2");
+      expect(existsSync(join(trial, "trial.json"))).toBe(true);
+      expect(existsSync(join(deck, LAB_DIR, LAB_RUNS_SUBDIR, "v2"))).toBe(false);
+      expect(existsSync(join(successor, LAB_DIR))).toBe(false);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
     }
   });
 });

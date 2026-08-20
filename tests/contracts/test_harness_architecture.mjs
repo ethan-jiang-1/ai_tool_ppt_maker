@@ -67,6 +67,8 @@ function canonicalSnapshot() {
     "export function resolveImage2ProviderProfile() {}",
     "export function evaluateImage2PromptBudget() {}",
   ].join("\n");
+  files["shared/image2/call_shape.mjs"] = "export function validateCallShapeValue() {}\n";
+  files["shared/image2/provider_executor.mjs"] = "export function executePageImageProviderCall() {}\n";
   const grouped = new Map();
   for (const path of interfaces) {
     const owner = ownerFor(path);
@@ -267,6 +269,14 @@ describe("Harness architecture contract", () => {
     const missing = canonicalSnapshot();
     missing.files["shared/image2/provider_profile.mjs"] = "export const importSafe = true;\n";
     expect(issueCodes(validateArchitectureSnapshot(missing))).toContain("image2-capability-seam-incomplete");
+
+    const duplicateDecoder = canonicalSnapshot();
+    duplicateDecoder.files["04-pure-image/index.mjs"] += "\nfunction imageBytesFromPageImageProvider() {}\n";
+    expect(issueCodes(validateArchitectureSnapshot(duplicateDecoder))).toContain("image2-call-shape-seam-duplicate");
+
+    const duplicateExecutor = canonicalSnapshot();
+    duplicateExecutor.files["04-pure-image/index.mjs"] += "\nfunction executePageImageProviderCall() {}\n";
+    expect(issueCodes(validateArchitectureSnapshot(duplicateExecutor))).toContain("image2-call-shape-seam-duplicate");
   });
 
   it("allows iteration to use target public interfaces but rejects target sibling internals", () => {

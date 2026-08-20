@@ -106,51 +106,61 @@ When a current initialized run begins a playbook execution, _state/state.yaml SH
 
 ### Requirement: probe-image-channels playbook runs doctor channel体检
 
-`probe-image-channels.md` SHALL remain the shared `00-setup` Image2
-environment-diagnostic controller. It SHALL orchestrate intake, offline
-presence/resolver-count inspection, disclosure of expected provider
-submissions, human confirmation, `ppt_flow doctor --probe-vendors` with
-background/progress relay when long, and a bounded Summary. Optional
-configuration writing requires a separate human confirmation and SHALL not
-write secrets automatically. The current credential source normally resolves
-one canonical entry; the playbook SHALL NOT imply an alternate multi-vendor
-configuration format.
+`probe-image-channels.md` SHALL remain the shared Image2
+declared-Call-Shape connectivity controller. It SHALL orchestrate intake,
+offline doctor/preflight presence, disclosure that `ppt_flow probe <run-dir>`
+will make exactly one shared-executor submit of the confirmed page-image Call
+Shape, and a bounded Summary. Entering this playbook with a confirmed profile
+is the Work Request for that one submit; the playbook SHALL NOT re-confirm per
+HTTP call or clone `image2 authorize`. Optional configuration writing requires
+a separate human confirmation and SHALL not write secrets automatically. The
+playbook SHALL NOT imply an alternate multi-vendor configuration format, walk
+vendors, or invoke `--smoke` / `--probe-vendors`.
 
-The disclosure SHALL state that `--probe-vendors` makes exactly one submission
-per resolved channel and name the total count. If another current playbook
-proposes `doctor --smoke`, it SHALL disclose exactly one expected first-channel
-submission and obtain confirmation under the same rule. Declining SHALL make
-zero live calls and SHALL NOT invalidate offline foundation evidence.
+If the exact run has no confirmed Call Shape, the playbook SHALL stop before
+probe, name Image2 Lab as the discovery owner, and make zero live calls.
+Declining the connectivity Work Request SHALL make zero live calls and SHALL
+NOT invalidate offline foundation evidence.
 
 After an optional configuration write, the playbook SHALL report the saved
 decision without automatically invoking a second readiness command. A later
 verification request enters the normal foundation route, or the documented
 direct recovery entry only when the normal entry is unavailable. A successful
-probe proves channel health only; it SHALL not approve production, create page
-authorization/state, or authorize a later provider attempt.
+probe proves declared-Call-Shape connectivity only; it SHALL not approve
+production, create page authorization/state, or authorize a later provider
+attempt.
 
 #### Scenario: Channel probe intent selects probe-image-channels
 
-- **WHEN** the user asks which Image2 drawing channels are working
+- **WHEN** the user asks whether the confirmed Image2 Call Shape can still
+  retrieve a PNG
 - **THEN** routing selects `probe-image-channels`
-- **AND** the playbook resolves and discloses the submit count before offering the live report
+- **AND** the playbook discloses exactly one confirmed submit before running
+  `ppt_flow probe <run-dir>`
 
 #### Scenario: User confirms all-vendor probe
 
-- **WHEN** the shared resolver supplies three ordered entries
-- **AND** the Agent discloses that the probe will make three provider submits
-- **AND** the user confirms
-- **THEN** the playbook runs `doctor --probe-vendors`, relays progress, and shows the report before any `.env` or `_lessons` write
+- **WHEN** the user asks which Image2 channels or candidate Call Shapes work
+- **THEN** the playbook does not invoke `doctor --probe-vendors` or walk a
+  vendor list
+- **AND** candidate discovery is Lab while confirmed connectivity is one
+  `ppt_flow probe <run-dir>` submit
+
+#### Scenario: Pending profile is sent to Lab
+
+- **WHEN** the exact run has no confirmed page-image Call Shape
+- **THEN** the playbook does not invoke `probe`
+- **AND** it names the Lab playbook as the next owner
 
 #### Scenario: User declines live diagnosis
 
-- **WHEN** the user declines after the expected provider-submit count is disclosed
-- **THEN** the Agent does not invoke `--probe-vendors` or `--smoke`
+- **WHEN** the user declines after the one-submit disclosure
+- **THEN** the Agent does not invoke `probe`
 - **AND** zero provider submits occur
 
 #### Scenario: Report-only short path skips confirm-write
 
-- **WHEN** the user confirms the disclosed live probe but wants only a report
+- **WHEN** the user wants only a connectivity report
 - **THEN** the Agent presents the probe report
 - **AND** it does not write configuration or a lesson
 
@@ -163,11 +173,11 @@ authorization/state, or authorize a later provider attempt.
 
 #### Scenario: Confirm-write does not trigger a hidden recheck
 
-- **WHEN** a confirmed `--probe-vendors` report is followed by a confirmed configuration write
+- **WHEN** a probe report is followed by a confirmed configuration write
 - **THEN** the playbook reports that write without invoking another doctor or
   provider probe
 - **AND** a later check requires an explicit route and any new live work needs
-  a new disclosure and confirmation
+  a new Work Request
 
 ### Requirement: Shared nodes are referenced via includes
 
@@ -391,18 +401,19 @@ structural or whole-workflow changes use previewed exact-hash versioning.
 When current Style Master or Page Image provider-path symptoms occur -- such as
 failed image checks, an Image2 API/relay failure, or a report that image
 generation is unavailable -- and no channel probe has run in the session, the
-Agent SHALL offer the existing current channel probe as one concrete action,
-for example `probe-image-channels` or `doctor --probe-vendors`, with a short
-reason. It SHALL not respond only with an unbounded instruction to check an
-API, run an undisclosed live probe, or treat a successful probe as page-cost
-authorization, review acceptance, or progress evidence.
+Agent SHALL offer one concrete next action: `probe-image-channels` when a
+confirmed Call Shape exists, or the Image2 Lab playbook when the question is
+which candidate can retrieve a PNG. It SHALL not respond only with an unbounded
+instruction to check an API, run an undisclosed live probe, invoke retired
+`--smoke` / `--probe-vendors`, or treat a successful probe or Lab trial as
+page-cost authorization, review acceptance, or progress evidence.
 
 #### Scenario: First current provider-path failure offers a bounded probe
 
 - **WHEN** current Page Image or Style Master work fails with a provider-path
   symptom and no session probe has run
-- **THEN** the Agent offers one concrete channel-probe action that the human may
-  accept or decline
+- **THEN** the Agent offers one concrete channel-probe or Lab action that the
+  human may accept or decline
 - **AND** it does not create a page plan, grant, provider attempt, or review
   decision from the offer or its result
 
@@ -604,3 +615,16 @@ CLI handoff so its grant evidence contract is unchanged.
 - **THEN** the resume position is `plan-target-<workflow>-expansion`
 - **AND** no upstream narrative or page-content authoring node is presented as
   an eligible next step
+
+### Requirement: Call Shape discovery uses the Image2 Lab playbook
+
+Registered playbook routing SHALL send "which candidate Call Shape can retrieve
+a PNG" to the Image2 Lab playbook, not to `create-deck`, `probe-image-channels`,
+or `image2 generate`. The lab playbook SHALL remain outside the create-deck
+node graph.
+
+#### Scenario: Discovery intent does not enter create-deck
+
+- **WHEN** the user asks to find a working Image2 Call Shape for this vendor
+- **THEN** routing selects the lab playbook
+- **AND** it does not start create-deck or generate

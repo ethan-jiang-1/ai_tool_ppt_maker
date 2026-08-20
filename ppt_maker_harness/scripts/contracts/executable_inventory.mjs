@@ -2,6 +2,7 @@
 export const EXECUTABLE_INVENTORY = Object.freeze([
   "ppt_flow.mjs",
   "00-setup/env-check.mjs",
+  "shared/image2/lab_cli.mjs",
   "shared/run-bundle/bundle_layout.mjs",
   "shared/run-bundle/lessons.mjs",
 ]);

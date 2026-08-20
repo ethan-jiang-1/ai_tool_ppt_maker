@@ -170,6 +170,52 @@ export const METADATA_FILE = 'project-metadata.yaml';
 export const LESSONS_DIR = '_lessons';
 export const LESSONS_IMAGE2_PROVEN = 'image2-proven.yaml';
 
+/** Deck-root Image2 Lab workspace (required scaffold; empty does not block PPT flow). */
+export const LAB_DIR = '_lab';
+export const LAB_FIXTURES_SUBDIR = 'fixtures';
+export const LAB_RUNS_SUBDIR = 'runs';
+
+export const LAB_DIR_README = `\
+# Image2 Lab (_lab)
+
+**这里放什么:** 这份 Run Bundle 的 Image2 Call Shape 实验隔间。Session B 只在这里证明候选怎么打、能不能拿到可通过生产 inspector 的 PNG。
+
+**不放什么 / 去哪放:**
+| 东西 | 放哪 |
+|------|------|
+| 已确认的生产打法 | \`2_backbone/visual-style/image2-provider-profile.yaml\`（或版本 override） |
+| 正式出图 | \`image2 generate\` → \`_generated/\` |
+| 跨 session 人读结论 | 现有 \`lessons.mjs add\` 写 \`_lessons/\`（只引用 trial id/hash） |
+| 临时垃圾 | 版本 \`_scratch/\` |
+
+**边界:** 空 scaffold（没有 trial）不挡 PPT flow。生产 generate / probe **不读**这里。\`--new-version\` 不拷贝、不删除 trial。大文件默认被本目录 \`.gitignore\` 忽略。
+`;
+
+export const LAB_DIR_GITIGNORE = `\
+# Image2 Lab artifacts — keep the scaffold, ignore bulky trial outputs.
+**/output.png
+**/*.png
+**/prompt.txt
+**/prompt.md
+**/raw-body
+**/last-proven.json
+`;
+
+export function labDir(deckDir) {
+  return path.join(deckDir, LAB_DIR);
+}
+
+export function ensureLabScaffold(deckDir) {
+  const root = labDir(deckDir);
+  fs.mkdirSync(path.join(root, LAB_FIXTURES_SUBDIR), { recursive: true });
+  fs.mkdirSync(path.join(root, LAB_RUNS_SUBDIR), { recursive: true });
+  const readme = path.join(root, 'README.md');
+  if (!fs.existsSync(readme)) fs.writeFileSync(readme, LAB_DIR_README, 'utf8');
+  const gitignore = path.join(root, '.gitignore');
+  if (!fs.existsSync(gitignore)) fs.writeFileSync(gitignore, LAB_DIR_GITIGNORE, 'utf8');
+  return root;
+}
+
 /** Canonical README body for _lessons/ (Chinese, same voice as _state README). */
 export const LESSONS_DIR_README = `\
 # 自留教训 (_lessons)
@@ -393,6 +439,7 @@ export const SCRATCH_DIR_README = `\
 | 克服困难后的教训 | \`_lessons/\` |
 | 本版持久打磨轨迹/决策 | \`_polish/\` |
 | playbook 断点 | \`_state/\` |
+| Image2 Call Shape 实验 | \`_lab/\` |
 
 **禁止:** 自创 \`_tmp/\` · \`backup/\` · \`_bak/\`；把 bak 丢到 **deck 根** 或 \`2_backbone/\`。
 `;
@@ -410,6 +457,7 @@ export const POLISH_DIR_README = `\
 | 跨版本可复用教训 | \`_lessons/\`（一题一文） |
 | 机器事件日志 / hash 流水 | \`_state/history.jsonl\`、upstream 迭代历史（别在这里塞 JSON 当唯一记录） |
 | 管线产物 | \`_generated/\`（可重建，不手改） |
+| Image2 Call Shape 实验 | deck 根 \`_lab/\` |
 
 **边界:** \`--new-version\` **不会拷贝**本目录——轨迹留在产生它的版本，新版本从零开始。这里的一切**不是真相源**：删改它不影响 source、state 或任何生成/校验。
 `;
@@ -431,6 +479,7 @@ export const DECK_ROOT_ALLOWED = new Set([
   VERSIONS_DIR,
   STATE_DIR,
   LESSONS_DIR,
+  LAB_DIR,
 ]);
 
 // ---------------------------------------------------------------------------
@@ -908,6 +957,10 @@ export function checkDeckRootControls(root) {
         problems.push(
             `missing canonical ${BACKBONE_DIR}/${BACKBONE_STYLE_SUBDIR}/ dir ` +
             `(check spelling — it must be exactly '${BACKBONE_STYLE_SUBDIR}')`);
+    }
+    const labPath = path.join(root, LAB_DIR);
+    if (!fs.existsSync(labPath) || !fs.statSync(labPath).isDirectory()) {
+        problems.push(`missing repairable Image2 Lab workspace: ${LAB_DIR}/`);
     }
     return problems;
 }
@@ -1400,6 +1453,7 @@ const _DIR_READMES = {
     ),
     [STATE_DIR]: STATE_DIR_README,
     [LESSONS_DIR]: LESSONS_DIR_README,
+    [LAB_DIR]: LAB_DIR_README,
     [UPSTREAM_DIR]: (
         '# 上游:原始素材\n\n' +
         '**这里放什么:** 你的调研、参考资料、事实来源——任何「喂养」这个 deck 的原料。\n' +
@@ -1575,7 +1629,7 @@ function initBundleForDraft(deckDir, harnessDir = null, deckType = null, style =
     const name = path.basename(deckDir).replace('deck_', '');
     const log = [];
 
-    const dirs = ['.', STATE_DIR, LESSONS_DIR, UPSTREAM_DIR, BACKBONE_DIR, VERSIONS_DIR, `${VERSIONS_DIR}/v1`];
+    const dirs = ['.', STATE_DIR, LESSONS_DIR, LAB_DIR, `${LAB_DIR}/${LAB_FIXTURES_SUBDIR}`, `${LAB_DIR}/${LAB_RUNS_SUBDIR}`, UPSTREAM_DIR, BACKBONE_DIR, VERSIONS_DIR, `${VERSIONS_DIR}/v1`];
     for (const sd of BACKBONE_SUBDIRS) {
         dirs.push(`${BACKBONE_DIR}/${sd}`);
     }
@@ -1601,6 +1655,7 @@ function initBundleForDraft(deckDir, harnessDir = null, deckType = null, style =
         _writeIfAbsent(target, body.replace(/\{NAME\}/g, name));
         log.push(`README: ${rel}/README.md`);
     }
+    ensureLabScaffold(deckDir);
 
     for (const [fname, tmplRel] of Object.entries(BACKBONE_FILE_SEEDS)) {
         const dest = path.join(deckDir, BACKBONE_DIR, fname);
@@ -1746,6 +1801,11 @@ deck_\${NAME}/
 ├── ${LESSONS_DIR}/                       ← retained lessons after probe/overcome (read-before-guess; not secrets / not progress)
 │   ├── README.md                       ← 这里放什么 / 闭环 / 怎么写
 │   └── *.md | *.yaml                   ← one lesson per file (e.g. image2-proven.yaml)
+├── ${LAB_DIR}/                           ← Image2 Lab workspace (required scaffold; empty does not block PPT flow)
+│   ├── README.md                       ← ownership / 恢复；不复制 schema
+│   ├── .gitignore                      ← ignore PNG / prompt / bulky trial output
+│   ├── ${LAB_FIXTURES_SUBDIR}/                   ← shared reference PNGs (no production lineage)
+│   └── ${LAB_RUNS_SUBDIR}/vN/trials/            ← immutable trials; internals not filename-whitelisted
 │
 ├── ${UPSTREAM_DIR}/          ← 上游 UPSTREAM · raw material · shared · append-mostly · no versions
 │   └── page-image-style-master-iterations/ ← immutable Style Master candidate history; not current selection
@@ -1840,7 +1900,7 @@ export function selfCheck() {
     }
 
     const tree = renderTree();
-    for (const n of [UPSTREAM_DIR, BACKBONE_DIR, VERSIONS_DIR, GENERATED_SUBDIR, SCRATCH_SUBDIR, POLISH_SUBDIR, SLIDE_SPECS_NAME, STATE_DIR, LESSONS_DIR, BACKBONE_STORY_OUTLINE, BACKBONE_ASSETS_SUBDIR, ASSET_MANIFEST_FILE, PAGE_DESIGN_SYSTEM_FILE, IMAGE2_PROVIDER_PROFILE_FILE]) {
+    for (const n of [UPSTREAM_DIR, BACKBONE_DIR, VERSIONS_DIR, GENERATED_SUBDIR, SCRATCH_SUBDIR, POLISH_SUBDIR, SLIDE_SPECS_NAME, STATE_DIR, LESSONS_DIR, LAB_DIR, BACKBONE_STORY_OUTLINE, BACKBONE_ASSETS_SUBDIR, ASSET_MANIFEST_FILE, PAGE_DESIGN_SYSTEM_FILE, IMAGE2_PROVIDER_PROFILE_FILE]) {
         if (!tree.includes(n)) {
             problems.push(`renderTree() is missing canonical entry ${JSON.stringify(n)} (stale hardcoded literal?)`);
         }

@@ -10,7 +10,22 @@ import {
   image2ProviderProfileOverrideAsset,
 } from "../run-bundle/bundle_layout.mjs";
 import { isPageImageVersionDir } from "../run-bundle/page_image_paths.mjs";
+import {
+  DEFAULT_PAGE_IMAGE_TRANSPORT,
+  Image2CallShapeError,
+  isLegalPageImageTransport,
+  NAMED_DEFAULT_RESULT_PROTOCOL,
+  pageImageTransportRequestSize,
+  validateCallShapeValue,
+} from "./call_shape.mjs";
 import { isImage2ProviderProfileId } from "./runtime_profile_id.mjs";
+
+export {
+  DEFAULT_PAGE_IMAGE_TRANSPORT,
+  isLegalPageImageTransport,
+  pageImageTransportRequestSize,
+  validateCallShapeValue,
+};
 
 export const IMAGE2_PROVIDER_PROFILE_SCHEMA = "pptmaker-image2-provider-profile";
 export const IMAGE2_PROVIDER_OPERATIONS = Object.freeze([
@@ -24,25 +39,9 @@ export const IMAGE2_PROMPT_BUDGET_UNITS = Object.freeze([
 ]);
 export const IMAGE2_PROVIDER_PROMPT_SAFETY_MAX_UTF8_BYTES = 32_768;
 export const PAGE_IMAGE_OPERATION = "page-image-reference-generation";
-export const DEFAULT_PAGE_IMAGE_TRANSPORT = Object.freeze({
-  http_operation: "generations",
-  encoding: "json",
-  width: 2000,
-  height: 1125,
-  dimension_multiple: 1,
-  completion: "async-poll",
-});
 
 const OPERATION_SET = new Set(IMAGE2_PROVIDER_OPERATIONS);
 const UNIT_SET = new Set(IMAGE2_PROMPT_BUDGET_UNITS);
-const PAGE_IMAGE_TRANSPORT_KEYS = Object.freeze([
-  "http_operation",
-  "encoding",
-  "width",
-  "height",
-  "dimension_multiple",
-  "completion",
-]);
 const UTF8_DECODER = new TextDecoder("utf-8", { fatal: true });
 
 export class Image2ProviderProfileError extends Error {
@@ -154,45 +153,18 @@ function pendingProfile(value, source) {
   failProfile("image2_provider_profile_pending", "Image2 provider profile declaration is pending", { source });
 }
 
-export function isLegalPageImageTransport(value) {
-  if (!exactKeys(value, PAGE_IMAGE_TRANSPORT_KEYS)) return false;
-  const pairingOk = (value.http_operation === "generations" && value.encoding === "json")
-    || (value.http_operation === "edits" && value.encoding === "multipart");
-  return pairingOk
-    && Number.isSafeInteger(value.width) && value.width > 0
-    && Number.isSafeInteger(value.height) && value.height > 0
-    && (value.dimension_multiple === 1 || value.dimension_multiple === 16)
-    && value.width % value.dimension_multiple === 0
-    && value.height % value.dimension_multiple === 0
-    && (value.completion === "sync" || value.completion === "async-poll");
-}
-
-export function pageImageTransportRequestSize(transport) {
-  return `${transport.width}x${transport.height}`;
-}
-
-function resolvePageImageTransport(value, source) {
-  const resolved = value === undefined ? DEFAULT_PAGE_IMAGE_TRANSPORT : value;
-  if (!isLegalPageImageTransport(resolved)) {
-    failProfile("image2_provider_profile_shape_invalid", "Image2 provider profile has an invalid operation declaration", { source });
-  }
-  return freeze({
-    http_operation: resolved.http_operation,
-    encoding: resolved.encoding,
-    width: resolved.width,
-    height: resolved.height,
-    dimension_multiple: resolved.dimension_multiple,
-    completion: resolved.completion,
-  });
+function pageImageSourceKeys(value) {
+  const keys = ["route_id", "model", "prompt_budget"];
+  if (Object.hasOwn(value || {}, "transport")) keys.push("transport");
+  if (Object.hasOwn(value || {}, "result_protocol")) keys.push("result_protocol");
+  return keys;
 }
 
 function validateOperation(operation, value, source) {
   const isPageImage = operation === PAGE_IMAGE_OPERATION;
-  const keys = isPageImage && Object.hasOwn(value || {}, "transport")
-    ? ["route_id", "model", "prompt_budget", "transport"]
-    : ["route_id", "model", "prompt_budget"];
+  const keys = isPageImage ? pageImageSourceKeys(value) : ["route_id", "model", "prompt_budget"];
   if (!OPERATION_SET.has(operation) || !exactKeys(value, keys) ||
-    (!isPageImage && Object.hasOwn(value || {}, "transport")) ||
+    (!isPageImage && (Object.hasOwn(value || {}, "transport") || Object.hasOwn(value || {}, "result_protocol"))) ||
     !isImage2ProviderProfileId(value.route_id) || typeof value.model !== "string" || !value.model.trim() ||
     !exactKeys(value.prompt_budget, ["limit", "unit"]) ||
     !Number.isSafeInteger(value.prompt_budget.limit) || value.prompt_budget.limit <= 0 ||
@@ -205,7 +177,23 @@ function validateOperation(operation, value, source) {
     model: value.model,
     prompt_budget: freeze({ limit: value.prompt_budget.limit, unit: value.prompt_budget.unit }),
   };
-  if (isPageImage) resolved.transport = resolvePageImageTransport(value.transport, source);
+  if (isPageImage) {
+    try {
+      const callShape = validateCallShapeValue({
+        model: value.model,
+        prompt_budget: value.prompt_budget,
+        ...(Object.hasOwn(value, "transport") ? { transport: value.transport } : {}),
+        ...(Object.hasOwn(value, "result_protocol") ? { result_protocol: value.result_protocol } : {}),
+      });
+      resolved.transport = callShape.value.transport;
+      resolved.result_protocol = callShape.value.result_protocol;
+    } catch (error) {
+      if (error instanceof Image2CallShapeError) {
+        failProfile("image2_provider_profile_shape_invalid", "Image2 provider profile has an invalid operation declaration", { source });
+      }
+      throw error;
+    }
+  }
   return freeze(resolved);
 }
 
@@ -280,6 +268,17 @@ export function selectImage2ProviderOperation(profile, operation) {
     prompt_budget: freeze({ ...selected.prompt_budget }),
   };
   if (selected.transport) selectedOperation.transport = freeze({ ...selected.transport });
+  if (operation === PAGE_IMAGE_OPERATION) {
+    const callShape = validateCallShapeValue({
+      model: selected.model,
+      prompt_budget: selected.prompt_budget,
+      transport: selected.transport,
+      result_protocol: selected.result_protocol || NAMED_DEFAULT_RESULT_PROTOCOL,
+    });
+    selectedOperation.transport = callShape.value.transport;
+    selectedOperation.result_protocol = callShape.value.result_protocol;
+    selectedOperation.call_shape_sha256 = callShape.sha256;
+  }
   return freeze(selectedOperation);
 }
 

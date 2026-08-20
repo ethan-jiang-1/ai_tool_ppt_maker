@@ -13,6 +13,7 @@ import {
   resolveImage2ProviderProfile,
   selectImage2ProviderOperation,
 } from "../../../ppt_maker_harness/scripts/shared/image2/provider_profile.mjs";
+import { validateCallShapeValue } from "../../../ppt_maker_harness/scripts/shared/image2/call_shape.mjs";
 import {
   isImage2ProviderProfileId,
   requireMatchingImage2RuntimeProfileId,
@@ -166,9 +167,15 @@ describe("Image2 provider profile", () => {
         model: "owner-model-page-image",
         prompt_budget: { limit: 12347, unit: "unicode-code-points" },
         transport: DEFAULT_PAGE_IMAGE_TRANSPORT,
+        result_protocol: "json-inline-b64",
+        call_shape_sha256: validateCallShapeValue({
+          model: "owner-model-page-image",
+          prompt_budget: { limit: 12347, unit: "unicode-code-points" },
+        }).sha256,
       });
       expect(style.model).toBe("owner-model-style-master");
       expect(style).not.toHaveProperty("transport");
+      expect(style).not.toHaveProperty("result_protocol");
     } finally {
       rmSync(fixture.root, { recursive: true, force: true });
     }
@@ -317,6 +324,7 @@ describe("Image2 provider profile", () => {
       );
       const explicit = resolveImage2ProviderProfile(fixture.runDir);
       expect(omitted.operations["page-image-reference-generation"].transport).toEqual(DEFAULT_PAGE_IMAGE_TRANSPORT);
+      expect(omitted.operations["page-image-reference-generation"].result_protocol).toBe("json-inline-b64");
       expect(explicit.profile_sha256).toBe(omitted.profile_sha256);
     } finally {
       rmSync(fixture.root, { recursive: true, force: true });

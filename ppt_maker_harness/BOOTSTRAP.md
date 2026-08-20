@@ -28,7 +28,7 @@ sequence。
 node ppt_maker_harness/scripts/ppt_flow.mjs preflight <run-dir> --operation raw-generation
 ```
 
-这时才检查 `IMAGE2_API_KEY`、endpoint、`IMAGE2_PROVIDER_PROFILE_ID` 和 raw generator presence。`IMAGE2_PROVIDER_PROFILE_ID` 是环境拥有的非 secret selector，必须精确匹配 Deck Author 在 `2_backbone/visual-style/image2-provider-profile.yaml`（或当前版本的 matching override）确认的 provider profile；它不是 credential、endpoint、Page Design System 或授权。source pending/invalid 时先获得 Deck Author 的一次 route-capability declaration，修复该 source 后重跑同一 checkpoint；smoke/probe 只证明 connectivity，不能确认 profile、route、model、budget、prompt fit 或生产授权。`probe --smoke` 提交 1 次；`probe --probe-vendors` 恰好提交 1 次/每个 resolved entry。两者都是明确选择的 live diagnostic，必须先披露并取得确认。probe success 不等于生产授权，也不产生 production authorization/state。direct `env-check` 只用于 pre-install 或 main entry 无法启动时的 recovery，不是 normal raw readiness 的替代入口。
+这时才检查 `IMAGE2_API_KEY`、endpoint、`IMAGE2_PROVIDER_PROFILE_ID` 和 raw generator presence。`IMAGE2_PROVIDER_PROFILE_ID` 是环境拥有的非 secret selector，必须精确匹配 Deck Author 在 `2_backbone/visual-style/image2-provider-profile.yaml`（或当前版本的 matching override）确认的 provider profile；它不是 credential、endpoint、Page Design System 或授权。source pending/invalid 时先获得 Deck Author 的一次 route-capability declaration，修复该 source 后重跑同一 checkpoint。Live Image2 只有两条当前入口：`ppt_flow probe <run-dir>` 对已确认 Call Shape 做恰好 1 次 connectivity submit；未确认的候选发现走 Image2 Lab（`playbook/image2-lab.md` / `scripts/shared/image2/lab_cli.mjs`）。probe 与 Lab success 都不等于生产授权，也不产生 production authorization/state。direct `env-check` 只用于 pre-install 或 main entry 无法启动时的 recovery，不是 normal raw readiness 的替代入口。退役的 `doctor --run-dir <run-dir> --operation raw-generation` 指向 `preflight`。
 
 ## Step 2 - Choose one version workflow while authoring
 
@@ -90,5 +90,3 @@ source 的 canonical backup 是可见 `vN` 与 Structural Versioning Path，不�
 ### image_base_url
 ### image2_provider_profile_id
 ### page_image_raw_generator
-### image_smoke
-### image_probe_vendors

@@ -5,6 +5,7 @@
 Define creation, validation, current topology, bounded historical handling, and
 exact local Harness binding for Run Bundles.
 ## Requirements
+
 ### Requirement: Authority-carrying run operations require a current Harness binding
 
 A missing, malformed, conflicting, or retired-root-named locator is a
@@ -258,26 +259,31 @@ non-empty lower-kebab `route_id`, one non-empty provider `model`, and
 `unit` SHALL be exactly `unicode-code-points`, `utf16-code-units`, or
 `utf8-bytes`. No numeric limit is a reserved profile kind or code-path selector.
 
-The `page-image-reference-generation` operation MAY include exactly one
-`transport` mapping with `http_operation` (`generations` | `edits`),
-`encoding` (`json` | `multipart`), positive integer `width` and `height`,
+The `page-image-reference-generation` operation SHALL embed one canonical
+Image2 Call Shape value: the operation's `model` and `prompt_budget`, plus
+optional `transport` and `result_protocol`. `transport` when present SHALL be
+exactly `http_operation` (`generations` | `edits`), `encoding`
+(`json` | `multipart`), positive integer `width` and `height`,
 `dimension_multiple` (`1` | `16`), and `completion` (`sync` | `async-poll`).
 Omitted `transport` SHALL resolve to `generations`, `json`, width `2000`,
 height `1125`, `dimension_multiple` `1`, and `completion` `async-poll`.
-Width and height SHALL be divisible by `dimension_multiple`. The only legal
-pairings are `generations`+`json` and `edits`+`multipart`. `style-master-text-generation`
-SHALL NOT declare `transport`. The source SHALL contain no vendor-product name
-as a schema key.
+Omitted `result_protocol` SHALL resolve to `json-inline-b64`. Width and height
+SHALL be divisible by `dimension_multiple`. The only legal pairings are
+`generations`+`json` and `edits`+`multipart`. The resolved omitted form SHALL
+be digest-identical to the named default Call Shape value. `style-master-text-generation`
+SHALL NOT declare `transport` or `result_protocol`. The source SHALL contain no
+vendor-product name as a schema key.
 
 The source and resolved binding SHALL contain no API key, credential, base URL,
 authorization, State fact, provider response, remote probe result, filesystem
-path, or inferred model/route capability. The binding's canonical digest SHALL
-cover every confirmed source capability fact, including the resolved transport
-vector, while its origin/path remains diagnostic-only. Missing, pending,
-malformed, unknown, mixed, unconfirmed, or illegal-combo facts SHALL produce
-one non-bypassable source-repair hard-stop at the consuming provider-free
-planning checkpoint without a binding or digest; the owner SHALL not guess from
-`.env`, a model alias, inspection, prior plan, or remote failure.
+path, Lab trial, or inferred model/route capability. The binding's canonical
+digest SHALL cover every confirmed source capability fact, including the
+resolved Call Shape value, while its origin/path remains diagnostic-only.
+Missing, pending, malformed, unknown, mixed, unconfirmed, or illegal-combo
+facts SHALL produce one non-bypassable source-repair hard-stop at the consuming
+provider-free planning checkpoint without a binding or digest; the owner SHALL
+not guess from `.env`, a model alias, inspection, prior plan, Lab trial, or
+remote failure.
 
 #### Scenario: Confirmed profile resolves two explicit operations
 
@@ -290,10 +296,11 @@ planning checkpoint without a binding or digest; the owner SHALL not guess from
 #### Scenario: Omitted page-image transport resolves to the current default
 
 - **WHEN** a confirmed `page-image-reference-generation` operation omits
-  `transport`
+  `transport` and `result_protocol`
 - **THEN** the resolved binding uses generations, JSON, `2000x1125`, multiple 1,
-  and async-poll
-- **AND** that default remains a legal explicit declaration
+  async-poll, and `json-inline-b64`
+- **AND** that default remains a legal explicit declaration whose Call Shape
+  digest matches the named default constant
 
 #### Scenario: Illegal transport pairing is rejected before a binding
 
@@ -327,8 +334,8 @@ planning checkpoint without a binding or digest; the owner SHALL not guess from
   fields with confirmed operation facts
 - **THEN** provider-facing planning returns the one profile-source repair
   hard-stop before a plan, grant, attempt, or provider initialization
-- **AND** it does not treat partial facts, a prior profile, or environment
-  identity as confirmation
+- **AND** it does not treat partial facts, a prior profile, Lab trial, or
+  environment identity as confirmation
 
 ### Requirement: Initialization seeds a neutral Image2 provider profile source
 
@@ -452,3 +459,32 @@ event. If admission fails, every byte SHALL remain unchanged.
 - **WHEN** `3_versions/v2` or any other `vN` besides `v1` exists
 - **THEN** reset refuses with zero writes
 - **AND** v1 source, State, and derived trees remain byte-identical
+
+### Requirement: Mutating exact-run owners heal a missing Lab workspace scaffold
+
+When an existing Run Bundle is missing `_lab/`, the shared run-bundle layout
+owner SHALL mechanically create the same empty scaffold that `init` writes
+(README, nested `.gitignore`, `fixtures/`, `runs/`) as a guide-class heal.
+`ensureLabScaffold()` SHALL be invoked from `initBundleForDraft`'s existing
+deck-root directory seed (the mkdir + `_DIR_READMES` loop that already creates
+`_state/` and `_lessons/`) and from the Lab CLI before Lab writes a plan or
+trial. It SHALL NOT be owned by `ensureStateDirHints` or by generate, probe, or
+authorize. Generate, probe, and authorize SHALL NOT become Lab-scaffold writers.
+The heal SHALL NOT invent trials, copy `_scratch/`, write profile or State, or
+block generate. `--check` SHALL report missing `_lab/` as repairable layout
+rather than a forever-optional absence or a non-bypassable identity hard-stop.
+
+#### Scenario: Init seed or Lab CLI creates the empty scaffold
+
+- **WHEN** an otherwise valid existing bundle lacks `_lab/` and init's
+  deck-root seed loop or Lab CLI runs
+- **THEN** that owner writes the empty Lab scaffold before continuing
+- **AND** generate still does not read or create `_lab/` and still uses the
+  confirmed Call Shape
+
+#### Scenario: Check names missing lab as repairable
+
+- **WHEN** `--check` inspects an exact run whose deck root has no `_lab/`
+- **THEN** it reports a repairable layout finding
+- **AND** it does not treat the bundle as permanently optional-without-lab or
+  as a foreign protocol

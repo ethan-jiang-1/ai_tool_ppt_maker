@@ -36,6 +36,19 @@ image2_provider_capability:
     - base-url
     - state-capability-ledger
     - provider-response
+  call_shape:
+    envelope_schema: pptmaker-image2-call-shape
+    trial_schema: pptmaker-image2-lab-trial
+    named_default:
+      http_operation: generations
+      encoding: json
+      width: 2000
+      height: 1125
+      dimension_multiple: 1
+      completion: async-poll
+      result_protocol: json-inline-b64
+    result_protocols:
+      - json-inline-b64
 
 current_state_shape:
   name: md-controller-execution-state
@@ -284,6 +297,14 @@ wire_schema_groups:
     role: image2-provider-capability-source
     values:
       - pptmaker-image2-provider-profile
+  - stage_ref: layout-config
+    role: image2-lab-discovery
+    values:
+      - pptmaker-image2-call-shape
+      - pptmaker-image2-lab-plan
+      - pptmaker-image2-lab-plan-receipt
+      - pptmaker-image2-lab-trial
+      - pptmaker-image2-lab-success
   - stage_ref: page-source-receipt
     role: parsed-source
     values:

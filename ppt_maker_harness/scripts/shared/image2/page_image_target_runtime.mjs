@@ -718,6 +718,7 @@ export function buildTargetRawGenerationProfile({ runDir, deckDir, receipt } = {
       model: operationProfile.model,
       prompt_budget: operationProfile.prompt_budget,
       transport: operationProfile.transport || DEFAULT_PAGE_IMAGE_TRANSPORT,
+      result_protocol: operationProfile.result_protocol || "json-inline-b64",
     },
     output: PAGE_IMAGE_NATIVE_RAW_PNG,
     reference_transport: { style_master: "image-reference", identity_reference: identitySelected ? "image-reference" : "none" },

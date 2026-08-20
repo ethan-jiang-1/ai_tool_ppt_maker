@@ -54,6 +54,7 @@ function image2CapabilitySnapshot({ limit = 16000, unit = "unicode-code-points" 
       dimension_multiple: 1,
       completion: "async-poll",
     },
+    result_protocol: "json-inline-b64",
   };
   const compiled_prompt = JSON.stringify({ schema: "page-image-pure-provider-input", slide_id: "PureGo", instruction: "Render the complete page." });
   const measured = unit === "utf8-bytes" ? Buffer.byteLength(compiled_prompt) :

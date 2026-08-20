@@ -17,11 +17,12 @@ import "./shared/cli/cli_bootstrap.mjs?entry=ppt_flow.mjs";
 import { existsSync } from "node:fs";
 import { basename, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { Command } from "commander";
+import { Command, Option } from "commander";
 import {
   CLI_ERROR_CODES,
   CLI_DIAGNOSTIC_SCHEMA,
   createCliNext,
+  emitRetiredImage2LiveFlagUsage,
   exitCliError,
   setCliOutputMode,
 } from "./shared/cli/cli_error.mjs";
@@ -75,8 +76,14 @@ Examples:
   program
     .command("doctor")
     .description("Check offline local runtime")
+    .addOption(new Option("--smoke").hideHelp())
+    .addOption(new Option("--probe-vendors").hideHelp())
     .addHelpText("after", renderContractBlock(COMMAND_CONTRACTS.doctor))
-    .action(async () => {
+    .action(async (opts) => {
+      if (opts.smoke || opts.probeVendors) {
+        emitRetiredImage2LiveFlagUsage("ppt_flow.doctor.arguments");
+        process.exit(1);
+      }
       const { commandDoctor } = await import("./shared/cli/commands/doctor.mjs");
       const code = await commandDoctor();
       if (code === null) {
@@ -116,21 +123,18 @@ Examples:
   // ---- probe ----
   program
     .command("probe")
-    .description("Live connectivity probe bound to the exact run")
+    .description("Live connectivity probe of the confirmed Call Shape bound to the exact run")
     .argument("<run_dir>", "Path to the exact version dir")
-    .option("--smoke", "One live first-vendor submit")
-    .option("--probe-vendors", "Live-probe every resolved vendor (not --smoke)")
+    .addOption(new Option("--smoke").hideHelp())
+    .addOption(new Option("--probe-vendors").hideHelp())
     .addHelpText("after", renderContractBlock(COMMAND_CONTRACTS.probe))
     .action(async (runDir, opts) => {
-      if (opts.smoke && opts.probeVendors) {
-        exitUsage(
-          "ppt_flow.probe",
-          "--smoke and --probe-vendors are mutually exclusive.",
-          "Use --smoke for the first-vendor gate or --probe-vendors for the full channel report"
-        );
+      if (opts.smoke || opts.probeVendors) {
+        emitRetiredImage2LiveFlagUsage("ppt_flow.probe.arguments");
+        process.exit(1);
       }
       const { commandProbe } = await import("./shared/cli/commands/probe.mjs");
-      const code = await commandProbe(runDir, { mode: opts.probeVendors ? "vendors" : "smoke" });
+      const code = await commandProbe(runDir);
       if (code === null) {
         process.exit(1);
         return;
@@ -139,7 +143,7 @@ Examples:
         code,
         "ppt_flow.probe",
         `probe exited ${code}`,
-        "Fix env / Image2 channel issues reported by env-check, then re-run probe"
+        "Fix env / Image2 channel issues, then re-run probe"
       );
     });
 

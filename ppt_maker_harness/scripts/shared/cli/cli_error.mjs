@@ -520,6 +520,29 @@ export function emitCliError(opts) {
   return envelope;
 }
 
+const RETIRED_IMAGE2_LIVE_FLAG_HINT =
+  "Use `node ppt_maker_harness/scripts/ppt_flow.mjs probe <run-dir>` for one confirmed Call Shape submit, or `node ppt_maker_harness/scripts/shared/image2/lab_cli.mjs plan --run-dir <run-dir>` to discover an unconfirmed Call Shape.";
+
+/** Usage migration for retired --smoke / --probe-vendors. Does not start Image2 work. */
+export function emitRetiredImage2LiveFlagUsage(where) {
+  return emitCliError({
+    code: CLI_ERROR_CODES.USAGE,
+    message: "--smoke and --probe-vendors are retired.",
+    hint: RETIRED_IMAGE2_LIVE_FLAG_HINT,
+    where,
+    diagnostic: {
+      schema: CLI_DIAGNOSTIC_SCHEMA,
+      category: "usage",
+      operation: "parse-arguments",
+      reason: { kind: "retired_image2_live_flag" },
+      next: createCliNext("fix_arguments", {
+        requiresHuman: false,
+        default: RETIRED_IMAGE2_LIVE_FLAG_HINT,
+      }),
+    },
+  });
+}
+
 export function exitCliError(opts, exitCode = 1) {
   emitCliError(opts);
   process.exit(exitCode);
@@ -631,7 +654,8 @@ export function validateCliJsonReport(report, schema = null) {
   if (schema === null) return safe;
   if (schema === CLI_JSON_REPORT_SCHEMAS.ENV_CHECK) {
     const valid = safe && typeof safe === "object" && !Array.isArray(safe)
-      && ["allPass", "foundationOk", "smoke", "probeVendors"].every((key) => typeof safe[key] === "boolean")
+      && ["allPass", "foundationOk"].every((key) => typeof safe[key] === "boolean")
+      && !Object.hasOwn(safe, "smoke") && !Object.hasOwn(safe, "probeVendors")
       && Array.isArray(safe.checks)
       && safe.checks.every((check) => check && typeof check === "object" && !Array.isArray(check)
         && typeof check.check === "string" && check.check.length > 0

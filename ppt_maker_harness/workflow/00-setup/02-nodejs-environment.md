@@ -91,6 +91,6 @@ IMAGE2_BASE_URL=https://你的-relay/v1
 node ppt_maker_harness/scripts/ppt_flow.mjs preflight <run-dir> --operation raw-generation
 ```
 
-任何 `--smoke` 或 `--probe-vendors` live probe 都会产生 provider submit，必须先披露次数并取得用户确认。完整契约见 `03-runtime-and-tools.md`。
+`ppt_flow probe <run-dir>` 会对已确认 Call Shape 产生恰好一次 provider submit，必须先披露次数并取得用户确认。未确认的候选走 Image2 Lab。完整契约见 `03-runtime-and-tools.md`。
 
 管线会从调用目录向上寻找 `.env`；不需要每次重复设置。

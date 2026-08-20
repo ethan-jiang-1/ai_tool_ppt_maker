@@ -160,6 +160,12 @@ context: |-
       scope: active whole-page Page Image production family
       owner_paths:
         - ppt_maker_harness/AGENTS.md
+    - id: image2-lab
+      spec: openspec/specs/image2-lab/spec.md
+      scope: Image2 Lab discovery CLI, _lab workspace, and unconfirmed Call Shape trials
+      owner_paths:
+        - ppt_maker_harness/scripts/shared/image2/lab_cli.mjs
+        - ppt_maker_harness/playbook/image2-lab.md
     - id: lessons-management
       spec: openspec/specs/lessons-management/spec.md
       scope: run-bundle local lessons command surface

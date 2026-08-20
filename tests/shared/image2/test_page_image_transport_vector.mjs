@@ -189,6 +189,61 @@ describe("Page Image transport capability vector", () => {
     }
   });
 
+  it("pairs generate wrapper and executor on the same generations URL, method, encoding, model, and size", async () => {
+    const value = await fixture();
+    try {
+      const plan = buildPureTargetRawPlan(value.runDir);
+      const provider = plan.provider_requests_by_slide.DeckGo.generation_profile.provider;
+      const requests = [];
+      const fetchImpl = async (url, options) => {
+        requests.push({
+          url,
+          method: options.method,
+          encoding: options.headers["Content-Type"],
+          body: JSON.parse(options.body),
+        });
+        return providerJsonResponse({ data: [{ b64_json: VALID_PROVIDER_PNG.toString("base64") }] });
+      };
+      const submit = targetPageImageSubmitFactory(plan, {
+        credentialResolver: () => ({ base_url: "https://image.example", api_key: "test-key" }),
+        fetchImpl,
+      });
+      await submit({
+        request: plan.provider_requests_by_slide.DeckGo,
+        item: { slide_id: "DeckGo" },
+        provider_idempotency_key: `page-image-workflow-${"d".repeat(64)}`,
+      });
+      const generateCall = requests[0];
+      requests.length = 0;
+      const { executePageImageProviderCall, inspectPageImageExecutorPng } = await import(
+        "../../../ppt_maker_harness/scripts/shared/image2/provider_executor.mjs"
+      );
+      const bytes = await executePageImageProviderCall({
+        credentials: { base_url: "https://image.example", api_key: "test-key" },
+        provider,
+        prompt: "pair",
+        extraImages: [],
+        idempotencyKey: "image2-pair-test",
+        fetchImpl,
+      });
+      expect(requests[0]).toMatchObject({
+        url: generateCall.url,
+        method: generateCall.method,
+        encoding: generateCall.encoding,
+        body: expect.objectContaining({
+          model: generateCall.body.model,
+          size: generateCall.body.size,
+        }),
+      });
+      expect(inspectPageImageExecutorPng(bytes)).toMatchObject({
+        ok: true,
+        actual: { width: 2048, height: 1136 },
+      });
+    } finally {
+      rmSync(value.root, { recursive: true, force: true });
+    }
+  });
+
   it("rejects an illegal transport combo before plan or fetch", async () => {
     const value = await fixture();
     try {
