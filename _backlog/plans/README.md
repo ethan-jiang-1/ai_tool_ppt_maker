@@ -17,9 +17,9 @@
 
 ## 活跃列表
 
-- [image2-capability-tuple-and-lab.md](image2-capability-tuple-and-lab.md) — Image2 Call Shape + Lab 定稿；落地为 **一个** OpenSpec change `add-image2-call-shape-and-lab`。
+（当前无活跃 plan）
 
-**Next available plan ID: CLS-044**（移入 `_closed_plans/` 时分配；CLS-001…043 已用）
+**Next available plan ID: CLS-045**（移入 `_closed_plans/` 时分配；CLS-001…044 已用）
 
 ---
 
