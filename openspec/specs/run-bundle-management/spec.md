@@ -18,6 +18,14 @@ through the shared declared-current locator evaluator before its owner logic run
 not write a locator, state, receipt, generated artifact, migration record,
 fallback root, or alternate projection.
 
+Complete absence of deck-root `_lab/` SHALL NOT by itself make that identity
+unverified. The locator evaluator SHALL remain read-only and SHALL NOT create
+`_lab/`. When `_lab` exists as a file, symlink, or other non-ordinary
+directory, binding SHALL remain a hard-stop protecting an unverifiable deck
+root. Layout `--check` still reports complete `_lab/` absence as a repairable
+layout finding under `run-bundle-layout` / the Lab-heal owner; that finding is
+not an identity hard-stop.
+
 `bundle_layout --check --structure-only` SHALL remain a layout-only,
 non-authoritative observation. It MAY report an old or locatorless tree, but it
 SHALL not select a run, read state, inspect production readiness, authorize
@@ -37,6 +45,20 @@ work, or write.
   undeclared Bundle
 - **THEN** it may report only the Bundle's filesystem layout without mutation
 - **AND** it does not establish a current binding or continuation authority
+
+#### Scenario: Complete Lab absence is not identity unverified
+
+- **WHEN** a Deck card otherwise verifies the local PPT Maker Harness identity
+  and deck-root `_lab/` is completely absent
+- **THEN** Harness binding resolves
+- **AND** it does not treat that absence alone as an unverifiable deck root
+
+#### Scenario: Unsafe Lab path remains identity unverified
+
+- **WHEN** deck-root `_lab` exists as a file, a symlink, or another
+  non-ordinary directory
+- **THEN** Harness binding hard-stops as an unverifiable deck root
+- **AND** it does not classify that shape as complete absence
 
 ### Requirement: Init and validation seed only the current Page Image Workflow topology
 
@@ -465,14 +487,15 @@ event. If admission fails, every byte SHALL remain unchanged.
 When an existing Run Bundle is missing `_lab/`, the shared run-bundle layout
 owner SHALL mechanically create the same empty scaffold that `init` writes
 (README, nested `.gitignore`, `fixtures/`, `runs/`) as a guide-class heal.
-`ensureLabScaffold()` SHALL be invoked from `initBundleForDraft`'s existing
-deck-root directory seed (the mkdir + `_DIR_READMES` loop that already creates
-`_state/` and `_lessons/`) and from the Lab CLI before Lab writes a plan or
-trial. It SHALL NOT be owned by `ensureStateDirHints` or by generate, probe, or
-authorize. Generate, probe, and authorize SHALL NOT become Lab-scaffold writers.
-The heal SHALL NOT invent trials, copy `_scratch/`, write profile or State, or
-block generate. `--check` SHALL report missing `_lab/` as repairable layout
-rather than a forever-optional absence or a non-bypassable identity hard-stop.
+The heal SHALL be invoked from `initBundleForDraft`'s existing deck-root
+directory seed (the mkdir + `_DIR_READMES` loop that already creates `_state/`
+and `_lessons/`) and from the Lab CLI after a resolved Harness binding and
+before Lab writes a plan or trial. It SHALL NOT be owned by
+`ensureStateDirHints` or by generate, probe, or authorize. Generate, probe, and
+authorize SHALL NOT become Lab-scaffold writers. The heal SHALL NOT invent
+trials, copy `_scratch/`, write profile or State, or block generate. `--check`
+SHALL report missing `_lab/` as repairable layout rather than a
+forever-optional absence or a non-bypassable identity hard-stop.
 
 #### Scenario: Init seed or Lab CLI creates the empty scaffold
 
@@ -488,3 +511,11 @@ rather than a forever-optional absence or a non-bypassable identity hard-stop.
 - **THEN** it reports a repairable layout finding
 - **AND** it does not treat the bundle as permanently optional-without-lab or
   as a foreign protocol
+
+#### Scenario: Lab CLI heal is reachable after resolved binding
+
+- **WHEN** an otherwise valid existing bundle lacks `_lab/` and Lab is invoked
+  on an exact current run
+- **THEN** Harness binding resolves and Lab writes the empty scaffold before
+  any plan or trial write
+- **AND** generate, probe, and authorize still neither read nor create `_lab/`

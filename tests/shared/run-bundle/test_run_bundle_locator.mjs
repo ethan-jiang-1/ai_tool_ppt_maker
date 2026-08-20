@@ -6,12 +6,13 @@ import {
   readFileSync,
   realpathSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { parse as parseYaml } from "yaml";
-import { initBundle } from "../../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
+import { initBundle, LAB_DIR } from "../../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
 import {
   RUN_BUNDLE_FILE,
   RUN_BUNDLE_SCHEMA,
@@ -95,6 +96,42 @@ describe("run bundle local Harness binding", () => {
       });
       expect(readFileSync(join(deck, "_state", "state.yaml"))).toEqual(before);
       expect(canonicalDeck.startsWith(`${HARNESS_ROOT}/`)).toBe(false);
+    } finally {
+      cleanup(root);
+    }
+  });
+
+  it("keeps the binding valid when only the repairable Lab scaffold is missing", () => {
+    const { root, deck } = fixture("locator-missing-lab");
+    try {
+      rmSync(join(deck, LAB_DIR), { recursive: true, force: true });
+      expect(verifyDeckHarnessBinding(deck)).toEqual({
+        kind: "resolved",
+        deckDir: realpathSync.native(deck),
+        harnessDir: HARNESS_ROOT,
+      });
+    } finally {
+      cleanup(root);
+    }
+  });
+
+  it("rejects a present Lab path that is not an ordinary directory", () => {
+    const { root, deck } = fixture("locator-unsafe-lab");
+    try {
+      rmSync(join(deck, LAB_DIR), { recursive: true, force: true });
+      writeFileSync(join(deck, LAB_DIR), "not-a-directory\n");
+      expect(verifyDeckHarnessBinding(deck)).toMatchObject({
+        kind: "hard-stop",
+        code: "deck_root_unverified",
+      });
+      rmSync(join(deck, LAB_DIR), { force: true });
+      const outside = join(root, "outside-lab");
+      mkdirSync(outside);
+      symlinkSync(outside, join(deck, LAB_DIR));
+      expect(verifyDeckHarnessBinding(deck)).toMatchObject({
+        kind: "hard-stop",
+        code: "deck_root_unverified",
+      });
     } finally {
       cleanup(root);
     }

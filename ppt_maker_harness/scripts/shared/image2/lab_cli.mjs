@@ -103,7 +103,19 @@ function confinedDirectoryComponents(deckDir, targetPath) {
     } catch {
       continue;
     }
-    if (stat.isSymbolicLink()) throw new Error("Lab path components must be ordinary directories");
+    if (stat.isSymbolicLink() || !stat.isDirectory()) {
+      throw new Error("Lab path components must be ordinary directories");
+    }
+  }
+}
+
+function confineLabWorkspace(root, where) {
+  try {
+    confinedDirectoryComponents(root, path.join(root, LAB_DIR));
+    return true;
+  } catch (error) {
+    stop(where, error.message, "Repair _lab/ so every path component is an ordinary directory inside the deck.", { reason: "lab_path_unsafe" });
+    return false;
   }
 }
 
@@ -129,13 +141,9 @@ function admitRun(runDir, where) {
     });
     return null;
   }
+  if (!confineLabWorkspace(root, where)) return null;
   ensureLabScaffold(root);
-  try {
-    confinedDirectoryComponents(root, path.join(root, LAB_DIR));
-  } catch (error) {
-    stop(where, error.message, "Repair _lab/ so every path component is an ordinary directory inside the deck.", { reason: "lab_path_unsafe" });
-    return null;
-  }
+  if (!confineLabWorkspace(root, where)) return null;
   return { runDir: real, deckDir: root, version: versionKey(real) };
 }
 

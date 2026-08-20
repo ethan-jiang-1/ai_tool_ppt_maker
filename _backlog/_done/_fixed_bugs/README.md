@@ -94,8 +94,9 @@ bug 修完后从 `_backlog/bugs/` 通过 `git mv` 移入本目录：
 | [BUG-088](BUG-088-terminal-pilot-checkpoint-node-conflict.md) | 2026-08-20 | durable cursor 投影 owner checkpoint（可后退）；owner 已落盘 + 投影失败是 `partial-effect`（change: project-cursor-to-owner-checkpoint） |
 | [BUG-081](BUG-081-no-reset-path-for-unproduced-materialized-v1.md) | 2026-08-20 | 未生产 unique v1 可通过 `reset-unproduced-v1 --confirm-abandon` 回到 init draft（change: reset-unproduced-v1） |
 | [BUG-090](BUG-090-image2-provider-capability-differences-require-adaptive-routing.md) | 2026-08-20 | Page Image profile 绑定 transport 矢量；未声明组合零远端拒绝（change: bind-image2-transport-capability-vector） |
+| [BUG-093](BUG-093-image2-lab-self-heal-blocked-and-symlink-write-order.md) | 2026-08-20 | Lab 缺失 `_lab/` 可 self-heal；symlink workspace 写入前拒绝（change: repair-image2-lab-self-heal-admission） |
 
-**Next available bug ID: BUG-093**
+**Next available bug ID: BUG-094**
 
 ---
 

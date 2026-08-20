@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createHash } from "node:crypto";
 import { createCanvas } from "@napi-rs/canvas";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -530,8 +530,27 @@ describe("Page Image bundle layout", () => {
       initBundle(deck, null, "keynote", "dark-executive");
       rmSync(join(deck, LAB_DIR), { recursive: true, force: true });
       expect(checkDeckRootControls(deck)).toEqual([`missing repairable Image2 Lab workspace: ${LAB_DIR}/`]);
+      expect(checkDeckRootControls(deck, { allowRepairableLabAbsence: true })).toEqual([]);
       ensureLabScaffold(deck);
       expect(checkDeckRootControls(deck)).toEqual([]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("does not treat a Lab symlink as an ordinary directory", () => {
+    const root = mkdtempSync(join(tmpdir(), "lab-layout-symlink-"));
+    try {
+      const deck = join(root, "deck_current");
+      initBundle(deck, null, "keynote", "dark-executive");
+      const outside = join(root, "outside-lab");
+      mkdirSync(outside);
+      rmSync(join(deck, LAB_DIR), { recursive: true, force: true });
+      symlinkSync(outside, join(deck, LAB_DIR));
+      expect(checkDeckRootControls(deck)).toEqual([`missing repairable Image2 Lab workspace: ${LAB_DIR}/`]);
+      expect(checkDeckRootControls(deck, { allowRepairableLabAbsence: true })).toEqual([
+        `missing repairable Image2 Lab workspace: ${LAB_DIR}/`,
+      ]);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

@@ -3,11 +3,11 @@
 > 最后更新: 2026-08-20 | `_backlog/bugs/` — 活跃 bug 与 enhancement。
 > 已修复条目在 [`../_done/_fixed_bugs/`](../_done/_fixed_bugs/)。悬挂条目在 [`../_done/_suspended_bugs/`](../_done/_suspended_bugs/)。
 
-当前没有活跃 bug 或 enhancement。
+当前有 0 个活跃 bug。
 
 ---
 
-**Next available bug ID: BUG-093**
+**Next available bug ID: BUG-094**
 
 ## 2026-08-20 triage
 

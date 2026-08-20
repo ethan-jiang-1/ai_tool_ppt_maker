@@ -921,7 +921,7 @@ export function checkProgressivePageProductionHistoryLayout(runDir) {
  * @param {string} root
  * @returns {string[]}
  */
-export function checkDeckRootControls(root) {
+export function checkDeckRootControls(root, { allowRepairableLabAbsence = false } = {}) {
     const problems = [];
     if (!fs.existsSync(root) || !fs.statSync(root).isDirectory()) {
         return [`deck root not found: ${root}`];
@@ -959,7 +959,20 @@ export function checkDeckRootControls(root) {
             `(check spelling — it must be exactly '${BACKBONE_STYLE_SUBDIR}')`);
     }
     const labPath = path.join(root, LAB_DIR);
-    if (!fs.existsSync(labPath) || !fs.statSync(labPath).isDirectory()) {
+    let labPresent = false;
+    let labOrdinaryDir = false;
+    try {
+        const labStat = fs.lstatSync(labPath);
+        labPresent = true;
+        labOrdinaryDir = labStat.isDirectory() && !labStat.isSymbolicLink();
+    } catch {
+        labPresent = false;
+    }
+    if (!labPresent) {
+        if (!allowRepairableLabAbsence) {
+            problems.push(`missing repairable Image2 Lab workspace: ${LAB_DIR}/`);
+        }
+    } else if (!labOrdinaryDir) {
         problems.push(`missing repairable Image2 Lab workspace: ${LAB_DIR}/`);
     }
     return problems;

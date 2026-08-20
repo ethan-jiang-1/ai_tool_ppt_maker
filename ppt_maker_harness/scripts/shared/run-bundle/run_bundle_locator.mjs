@@ -179,7 +179,9 @@ export function verifyDeckHarnessBinding(deckRoot) {
   }
   if (!manifest) return hardStop("locator_contract_invalid");
   if (manifest.deck_root !== deckDir) return hardStop("deck_root_conflict");
-  if (checkDeckRootControls(deckDir).length > 0) return hardStop("deck_root_unverified");
+  if (checkDeckRootControls(deckDir, { allowRepairableLabAbsence: true }).length > 0) {
+    return hardStop("deck_root_unverified");
+  }
 
   const directHarness = verifiedHarness(manifest.harness_root);
   if (directHarness.status !== "verified" || directHarness.directory !== manifest.harness_root) {

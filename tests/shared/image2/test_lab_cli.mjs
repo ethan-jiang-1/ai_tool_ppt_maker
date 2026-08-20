@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -64,6 +64,66 @@ describe("Image2 Lab CLI", () => {
       expect(receipt).toMatchObject({ ok: true, submit_count: 1 });
       expect(receipt.plan_hash).toMatch(/^[0-9a-f]{64}$/);
       expect(`${result.stdout}${result.stderr}`).not.toContain("LAB_SECRET_SENTINEL");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("heals a missing Lab scaffold before writing a plan", () => {
+    const root = mkdtempSync(join(tmpdir(), "lab-cli-heal-"));
+    try {
+      const deck = join(root, "deck_lab");
+      initBundle(deck, null, "keynote", "dark-executive");
+      const runDir = join(deck, "3_versions", "v1");
+      const candidate = join(runDir, "_scratch", "candidate.yaml");
+      const prompt = join(runDir, "_scratch", "prompt.txt");
+      writeFileSync(candidate, candidateYaml());
+      writeFileSync(prompt, "lab connectivity square\n");
+      rmSync(join(deck, "_lab"), { recursive: true, force: true });
+
+      const result = runLab(["plan", "--run-dir", runDir, "--candidate", candidate, "--prompt-file", prompt], {
+        IMAGE2_API_KEY: "LAB_SECRET_SENTINEL",
+        IMAGE2_BASE_URL: "https://lab.example/v1",
+      });
+
+      expect(result.status, result.stderr).toBe(0);
+      expect(existsSync(join(deck, "_lab", "README.md"))).toBe(true);
+      expect(existsSync(join(deck, "_lab", ".gitignore"))).toBe(true);
+      expect(existsSync(join(deck, "_lab", "fixtures"))).toBe(true);
+      expect(existsSync(join(deck, "_lab", "runs", "v1", "plans"))).toBe(true);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects a symlink Lab workspace before scaffold writes", () => {
+    const root = mkdtempSync(join(tmpdir(), "lab-cli-workspace-symlink-"));
+    try {
+      const deck = join(root, "deck_lab");
+      initBundle(deck, null, "keynote", "dark-executive");
+      const runDir = join(deck, "3_versions", "v1");
+      const candidate = join(runDir, "_scratch", "candidate.yaml");
+      const prompt = join(runDir, "_scratch", "prompt.txt");
+      const outside = join(root, "outside-lab");
+      writeFileSync(candidate, candidateYaml());
+      writeFileSync(prompt, "lab connectivity square\n");
+      rmSync(join(deck, "_lab"), { recursive: true, force: true });
+      mkdirSync(outside);
+      writeFileSync(join(outside, "sentinel.txt"), "keep\n");
+      symlinkSync(outside, join(deck, "_lab"));
+      const before = readdirSync(outside).sort();
+
+      const result = runLab(["plan", "--run-dir", runDir, "--candidate", candidate, "--prompt-file", prompt], {
+        IMAGE2_API_KEY: "LAB_SECRET_SENTINEL",
+        IMAGE2_BASE_URL: "https://lab.example/v1",
+      });
+
+      expect(result.status).not.toBe(0);
+      expect(envelope(result)?.diagnostic?.reason?.kind).toMatch(/harness_binding_invalid|lab_path_unsafe/);
+      expect(readdirSync(outside).sort()).toEqual(before);
+      expect(existsSync(join(outside, "README.md"))).toBe(false);
+      expect(existsSync(join(outside, "fixtures"))).toBe(false);
+      expect(existsSync(join(outside, "runs"))).toBe(false);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
