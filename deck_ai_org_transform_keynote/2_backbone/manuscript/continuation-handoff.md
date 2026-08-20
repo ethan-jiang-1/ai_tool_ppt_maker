@@ -1,6 +1,6 @@
 # Continuation Handoff
 
-更新时间：2026-08-19
+更新时间：2026-08-20
 
 ## 当前项目
 
@@ -10,7 +10,7 @@
 - Pipeline：`page-image-workflow`
 - 当前内容阶段：唯一 v1 的 14 页正文第一轮已补齐（1 开启页 + 12 中间页 + 1 结束页）
 - 当前 Harness node：`recommend-target-pure-pilot`
-- Workflow：`pure`，production identity 为 `source_epoch: 2`
+- Workflow：`pure`，production identity 为 `source_epoch: 4`
 - Provider work：未开始；没有授权、raw image、final image、PPTX 或 delivery evidence
 - 当前目标：正文与本地 Style Master 已就绪；后续从 provider-free Pilot scope 选择进入页面生产
 
@@ -70,7 +70,7 @@ Central Claim：
 
 1. 保持当前唯一 v1、`pure` workflow 和 14 页顺序，不创建 v2。
 2. 三个案例继续分别保留为第 8、9、10 页，不在后续视觉生产中合并。
-3. 当前 raw plan hash 为 `6bf8d9cf1ea95df9562714fdf905473fcca575fa4b7d2f48a764d90cb5424fea`，14 页全部 `unsubmitted`。
+3. 当前 raw plan hash 为 `39f972bc87017cea74f743771430cf2e91df5c87251ddd394d3e62df6dc62279`，14 页全部 `unsubmitted`。
 4. 下一步由 progressive raw owner 选择代表性 Pilot scope；尚未授权任何 provider submit。
 
 ## 当前边界与恢复提示
@@ -97,7 +97,7 @@ Central Claim：
 
 - 14 页结构与三家企业案例已经定稿；第 1 页是 opening，第 14 页是独立 closing Q&A，中间 12 页保留主体论证。
 - 本版本的全局 Page Image workflow 已明确选择 `pure`。
-- 本地 Style Master `local-existing` 已接受；当前尚无 provider authorization、raw、final 或 PPTX。
+- 当前 Style Master successor `dfc9bc4d04916afa181e488522f7de294ba0dd17b02854ed06e94d0e95adc847` 的 `local-existing` 已接受；当前尚无 page-image provider authorization、raw、final 或 PPTX。
 
 边界提醒：`1_upstream_raw_material/` 只按外部材料来源组织，不按 Block 组织；Block 1–4
 是下游叙事概念。`dpt_*` 是外部 source of record，`2_backbone/` 是共享内容主干，

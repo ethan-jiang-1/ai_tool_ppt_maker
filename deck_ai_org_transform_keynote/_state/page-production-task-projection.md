@@ -4,23 +4,22 @@
 
 - run_version: `v1`
 - workflow: `pure`
-- controller_node: `generate-target-pure-pilot`
+- controller_node: `recommend-target-pure-pilot`
 
 ## Next Action
 
 - owner: `progressive-raw-owner`
-- action: `generate_progressive_raw_item`
+- action: `plan_progressive_pilot`
 - kind: `guide`
 - requires_human: `false`
 
 ## Owner References
 
-- raw_work_plan: `p-ec5e5a4a`
-- current_batch: `b-668f1bd0`
+- raw_work_plan: `p-39f972bc`
 
 ## Bounded Progress
 
-- total=14, materialized=0, unsubmitted=13, claimed=0, submitted=0, known_failure=1, unknown=0
+- total=14, materialized=0, unsubmitted=14, claimed=0, submitted=0, known_failure=0, unknown=0
 - paid_debt_slide_ids: `AiLeap`, `OrgGap`, `WorkArc`, `CodeRise`, `ModFit`, `RailCue`, `OrgLink`, `BlkOwn`, `ClouOS`, `JpBase`, `ExecAct`, `OrgMove`, `LoopGo`, `AskNow`
 
 ## Human Handoffs

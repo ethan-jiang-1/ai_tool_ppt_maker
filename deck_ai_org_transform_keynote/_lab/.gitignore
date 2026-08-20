@@ -1,0 +1,7 @@
+# Image2 Lab artifacts — keep the scaffold, ignore bulky trial outputs.
+**/output.png
+**/*.png
+**/prompt.txt
+**/prompt.md
+**/raw-body
+**/last-proven.json

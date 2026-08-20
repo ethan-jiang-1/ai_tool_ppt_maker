@@ -1,5 +1,10 @@
 # Image2 Vendor 实验与路由选择
 
+> 历史实验记录（2026-08-19）。本文记录当日的 deck-local scratch 观察，不单独代表
+> 当前 Harness 行为。当前 provider profile、transport 合同和生产状态以
+> `2_backbone/visual-style/image2-provider-profile.yaml`、Harness owner 输出和当前
+> `_state/` 为准。
+
 **实验日期:** 2026-08-19
 
 **遇到什么:**
@@ -51,7 +56,7 @@ points；把所有约束永久压缩到约 4,000 字符会损失复杂页面所�
    形态。
 4. **APIMART 保留为候选，不标记 proven。** 它接受长 prompt，但还需要把异步 task
    result 的 URL/媒体提取闭环跑通。
-5. **Packy 目前不是 Harness 标准生产的即插即用替换。** 当前 Harness 硬编码 JSON
+5. **在本次实验时，Packy 不是 Harness 标准生产的即插即用替换。** 当时 Harness 硬编码 JSON
    `POST /images/generations`、请求尺寸 `2000x1125`；Packy 在本环境成功的是 multipart
    `POST /images/edits` 与 `2048x1152`。在 Harness 增加 operation/transport capability
    前，只能把 Packy 成功视为 deck-local preview capability，不能伪造 raw receipt。
@@ -65,8 +70,9 @@ points；把所有约束永久压缩到约 4,000 字符会损失复杂页面所�
   14 页已知最大 compiled prompt 21,241 Unicode code points。
 - deck `.env` 仍然具有 startup precedence，但它与 repo 根 `.env` 内容一致，不再形成
   Vendor 覆盖或歧义。
-- 配置对齐不等于 Harness transport 已兼容：当前标准 generations 路径仍未打通，
-  Packy 已证明可用的是 edits 路径。不要把 preflight 的变量存在性检查当成出图证明。
+- 配置对齐不等于当日 Harness transport 已兼容：当时标准 generations 路径仍未打通，
+  Packy 已证明可用的是 edits 路径。这个结论只描述本次实验时点；不要把 preflight 的
+  变量存在性检查当成出图证明。
 - 所有 API key 只存在 `.env`，本 lesson 不记录、不回显。
 
 ## 可检查的预览
@@ -86,7 +92,8 @@ points；把所有约束永久压缩到约 4,000 字符会损失复杂页面所�
 ## 下次先看哪
 
 1. 先读本文件，不要从 Duckcoding 或 host 猜测重新开始。
-2. 只是要快速看视觉：用 Packy `/images/edits` + `2048x1152`，允许完整长 prompt。
+2. 只是要快速看视觉：在当前 Harness/profile 允许该 route 时，才用 Packy
+   `/images/edits` + `2048x1152`，允许完整长 prompt。
 3. 要进入 Harness 正式 raw lifecycle：先检查当前 owner 是否已经支持
    `images/edits`、multipart image input 和 16 倍数尺寸；未支持则保持 hard boundary，
    不把 `_scratch` 图复制进 `_generated/`。

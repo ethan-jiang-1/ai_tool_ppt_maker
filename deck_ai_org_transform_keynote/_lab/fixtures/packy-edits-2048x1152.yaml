@@ -1,0 +1,13 @@
+schema: pptmaker-image2-call-shape
+model: gpt-image-2
+prompt_budget:
+  limit: 21241
+  unit: unicode-code-points
+transport:
+  http_operation: edits
+  encoding: multipart
+  width: 2048
+  height: 1152
+  dimension_multiple: 16
+  completion: async-poll
+result_protocol: json-inline-b64
