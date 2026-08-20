@@ -17,7 +17,7 @@
 
 ## 活跃列表
 
-当前没有活跃 plan。
+- [image2-capability-tuple-and-lab.md](image2-capability-tuple-and-lab.md) — Image2 Call Shape + 独立 Lab + `_lab/` workspace；给评审 agent 的自包含设计包（文件名里的 tuple 已废，规范词是 Call Shape）
 
 **Next available plan ID: CLS-044**（移入 `_closed_plans/` 时分配；CLS-001…043 已用）
 
