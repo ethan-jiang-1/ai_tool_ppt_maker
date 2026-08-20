@@ -1,6 +1,15 @@
 # 上游材料索引
 
-本索引只说明三份外部材料各自讲了什么、有哪些值得吸收的概念，以及使用时的证据边界。它不指定任何下游页面归属。
+本索引只说明各份材料各自讲了什么、有哪些值得吸收的概念，以及使用时的证据边界。它不指定任何下游页面归属。
+
+## 讲者本人材料
+
+- 本地目录：`source-speaker-bio/`
+- 主要文件：`source-speaker-bio/speaker-profile.md`、`source-speaker-bio/jiang-yizhen-portrait.jpg`
+- 目录摘要：`speaker-bio-digest.md`
+- 主要内容：蒋镒珍（Ethan Jiang）第一人称履历；从交大、Adobe/HP、巨鲸科技到多家企业 AI 陪跑。
+- 值得吸收的概念：一线手感到组织交付的职业弧；陪跑三层（研发 / 管理 / 组织）；终点是团队长出能力；高门槛行业现场。
+- 证据边界：第一人称经历，不是研究样本；各家企业尚无单案例细节，页面不得编造成果；公司名用「华乘电力」；肖像源头是未加工原图 `jiang-yizhen-portrait.jpg`。
 
 ## 腾讯研究院：《从超级个体到超级团队》
 
@@ -25,11 +34,11 @@
 
 - 原始目录：`/Users/bowhead/ai_tool_ppt_maker/dpt_rb_enterprise-ai-transformation-six-cases/final`
 - 本地回溯链接：`source-enterprise-six-cases/`
-- 主要文件：`final_v3.md`；`topics/02_block-ai-transformation.md`；`topics/07_cross-case-business-transformation.md`；`topics/08_cross-case-organizational-transformation.md`；`topics/09_cross-case-individual-transformation.md`
+- 主要文件：`final_v4.md`；`topics/02_block-ai-transformation.md`；`topics/10_walmart-ai-transformation.md`；`topics/07_cross-case-business-transformation.md`；`topics/08_cross-case-organizational-transformation.md`；`topics/09_cross-case-individual-transformation.md`
 - 目录摘要：`enterprise-six-cases-digest.md`
-- 主要内容：Kavak、Block、Cloudflare、Jabil、JPMorgan Chase、Cargill 六个企业案例，以及业务、组织和个人三个分析透镜。
-- 值得吸收的概念：重构而非部署、采用跑在系统前面、不同的企业转型入口、Block 的问题所有权与 DRI、业务价值和组织治理的衡量问题。
-- 证据边界：案例适合解释不同路径，不适合做不可比排名；公司自报数字、CEO 叙事和最新战略步骤要标记证据强度。
+- 主要内容：原六家（Kavak、Block、Cloudflare、Jabil、JPMorgan Chase、Cargill）加上第 7 例 Walmart；业务、组织、个人与方法学透镜。
+- 值得吸收的概念：重构而非部署、采用跑在系统前面、不同的企业转型入口、Block 的问题所有权、Cloudflare 的角色重组、Walmart 的四大超级智能体与可治理约束。
+- 证据边界：案例适合解释不同路径，不适合做不可比排名；公司自报数字、CEO 叙事和最新战略步骤要标记证据强度。本场案例三用 Walmart，不用 JPMorgan。
 
 ## AI-Era BPM Process Disruption
 

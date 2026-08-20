@@ -15,7 +15,7 @@ recipes:
   org-transform:
     provider_clause: warm editorial sketch of organizational change, cream paper, sepia ink, restrained amber connectors, visible work interfaces, generous negative space, fine cross-hatching
     workflows: [pure]
-    composition_ids: [title-pause, centered-constellation, left-to-right-flow, timeline, three-column, chain, stack, confluence, evidence-shift, specialist-generalist, framed-workspace]
+    composition_ids: [title-pause, centered-constellation, left-to-right-flow, timeline, two-column, three-column, chain, stack, confluence, evidence-shift, specialist-generalist, framed-workspace]
     motif_ids: [fulcrum-lever, verification-rails, responsibility-owner, platform-stack]
     identity_subject_classes: [none, amber-light-form]
 compositions:
@@ -184,7 +184,7 @@ motifs:
     provider_clause: one calm human owner at the center of a bounded problem field, connected to a few shared capabilities, clear accountability without hierarchy tower
     workflows: [pure]
     recipe_ids: [org-transform]
-    composition_ids: [hub-spoke, centered-constellation, specialist-generalist]
+    composition_ids: [hub-spoke, centered-constellation, specialist-generalist, two-column]
   platform-stack:
     provider_clause: layered editorial infrastructure stack with a warm shared foundation, visible tools and governance rails, no server-room cliche
     workflows: [pure]
