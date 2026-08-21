@@ -14,142 +14,126 @@ production_identity:
     3_versions/v2:
       workflow: pure
       source_epoch: 11
+    3_versions/v3:
+      workflow: pure
+      source_epoch: 6
+    3_versions/v4:
+      workflow: pure
+      source_epoch: 5
 playbook: create-deck
-current_node: generate-target-pure-expansion
-execution_id: exec-425f34c4-e425-45a6-bffc-93183abe2be1
-execution_started_at: 2026-08-20T09:01:19.059Z
-run_version: v2
-continuation_target_version: v2
+current_node: review-target-pure-pilot
+execution_id: exec-2aba0077-8f98-4e85-8dd5-7fcb78fc313b
+execution_started_at: 2026-08-20T17:29:07.664Z
+run_version: v4
+continuation_target_version: v4
 started_at: 2026-08-19T04:53:32.372Z
-updated_at: 2026-08-20T12:06:10.346Z
+updated_at: 2026-08-21T00:48:10.402Z
 nodes:
-  inspect-target-pure-style-master:
-    status: completed
-    execution_id: exec-425f34c4-e425-45a6-bffc-93183abe2be1
-    run_version: v2
-    evidence: {}
-    started: 2026-08-20T09:01:19.060Z
-    completed: 2026-08-20T09:02:41.816Z
   checkpoint-intake:
     status: completed
-    execution_id: exec-425f34c4-e425-45a6-bffc-93183abe2be1
-    run_version: v2
+    execution_id: exec-2aba0077-8f98-4e85-8dd5-7fcb78fc313b
+    run_version: v4
     evidence: {}
-    completed: 2026-08-20T09:02:41.816Z
+    completed: 2026-08-20T17:29:31.041Z
   author-target-narrative-sources:
     status: completed
-    execution_id: exec-425f34c4-e425-45a6-bffc-93183abe2be1
-    run_version: v2
+    execution_id: exec-2aba0077-8f98-4e85-8dd5-7fcb78fc313b
+    run_version: v4
     evidence: {}
-    completed: 2026-08-20T09:02:41.816Z
+    completed: 2026-08-20T17:29:31.041Z
   select-target-page-image-workflow:
     status: completed
-    execution_id: exec-425f34c4-e425-45a6-bffc-93183abe2be1
-    run_version: v2
+    execution_id: exec-2aba0077-8f98-4e85-8dd5-7fcb78fc313b
+    run_version: v4
     evidence: {}
-    completed: 2026-08-20T09:02:41.816Z
+    completed: 2026-08-20T17:29:31.041Z
   configure-target-page-image-visual-system:
     status: completed
-    execution_id: exec-425f34c4-e425-45a6-bffc-93183abe2be1
-    run_version: v2
+    execution_id: exec-2aba0077-8f98-4e85-8dd5-7fcb78fc313b
+    run_version: v4
     evidence: {}
-    completed: 2026-08-20T09:02:41.816Z
+    completed: 2026-08-20T17:29:31.041Z
   author-target-page-image-content:
     status: completed
-    execution_id: exec-425f34c4-e425-45a6-bffc-93183abe2be1
-    run_version: v2
+    execution_id: exec-2aba0077-8f98-4e85-8dd5-7fcb78fc313b
+    run_version: v4
     evidence: {}
-    completed: 2026-08-20T09:02:41.816Z
+    completed: 2026-08-20T17:29:31.041Z
+  inspect-target-pure-style-master:
+    status: completed
+    execution_id: exec-2aba0077-8f98-4e85-8dd5-7fcb78fc313b
+    run_version: v4
+    evidence: {}
+    completed: 2026-08-20T17:29:31.041Z
   plan-target-pure-style-master:
     status: completed
-    execution_id: exec-425f34c4-e425-45a6-bffc-93183abe2be1
-    run_version: v2
+    execution_id: exec-2aba0077-8f98-4e85-8dd5-7fcb78fc313b
+    run_version: v4
     evidence: {}
-    completed: 2026-08-20T09:02:41.816Z
+    completed: 2026-08-20T17:29:31.041Z
   authorize-target-pure-style-master:
     status: completed
-    execution_id: exec-425f34c4-e425-45a6-bffc-93183abe2be1
-    run_version: v2
+    execution_id: exec-2aba0077-8f98-4e85-8dd5-7fcb78fc313b
+    run_version: v4
     evidence: {}
-    completed: 2026-08-20T09:02:41.816Z
+    completed: 2026-08-20T17:29:31.041Z
   generate-target-pure-style-master:
     status: completed
-    execution_id: exec-425f34c4-e425-45a6-bffc-93183abe2be1
-    run_version: v2
+    execution_id: exec-2aba0077-8f98-4e85-8dd5-7fcb78fc313b
+    run_version: v4
     evidence: {}
-    completed: 2026-08-20T09:02:41.816Z
+    completed: 2026-08-20T17:29:31.041Z
   abandon-target-pure-style-master:
     status: completed
-    execution_id: exec-425f34c4-e425-45a6-bffc-93183abe2be1
-    run_version: v2
+    execution_id: exec-2aba0077-8f98-4e85-8dd5-7fcb78fc313b
+    run_version: v4
     evidence: {}
-    completed: 2026-08-20T09:02:41.816Z
+    completed: 2026-08-20T17:29:31.041Z
   review-target-pure-style-master:
     status: completed
-    execution_id: exec-425f34c4-e425-45a6-bffc-93183abe2be1
-    run_version: v2
+    execution_id: exec-2aba0077-8f98-4e85-8dd5-7fcb78fc313b
+    run_version: v4
     evidence: {}
-    completed: 2026-08-20T09:02:41.816Z
+    completed: 2026-08-20T17:29:31.041Z
   promote-target-pure-style-master:
     status: completed
-    execution_id: exec-425f34c4-e425-45a6-bffc-93183abe2be1
-    run_version: v2
+    execution_id: exec-2aba0077-8f98-4e85-8dd5-7fcb78fc313b
+    run_version: v4
     evidence: {}
-    completed: 2026-08-20T09:02:41.816Z
+    completed: 2026-08-20T17:29:31.041Z
   plan-target-pure-progressive-raw:
     status: completed
-    execution_id: exec-425f34c4-e425-45a6-bffc-93183abe2be1
-    run_version: v2
+    execution_id: exec-2aba0077-8f98-4e85-8dd5-7fcb78fc313b
+    run_version: v4
     evidence: {}
-    completed: 2026-08-20T09:02:41.816Z
+    completed: 2026-08-20T17:29:31.041Z
   recommend-target-pure-pilot:
     status: completed
-    execution_id: exec-425f34c4-e425-45a6-bffc-93183abe2be1
-    run_version: v2
+    execution_id: exec-2aba0077-8f98-4e85-8dd5-7fcb78fc313b
+    run_version: v4
     evidence: {}
-    started: 2026-08-20T11:56:25.933Z
-    completed: 2026-08-20T11:56:31.844Z
+    started: 2026-08-21T00:43:45.166Z
+    completed: 2026-08-21T00:43:50.259Z
   authorize-target-pure-pilot:
     status: completed
-    execution_id: exec-425f34c4-e425-45a6-bffc-93183abe2be1
-    run_version: v2
+    execution_id: exec-2aba0077-8f98-4e85-8dd5-7fcb78fc313b
+    run_version: v4
     evidence: {}
-    started: 2026-08-20T11:56:31.844Z
-    completed: 2026-08-20T11:56:36.281Z
+    started: 2026-08-21T00:43:50.259Z
+    completed: 2026-08-21T00:43:57.838Z
   generate-target-pure-pilot:
     status: completed
-    execution_id: exec-425f34c4-e425-45a6-bffc-93183abe2be1
-    run_version: v2
+    execution_id: exec-2aba0077-8f98-4e85-8dd5-7fcb78fc313b
+    run_version: v4
     evidence: {}
-    started: 2026-08-20T11:56:36.281Z
-    completed: 2026-08-20T12:01:18.411Z
+    started: 2026-08-21T00:43:57.838Z
+    completed: 2026-08-21T00:48:10.402Z
   review-target-pure-pilot:
-    status: completed
-    execution_id: exec-425f34c4-e425-45a6-bffc-93183abe2be1
-    run_version: v2
-    evidence: {}
-    started: 2026-08-20T12:01:18.411Z
-    completed: 2026-08-20T12:05:54.206Z
-  plan-target-pure-expansion:
-    status: completed
-    execution_id: exec-425f34c4-e425-45a6-bffc-93183abe2be1
-    run_version: v2
-    evidence: {}
-    started: 2026-08-20T12:05:54.206Z
-    completed: 2026-08-20T12:06:00.279Z
-  authorize-target-pure-expansion:
-    status: completed
-    execution_id: exec-425f34c4-e425-45a6-bffc-93183abe2be1
-    run_version: v2
-    evidence: {}
-    started: 2026-08-20T12:06:00.279Z
-    completed: 2026-08-20T12:06:10.346Z
-  generate-target-pure-expansion:
     status: in_progress
-    execution_id: exec-425f34c4-e425-45a6-bffc-93183abe2be1
-    run_version: v2
+    execution_id: exec-2aba0077-8f98-4e85-8dd5-7fcb78fc313b
+    run_version: v4
     evidence: {}
-    started: 2026-08-20T12:06:10.346Z
+    started: 2026-08-21T00:48:10.402Z
 gates:
   content: pending
   visual: pending
@@ -175,6 +159,26 @@ page_image_target_evidence:
       run_version: v2
       source_epoch: 11
       source_receipt_sha256: 44ff8d2c111f7be4ef1125054d1c3d2ae5d96dce4cc72209f25d6b0f02a15fca
+      workflow: pure
+      provider_authorization_sha256: null
+      accepted_raw_evidence_sha256: null
+      final_manifest_sha256: null
+      delivery_receipt_sha256: null
+    3_versions/v3:
+      schema: page-image-workflow-target-state
+      run_version: v3
+      source_epoch: 6
+      source_receipt_sha256: 777382cef339d0955188391b9943159b7c664b593668602499edf725ead48280
+      workflow: pure
+      provider_authorization_sha256: null
+      accepted_raw_evidence_sha256: null
+      final_manifest_sha256: null
+      delivery_receipt_sha256: null
+    3_versions/v4:
+      schema: page-image-workflow-target-state
+      run_version: v4
+      source_epoch: 5
+      source_receipt_sha256: 22eb9d99acf1ecb096851456f45263118a931324488628a0171dc18803b11ec7
       workflow: pure
       provider_authorization_sha256: null
       accepted_raw_evidence_sha256: null
@@ -216,6 +220,40 @@ page_image_style_master:
       previous_selection_sha256: 3f1d61609f40488ba21e6cfcfa93be29c4a6f9bd19dce0079dc19cfb4de7aa47
       review_decision_sha256: 24d3de68d2803289f7a453028c7e34a5ede5393b5ebf4a143426eb105a02888e
       accepted_at: 2026-08-20T11:31:35.163Z
+    3_versions/v3:
+      schema: page-image-style-master-selection
+      run_version: v3
+      workflow: pure
+      plan_sha256: 1ad306da17b0d13530002ae1c8281f0e5ecc33195c51686075725400d6773700
+      candidate_id: local-existing
+      candidate_sha256: 08010017a0824e41b9e7174c6ca0df20e64c86288222c10ebc1da9e40f0a9661
+      candidate_media_type: image/png
+      candidate_width: 1536
+      candidate_height: 864
+      candidate_provenance_sha256: a9d04114bb78799fdd58c389e0382f79ef4b17c2ed2b6dbe490077bc58ec0748
+      style_intent_sha256: 9c8aa0a6715e20ece7c3b1ddb18641b04af26811b3e7234d0fc05ca0cd4c0505
+      style_context_sha256: 6073418fcc9f4d2b769b6977fe5cc27362fc210d94d0f20150b35d18fc04eaa3
+      candidate_generation_profile_sha256: 86c1fbfe3980575be8f418b1a8228c5aa7efef4cf4b14c8df70ccc9b1d9f54c4
+      previous_selection_sha256: 669a2506bd2bc3b728fcf350440d62d5e6c89ce4ec7dfa0a3ad8282647afdacb
+      review_decision_sha256: a84e64ced746b73d1c750f9e81e5dbdd15192497f3e2b06b1856b9923d8765d1
+      accepted_at: 2026-08-20T15:55:05.441Z
+    3_versions/v4:
+      schema: page-image-style-master-selection
+      run_version: v4
+      workflow: pure
+      plan_sha256: b39444434dc48e115fe1bf7161aebab7abaeaac7108a98c1749c74ca196b99f4
+      candidate_id: local-existing
+      candidate_sha256: 08010017a0824e41b9e7174c6ca0df20e64c86288222c10ebc1da9e40f0a9661
+      candidate_media_type: image/png
+      candidate_width: 1536
+      candidate_height: 864
+      candidate_provenance_sha256: a9d04114bb78799fdd58c389e0382f79ef4b17c2ed2b6dbe490077bc58ec0748
+      style_intent_sha256: 9c8aa0a6715e20ece7c3b1ddb18641b04af26811b3e7234d0fc05ca0cd4c0505
+      style_context_sha256: 7a49ce486861beb17d6b3c55dc5b963100922a5263857bb063ddd768ded89f8e
+      candidate_generation_profile_sha256: 86c1fbfe3980575be8f418b1a8228c5aa7efef4cf4b14c8df70ccc9b1d9f54c4
+      previous_selection_sha256: 2b3e8a5e8d2488729ac0f8efda4eedd2501200d5f743b95105691928c28f5a7b
+      review_decision_sha256: 7e5708a30a3b81024c00484479f4017e15d7405e161e223020ff7e32c54ea2ee
+      accepted_at: 2026-08-21T00:43:44.114Z
 page_image_task_mandate:
   by_version:
     3_versions/v1:
@@ -233,6 +271,22 @@ page_image_task_mandate:
       execution_id: exec-425f34c4-e425-45a6-bffc-93183abe2be1
       execution_started_at: 2026-08-20T09:01:19.059Z
       issued_at: 2026-08-20T09:02:41.474Z
+      scope: normal-page-image-production
+    3_versions/v3:
+      schema: page-image-task-mandate
+      run_version: v3
+      workflow: pure
+      execution_id: exec-44f21883-5a66-4b86-b15e-e6f18bd67269
+      execution_started_at: 2026-08-20T15:02:28.284Z
+      issued_at: 2026-08-20T15:03:00.648Z
+      scope: normal-page-image-production
+    3_versions/v4:
+      schema: page-image-task-mandate
+      run_version: v4
+      workflow: pure
+      execution_id: exec-2aba0077-8f98-4e85-8dd5-7fcb78fc313b
+      execution_started_at: 2026-08-20T17:29:07.664Z
+      issued_at: 2026-08-20T17:29:30.694Z
       scope: normal-page-image-production
 page_image_progressive_handoff:
   by_version:
@@ -256,6 +310,30 @@ page_image_progressive_handoff:
       workflow: pure
       raw_work_plan_sha256: 716464827f07d23f3ede1880e3875e2eb716d51e4df77a4ebbefc340688860e1
       partial_pilot_decision_sha256: 7b49162c9517da40efb64b8f5270dd73f30b3466126d0bb28fefb9b9680a948c
+      complete_raw_review_sha256: null
+      accepted_raw_evidence_sha256: null
+      final_manifest_sha256: null
+      delivery_receipt_sha256: null
+    3_versions/v3:
+      schema: page-image-workflow-handoff
+      run_version: v3
+      source_epoch: 6
+      source_receipt_sha256: 777382cef339d0955188391b9943159b7c664b593668602499edf725ead48280
+      workflow: pure
+      raw_work_plan_sha256: b4096d2e332d6c84e7ae1abcdcd2554622784a7bb1530f4e29b8e2fdd8ecd381
+      partial_pilot_decision_sha256: null
+      complete_raw_review_sha256: null
+      accepted_raw_evidence_sha256: null
+      final_manifest_sha256: null
+      delivery_receipt_sha256: null
+    3_versions/v4:
+      schema: page-image-workflow-handoff
+      run_version: v4
+      source_epoch: 5
+      source_receipt_sha256: 22eb9d99acf1ecb096851456f45263118a931324488628a0171dc18803b11ec7
+      workflow: pure
+      raw_work_plan_sha256: 891b641219bf5931caa69f754ffd9659abd60bf4401bfd328db4492b5be99a05
+      partial_pilot_decision_sha256: null
       complete_raw_review_sha256: null
       accepted_raw_evidence_sha256: null
       final_manifest_sha256: null
