@@ -32,7 +32,7 @@ items:
     literal: "Ethan Jiang"
 ```
 
-> **SPEAKER NOTE**: 先把全场主命题立住：变化已经发生，但只有被业务和组织接住，才会成为转型。标题页不展开论证。开场这句乘法是转型命题；第 14 页那把除法是回家找瓶颈的诊断尺，不要在这一页讲开。右下角签名是 Ethan Jiang，不要写成水印或页码。
+> **SPEAKER NOTE**: 先把全场主命题立住：变化已经发生，但只有被业务和组织接住，才会成为转型。标题页不展开论证。开场这句乘法是转型命题；最后一页那把除法是回家找瓶颈的诊断尺，不要在这一页讲开。右下角签名是 Ethan Jiang，不要写成水印或页码。
 
 ## Slide 02: `WhyMe`
 **KICKER**: 主讲人
@@ -251,7 +251,7 @@ items:
     literal: "从岗位所有权，转向问题所有权"
 ```
 
-> **SPEAKER NOTE**: 三种角色是这一页的主画面，DRI 只是其中一种。对照下一页 Cloudflare：Block 讲责任怎么分配，Cloudflare 讲谁能构建。信息透明、能力可调用、结果可验证是前提；不是通用裁员答案。这些口播即可，第 13 页再写限度。不要把裁员当主线。文案、三栏、服饰不动。只改脸：欧美和亚洲混合，不要清一色东亚同事。来源：Dorsey 与 Botha《From Hierarchy to Intelligence》。
+> **SPEAKER NOTE**: 三种角色是这一页的主画面，DRI 只是其中一种。对照下一页 Cloudflare：Block 讲责任怎么分配，Cloudflare 讲谁能构建。信息透明、能力可调用、结果可验证是前提；不是通用裁员答案。这些口播即可。不要把裁员当主线。文案、三栏、服饰不动。只改脸：欧美和亚洲混合，不要清一色东亚同事。来源：Dorsey 与 Botha《From Hierarchy to Intelligence》。
 
 ## Slide 09: `ClouOS`
 **KICKER**: 案例二 / Cloudflare
@@ -286,7 +286,7 @@ items:
     literal: "不是把所有人变成工程师，是改谁能构建"
 ```
 
-> **SPEAKER NOTE**: Cloudflare 不是减少角色，是重组谁创造、谁连接客户、谁测量。内部 Cloudflare OS 让非技术部门也能搭工作流。口播可点：这就是第 7 页说的工作环境被开放。限度留到第 13 页。文案、三栏、服饰不动。只改脸：欧美和亚洲混合，不要清一色东亚同事。来源：企业 AI 转型六案例研究。
+> **SPEAKER NOTE**: Cloudflare 不是减少角色，是重组谁创造、谁连接客户、谁测量。内部 Cloudflare OS 让非技术部门也能搭工作流。口播可点：这就是第 7 页说的工作环境被开放。限度口播即可。文案、三栏、服饰不动。只改脸：欧美和亚洲混合，不要清一色东亚同事。来源：企业 AI 转型六案例研究。
 
 ## Slide 10: `FourAg`
 **KICKER**: 案例三 / Walmart
@@ -354,42 +354,7 @@ items:
 
 > **SPEAKER NOTE**: 三栏对照前三页，不要加第四家，不要排名。口播可补：换一家公司，动作还会再变。来源：七案例特殊路径表中的三家已确认入口。
 
-## Slide 12: `NoCopy`
-**KICKER**: 限度
-**TITLE**: 例子只能启发，不能当模板
-**SUBTITLE**: 各家都有不能照搬的地方。没有定论，正是因为这些限度存在。
-**VISUAL BRIEF**:
-```yaml
-recipe: org-transform
-composition: three-column
-motifs: [platform-stack]
-negative_constraints:
-  - no-logo
-  - no-watermark
-```
-
-**SLIDE BODY**:
-```yaml
-items:
-  - role: label
-    literal: "Block"
-  - role: supporting_copy
-    literal: "不能把重组写成生产率；裁员与 AI 的因果仍有争议"
-  - role: label
-    literal: "Cloudflare"
-  - role: supporting_copy
-    literal: "平台叙事不能当成已经验证的采用"
-  - role: label
-    literal: "Walmart"
-  - role: supporting_copy
-    literal: "规模数字和治理口号都有边界"
-  - role: callout
-    literal: "把失败写进方法，不要把愿景写成结果"
-```
-
-> **SPEAKER NOTE**: 这一页把三家的风险写清楚，是为了保护「没有定论」。不要把限度讲成这三家失败了。口播可留：没有基线的增长数字，只是故事。来源：topic_v5 不能照搬栏与失败模式。
-
-## Slide 13: `ExecAct`
+## Slide 12: `ExecAct`
 **KICKER**: 诊断尺
 **TITLE**: 组织竞争力 = 人才密度 × AI 杠杆 / 组织摩擦
 **SUBTITLE**: 路可以不同，回家先看自己的瓶颈
@@ -414,27 +379,3 @@ items:
 ```
 
 > **SPEAKER NOTE**: 开场那句乘法是转型命题。这一页的除法是回家用的诊断尺：缺的是杠杆、摩擦太大，还是人才密度被耗掉。公式是主字，标题那句收小。不要再画一座分层建筑。三句口播即可：杠杆进完整问题，摩擦是审批等待转交，人才密度要被看见。不要讲成第三套理论，也不要说「同一组接口」。来源：腾讯研究院报告，作为研究启发而非通用定律。
-
-## Slide 14: `AskNow`
-**KICKER**: Q&A
-**TITLE**: 把组织问题带回自己的现场
-**SUBTITLE**: 带着一个真实问题进来。
-**PAGE CLASS**: closing
-**VISUAL BRIEF**:
-```yaml
-recipe: org-transform
-composition: title-pause
-motifs: []
-negative_constraints:
-  - no-logo
-  - no-watermark
-```
-
-**SLIDE BODY**:
-```yaml
-items:
-  - role: callout
-    literal: "你允许什么工作先被重画？"
-```
-
-> **SPEAKER NOTE**: 现在把问题交还给现场。回扣第 8 页和第 12 页：责任、谁能构建，还是方法学和边界。只打开对话，不新增结论。不要问「哪一个接口」。

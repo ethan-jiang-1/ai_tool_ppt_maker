@@ -2,24 +2,22 @@
 
 **这一版的看图入口只有一处:** [`pages/`](pages/)
 
-从 V3 删掉 `AskWork` 后，后面只改文件名和序号，不上图。只有原第 8 页 `RailCue`（现第 7 页）改了文案并重出。
+从本版删掉 `NoCopy` 和 `AskNow` 后，`ExecAct` 改成第 12 页收束。只改文件名和序号，不上图。
 
 | 页 | 文件 | 来源 |
 |---|---|---|
-| 01 | `pages/01_AiLeap.png` | V3 改名搬入 |
-| 02 | `pages/02_WhyMe.png` | V3 改名搬入 |
-| 03 | `pages/03_OrgGap.png` | V3 改名搬入 |
-| 04 | `pages/04_WorkArc.png` | V3 改名搬入 |
-| 05 | `pages/05_HowNow.png` | V3 改名搬入 |
-| 06 | `pages/06_MisUse.png` | V3 改名搬入 |
-| 07 | `pages/07_RailCue.png` | 本轮只重出这一页 |
-| 08 | `pages/08_BlkOwn.png` | V3 `09_BlkOwn` 改名搬入 |
-| 09 | `pages/09_ClouOS.png` | V3 `10_ClouOS` 改名搬入 |
-| 10 | `pages/10_FourAg.png` | V3 `11_FourAg` 改名搬入 |
-| 11 | `pages/11_PathMap.png` | V3 `12_PathMap` 改名搬入 |
-| 12 | `pages/12_NoCopy.png` | V3 `13_NoCopy` 改名搬入 |
-| 13 | `pages/13_ExecAct.png` | V3 `14_ExecAct` 改名搬入 |
-| 14 | `pages/14_AskNow.png` | V3 `15_AskNow` 改名搬入 |
+| 01 | `pages/01_AiLeap.png` | 本版原页 |
+| 02 | `pages/02_WhyMe.png` | 本版原页 |
+| 03 | `pages/03_OrgGap.png` | 本版原页 |
+| 04 | `pages/04_WorkArc.png` | 本版原页 |
+| 05 | `pages/05_HowNow.png` | 本版原页 |
+| 06 | `pages/06_MisUse.png` | 本版原页 |
+| 07 | `pages/07_RailCue.png` | 本版原页 |
+| 08 | `pages/08_BlkOwn.png` | 本版原页 |
+| 09 | `pages/09_ClouOS.png` | 本版原页 |
+| 10 | `pages/10_FourAg.png` | 本版原页 |
+| 11 | `pages/11_PathMap.png` | 本版原页 |
+| 12 | `pages/12_ExecAct.png` | 本版 `13_ExecAct` 改名 |
 
 预览 PPTX：`ai_org_transform_keynote.pptx`（从 `jpeg/` 组装，不是管线 delivery）。
 
