@@ -105,3 +105,5 @@ skills-lock.json
 # 只跟踪 *_keynote；其它 deck_* 子目录一律忽略
 deck_*/
 !deck_*_keynote/
+
+dpt_rb_*/

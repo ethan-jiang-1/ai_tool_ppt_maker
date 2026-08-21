@@ -6,7 +6,7 @@ status: draft
 created: 2026-07-11
 summary: Cloudflare（Matthew Prince）用 Builder / Seller / Measurer 三分法（溯源 Drucker 1954）重新定义组织里有哪几种人——只有建造者和销售者创造成果，量度者被 AI 重塑。这是 AI 提升 productivity 后 organization 被重画的精准样本——立意是"重新定义组织里有哪几种人"，框架可复用。裁员 20% 是背景，不是主角。
 sources:
-  - dpt_rb_ai_cases/final/04-cloudflare-measured-personnel-swap.md
+  - dpt_rb_researches/dpt_rb_ai_cases/final/04-cloudflare-measured-personnel-swap.md
 ---
 
 # Cloudflare：只有两种人创造价值，第三种被 AI 重塑（精准诊断）

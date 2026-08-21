@@ -6,7 +6,7 @@ status: draft
 created: 2026-07-11
 summary: Block（Jack Dorsey）废除传统管理层级，用 IC / DRI / Player-Coach 三种角色 + AI 做中间协调层重构组织。这是 AI 提升 productivity 后 organization 被重画的激进样本——立意是"重新定义组织里有哪几种人"，不是"裁法对错"。裁员 40% 是背景，不是主角。
 sources:
-  - dpt_rb_ai_cases/final/03-block-radical-ai-restructuring.md
+  - dpt_rb_researches/dpt_rb_ai_cases/final/03-block-radical-ai-restructuring.md
 ---
 
 # Block：废掉层级，只留三种人（激进重构）

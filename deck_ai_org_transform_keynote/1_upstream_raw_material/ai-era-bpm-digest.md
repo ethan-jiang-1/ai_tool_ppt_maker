@@ -2,7 +2,7 @@
 
 ## 原始来源
 
-- 目录：`/Users/bowhead/ai_tool_ppt_maker/dpt_rb_ai-era-bpm-process-disruption/final`
+- 目录：`/Users/bowhead/ai_tool_ppt_maker/dpt_rb_researches/dpt_rb_ai-era-bpm-process-disruption/final`
 - 入口：`00-README.md`、`01-executive-summary.md`
 - 机制：`02-paradigm-and-mechanism.md`
 - 工具与类比：`05-tools-and-tech-evolution.md`、`06-sdlc-analogy.md`

@@ -13,7 +13,7 @@
 
 ## 腾讯研究院：《从超级个体到超级团队》
 
-- 原始目录：`/Users/bowhead/ai_tool_ppt_maker/dpt_rb_tensen_report`
+- 原始目录：`/Users/bowhead/ai_tool_ppt_maker/dpt_rb_researches/dpt_rb_tensen_report`
 - 本地回溯链接：`source-tensen-report/`
 - 目录摘要：`tensen-report-digest.md`
 - 主要内容：超级个体的诞生、从个体到团队的聚合、超级团队形态与运作机制、组织竞争力公式、管理者的最小启动动作。
@@ -22,7 +22,7 @@
 
 ## Martin Fowler：AI-SDLC 两次 retreat 研究
 
-- 原始目录：`/Users/bowhead/ai_tool_ppt_maker/dpt_rb_martin-fowler-ai-sdlc-retreats/final`
+- 原始目录：`/Users/bowhead/ai_tool_ppt_maker/dpt_rb_researches/dpt_rb_martin-fowler-ai-sdlc-retreats/final`
 - 本地回溯链接：`source-martin-fowler-ai-sdlc/`
 - 主要文件：`report.md`
 - 目录摘要：`martin-fowler-ai-sdlc-digest.md`
@@ -32,7 +32,7 @@
 
 ## 企业 AI 转型六个案例
 
-- 原始目录：`/Users/bowhead/ai_tool_ppt_maker/dpt_rb_enterprise-ai-transformation-six-cases/final`
+- 原始目录：`/Users/bowhead/ai_tool_ppt_maker/dpt_rb_researches/dpt_rb_enterprise-ai-transformation-six-cases/final`
 - 本地回溯链接：`source-enterprise-six-cases/`
 - 主要文件：`final_v4.md`；`topics/02_block-ai-transformation.md`；`topics/10_walmart-ai-transformation.md`；`topics/07_cross-case-business-transformation.md`；`topics/08_cross-case-organizational-transformation.md`；`topics/09_cross-case-individual-transformation.md`
 - 目录摘要：`enterprise-six-cases-digest.md`
@@ -42,7 +42,7 @@
 
 ## AI-Era BPM Process Disruption
 
-- 原始目录：`/Users/bowhead/ai_tool_ppt_maker/dpt_rb_ai-era-bpm-process-disruption/final`
+- 原始目录：`/Users/bowhead/ai_tool_ppt_maker/dpt_rb_researches/dpt_rb_ai-era-bpm-process-disruption/final`
 - 本地回溯链接：`source-ai-era-bpm/`
 - 主要文件：`00-README.md`、`01-executive-summary.md`、`02-paradigm-and-mechanism.md`、`05-tools-and-tech-evolution.md`、`06-sdlc-analogy.md`、`07-governance-maturity-future.md`、`08-real-vs-narrative.md`、`09-open-questions-and-limitations.md`
 - 目录摘要：`ai-era-bpm-digest.md`

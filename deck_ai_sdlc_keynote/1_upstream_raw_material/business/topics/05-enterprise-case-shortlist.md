@@ -4,13 +4,13 @@ stage: phase_0
 topic: "05"
 status: shortlist-for-decision
 created: 2026-07-11
-summary: 为 deck 第 20/21 页（传统企业案例）精选故事的挖掘结论。目标=用 1-2 个"名字大、结果突出、证据扎实、非技术听众能懂"的传统企业故事，讲透 AI 对人和组织的冲击。已挖三层：dpt_rb_ai_cases（10家企业）、dpt_rb_ai-era-bpm-process-disruption（final + seed_topics + artifacts + 原始缓存）。结论：真正扛得住较真的只有少数几个。
+summary: 为 deck 第 20/21 页（传统企业案例）精选故事的挖掘结论。目标=用 1-2 个"名字大、结果突出、证据扎实、非技术听众能懂"的传统企业故事，讲透 AI 对人和组织的冲击。已挖三层：dpt_rb_researches/dpt_rb_ai_cases（10家企业）、dpt_rb_researches/dpt_rb_ai-era-bpm-process-disruption（final + seed_topics + artifacts + 原始缓存）。结论：真正扛得住较真的只有少数几个。
 sources:
-  - dpt_rb_ai_cases/final/*.md
-  - dpt_rb_ai-era-bpm-process-disruption/final/*.md
-  - dpt_rb_ai-era-bpm-process-disruption/seed_topics/*.md
-  - dpt_rb_ai-era-bpm-process-disruption/artifacts/wave{1,2}/*
-  - dpt_rb_ai-era-bpm-process-disruption/_cache/wave1/primary/02_*/
+  - dpt_rb_researches/dpt_rb_ai_cases/final/*.md
+  - dpt_rb_researches/dpt_rb_ai-era-bpm-process-disruption/final/*.md
+  - dpt_rb_researches/dpt_rb_ai-era-bpm-process-disruption/seed_topics/*.md
+  - dpt_rb_researches/dpt_rb_ai-era-bpm-process-disruption/artifacts/wave{1,2}/*
+  - dpt_rb_researches/dpt_rb_ai-era-bpm-process-disruption/_cache/wave1/primary/02_*/
 ---
 
 # 传统企业 AI/BPM 案例候选清单（20/21 页选题）

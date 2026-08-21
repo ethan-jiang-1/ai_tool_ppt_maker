@@ -2,9 +2,9 @@
 
 ## 原始来源
 
-- `/Users/bowhead/ai_tool_ppt_maker/dpt_rb_tensen_report/01-引言-从田野调研和实验出发.md`
-- `/Users/bowhead/ai_tool_ppt_maker/dpt_rb_tensen_report/02-第01章-超级个体的诞生.md`
-- `/Users/bowhead/ai_tool_ppt_maker/dpt_rb_tensen_report/03-第02章-从超级个体到超级团队.md`
+- `/Users/bowhead/ai_tool_ppt_maker/dpt_rb_researches/dpt_rb_tensen_report/01-引言-从田野调研和实验出发.md`
+- `/Users/bowhead/ai_tool_ppt_maker/dpt_rb_researches/dpt_rb_tensen_report/02-第01章-超级个体的诞生.md`
+- `/Users/bowhead/ai_tool_ppt_maker/dpt_rb_researches/dpt_rb_tensen_report/03-第02章-从超级个体到超级团队.md`
 
 ## 可复用要点
 
