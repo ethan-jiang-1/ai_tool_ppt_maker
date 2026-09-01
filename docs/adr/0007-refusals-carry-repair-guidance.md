@@ -1,6 +1,6 @@
 # Every Refusal Carries Repair Guidance In The Author's Terms
 
-Status: Accepted
+## Status: Accepted
 
 A schema defines what is valid. It does not, by itself, tell anyone what to do
 when their work is not. We are adopting the schema-first model described in

@@ -1,6 +1,6 @@
 # Intent Discovery Uses A Separate Route Catalog
 
-Status: Superseded
+## Status: Superseded
 
 > **Superseded**：Intent Route Catalog 已退役（`harness_coherence.mjs` 将其列为禁用陈旧指引）。
 > 现行 = MD Controllers + controller manifest + Diagnostic Recovery Handoff；下文为历史记录。

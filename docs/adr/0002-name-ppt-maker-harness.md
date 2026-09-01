@@ -1,6 +1,6 @@
 # Name The Reusable PPT Production System PPT Maker Harness
 
-Status: Accepted
+## Status: Accepted
 
 The reusable methodology, control surfaces, and production tools are named PPT Maker Harness, with `ppt_maker_harness/` as the canonical root. A Run Bundle remains a separately owned workspace for one Deck. The name describes a controlled Agent production environment rather than a generic framework; `PPTMAKER_FRAMEWORK/` is the former pathname.
 

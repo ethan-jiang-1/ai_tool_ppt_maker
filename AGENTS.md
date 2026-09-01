@@ -2,6 +2,20 @@
 
 > Agent 进入这个 repo 后第一份该读的文件.
 
+## Trigger
+
+如果用户提到: **ppt, deck, presentation, pitch deck, keynote, slides, slide deck, 演示文稿, 幻灯片** — 进入 PPT 制作模式.
+
+## 入口
+
+1. Read [AGENTS.md](AGENTS.md) — repo 级 agent 指引
+2. Read [ppt_maker_harness/BOOTSTRAP.md](ppt_maker_harness/BOOTSTRAP.md) — 三步启动
+3. Read [ppt_maker_harness/charter/AGENT_CONTRACT.md](ppt_maker_harness/charter/AGENT_CONTRACT.md) — Agent Contract
+4. 按当前 method module / MD Controller guidance 读 [ppt_maker_harness/AGENTS.md](ppt_maker_harness/AGENTS.md)
+
+Harness maintenance 的预期行为以 [openspec/specs/](openspec/specs/) 为准；
+[CONTEXT.md](CONTEXT.md) 仅提供 canonical terminology。
+
 ## 这是什么项目
 
 AI 驱动的 PPT 生成系统. Agent 是编排器——读方法论文档 → 做创意判断 → 跑生产管线 → 响应迭代.

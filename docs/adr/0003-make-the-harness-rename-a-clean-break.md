@@ -1,6 +1,6 @@
 # Make The Harness Rename A Clean Break
 
-Status: Accepted
+## Status: Accepted
 
 The repository is pre-release, so the replacement of `PPTMAKER_FRAMEWORK/` with `ppt_maker_harness/` makes a clean break. The renamed Harness emits only `pptmaker-run-bundle-v2`; it provides no old-root alias or symlink, v1 manifest reader, or automatic Run Bundle migration. Existing production data remains untouched, but it is not a supported input to the renamed Harness.
 

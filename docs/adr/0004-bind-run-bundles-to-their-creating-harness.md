@@ -1,6 +1,6 @@
 # Define Agent, Harness, And Run Bundle Boundaries
 
-Status: Accepted
+## Status: Accepted
 
 A human owns Deck content and consequential approvals; an external Agent owns process orchestration; and the PPT Maker Harness supplies reusable methods, controls, and tools without containing an Agent instance. The Harness Maintenance Domain evolves that source, its normative specifications, and tests, while Deck production data remains outside it.
 
