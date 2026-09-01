@@ -123,7 +123,7 @@ encoding, it SHALL flatten any PNG alpha against opaque white. It SHALL not
 expose a quality, subsampling, resize, background, or alternate-format
 override in the delivery command, state, or manifest. The conversion profile
 is mechanical delivery metadata, not a review decision or a replacement
-image-production profile.
+image-generation profile.
 
 This final delivery conversion is the Harness's only current JPEG production
 boundary: it SHALL run only after current final PNG media and its manifest

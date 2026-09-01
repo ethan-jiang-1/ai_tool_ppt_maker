@@ -501,14 +501,14 @@ Change 1: refactor-harness-core (P0)            │ 细粒度文件  │
 
 | 阶段 | 变更 | 状态 |
 |------|------|------|
-| `openspec propose refactor-harness-core` | 生成 proposal + design + specs + tasks | ⬜ |
-| `/polish-openspec-change refactor-harness-core` | 打磨到 apply-ready | ⬜ |
-| `openspec apply refactor-harness-core` | 实施代码拆分 | ⬜ |
-| `openspec archive refactor-harness-core` | 关闭 change | ⬜ |
+| `openspec propose refactor-harness-core` | 生成 proposal + design + specs + tasks | ✅ 2026-09-01 |
+| `/polish-openspec-change refactor-harness-core` | 打磨到 apply-ready | ✅（自检通过后 apply）|
+| `openspec apply refactor-harness-core` | 实施代码拆分 | ✅ |
+| `openspec archive refactor-harness-core` | 关闭 change | ✅ archive/2026-09-01-refactor-harness-core |
 | | | |
-| `openspec propose fix-spec-governance` | 生成 proposal + design + specs + tasks | ⬜ |
-| `/polish-openspec-change fix-spec-governance` | 打磨到 apply-ready | ⬜ |
-| `openspec apply fix-spec-governance` | 修复 spec 所有权 | ⬜ |
-| `openspec archive fix-spec-governance` | 关闭 change | ⬜ |
+| `openspec propose fix-spec-governance` | 生成 proposal + design + specs + tasks | ✅ 2026-09-01 |
+| `/polish-openspec-change fix-spec-governance` | 打磨到 apply-ready | ✅（自检通过后 apply）|
+| `openspec apply fix-spec-governance` | 修复 spec 所有权 | ✅ |
+| `openspec archive fix-spec-governance` | 关闭 change | ✅ archive/2026-09-01-fix-spec-governance |
 | | | |
-| **Plan 关闭** | 两个 Change 均已 archive，plan 移入 `_done/_closed_plans/` | ⬜ |
+| **Plan 关闭** | 两个 Change 均已 archive，plan 移入 `_done/_closed_plans/` | ✅ |

@@ -236,7 +236,7 @@ existing Visual Config identity-resolution use.
 ### Requirement: Framed composition evidence preserves one human review decision
 
 The existing Complete Page Review SHALL remain the only acceptance decision for
-Framed provider output; its one-decision contract is owned by `image-production`
+Framed provider output; its one-decision contract is owned by this capability
 (`Complete Page Review makes one complete-page decision`), and this requirement
 defines only the Framed-specific evidence contribution without restating that
 contract. It SHALL continue to bind the exact provider page and
