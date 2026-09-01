@@ -1,8 +1,4 @@
-## Purpose
-
-Define Image Production as the active Page Image Workflow capability family.
-
-## Requirements
+## ADDED Requirements
 
 ### Requirement: Production final files use NN_slideID naming
 
@@ -170,3 +166,11 @@ create another production family.
 - **WHEN** a maintainer reads active production guidance
 - **THEN** it identifies one whole-page Page Image Workflow capability family
 - **AND** it does not discover a current HTML or visual-slot production route
+
+## REMOVED Requirements
+
+### Requirement: Compact compiler cutover preserves old Page Image evidence
+
+**Reason:** the requirement describes a compact-compiler → page-image-workflow migration preservation contract. The compact compiler was retired in earlier migration changes; no current code implements or consumes the migration path, and the requirement has no observable behavior on the current pipeline.
+
+**Migration:** no current behavior depends on the removed requirement. Evidence-preservation contracts for current raw work remain governed by the remaining image-generation requirements.

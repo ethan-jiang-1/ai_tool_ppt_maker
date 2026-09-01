@@ -1723,59 +1723,6 @@ record the condition as a provider `known_failure`.
 - **AND** neither bound is relabeled as the other or inferred from a provider
   response
 
-### Requirement: Compact compiler cutover preserves old Page Image evidence
-
-Current adapter, authorization, and generation preflight SHALL always rebuild
-the complete expected provider-input and capability-profile facts from current
-owners. A stored plan whose formerly compiled prompt or generation-profile
-digest differs from that expected current plan SHALL be stale before a new
-batch, grant, attempt, provider initialization, or submission. The owner SHALL
-preserve its immutable history and return the existing fresh-plan / Generated
-Image Rebuild action without parsing, projecting, normalizing, or transporting
-the former prompt shape.
-
-The cutover SHALL add no old prompt-schema reader, dual writer, field patch,
-automatic migration, or compatibility authorization. The existing bounded
-historical progressive validator for an earlier declared binding omission MAY
-continue only its current reconciliation/head-lineage role; it SHALL receive no
-profile/prompt parser and cannot make a former plan current or eligible for
-provider work, reuse, review, finalization, or delivery.
-
-If an exact former plan has a persisted unresolved submitted attempt, its
-existing no-resubmit reconciliation action SHALL remain the earliest legal
-action. Otherwise a fresh compact/profile-bound plan MAY advance through the
-existing successor head CAS with the former plan retained as predecessor audit
-history. Missing profile source SHALL be reported first as the independent
-source prerequisite; after repair, the same checkpoint MAY then report the
-stale plan and rebuild action.
-
-#### Scenario: Former metadata-heavy prompt cannot submit
-
-- **WHEN** authorization or generation is requested from a retained plan whose
-  exact compiled bytes used the former metadata-heavy prompt shape
-- **THEN** current preflight rejects it as stale before a grant, attempt, or
-  provider request and returns the fresh compact-plan route
-- **AND** it does not derive a compact prompt from that plan, patch its digest,
-  or submit either former or replacement bytes under its authorization
-
-#### Scenario: Former profile plan remains immutable history
-
-- **WHEN** a retained plan binds the former fixed model/profile while current
-  source declares a confirmed capability profile
-- **THEN** the owner preserves the retained plan and compares only against the
-  freshly compiled current expected plan
-- **AND** it does not add a former-profile schema reader, mutate the record, or
-  adopt it as current capability evidence
-
-#### Scenario: Unresolved former attempt keeps reconciliation precedence
-
-- **WHEN** a former current progressive plan has an exact unresolved submitted
-  attempt during cutover
-- **THEN** the owner returns only its existing reconciliation action before
-  successor head advancement
-- **AND** compact compilation does not resubmit, abandon automatically, reuse
-  media, or erase the attempt's attributable cost lineage
-
 ### Requirement: Image2 planning reports source/config preconditions through the source owner
 
 When `image2 plan` (or its provider-free preflight) fails on a Page Source,
@@ -1832,3 +1779,170 @@ SHALL NOT load dotenv configuration.
 - **THEN** authorization hard-stops before grant publication or provider work
   with the existing environment repair action
 - **AND** no attempt, credential initialization, or provider request occurs
+
+### Requirement: Production final files use NN_slideID naming
+
+The final-slide manifest SHALL name each production file `NN_slideID.png`,
+where `NN` is the item's current `position` zero-padded to two digits and
+`slideID` is the stable mnemonic `slide_id`. The final manifest validator SHALL
+require this exact path shape. Shared delivery SHALL derive a same-order
+`NN_slideID.jpg` delivery representation from each valid final PNG before
+PPTX assembly; the final PNG remains the finalization artifact and SHALL NOT
+be replaced by that derivative. `slide_id` remains the cross-version identity
+inside both filenames; `NN` is only the current position projection and
+changes with reordering.
+
+#### Scenario: Final files carry position prefix
+
+- **WHEN** a final manifest is created for ordered slides with positions 1..N
+- **THEN** each item path is `NN_slideID.png` in position order
+- **AND** delivery derives a matching `NN_slideID.jpg` representation before
+  assembly without changing the final manifest item
+
+#### Scenario: Non-prefixed final path is rejected
+
+- **WHEN** a final manifest item path is not `NN_slideID.png` (for example
+  `${slide_id}.png` only)
+- **THEN** the final manifest validator reports an invalid item
+- **AND** delivery does not derive JPEG media or assemble a PPTX from it
+
+### Requirement: Current Page Image Workflow has one selected finalization publisher
+
+For an exact current schema-declared Page Image source/state/receipt tuple, the
+selected `framed` or `pure` adapter SHALL be the sole publisher of the declared
+`final-page-list` role. It SHALL retain the existing current-review and bound
+fact checks before publication. A missing, mismatched, or undeclared contract
+value SHALL fail through its owner and SHALL not select a historical finalization
+or compatibility publisher.
+
+#### Scenario: A current finalization is published
+
+- **WHEN** the selected adapter has current reviewed and bound facts
+- **THEN** it publishes only the declared final-page-list contract
+- **AND** no alternate or historical manifest format is emitted or accepted
+
+#### Scenario: Pure preserves current provider page bytes
+
+- **WHEN** a current Pure page is finalized after review
+- **THEN** its current final-page-list retains the reviewed provider bytes under the declared role
+- **AND** it does not translate an alternate artifact format
+
+#### Scenario: Framed finalization repeats its reviewed overlay
+
+- **WHEN** a current Framed page is finalized after review
+- **THEN** finalization retains the established reviewed overlay behavior
+- **AND** it publishes only the declared current final-page-list
+
+### Requirement: Complete Page Review makes one complete-page decision
+
+The selected workflow owner SHALL present one `proceed` or `repair` decision
+for each complete page after deterministic preflight and required raw evidence
+are available. For Framed, the decision surface SHALL present the exact
+provider raw page beside a production-equivalent local-header composite. For
+Pure, it SHALL present the exact provider page as the complete page. This
+decision SHALL check source-required literal/data fidelity, readable
+composition, and the policy-specific presentation facts; it SHALL not add a
+second composite approval state.
+
+A `repair` decision SHALL retain the existing owner-issued repair/rebuild
+route. A `proceed` decision records normal page acceptance, not a waiver, and
+does not replace the later final delivery review of final PNG, PPTX, notes, and
+deck-level presentation quality.
+
+#### Scenario: Framed review is not split into raw and composite approvals
+
+- **WHEN** a reviewer receives complete Framed page evidence
+- **THEN** the owner presents raw and composite together with one decision
+- **AND** it does not require a second local-composite approval after proceed
+
+#### Scenario: Pure review has no Framed control surface
+
+- **WHEN** a reviewer receives complete Pure page evidence
+- **THEN** the owner presents the provider page and its current bindings
+- **AND** it does not expose Framed Reserved Header Region, header-renderer,
+  or composite controls
+
+### Requirement: Pilot remains a preview-only sample and cost control
+
+Pilot SHALL remain a selected-workflow sample/cost stage and SHALL reuse the
+same current review representation that Complete Page Review would use for its
+sampled pages: Framed raw plus production-equivalent composite, or Pure
+provider page. Pilot SHALL not publish current accepted raw evidence, a final
+manifest, PPTX, notes receipt, delivery decision, or a duplicate complete-page
+approval state.
+
+#### Scenario: Framed Pilot uses its current page representation
+
+- **WHEN** a current Framed Pilot sample is prepared
+- **THEN** it publishes preview-only raw and production-equivalent composite
+  evidence bound to the same policy inputs
+- **AND** it does not create final or accepted evidence
+
+### Requirement: Undeclared finalization input cannot publish current evidence
+
+An adapter, compositor, Pilot publisher, or shared finalization reader SHALL
+reject a present foreign, unreadable, incomplete, or cross-lineage
+source/state/receipt/raw/review record when that record cannot establish exact
+current production identity. Before artifact publication the direct owner SHALL
+emit the typed `current_protocol_invalid` cause; the existing diagnostic
+producer SHALL project the owner-issued `production-protocol`
+`current-protocol-invalid` hard-stop with the
+`repair-current-protocol-identity` repair action. A finalization consumer SHALL
+not define a second action schema or use an undeclared compositor, evidence
+translator, export, fallback, migration, or compatibility reader as a route.
+
+#### Scenario: Invalid receipt cannot publish a current final manifest
+
+- **WHEN** a foreign or cross-lineage receipt cannot establish exact current
+  production identity during finalization
+- **THEN** finalization returns the owner-issued hard-stop before reading
+  provider media or local-renderer inputs
+- **AND** it does not write a final PNG, manifest, PPTX, notes, or delivery
+  evidence
+
+### Requirement: Delivery projections preserve final PNG authority across supported layouts
+
+Shared delivery SHALL render its rebuildable final-media contact projection
+from CRC-valid final PNG media with an exact decoded pixel count and supported
+8-bit or 16-bit grayscale, grayscale-alpha, RGB, or RGBA layout. It SHALL use
+only derived normalized pixels for that projection while retaining final PNG
+bytes, actual dimensions, manifest entries, hashes, JPEG delivery-media
+bindings, PPTX input lineage, and receipt authority unchanged.
+
+An inconsistent or unsupported decoded layout SHALL stop the owning delivery
+projection before delivery writes final PNG files, delivery media, or its
+receipt. It SHALL not overwrite or transcode the final PNG, alter the final
+manifest, invent a delivery-media entry, or bypass existing final-media
+validation.
+
+#### Scenario: Delivery contact projection renders a 16-bit RGB Pure final PNG
+
+- **WHEN** a current Pure final manifest references CRC-valid 16-bit RGB PNG
+  bytes with matching final hash and actual dimensions
+- **THEN** shared delivery renders its derived contact projection from
+  normalized pixels
+- **AND** the final manifest and Pure final PNG remain byte-identical to the
+  accepted provider page
+
+#### Scenario: Invalid decoded final layout cannot publish a receipt
+
+- **WHEN** the delivery projection encounters a decoded final PNG layout whose
+  sample count is inconsistent with its dimensions
+- **THEN** delivery stops before writing final PNG files, delivery media, or
+  the final delivery receipt
+- **AND** it does not modify the persisted final manifest or final PNG bytes
+
+### Requirement: Active Image Production terminology remains whole-page Page Image only
+
+Active production guidance SHALL use Image Production only for the current
+whole-page Page Image Workflow capability family. It SHALL not present HTML
+Production as a live parallel production family or describe a reviewed
+visual-slot asset branch as current Image Production. The current Framed local
+header overlay remains part of the whole-page Page Image Workflow and does not
+create another production family.
+
+#### Scenario: A maintainer reads active production terminology
+
+- **WHEN** a maintainer reads active production guidance
+- **THEN** it identifies one whole-page Page Image Workflow capability family
+- **AND** it does not discover a current HTML or visual-slot production route

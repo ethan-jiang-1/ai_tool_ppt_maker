@@ -1,7 +1,4 @@
-## Purpose
-
-Define the requirement that BOOTSTRAP.md Step 1 SHALL be a self-contained environment remediation guide for the Agent. It covers base local Framed-runtime readiness through `scripts/00-setup/env-check.mjs`, operation-scoped Page Image Workflow raw-generation readiness, and labeled user-profile-aware remediation for every emitted check.
-## Requirements
+## ADDED Requirements
 
 ### Requirement: Bootstrap guidance names the canonical Harness entry
 

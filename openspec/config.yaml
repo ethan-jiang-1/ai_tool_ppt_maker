@@ -96,12 +96,6 @@ context: |-
 
   <!-- harness-capability-registry:start -->
   capabilities:
-    - id: bootstrap-env-guidance
-      spec: openspec/specs/bootstrap-env-guidance/spec.md
-      scope: Bootstrap startup and environment remediation guidance
-      owner_paths:
-        - ppt_maker_harness/BOOTSTRAP.md
-        - ppt_maker_harness/scripts/00-setup/env-check.mjs
     - id: cli-surface
       spec: openspec/specs/cli-surface/spec.md
       scope: registered direct CLI output and diagnostic boundary
@@ -118,6 +112,12 @@ context: |-
       scope: current Page Image source parsing and receipt inputs
       owner_paths:
         - ppt_maker_harness/scripts/01-content/index.mjs
+    - id: delivery
+      spec: openspec/specs/delivery/spec.md
+      scope: final projection, PPTX assembly, notes injection, and delivery review
+      owner_paths:
+        - ppt_maker_harness/scripts/05-delivery/index.mjs
+        - ppt_maker_harness/scripts/05-delivery/internal/
     - id: diagnostic-facts
       spec: openspec/specs/diagnostic-facts/spec.md
       scope: internal source/config problem-fact contract shared by producers, aggregators, and operation owners
@@ -155,11 +155,9 @@ context: |-
       owner_paths:
         - ppt_maker_harness/scripts/03-framed-image/index.mjs
         - ppt_maker_harness/scripts/04-pure-image/index.mjs
-    - id: image-production
-      spec: openspec/specs/image-production/spec.md
-      scope: active whole-page Page Image production family
-      owner_paths:
-        - ppt_maker_harness/AGENTS.md
+        - ppt_maker_harness/scripts/shared/image2/page_image_progressive_raw_owner.mjs
+        - ppt_maker_harness/scripts/shared/image2/page_image_target_runtime.mjs
+        - ppt_maker_harness/scripts/shared/image2/page_image_artifacts.mjs
     - id: image2-lab
       spec: openspec/specs/image2-lab/spec.md
       scope: Image2 Lab discovery CLI, _lab workspace, and unconfirmed Call Shape trials
@@ -182,11 +180,7 @@ context: |-
       owner_paths:
         - ppt_maker_harness/charter/NODE-SPEC.md
         - ppt_maker_harness/scripts/shared/state/state.mjs
-    - id: notes-injection
-      spec: openspec/specs/notes-injection/spec.md
-      scope: receipt-bound speaker-note delivery
-      owner_paths:
-        - ppt_maker_harness/scripts/05-delivery/index.mjs
+        - ppt_maker_harness/scripts/shared/state/state_execution.mjs
     - id: pipeline-orchestration
       spec: openspec/specs/pipeline-orchestration/spec.md
       scope: public Page Image operation routing
@@ -198,11 +192,6 @@ context: |-
       owner_paths:
         - ppt_maker_harness/playbook/create-deck.md
         - ppt_maker_harness/scripts/shared/state/md_controller_reader.mjs
-    - id: pptx-assembly
-      spec: openspec/specs/pptx-assembly/spec.md
-      scope: final-manifest PPTX assembly
-      owner_paths:
-        - ppt_maker_harness/scripts/05-delivery/index.mjs
     - id: production-schema-conformance
       spec: openspec/specs/production-schema-conformance/spec.md
       scope: current production serialization contract
@@ -227,12 +216,16 @@ context: |-
       spec: openspec/specs/style-master-generation/spec.md
       scope: visual-style primitives and raw profiles
       owner_paths:
-        - ppt_maker_harness/scripts/02-visual-system/index.mjs
+        - ppt_maker_harness/scripts/shared/image2/style_master_plan.mjs
+        - ppt_maker_harness/scripts/shared/image2/style_master_schema.mjs
+        - ppt_maker_harness/scripts/shared/image2/style_master_store.mjs
+        - ppt_maker_harness/scripts/shared/image2/style_master_scope.mjs
     - id: visual-asset-management
       spec: openspec/specs/visual-asset-management/spec.md
       scope: reference registry paths and fingerprints
       owner_paths:
-        - ppt_maker_harness/scripts/02-visual-system/index.mjs
+        - ppt_maker_harness/scripts/02-visual-system/internal/page_image_reference_material.mjs
+        - ppt_maker_harness/scripts/02-visual-system/internal/page_image_visual_language.mjs
     - id: visual-config
       spec: openspec/specs/visual-config/spec.md
       scope: visual-language and Framed header policy inputs
