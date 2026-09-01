@@ -1,20 +1,9 @@
 import { CLI_ERROR_CODES, CLI_DIAGNOSTIC_SCHEMA, createCliNext, emitCliError } from "../cli_error.mjs";
 import { commandResult } from "../command_result.mjs";
-import {
-  PAGE_IMAGE_OPERATIONS,
-  advanceProgressiveControllerCheckpoint,
-  emitUsage,
-  progressiveUnsupportedOption,
-  refreshProgressiveControllerTaskProjection,
-  requiredPageImageHash,
-  requiredPilotSlideIds,
-  requiredProgressiveDecision,
-  resolveRunAdapter,
-  targetImage2Operations,
-  targetPageImageFailure,
-  targetPageImageGenerateCredentials,
-  targetPageImageSubmitFactory,
-} from "../command_support.mjs";
+import { advanceProgressiveControllerCheckpoint, refreshProgressiveControllerTaskProjection, targetImage2Operations } from "../cli_artifact_view.mjs";
+import { emitUsage, progressiveUnsupportedOption, requiredPageImageHash, requiredPilotSlideIds, requiredProgressiveDecision, targetPageImageFailure } from "../cli_diagnostics.mjs";
+import { targetPageImageGenerateCredentials, targetPageImageSubmitFactory } from "../cli_image2_response.mjs";
+import { PAGE_IMAGE_OPERATIONS, resolveRunAdapter } from "../command_support.mjs";
 
 /** Execute the fixed progressive raw lifecycle through the marker-selected owner. */
 async function commandTargetPageImageImage2(operation, route, opts = {}) {

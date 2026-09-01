@@ -1,19 +1,9 @@
 import { emitCliError, registerCliJsonReport } from "../cli_error.mjs";
 import { commandReport } from "../command_result.mjs";
-import {
-  STYLE_MASTER_OPERATIONS,
-  STYLE_MASTER_PLAN_HASH_RE,
-  emitUsage,
-  hasExplicitCliOption,
-  initializeStyleMasterImage2Transport,
-  requestedStyleMasterCandidateCount,
-  requiredStyleMasterPlanHash,
-  resolveRunAdapter,
-  styleMasterFailure,
-  styleMasterSubmitFactory,
-  styleMasterUnexpectedOption,
-  targetImage2Operations,
-} from "../command_support.mjs";
+import { targetImage2Operations } from "../cli_artifact_view.mjs";
+import { emitUsage } from "../cli_diagnostics.mjs";
+import { STYLE_MASTER_OPERATIONS, STYLE_MASTER_PLAN_HASH_RE, initializeStyleMasterImage2Transport, requestedStyleMasterCandidateCount, requiredStyleMasterPlanHash, styleMasterFailure, styleMasterSubmitFactory, styleMasterUnexpectedOption } from "../cli_style_master.mjs";
+import { hasExplicitCliOption, resolveRunAdapter } from "../command_support.mjs";
 export async function commandStyleMaster(operation, runDir, opts = {}) {
   if (!STYLE_MASTER_OPERATIONS.has(operation)) {
     return emitUsage("ppt_flow.style-master.operation", `Style Master operation ${JSON.stringify(operation)} is not supported`, "Use inspect, plan, authorize, generate, review, accept, or abandon.");

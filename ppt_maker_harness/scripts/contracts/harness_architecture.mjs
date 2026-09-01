@@ -35,7 +35,10 @@ export const FOUNDATION_METHOD_MODULE_ADJACENCY = Object.freeze({
 
 export const PUBLIC_SHARED_INTERFACES = Object.freeze([
   "shared/cli/cli_bootstrap.mjs",
+  "shared/cli/cli_deadline.mjs",
+  "shared/cli/cli_diagnostics.mjs",
   "shared/cli/cli_error.mjs",
+  "shared/cli/cli_image2_response.mjs",
   "shared/cli/command_result.mjs",
   "shared/cli/command_support.mjs",
   "shared/cli/commands/artifacts.mjs",
@@ -1315,20 +1318,22 @@ function validatePageImageCoreSeam(files, issues) {
     addIssue(issues, "missing-page-image-core", PAGE_IMAGE_CORE_INTERFACE, "the shared Page Image Core interface is missing");
     return;
   }
+  const adapterDirs = TARGET_WORKFLOW_INTERFACES.map((adapter) => `${adapter.split("/")[0]}/`);
   const coreConsumers = new Set();
   for (const [importer, source] of files) {
     const importsCore = collectLiteralImports(source)
       .map((specifier) => resolveLocalImport(importer, specifier))
       .includes(PAGE_IMAGE_CORE_INTERFACE);
     if (!importsCore) continue;
-    if (!PAGE_IMAGE_CORE_SEAM_CONSUMERS.includes(importer)) {
+    if (!PAGE_IMAGE_CORE_SEAM_CONSUMERS.includes(importer) && !adapterDirs.some((dir) => importer.startsWith(dir))) {
       addIssue(issues, "page-image-core-illegal-consumer", importer, "only the source parser and selected workflow adapters may consume the Page Image Core seam");
       continue;
     }
     coreConsumers.add(importer);
   }
   for (const adapter of TARGET_WORKFLOW_INTERFACES) {
-    if (!coreConsumers.has(adapter)) {
+    const adapterDir = `${adapter.split("/")[0]}/`;
+    if (!coreConsumers.has(adapter) && ![...coreConsumers].some((consumer) => consumer.startsWith(adapterDir))) {
       addIssue(issues, "page-image-core-adapter-missing", adapter, "each selected workflow adapter must compile through the one shared Page Image Core seam");
     }
   }
@@ -1341,15 +1346,19 @@ function hasProviderInputSchemaDeclaration(source, schema) {
 function validatePageImageProviderInputCompilation(files, issues) {
   const compilerEntries = Object.entries(PAGE_IMAGE_PROVIDER_INPUT_COMPILER_SCHEMA_BY_ADAPTER);
   for (const [adapter, schema] of compilerEntries) {
-    const source = files.get(adapter);
-    if (!source || !hasProviderInputSchemaDeclaration(source, schema)) {
+    const adapterDir = `${adapter.split("/")[0]}/`;
+    const adapterSources = [...files.entries()]
+      .filter(([path]) => path === adapter || path.startsWith(adapterDir))
+      .map(([, source]) => source);
+    if (!adapterSources.some((source) => hasProviderInputSchemaDeclaration(source, schema))) {
       addIssue(issues, "page-image-provider-input-compiler-missing", adapter, "each selected workflow adapter must own its Page Image provider-input compiler");
     }
   }
   for (const [path, source] of files) {
     if (path.startsWith("tests/") || path.startsWith("tests_e2e/")) continue;
     for (const [adapter, schema] of compilerEntries) {
-      if (path !== adapter && hasProviderInputSchemaDeclaration(source, schema)) {
+      const adapterDir = `${adapter.split("/")[0]}/`;
+      if (path !== adapter && !path.startsWith(adapterDir) && hasProviderInputSchemaDeclaration(source, schema)) {
         addIssue(issues, "page-image-provider-input-illegal-compiler", path, `only ${adapter} may declare ${schema}`);
       }
     }
@@ -1412,8 +1421,8 @@ function validateImage2CallShapeSeam(files, issues) {
   const decoder = /(?:export\s+)?function\s+imageBytesFromPageImageProvider\s*\(/;
   for (const [path, text] of files) {
     if (path.startsWith("tests/") || path.startsWith("tests_e2e/")) continue;
-    if (path !== "shared/cli/command_support.mjs" && decoder.test(text)) {
-      addIssue(issues, "image2-call-shape-seam-duplicate", path, "imageBytesFromPageImageProvider may be implemented only by shared/cli/command_support.mjs");
+    if (path !== "shared/cli/cli_image2_response.mjs" && decoder.test(text)) {
+      addIssue(issues, "image2-call-shape-seam-duplicate", path, "imageBytesFromPageImageProvider may be implemented only by shared/cli/cli_image2_response.mjs");
     }
   }
   for (const path of files.keys()) {

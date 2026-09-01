@@ -1,6 +1,8 @@
 import { join } from "node:path";
 import { CLI_ERROR_CODES, CLI_DIAGNOSTIC_SCHEMA, createCliNext, emitCliError, projectProblemFactsDiagnostic } from "../cli_error.mjs";
-import { PPT_FLOW_ENTRY, emitFailed, resolveRunAdapter, targetImage2Operations } from "../command_support.mjs";
+import { targetImage2Operations } from "../cli_artifact_view.mjs";
+import { emitFailed } from "../cli_diagnostics.mjs";
+import { PPT_FLOW_ENTRY, resolveRunAdapter } from "../command_support.mjs";
 import { commandResult } from "../command_result.mjs";
 import { SLIDE_SPECS_NAME } from "../../run-bundle/bundle_layout.mjs";
 

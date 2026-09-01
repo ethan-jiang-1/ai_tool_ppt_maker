@@ -1,5 +1,6 @@
 import { basename, join, resolve } from "node:path";
-import { emitFailed, emitUsage, HARNESS_DIR } from "../command_support.mjs";
+import { emitFailed, emitUsage } from "../cli_diagnostics.mjs";
+import { HARNESS_DIR } from "../command_support.mjs";
 import { commandResult } from "../command_result.mjs";
 import { DECK_TYPE_TEMPLATES, STYLE_PRESETS, VERSIONS_DIR, initBundle } from "../../run-bundle/bundle_layout.mjs";
 

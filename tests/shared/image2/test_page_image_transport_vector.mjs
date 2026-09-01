@@ -5,7 +5,7 @@ import { createCanvas } from "@napi-rs/canvas";
 import { describe, expect, it } from "vitest";
 
 import { buildPureTargetRawPlan, resolvePureStyleMasterScope } from "../../../ppt_maker_harness/scripts/04-pure-image/index.mjs";
-import { targetPageImageSubmitFactory } from "../../../ppt_maker_harness/scripts/shared/cli/command_support.mjs";
+import { targetPageImageSubmitFactory } from "../../../ppt_maker_harness/scripts/shared/cli/cli_image2_response.mjs";
 import { Image2ProviderProfileError } from "../../../ppt_maker_harness/scripts/shared/image2/provider_profile.mjs";
 import {
   STYLE_MASTER_IMAGE,

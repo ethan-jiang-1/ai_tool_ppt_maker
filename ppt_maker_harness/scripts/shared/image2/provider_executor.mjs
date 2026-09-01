@@ -9,6 +9,35 @@ import {
   inspectExactPageImagePng,
   PAGE_IMAGE_NATIVE_RAW_PNG,
 } from "./page_image_media_contract.mjs";
+import {
+  createImage2ProviderDeadline,
+  image2ProviderOperationTiming,
+} from "../cli/cli_deadline.mjs";
+import {
+  pageImageProviderHasInlineImage,
+  pageImageProviderResponseKnownFailure,
+  pageImageProviderSubmitUnresolved,
+  pageImageProviderTaskId,
+  pageImageProviderTaskPollUnresolved,
+  readImage2ProviderResponseJson,
+  resolveImage2ProviderTask,
+  targetPageImagePngBytesFromProvider,
+} from "../cli/cli_image2_response.mjs";
+
+// Provider executor runtime seam (deadline/timing + response parsing), moved
+// from shared/cli/command_support.mjs during refactor-harness-core.
+const runtimeSeam = Object.freeze({
+  image2ProviderOperationTiming,
+  createImage2ProviderDeadline,
+  readImage2ProviderResponseJson,
+  pageImageProviderResponseKnownFailure,
+  pageImageProviderTaskPollUnresolved,
+  pageImageProviderSubmitUnresolved,
+  pageImageProviderTaskId,
+  pageImageProviderHasInlineImage,
+  resolveImage2ProviderTask,
+  targetPageImagePngBytesFromProvider,
+});
 
 function failRequest(message) {
   const error = new Error(message);
@@ -113,7 +142,7 @@ export async function executePageImageProviderCall({
     styleMaster,
     images,
   });
-  const runtime = http || await import("../cli/command_support.mjs");
+  const runtime = http || runtimeSeam;
   const timing = runtime.image2ProviderOperationTiming({
     providerDeadlineMs,
     taskPollTimeoutMs,

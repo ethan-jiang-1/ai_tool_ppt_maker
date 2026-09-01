@@ -1,5 +1,7 @@
 import { registerCliJsonReport } from "../cli_error.mjs";
-import { collectStatus, emitFailed, enrichStatusWithState, printStatus, resolveRunAdapter } from "../command_support.mjs";
+import { emitFailed } from "../cli_diagnostics.mjs";
+import { collectStatus, enrichStatusWithState, printStatus } from "../cli_status.mjs";
+import { resolveRunAdapter } from "../command_support.mjs";
 import { commandReport } from "../command_result.mjs";
 import { PAGE_IMAGE_WORKFLOW_PIPELINE, PAGE_IMAGE_WORKFLOW_SELECTION_REQUIRED_MESSAGE } from "../../run-bundle/production_marker.mjs";
 

@@ -146,7 +146,10 @@
    "owner": "shared/cli",
    "interfaces": [
     "shared/cli/cli_bootstrap.mjs",
+    "shared/cli/cli_deadline.mjs",
+    "shared/cli/cli_diagnostics.mjs",
     "shared/cli/cli_error.mjs",
+    "shared/cli/cli_image2_response.mjs",
     "shared/cli/command_result.mjs",
     "shared/cli/command_support.mjs",
     "shared/cli/commands/artifacts.mjs",

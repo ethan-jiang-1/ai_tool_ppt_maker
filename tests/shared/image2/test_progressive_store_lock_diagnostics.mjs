@@ -23,7 +23,7 @@ import {
 } from "../../../ppt_maker_harness/scripts/shared/image2/page_image_progressive_schema.mjs";
 import { pageImageProviderInputBinding } from "../../helpers/page_image_provider_input_binding.mjs";
 import { PAGE_IMAGE_COMPILED_PROVIDER_INPUT_SCHEMA, PAGE_IMAGE_PROVIDER_REQUEST_SCHEMA } from "../../../ppt_maker_harness/scripts/shared/image2/page_image_provider_request_binding.mjs";
-import { targetPageImageFailure } from "../../../ppt_maker_harness/scripts/shared/cli/command_support.mjs";
+import { targetPageImageFailure } from "../../../ppt_maker_harness/scripts/shared/cli/cli_diagnostics.mjs";
 
 const digest = (letter) => letter.repeat(64);
 const DEAD_PID = 2_147_483_647; // provably not a live process on any supported host

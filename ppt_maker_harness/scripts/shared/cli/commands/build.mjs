@@ -1,5 +1,7 @@
 import { CLI_ERROR_CODES, CLI_DIAGNOSTIC_SCHEMA, createCliNext, emitCliError } from "../cli_error.mjs";
-import { emitCurrentProtocolError, emitFailed, refreshProgressiveControllerTaskProjection, resolveRunAdapter, targetImage2Operations } from "../command_support.mjs";
+import { refreshProgressiveControllerTaskProjection, targetImage2Operations } from "../cli_artifact_view.mjs";
+import { emitCurrentProtocolError, emitFailed } from "../cli_diagnostics.mjs";
+import { resolveRunAdapter } from "../command_support.mjs";
 import { commandResult } from "../command_result.mjs";
 
 // Command: build

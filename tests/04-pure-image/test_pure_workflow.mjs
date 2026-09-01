@@ -86,7 +86,7 @@ import {
 } from "../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
 import { pageImageDerivedPagePaths, pageImageWorkflowPaths } from "../../ppt_maker_harness/scripts/shared/run-bundle/page_image_paths.mjs";
 import { readState } from "../../ppt_maker_harness/scripts/shared/state/state.mjs";
-import { targetPageImageSubmitFactory } from "../../ppt_maker_harness/scripts/shared/cli/command_support.mjs";
+import { targetPageImageSubmitFactory } from "../../ppt_maker_harness/scripts/shared/cli/cli_image2_response.mjs";
 import {
   readProgressiveAcceptedRawWork,
 } from "../../ppt_maker_harness/scripts/shared/image2/page_image_progressive_raw_owner.mjs";

@@ -56,7 +56,7 @@ current_state_shape:
   owner: scripts/shared/state/state.mjs
   anchors:
     - scripts/shared/state/state.mjs#STATE_TOP_LEVEL_KEYS
-    - scripts/shared/state/state.mjs#createDefaultState
+    - scripts/shared/state/state_execution.mjs#createDefaultState
     - scripts/shared/state/state.mjs#writeState
   required_top_level_fields:
     - pipeline
@@ -91,7 +91,7 @@ current_state_shape:
     owner: scripts/shared/state/state.mjs
     anchors:
       - scripts/shared/run-bundle/production_identity.mjs#inspectProductionIdentity
-      - scripts/shared/state/state.mjs#inspectRunProductionIdentity
+      - scripts/shared/state/state_identity.mjs#inspectRunProductionIdentity
     record_fields:
       - workflow
       - source_epoch
@@ -343,7 +343,7 @@ wire_schema_groups:
       - page-image-progressive-raw-source-execution
       - page-image-workflow-provider-authorization
       - page-image-task-mandate
-      # task-mandate record scope (state.mjs#PAGE_IMAGE_TASK_MANDATE_SCOPE):
+      # task-mandate record scope (state_identity.mjs#PAGE_IMAGE_TASK_MANDATE_SCOPE):
       #   normal-page-image-production
   - stage_ref: image-generation-record
     role: raw-generation-evidence

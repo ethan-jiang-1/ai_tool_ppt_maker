@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createCanvas } from "@napi-rs/canvas";
 
-vi.mock("../../../ppt_maker_harness/scripts/shared/cli/command_support.mjs", async (importOriginal) => {
+vi.mock("../../../ppt_maker_harness/scripts/shared/cli/cli_artifact_view.mjs", async (importOriginal) => {
   const actual = await importOriginal();
   return {
     ...actual,

@@ -1,7 +1,8 @@
 import { resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { buildDelegatedDiagnostic, createChildOutputCollector, createCliNext } from "../cli_error.mjs";
-import { HARNESS_DIR, emitFailed, runNode } from "../command_support.mjs";
+import { emitFailed } from "../cli_diagnostics.mjs";
+import { HARNESS_DIR, runNode } from "../command_support.mjs";
 
 // ---------------------------------------------------------------------------
 // Command: test

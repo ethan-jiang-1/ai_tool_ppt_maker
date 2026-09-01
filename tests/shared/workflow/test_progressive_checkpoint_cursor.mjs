@@ -17,7 +17,7 @@ import {
   generateProgressiveRawItem,
   planProgressiveRawPilot,
 } from "../../../ppt_maker_harness/scripts/shared/image2/page_image_progressive_raw_owner.mjs";
-import { advanceProgressiveControllerCheckpoint } from "../../../ppt_maker_harness/scripts/shared/cli/command_support.mjs";
+import { advanceProgressiveControllerCheckpoint } from "../../../ppt_maker_harness/scripts/shared/cli/cli_artifact_view.mjs";
 import { inspectWorkflow } from "../../../ppt_maker_harness/scripts/shared/workflow/inspect_workflow.mjs";
 import { acceptLocalStyleMasterFixture } from "../../helpers/accepted_style_master.mjs";
 

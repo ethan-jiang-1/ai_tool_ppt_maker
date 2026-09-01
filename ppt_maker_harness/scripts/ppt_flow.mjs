@@ -30,10 +30,7 @@ import {
   DECK_TYPE_TEMPLATES,
   STYLE_PRESETS,
 } from "./shared/run-bundle/bundle_layout.mjs";
-import {
-  exitUsage,
-  exitWithCode,
-} from "./shared/cli/command_support.mjs";
+import { exitUsage, exitWithCode } from "./shared/cli/cli_diagnostics.mjs";
 
 import {
   COMMAND_CONTRACTS,

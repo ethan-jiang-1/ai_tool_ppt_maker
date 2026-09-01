@@ -1,5 +1,7 @@
 import { CLI_ERROR_CODES, CLI_DIAGNOSTIC_SCHEMA, createCliNext, emitCliError } from "../cli_error.mjs";
-import { emitCurrentProtocolError, emitFailed, emitUsage, pageImageDiagnosticReasonKind, resolveRunAdapter, targetImage2Operations } from "../command_support.mjs";
+import { targetImage2Operations } from "../cli_artifact_view.mjs";
+import { emitCurrentProtocolError, emitFailed, emitUsage } from "../cli_diagnostics.mjs";
+import { pageImageDiagnosticReasonKind, resolveRunAdapter } from "../command_support.mjs";
 import { commandResult } from "../command_result.mjs";
 
 // Command: refresh

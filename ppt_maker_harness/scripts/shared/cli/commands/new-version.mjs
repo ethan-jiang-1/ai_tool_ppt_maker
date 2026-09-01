@@ -1,7 +1,8 @@
 import { basename } from "node:path";
 import { readFileSync } from "node:fs";
 import { CLI_ERROR_CODES, CLI_DIAGNOSTIC_SCHEMA, createCliNext, emitCliError } from "../cli_error.mjs";
-import { emitFailed, resolveRunHarnessBinding } from "../command_support.mjs";
+import { emitFailed } from "../cli_diagnostics.mjs";
+import { resolveRunHarnessBinding } from "../command_support.mjs";
 import { commandResult } from "../command_result.mjs";
 import { createVersion, findSlideSpecs } from "../../run-bundle/bundle_layout.mjs";
 import { PAGE_IMAGE_WORKFLOW_PIPELINE, probeProductionMarker } from "../../run-bundle/production_marker.mjs";

@@ -9,15 +9,10 @@ import {
   registerCliJsonReport,
   setCliOutputMode,
 } from "../cli_error.mjs";
-import {
-  buildControllerGateContext,
-  collectStatus,
-  emitCurrentProtocolError,
-  emitExecutionRunVersionMismatch,
-  emitUsage,
-  refreshProgressiveControllerTaskProjection,
-  resolveRunHarnessBinding,
-} from "../command_support.mjs";
+import { refreshProgressiveControllerTaskProjection } from "../cli_artifact_view.mjs";
+import { emitCurrentProtocolError, emitExecutionRunVersionMismatch, emitUsage } from "../cli_diagnostics.mjs";
+import { buildControllerGateContext, collectStatus } from "../cli_status.mjs";
+import { resolveRunHarnessBinding } from "../command_support.mjs";
 import { PAGE_IMAGE_WORKFLOW_PIPELINE } from "../../run-bundle/production_marker.mjs";
 import { commandReport } from "../command_result.mjs";
 

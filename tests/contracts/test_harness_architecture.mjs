@@ -230,11 +230,18 @@ describe("Harness architecture contract", () => {
     illegal.files["shared/image2/page_image_target_runtime.mjs"] = `import "../page-image/page_image_core.mjs";`;
     expect(issueCodes(validateArchitectureSnapshot(illegal))).toContain("page-image-core-illegal-consumer");
 
+    const illegalSharedCli = canonicalSnapshot();
+    illegalSharedCli.files["shared/cli/command_support.mjs"] = `import "../page-image/page_image_core.mjs";`;
+    expect(issueCodes(validateArchitectureSnapshot(illegalSharedCli))).toContain("page-image-core-illegal-consumer");
+
+    // Adapter-internal modules are part of the selected workflow adapter and
+    // may consume the shared Core seam (refactor-harness-core splits the
+    // adapter index into internal/ modules).
     const framedPrivateValidator = canonicalSnapshot();
     framedPrivateValidator.files["03-framed-image/internal/framed_provider_input_contract.mjs"] =
       ["im", "port \"../../shared/page-image/page_image_core.mjs\";"].join("");
     expect(issueCodes(validateArchitectureSnapshot(framedPrivateValidator)))
-      .toContain("page-image-core-illegal-consumer");
+      .not.toContain("page-image-core-illegal-consumer");
   });
 
   it("confines Page Image provider-input compilation to selected adapters", () => {

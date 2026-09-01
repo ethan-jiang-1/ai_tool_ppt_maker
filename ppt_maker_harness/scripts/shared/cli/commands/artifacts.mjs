@@ -1,6 +1,8 @@
 import { emitCliError } from "../cli_error.mjs";
 import { commandReport } from "../command_result.mjs";
-import { rebuildTargetPageImageArtifactView, resolveRunAdapter, targetPageImageFailure } from "../command_support.mjs";
+import { rebuildTargetPageImageArtifactView } from "../cli_artifact_view.mjs";
+import { targetPageImageFailure } from "../cli_diagnostics.mjs";
+import { resolveRunAdapter } from "../command_support.mjs";
 
 // Command: artifacts
 // ---------------------------------------------------------------------------
