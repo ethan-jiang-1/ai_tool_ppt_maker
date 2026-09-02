@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { EXECUTABLE_INVENTORY } from "../../ppt_maker_harness/scripts/contracts/executable_inventory.mjs";
 import {
   ACTIVE_FOUNDATION_METHOD_MODULES,
+  CONTRACT_HEADER_INTERFACES,
   CURRENT_PROTOCOL_INVALID_INTERFACE,
   HUMAN_NAVIGATION_INTERFACE,
   PAGE_DERIVED_DATA_INTERFACE,
@@ -31,6 +32,10 @@ const REQUIRED_CONTRACTS = [
   "contracts/harness_document_command_audit.mjs",
 ];
 
+// Synthetic registered seams must satisfy the contract-header requirement the
+// same way real files do; fixtures point at one real capability spec.
+const SYNTHETIC_CONTRACT_HEADER = "/**\n * synthetic registered-seam fixture.\n * Authority: openspec/specs/cli-surface/spec.md\n */\n";
+
 function ownerFor(path) {
   if (path === "ppt_flow.mjs") return "root";
   if (path.startsWith("shared/")) return path.split("/").slice(0, 2).join("/");
@@ -50,25 +55,27 @@ function canonicalSnapshot() {
     ...PUBLIC_SHARED_INTERFACES,
     ...REQUIRED_CONTRACTS,
   ];
-  for (const path of interfaces) files[path] = "export const importSafe = true;\n";
+  for (const path of interfaces) files[path] = `${SYNTHETIC_CONTRACT_HEADER}export const importSafe = true;\n`;
   for (const path of TARGET_WORKFLOW_INTERFACES) {
-    files[path] = `import "../${PAGE_IMAGE_CORE_INTERFACE}";\nconst providerInput = { schema: "${PAGE_IMAGE_PROVIDER_INPUT_COMPILER_SCHEMA_BY_ADAPTER[path]}" };\nexport const importSafe = true;\n`;
+    files[path] = `${SYNTHETIC_CONTRACT_HEADER}import "../${PAGE_IMAGE_CORE_INTERFACE}";\nconst providerInput = { schema: "${PAGE_IMAGE_PROVIDER_INPUT_COMPILER_SCHEMA_BY_ADAPTER[path]}" };\nexport const importSafe = true;\n`;
   }
   for (const path of EXECUTABLE_INVENTORY) {
     const dirSegments = path.includes("/") ? path.slice(0, path.lastIndexOf("/") + 1).split("/").filter(Boolean) : [];
     const prefix = dirSegments.length ? `${dirSegments.map(() => "..").join("/")}/` : "./";
-    files[path] = `import "${prefix}shared/cli/cli_bootstrap.mjs?entry=${path}";\n` +
+    const seamHeader = CONTRACT_HEADER_INTERFACES.includes(path) ? SYNTHETIC_CONTRACT_HEADER : "";
+    files[path] = `${seamHeader}import "${prefix}shared/cli/cli_bootstrap.mjs?entry=${path}";\n` +
       (path.startsWith("00-setup/") ? `import "./index.mjs";\n` : "") +
       (path.startsWith("06-iteration/") ? `import "../../index.mjs";\n` : "");
   }
   files["ppt_flow.mjs"] = `import "./shared/cli/cli_bootstrap.mjs?entry=ppt_flow.mjs";\nimport("./00-setup/index.mjs");\n`;
-  files["shared/cli/command_support.mjs"] = `import { projectProblemFactsDiagnostic } from ${CLI_ERROR_SPECIFIER_UP};\n`;
+  files["shared/cli/command_support.mjs"] = `${SYNTHETIC_CONTRACT_HEADER}import { projectProblemFactsDiagnostic } from ${CLI_ERROR_SPECIFIER_UP};\n`;
   files["shared/image2/provider_profile.mjs"] = [
+    SYNTHETIC_CONTRACT_HEADER,
     "export function resolveImage2ProviderProfile() {}",
     "export function evaluateImage2PromptBudget() {}",
   ].join("\n");
-  files["shared/image2/call_shape.mjs"] = "export function validateCallShapeValue() {}\n";
-  files["shared/image2/provider_executor.mjs"] = "export function executePageImageProviderCall() {}\n";
+  files["shared/image2/call_shape.mjs"] = `${SYNTHETIC_CONTRACT_HEADER}export function validateCallShapeValue() {}\n`;
+  files["shared/image2/provider_executor.mjs"] = `${SYNTHETIC_CONTRACT_HEADER}export function executePageImageProviderCall() {}\n`;
   const grouped = new Map();
   for (const path of interfaces) {
     const owner = ownerFor(path);
@@ -125,6 +132,38 @@ describe("Harness architecture contract", () => {
     const result = validateArchitectureSnapshot(canonicalSnapshot());
     expect(result.issues).toEqual([]);
     expect(result.detectedExecutables).toEqual([...EXECUTABLE_INVENTORY].sort());
+  });
+
+  it("requires contract headers with authority pointers on registered public seams", () => {
+    const path = "shared/cli/commands/doctor.mjs";
+    const snapshot = canonicalSnapshot();
+    snapshot.files[path] = "export async function commandDoctor() {}\n";
+    expect(issueCodes(validateArchitectureSnapshot(snapshot)), path).toContain("missing-contract-header");
+    const repaired = canonicalSnapshot();
+    repaired.files[path] = "/**\n * doctor fixture.\n * Authority: openspec/specs/environment-check/spec.md\n */\nexport async function commandDoctor() {}\n";
+    const repairedCodes = issueCodes(validateArchitectureSnapshot(repaired));
+    expect(repairedCodes, path).not.toContain("missing-contract-header");
+    expect(repairedCodes, path).not.toContain("missing-contract-authority-pointer");
+  });
+
+  it("reports a headerless pointer card as missing its authority pointer", () => {
+    const snapshot = canonicalSnapshot();
+    snapshot.files["shared/identity/byte_hash.mjs"] = "/**\n * byte hash fixture without a pointer.\n */\nexport {};\n";
+    expect(issueCodes(validateArchitectureSnapshot(snapshot))).toContain("missing-contract-authority-pointer");
+  });
+
+  it("rejects a contract header whose authority pointer names a nonexistent spec", () => {
+    const snapshot = canonicalSnapshot();
+    snapshot.files["shared/state/state.mjs"] = "/**\n * state fixture.\n * Authority: openspec/specs/not-a-registered-capability/spec.md\n */\nexport {};\n";
+    expect(issueCodes(validateArchitectureSnapshot(snapshot))).toContain("stale-contract-authority-pointer");
+  });
+
+  it("keeps the contract-header check scoped to registered seams", () => {
+    const snapshot = canonicalSnapshot();
+    snapshot.files["shared/image2/unregistered_internal.mjs"] = "export {};\n";
+    const codes = issueCodes(validateArchitectureSnapshot(snapshot));
+    expect(codes).not.toContain("missing-contract-header");
+    expect(codes).not.toContain("missing-contract-authority-pointer");
   });
 
   it("pins active foundation method modules and rejects retired numbered owners", () => {

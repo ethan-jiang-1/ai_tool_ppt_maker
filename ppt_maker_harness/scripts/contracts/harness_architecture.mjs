@@ -1,6 +1,11 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, extname, join, posix, relative, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { EXECUTABLE_INVENTORY, normalizeExecutablePath } from "./executable_inventory.mjs";
+
+/** Repository root that owns openspec/specs/; authority-pointer targets resolve
+ * against this root regardless of the caller's working directory. */
+const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 
 export const ACTIVE_FOUNDATION_METHOD_MODULES = Object.freeze([
   "00-setup",
@@ -32,6 +37,34 @@ export const FOUNDATION_METHOD_MODULE_ADJACENCY = Object.freeze({
   "01-content": Object.freeze([]),
   "02-visual-system": Object.freeze([]),
 });
+
+// Registered public seams that must carry a contract header with at least one
+// authority pointer line (harness-script-layout). The header is the file's
+// first JSDoc-style block comment; it is a pointer card, never a second spec.
+export const CONTRACT_HEADER_AUTHORITY_PATTERN =
+  /Authority:\s*(openspec\/specs\/[a-z0-9-]+\/spec\.md)/g;
+
+function validateContractHeaders(files, issues) {
+  for (const path of CONTRACT_HEADER_INTERFACES) {
+    const source = files.get(path);
+    if (source === undefined) continue;
+    const block = source.match(/\/\*\*[\s\S]*?\*\//);
+    if (!block) {
+      addIssue(issues, "missing-contract-header", path, "registered public interface carries no contract header block comment");
+      continue;
+    }
+    const authorities = [...block[0].matchAll(CONTRACT_HEADER_AUTHORITY_PATTERN)].map((match) => match[1]);
+    if (authorities.length === 0) {
+      addIssue(issues, "missing-contract-authority-pointer", path, "contract header carries no Authority: openspec/specs/<capability>/spec.md pointer");
+      continue;
+    }
+    for (const specPath of [...new Set(authorities)]) {
+      if (!existsSync(resolve(REPO_ROOT, specPath))) {
+        addIssue(issues, "stale-contract-authority-pointer", path, `authority pointer target does not exist: ${specPath}`);
+      }
+    }
+  }
+}
 
 export const PUBLIC_SHARED_INTERFACES = Object.freeze([
   "shared/cli/cli_bootstrap.mjs",
@@ -96,6 +129,17 @@ export const PUBLIC_SHARED_INTERFACES = Object.freeze([
   "shared/workflow/page_production_display_references.mjs",
   "shared/workflow/page_production_task_projection.mjs",
   "shared/workflow/progressive_controller_task_projection_eligibility.mjs",
+]);
+
+// Registered public seams that must carry a contract header with at least one
+// authority pointer line (harness-script-layout). The header is the file's
+// first JSDoc-style block comment; it is a pointer card, never a second spec.
+export const CONTRACT_HEADER_INTERFACES = Object.freeze([
+  ...ACTIVE_FOUNDATION_METHOD_MODULES.map((module) => `${module}/index.mjs`),
+  ...TARGET_WORKFLOW_INTERFACES,
+  ...TARGET_DELIVERY_INTERFACES,
+  ...TARGET_ITERATION_INTERFACES,
+  ...PUBLIC_SHARED_INTERFACES,
 ]);
 
 export const PAGE_IMAGE_CORE_INTERFACE = "shared/page-image/page_image_core.mjs";
@@ -1534,6 +1578,7 @@ export function validateArchitectureSnapshot({ files: inputFiles, manifest = nul
   for (const path of TARGET_WORKFLOW_INTERFACES) if (!scriptFiles.has(path)) addIssue(issues, "missing-workflow-interface", path, "target workflow interface is missing");
   for (const path of TARGET_DELIVERY_INTERFACES) if (!scriptFiles.has(path)) addIssue(issues, "missing-delivery-interface", path, "target delivery interface is missing");
   for (const path of TARGET_ITERATION_INTERFACES) if (!scriptFiles.has(path)) addIssue(issues, "missing-iteration-interface", path, "target iteration interface is missing");
+  validateContractHeaders(files, issues);
   for (const path of scriptFiles.keys()) {
     if (/^(?:04-image-production|05-iteration)\//.test(path)) addIssue(issues, "retired-numbered-owner", path, "retired numbered ownership path is forbidden");
   }
