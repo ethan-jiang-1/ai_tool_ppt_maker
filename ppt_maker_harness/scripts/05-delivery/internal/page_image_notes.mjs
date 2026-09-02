@@ -12,7 +12,7 @@ import {
   readPageImageDeliveryMedia,
   validatePageImageDeliveryMediaManifest,
 } from "./page_image_delivery_media.mjs";
-import { injectNotes } from "./notes_runtime.mjs";
+import { injectNotes, missingSpeakerNoteContentError } from "./notes_runtime.mjs";
 import { currentProtocolInvalid } from "../../shared/workflow/current_protocol_invalid.mjs";
 
 export const PAGE_IMAGE_NOTES_RECEIPT_SCHEMA = "page-image-notes-receipt";
@@ -64,11 +64,12 @@ export function validatePageImageNotesInput({ assembly, finalManifest, finalMani
     Object.keys(notesBySlide).sort().join("\n") !== [...assemblyChecked.ordered_slide_ids].sort().join("\n")) {
     throw currentProtocolInvalid("the notes input cannot establish current production identity");
   }
-  for (const slideId of assemblyChecked.ordered_slide_ids) {
-    if (typeof notesBySlide[slideId] !== "string" || !notesBySlide[slideId].trim()) {
-      throw currentProtocolInvalid("the notes input cannot establish current production identity");
-    }
+  const missingPositions = [];
+  for (const [index, slideId] of assemblyChecked.ordered_slide_ids.entries()) {
+    const note = notesBySlide[slideId];
+    if (typeof note !== "string" || !note.trim()) missingPositions.push(index + 1);
   }
+  if (missingPositions.length > 0) throw missingSpeakerNoteContentError(missingPositions);
   return Object.freeze({
     assembly: assemblyChecked.receipt,
     ordered_slide_ids: assemblyChecked.ordered_slide_ids,

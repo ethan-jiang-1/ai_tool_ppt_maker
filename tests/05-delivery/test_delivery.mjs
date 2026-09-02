@@ -434,7 +434,7 @@ describe("target Page Image delivery", () => {
       const sourcePath = join(runDir, "slide-specifications.md");
       writeFileSync(sourcePath, "## Slide 01: `DeckGo`\n\n> **SPEAKER NOTE**\n>\n>\n");
       await expect(refreshTargetPageImageNotes({ runDir, sourcePath, sourceEpoch: 1 }))
-        .rejects.toMatchObject({ code: "current_protocol_invalid" });
+        .rejects.toThrow(/missing SPEAKER NOTE content for slide\(s\) 1/);
       expect(readFileSync(result.assembly.path)).toEqual(pptxBefore);
       expect(readFileSync(result.receipt_path)).toEqual(receiptBefore);
     } finally {

@@ -224,20 +224,27 @@ function countSlides(zip) {
  * @param {string[]} opts.notes - Speaker note strings, one per slide.
  * @returns {Promise<{slideCount: number, notesInjected: number}>}
  */
+/** The spec-mandated missing-content report (delivery R1): a source content
+ * defect is guide-classified and names its slides — never a current-protocol
+ * repair. Shared by injectNotes and validatePageImageNotesInput. */
+export function missingSpeakerNoteContentError(missingPositions) {
+  return attachCliDiagnostic(new Error(`Notes injection aborted: missing SPEAKER NOTE content for slide(s) ${missingPositions.join(", ")}`), {
+    schema: CLI_DIAGNOSTIC_SCHEMA,
+    category: "source_validation",
+    operation: "validate-notes",
+    issues: missingPositions.map((slideNumber) => ({
+      message: "speaker note content is missing",
+      subject: { kind: "slide", id: String(slideNumber), field: "SPEAKER NOTE" },
+      reason: { kind: "missing_required_field", expected: "non-empty speaker note" },
+    })),
+    next: createCliNext("edit_source", { default: "Add every missing speaker note in current source markdown, then rerun notes injection." }),
+  });
+}
+
 export async function injectNotes({ pptx, notes }) {
-  if (notes.some((note) => typeof note !== "string" || note.trim() === "")) {
-    const missing = notes.map((note, index) => (!note || !note.trim() ? index + 1 : null)).filter(Boolean);
-    throw attachCliDiagnostic(new Error(`Notes injection aborted: missing SPEAKER NOTE content for slide(s) ${missing.join(", ")}`), {
-      schema: CLI_DIAGNOSTIC_SCHEMA,
-      category: "source_validation",
-      operation: "validate-notes",
-      issues: missing.map((slideNumber) => ({
-        message: "speaker note content is missing",
-        subject: { kind: "slide", id: String(slideNumber), field: "SPEAKER NOTE" },
-        reason: { kind: "missing_required_field", expected: "non-empty speaker note" },
-      })),
-      next: createCliNext("edit_source", { default: "Add every missing speaker note in current source markdown, then rerun notes injection." }),
-    });
+  const missing = notes.map((note, index) => (typeof note !== "string" || !note.trim() ? index + 1 : null)).filter(Boolean);
+  if (missing.length > 0) {
+    throw missingSpeakerNoteContentError(missing);
   }
   let zip;
   try {
