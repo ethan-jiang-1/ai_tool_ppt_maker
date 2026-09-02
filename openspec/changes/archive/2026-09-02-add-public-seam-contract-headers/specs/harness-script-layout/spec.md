@@ -16,7 +16,7 @@ remains the sole behavior authority.
 
 The current architecture guard SHALL verify, as part of its existing snapshot
 check and driven by the same registered interface lists it already owns:
-(1) header presence at the top of each registered file; (2) at least one
+(1) contract-header presence on each registered file; (2) at least one
 well-formed authority pointer; and (3) that every referenced spec path exists
 on disk. The guard SHALL NOT judge header prose semantics, SHALL NOT extend
 the check to unregistered internal implementation files, and SHALL NOT treat
