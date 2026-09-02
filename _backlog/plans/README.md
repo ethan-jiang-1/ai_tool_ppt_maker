@@ -17,9 +17,9 @@
 
 ## 活跃列表
 
-- `module-contract-headers-and-guardrail-alignment.md` — 模块契约头注释与维护护栏对齐（公共接缝 45 文件补契约头 + guard；命令文档措辞对齐；delivery 需求→用例矩阵）（2026-09-02）
+（当前无活跃 plan）
 
-**Next available plan ID: CLS-046**（移入 `_closed_plans/` 时分配；CLS-001…045 已用）
+**Next available plan ID: CLS-047**（移入 `_closed_plans/` 时分配；CLS-001…046 已用）
 
 ---
 

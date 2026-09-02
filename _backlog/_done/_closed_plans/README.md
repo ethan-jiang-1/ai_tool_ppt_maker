@@ -1,6 +1,6 @@
 # Closed Plans Index — 已完成 plan 归档
 
-> 最后更新: 2026-08-20 | `_backlog/_done/_closed_plans/` — 已完成 plan 的归档目录。
+> 最后更新: 2026-09-02 | `_backlog/_done/_closed_plans/` — 已完成 plan 的归档目录。
 > 接收来自 [`../../plans/`](../../plans/) 的 plan。`_` 前缀 = coding agent 默认忽略。
 >
 > **plan 完成后文件名不变，位置即状态。** 移入时分配 `CLS-NNN` 序号（Closed），按完成时间递增。
@@ -66,6 +66,8 @@ plan 完成后从 `_backlog/plans/` 通过 `git mv` 移入本目录：
 | [CLS-044](image2-capability-tuple-and-lab.md) | 2026-08-20 | `image2-capability-tuple-and-lab.md` | Image2 Call Shape + Lab；由 `add-image2-call-shape-and-lab` change 落地并归档。 |
 | [CLS-045](sweep-red-and-guidance-doc-consolidation.md) | 2026-09-01 | `sweep-red-and-guidance-doc-consolidation.md` | sweep 红灯修复 + guidance 文档权威收敛：residue 扫描 token 豁免、6 处规范行锚定、Common Requests 词汇边界（C1）、BOOTSTRAP 索引化、依赖清单单一权威、workflow-selection 事实归属收敛；由单 change `sweep-green-and-guidance-authority` 落地并归档，sweep 702/702 全绿。 |
 
-**Next available plan ID: CLS-046**
+| [CLS-046](module-contract-headers-and-guardrail-alignment.md) | 2026-09-02 | `module-contract-headers-and-guardrail-alignment.md` | 模块契约头注释与维护护栏对齐：公共接缝 69 文件契约头达标（16 新增 + 53 插入 Authority 指针）+ `harness_architecture.mjs` 契约头守护（missing/missing-pointer/stale-pointer 三检查 + 4 focused 用例）+ 入口 COMMANDS.md 措辞对齐 commands-reference；由 change `add-public-seam-contract-headers` 落地归档（commits `13f5f14`/`a499e00`/`be7286b`/`5ae786b`/`5572a67`/`19d01b8`，sweep 706/706）。同批姊妹 change `delivery-requirement-coverage-matrix` 补齐 delivery 3 个无锚点 Scenario 并成文 21-Scenario 矩阵（sweep 709/709）。 |
+
+**Next available plan ID: CLS-047**
 
 > 已完成计划保留历史决策；当前工作只从 `_backlog/plans/` 重新进入。
