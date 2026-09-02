@@ -8,7 +8,8 @@
  *
  * Command inventory authority: the program.command(...) registrations in this
  * file are the inventory; `--help` output is runtime truth; and
- * ppt_maker_harness/COMMANDS.md is the human-facing command map. Do not add a
+ * ppt_maker_harness/COMMANDS.md is the novice-facing discovery reference
+ * (commands-reference capability). Do not add a
  * prose command enumeration here — the command-surface contract guard rejects
  * comment-block command inventories in this entry file.
  *
