@@ -30,6 +30,25 @@ function run(script, args = []) {
   });
 }
 
+// Bounded tripwire: the unified entry must point at the command authorities
+// (registrations in the file, --help, COMMANDS.md) instead of re-declaring the
+// inventory in prose. Flags a comment block that enumerates 3+ distinct
+// inventory commands; single-command mentions stay legal. Deliberately a
+// lexical scan, not a parser.
+function findCommandInventoryDeclarations(source) {
+  const blocks = [];
+  for (const match of source.matchAll(/\/\*[\s\S]*?\*\//g)) blocks.push(match[0]);
+  for (const match of source.matchAll(/\/\/[^\n]*/g)) blocks.push(match[0]);
+  const issues = [];
+  for (const block of blocks) {
+    const named = PPT_FLOW_COMMAND_INVENTORY.filter((command) =>
+      new RegExp(`(?:^|[^\\w-])${command}(?:[^\\w-]|$)`).test(block),
+    );
+    if (named.length >= 3) issues.push({ named });
+  }
+  return issues;
+}
+
 describe("command-surface entry seams", () => {
   it("keeps direct env-check help aligned with its parser and default local check offline", async () => {
     const help = run(ENV_CHECK, ["--help"]);
@@ -105,6 +124,18 @@ describe("command-surface entry seams", () => {
       expect(guidance, tier).toContain(tier);
     }
     expect(guidance).toMatch(/real E2E[\s\S]{0,180}(?:explicit|separate) authorization/i);
+  });
+
+  it("rejects a prose command-inventory re-declaration in the unified entry", () => {
+    const source = readFileSync(PPT_FLOW, "utf8");
+    const issues = findCommandInventoryDeclarations(source);
+    expect(issues, JSON.stringify(issues)).toEqual([]);
+    const synthetic = [
+      "/**",
+      " * Current commands: doctor, init, validate",
+      " */",
+    ].join("\n");
+    expect(findCommandInventoryDeclarations(synthetic)).toHaveLength(1);
   });
 
   it("keeps refresh kinds closed to the current public contract", () => {

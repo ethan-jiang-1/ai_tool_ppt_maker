@@ -6,8 +6,11 @@
  * shared/cli/commands/*.mjs. Shared glue lives in shared/cli/command_support.mjs.
  * This is the default human/agent entry point.
  *
- * Current commands: doctor, init, status, validate, build, refresh, slides,
- *                   new-version, test, state, image2, style-master
+ * Command inventory authority: the program.command(...) registrations in this
+ * file are the inventory; `--help` output is runtime truth; and
+ * ppt_maker_harness/COMMANDS.md is the human-facing command map. Do not add a
+ * prose command enumeration here — the command-surface contract guard rejects
+ * comment-block command inventories in this entry file.
  *
  * Hard failures: JSON envelope on last non-empty stderr line (shared/cli/cli_error.mjs).
  */

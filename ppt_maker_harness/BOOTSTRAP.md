@@ -2,6 +2,25 @@
 
 这是 Agent 的启动入口。新 deck 使用 Page Image Workflow：先确认本地 Framed header-overlay runtime，再按实际 raw-generation 操作检查 provider。不要把远端 Image2 凭证或授权当成 source authoring 的前置条件。
 
+## Reading aid: minimum vocabulary
+
+This box is a reading aid, not an authority: canonical terminology lives in
+`CONTEXT.md`, and the term-to-path where-map lives in `reference/glossary.md`.
+One line per term — enough to parse the steps below; each full definition stays
+with its owner:
+
+- **Run bundle** — one deck's workspace directory (`deck_NAME/`), holding its versions, source, state, and artifacts.
+- **Version leaf / `--run-dir`** — the exact version directory `3_versions/vN` inside the bundle; most operations target this leaf, not the deck root.
+- **Work Version** — one user-visible `vN` snapshot of the deck.
+- **Receipt** — immutable, hash-bound evidence that one production step happened; later steps chain to it and cannot repair a missing earlier one.
+- **State** — the deck-root `_state/state.yaml` machine record of where production stands; never hand-edited.
+- **`production.workflow: framed|pure`** — the one per-version choice of who renders the page: `framed` (provider draws the page; a deterministic local overlay draws kicker/title/subtitle) or `pure` (provider draws everything).
+- **Hard stop** — a non-bypassable refusal when identity or integrity cannot be established; it names the owning recovery instead of offering a workaround.
+- **Image2 Call Shape** — the closed, hashed description of how the image provider is called (model, budget, transport); a confirmed one is probed, an unconfirmed candidate is discovered in the Lab.
+- **Image2 provider profile vs `IMAGE2_PROVIDER_PROFILE_ID`** — the profile file is the human's declared non-secret route choice inside the bundle; the env var is the environment-owned selector that must match it; neither is a credential.
+- **`_generated/`** — rebuildable output; never hand-edited and never evidence for a new operation.
+- **`slide_id` vs `position`** — `slide_id` is the stable page identity across versions; `position` is its place in the current snapshot only.
+
 ## Step 0 - Read the contract
 
 读 `charter/AGENT_CONTRACT.md`、`charter/NODE-SPEC.md`、`reference/glossary.md`，确认 run bundle 与 `--run-dir` 的区别。若用户交给你 `RUN_BUNDLE.md` bytes，按 `AGENT_CONTRACT.md` 的 `RUN_BUNDLE locator entry` 验证该 deck 对本地 PPT Maker Harness 的当前绑定，再读 `deck-guide.md`；无法验证时停止并按唯一重建动作处理，不请求替代 root。generic remote-chat attachment integration 不受支持。
