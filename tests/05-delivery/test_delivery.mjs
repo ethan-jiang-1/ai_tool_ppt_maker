@@ -10,6 +10,7 @@ import { describe, expect, it } from "vitest";
 import {
   createAcceptedRawEvidence,
   createRawWorkPlan,
+  formatPageImageOrdinal,
 } from "../../ppt_maker_harness/scripts/shared/image2/page_image_artifacts.mjs";
 import { publishCurrentFinalSlideManifest } from "../../ppt_maker_harness/scripts/shared/image2/page_image_final_manifest.mjs";
 import {
@@ -376,6 +377,119 @@ describe("target Page Image delivery", () => {
       const xml = await readPptxSlideXml(result.pptx_path);
       expect(xml).toContain("<a:blip");
       expect(xml).toContain("<a:t>01</a:t>");
+    } finally {
+      rmSync(deckDir, { recursive: true, force: true });
+    }
+  });
+
+  it("accepts a blank quote line inside a multiline speaker note", async () => {
+    const deckDir = mkdtempSync(join(tmpdir(), "deck_blank_quote_note_"));
+    const runDir = join(deckDir, "3_versions", "v1");
+    mkdirSync(runDir, { recursive: true });
+    const { manifest, evidence, finalBytesBySlide, notesBySlide } = deliveryInput();
+    try {
+      persistFinalManifest(runDir, manifest);
+      const result = await deliverTargetFinalSlideManifest({
+        runDir,
+        manifest,
+        acceptedRawEvidence: evidence,
+        finalBytesBySlide,
+        notesBySlide,
+        sourceEpoch: 1,
+      });
+      const sourcePath = join(runDir, "slide-specifications.md");
+      writeFileSync(sourcePath, [
+        "## Slide 01: `DeckGo`",
+        "",
+        "> **SPEAKER NOTE**",
+        ">",
+        "> First owned paragraph after a blank quote line.",
+        "",
+      ].join("\n"));
+      const refreshed = await refreshTargetPageImageNotes({ runDir, sourcePath, sourceEpoch: 1 });
+      expect(refreshed.notes.receipt).toMatchObject({ notes_injected: 1 });
+      expect(refreshed.receipt).toMatchObject({ schema: "page-image-delivery-receipt", notes_injected: 1 });
+    } finally {
+      rmSync(deckDir, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects a blank-only speaker note without replacing the PPTX or publishing a receipt", async () => {
+    const deckDir = mkdtempSync(join(tmpdir(), "deck_blank_only_note_"));
+    const runDir = join(deckDir, "3_versions", "v1");
+    mkdirSync(runDir, { recursive: true });
+    const { manifest, evidence, finalBytesBySlide, notesBySlide } = deliveryInput();
+    try {
+      persistFinalManifest(runDir, manifest);
+      const result = await deliverTargetFinalSlideManifest({
+        runDir,
+        manifest,
+        acceptedRawEvidence: evidence,
+        finalBytesBySlide,
+        notesBySlide,
+        sourceEpoch: 1,
+      });
+      const pptxBefore = readFileSync(result.assembly.path);
+      const receiptBefore = readFileSync(result.receipt_path);
+      const sourcePath = join(runDir, "slide-specifications.md");
+      writeFileSync(sourcePath, "## Slide 01: `DeckGo`\n\n> **SPEAKER NOTE**\n>\n>\n");
+      await expect(refreshTargetPageImageNotes({ runDir, sourcePath, sourceEpoch: 1 }))
+        .rejects.toMatchObject({ code: "current_protocol_invalid" });
+      expect(readFileSync(result.assembly.path)).toEqual(pptxBefore);
+      expect(readFileSync(result.receipt_path)).toEqual(receiptBefore);
+    } finally {
+      rmSync(deckDir, { recursive: true, force: true });
+    }
+  });
+
+  it("renders manifest-order ordinal footers across digit boundaries without changing final bytes", async () => {
+    const deckDir = mkdtempSync(join(tmpdir(), "deck_ordinal_footer_digits_"));
+    const runDir = join(deckDir, "3_versions", "v1");
+    mkdirSync(runDir, { recursive: true });
+    const nativePng = pngBytes(2048, 1136, "#24506a");
+    const slideIds = Array.from({ length: 10 }, (_, index) => `Slide${index + 1}`);
+    const items = slideIds.map((slide_id) => ({
+      slide_id,
+      raw_contract_sha256: digest("d"),
+      provider_input_binding: pageImageProviderInputBinding({ workflow: "pure" }),
+    }));
+    const plan = createRawWorkPlan({
+      source_receipt_sha256: digest("a"),
+      workflow: "pure",
+      ordered_slide_ids: slideIds,
+      provider_profile_sha256: digest("b"),
+      authorization_scope_sha256: digest("c"),
+      items,
+    });
+    const evidence = createAcceptedRawEvidence({
+      plan,
+      provider_authorization_sha256: digest("e"),
+      raw_review_sha256: digest("f"),
+      raw_bytes_by_slide: Object.fromEntries(slideIds.map((id) => [id, nativePng])),
+    });
+    const finalBytesBySlide = Object.fromEntries(slideIds.map((id) => [id, nativePng]));
+    const manifest = publishCurrentFinalSlideManifest({
+      rawWorkPlan: plan,
+      acceptedRawEvidence: evidence,
+      ownerWorkflow: "pure",
+      finalBytesBySlide,
+    });
+    const notesBySlide = Object.fromEntries(slideIds.map((id) => [id, `Note for ${id}`]));
+    try {
+      persistFinalManifest(runDir, manifest);
+      const result = await deliverTargetFinalSlideManifest({
+        runDir,
+        manifest,
+        acceptedRawEvidence: evidence,
+        finalBytesBySlide,
+        notesBySlide,
+        sourceEpoch: 1,
+      });
+      expect(result.receipt).toMatchObject({ notes_injected: 10 });
+      expect(await readPptxSlideXml(result.assembly.path, 1)).toContain("<a:t>01</a:t>");
+      expect(await readPptxSlideXml(result.assembly.path, 10)).toContain("<a:t>10</a:t>");
+      expect(formatPageImageOrdinal(100)).toBe("100");
+      expect(readFileSync(join(pageImageWorkflowPaths(runDir).final_root, manifest.items[0].path))).toEqual(nativePng);
     } finally {
       rmSync(deckDir, { recursive: true, force: true });
     }
