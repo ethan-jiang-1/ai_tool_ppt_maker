@@ -470,8 +470,8 @@ event. If admission fails, every byte SHALL remain unchanged.
 
 #### Scenario: Unproduced materialized v1 returns to the init seed
 
-- **WHEN** unique v1 has a resolvable identity, local source-bound evidence, and
-  zero irreversible records
+- **WHEN** the unique `3_versions/v1` has a resolvable identity, local
+  source-bound evidence, and zero irreversible records
 - **THEN** reset restores the exact deck-type seed, unbound authoring-draft
   State, and empty rebuildable generated/scratch trees
 - **AND** append-mostly iteration plan files remain byte-identical
@@ -480,7 +480,8 @@ event. If admission fails, every byte SHALL remain unchanged.
 
 - **WHEN** `3_versions/v2` or any other `vN` besides `v1` exists
 - **THEN** reset refuses with zero writes
-- **AND** v1 source, State, and derived trees remain byte-identical
+- **AND** the `3_versions/v1` source, State, and derived trees remain
+  byte-identical
 
 ### Requirement: Mutating exact-run owners heal a missing Lab workspace scaffold
 

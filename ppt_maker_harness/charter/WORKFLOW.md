@@ -1,9 +1,8 @@
 # Workflow
 
-New authoring uses `page-image-workflow`. Before provider work, a human records
-one version workflow: `framed` or `pure`. The workflow is source-bound and
-State records the matching `production_identity.by_version` fence;
-it is never inferred from a slide, artifact, directory, or deck type.
+New authoring uses `page-image-workflow`; the version-level `framed` or `pure`
+selection, its State fence, and the never-inferred rule are owned by
+[NODE-SPEC.md](NODE-SPEC.md) and the `node-specification` capability.
 
 ```text
 01-content + 02-visual-system

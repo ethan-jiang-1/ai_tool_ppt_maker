@@ -64,7 +64,8 @@ plan 完成后从 `_backlog/plans/` 通过 `git mv` 移入本目录：
 | [CLS-042](cli-command-surface-reduction/README.md) | 2026-08-17 | `cli-command-surface-reduction/` | CLI 命令面平衡瘦身：4 个 OpenSpec change（C0 纯拆分 / C1 机器契约 / C2 导航分页 / C4 doctor 拆分）全部实现并归档；原 C3（state/投影重建）延后 α，设计预案保留在 `03`；commit `0c498fb`/`e14304e`/`78fb282`/`be26a6d`。 |
 | [CLS-043](repair-active-bugs-in-four-openspec-changes.md) | 2026-08-20 | `repair-active-bugs-in-four-openspec-changes.md` | 四 change 全部 archive：restore-draft-and-cli-projections / project-cursor-to-owner-checkpoint / reset-unproduced-v1 / bind-image2-transport-capability-vector。 |
 | [CLS-044](image2-capability-tuple-and-lab.md) | 2026-08-20 | `image2-capability-tuple-and-lab.md` | Image2 Call Shape + Lab；由 `add-image2-call-shape-and-lab` change 落地并归档。 |
+| [CLS-045](sweep-red-and-guidance-doc-consolidation.md) | 2026-09-01 | `sweep-red-and-guidance-doc-consolidation.md` | sweep 红灯修复 + guidance 文档权威收敛：residue 扫描 token 豁免、6 处规范行锚定、Common Requests 词汇边界（C1）、BOOTSTRAP 索引化、依赖清单单一权威、workflow-selection 事实归属收敛；由单 change `sweep-green-and-guidance-authority` 落地并归档，sweep 702/702 全绿。 |
 
-**Next available plan ID: CLS-045**
+**Next available plan ID: CLS-046**
 
 > 已完成计划保留历史决策；当前工作只从 `_backlog/plans/` 重新进入。

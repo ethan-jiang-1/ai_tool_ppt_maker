@@ -61,8 +61,9 @@ context: |-
 
   ## 技术栈与运行时铁律
 
-  Node.js 22.x、24.x 或 26.x ESM。主要依赖由 `package.json` 声明：`@napi-rs/canvas`、`pptxgenjs`、
-  `jszip`、`commander`、`yaml`；HTTP 使用 Node 内置 `fetch`，测试使用 `vitest`。
+  Node.js 22.x、24.x 或 26.x ESM。依赖完整清单以 `package.json` 为唯一权威；运行时核心：
+  `@napi-rs/canvas`、`pptxgenjs`、`jszip`、`commander`、`yaml`、`playwright`。
+  HTTP 使用 Node 内置 `fetch`，测试使用 `vitest`。
   统一入口：`node ppt_maker_harness/scripts/ppt_flow.mjs <command>`。
 
   | 边界 | 规则 |

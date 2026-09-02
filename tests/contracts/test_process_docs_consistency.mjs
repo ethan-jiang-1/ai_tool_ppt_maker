@@ -222,6 +222,23 @@ describe("Harness documentation coherence", () => {
     }).some((item) => item.rule === "terminology-authority")).toBe(true);
   });
 
+  it("keeps workflow-selection fact homes free of full restatements", () => {
+    const nonHomeFiles = [
+      "AGENTS.md",
+      "ppt_maker_harness/AGENTS.md",
+      "ppt_maker_harness/README.md",
+      "ppt_maker_harness/charter/WORKFLOW.md",
+      "ppt_maker_harness/workflow/00-setup/04-conventions.md",
+      "ppt_maker_harness/workflow/README.md",
+    ];
+    for (const file of nonHomeFiles) {
+      const text = readFileSync(file, "utf8");
+      expect(text, `${file} must point to the fact home instead of restating the production_identity binding`).not.toContain("production_identity");
+      expect(text, `${file} must reference the workflow-selection fact home`).toMatch(/NODE-SPEC\.md|node-specification/);
+    }
+    expect(readFileSync("ppt_maker_harness/charter/NODE-SPEC.md", "utf8")).toContain("production_identity");
+  });
+
   it("keeps current guidance and main specifications free of retired protocol prose", () => {
     const issues = scanHarnessCoherence();
     expect(issues, issues.map((item) => `${item.file}:${item.line} [${item.rule}] ${item.message}`).join("\n")).toEqual([]);

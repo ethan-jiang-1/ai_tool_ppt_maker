@@ -579,6 +579,24 @@ describe("production schema conformance", () => {
     expect(valid).toEqual({ ok: true, issues: [] });
   });
 
+  it("accepts identifier-internal numeric fragments while still rejecting bare planted identities", () => {
+    const bareVersionMarker = ["v", "1"].join("");
+    const registeredCommand = ["reset", "unproduced", bareVersionMarker].join("-");
+    const accepted = evaluateActiveSurfaceResidue({
+      entries: [
+        { path: "ppt_maker_harness/scripts/shared/cli/command_result.mjs", kind: "text", content: `"${registeredCommand}": { stdout: "reset receipt" },` },
+      ],
+    });
+    expect(accepted).toEqual({ ok: true, issues: [] });
+
+    const planted = evaluateActiveSurfaceResidue({
+      entries: [
+        { path: "ppt_maker_harness/scripts/shared/cli/command_result.mjs", kind: "text", content: `"${registeredCommand}": { stdout: "reset receipt for ${bareVersionMarker}" },` },
+      ],
+    });
+    expect(planted.issues.map((issue) => issue.code)).toEqual(["retired-numeric-protocol-identity"]);
+  });
+
   it("rejects the expanded retired terminology vocabulary with planted violations", () => {
     const result = evaluateRetiredControlSurfaceReachability({
       entries: [

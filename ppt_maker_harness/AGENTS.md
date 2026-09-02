@@ -1,14 +1,12 @@
 # PPT Maker Harness Agent Guide
 
-New authoring uses `page-image-workflow`. Before provider work, a human records
-exactly one version workflow: `framed` or `pure`; State then binds it with its
-`source_epoch` in `production_identity.by_version`. Every target slide inherits that workflow;
-there is no slide-level authority choice. Any other source/state pair is an
-current-protocol-invalid hard-stop and remains byte-preserving.
-
-Here, `page-image-workflow` names the pipeline and `framed|pure` names the
-version-level selection. Method modules and MD Controllers provide operating
-guidance; they do not introduce another protocol or workflow value.
+New authoring uses `page-image-workflow`. Here, `page-image-workflow` names the pipeline
+and `framed|pure` names the version-level selection. The selection's
+State binding and the current-protocol hard-stop semantics are owned by
+`charter/NODE-SPEC.md` and the `node-specification` capability; this guide does
+not restate them. Every target slide inherits the selected workflow; there is no
+slide-level authority choice. Method modules and MD Controllers provide
+operating guidance; they do not introduce another protocol or workflow value.
 
 ## Current workflow
 

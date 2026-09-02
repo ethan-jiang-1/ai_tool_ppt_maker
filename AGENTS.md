@@ -20,7 +20,7 @@ Harness maintenance 的预期行为以 [openspec/specs/](openspec/specs/) 为准
 
 AI 驱动的 PPT 生成系统. Agent 是编排器——读方法论文档 → 做创意判断 → 跑生产管线 → 响应迭代.
 
-核心技术栈: **Node.js 22.x、24.x 或 26.x ESM (.mjs)**. 依赖: `@napi-rs/canvas`, `pptxgenjs`, `commander`.
+核心技术栈: **Node.js 22.x、24.x 或 26.x ESM (.mjs)**. 运行时核心依赖: `@napi-rs/canvas`, `pptxgenjs`, `jszip`, `commander`, `yaml`, `playwright`; 完整清单以 `package.json` 为唯一权威.
 
 ## 目录地图
 
@@ -49,7 +49,7 @@ ai_tool_ppt_maker/
 | 做什么 | 命令 |
 |--------|------|
 | 环境检查 | `node ppt_maker_harness/scripts/ppt_flow.mjs doctor` |
-| 跑回归测试 | `npm test` |
+| 跑受保护核心验证（bounded core，非全量回归） | `npm test` |
 | 管线入口 | `node ppt_maker_harness/scripts/ppt_flow.mjs <cmd>` |
 | 打印目录宪法 | `node ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs` |
 | 校验 run bundle | `node ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs --check <dir>` |
@@ -77,11 +77,9 @@ Agent 探索/理解 Harness 时只看上面 4 个源码目录。**做具体 deck
 - 页面 `slide_id` 是跨版本身份，`position` 只属于当前快照；结构编辑必须 preview + exact plan hash，提交/materialization 零远端调用，`needs_render` 另行授权
 - 新 deck 使用 `identity.scheme: mnemonic`；Agent 编写 5–8 字母、恰好两块 BlockCase 的可口述 ID，优先 5–6
 - `_generated/` 内一切都可以重跑管线重新生成, 绝不手动编辑
-- 新 deck 使用 `page-image-workflow`；在 provider work 前由人明确选择版本级
-  `framed` 或 `pure`，State 只在接受 exact source 后记录
-  `production_identity.by_version` 的 `{ workflow, source_epoch }`。
-  未声明、缺失、混合或损坏的 source/state pair 保持字节不变并进入 owner-issued
-  `repair-current-protocol-identity` hard-stop，绝不推断为当前工作流
+- 新 deck 使用 `page-image-workflow`；版本级 `framed`/`pure` 选择、State 绑定与
+  current-protocol hard-stop 语义的唯一权威是
+  `ppt_maker_harness/charter/NODE-SPEC.md` 与 `openspec/specs/node-specification/spec.md`
 
 ## 从哪里开始
 

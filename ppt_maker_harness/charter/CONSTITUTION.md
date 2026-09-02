@@ -20,7 +20,7 @@
 | 外部 agent skill（「拜师」：`.claude/skills` / `.agents/skills` 作为生产依赖） | 跨平台 / 跨 agent 发现路径不一致，冷启动不可复现 |
 | 任何非 Node 子进程作为生产官方路径 | 破坏单一运行时 |
 
-**允许**：`node scripts/*.mjs`、Node 内置 `fetch`、npm 依赖（`@napi-rs/canvas`、`pptxgenjs`、`commander`、`yaml`）。文档里的 ` ```bash ` 代码块只是**命令示例**（给人/agent 复制 `node …`），不是可执行资产。
+**允许**：`node scripts/*.mjs`、Node 内置 `fetch`、npm 依赖（运行时核心如 `@napi-rs/canvas`、`pptxgenjs`、`commander`、`yaml`；完整清单以 `package.json` 为唯一权威）。文档里的 ` ```bash ` 代码块只是**命令示例**（给人/agent 复制 `node …`），不是可执行资产。
 
 Page Image raw generation、visual-language compilation 和 raw review **全部在**
 `ppt_maker_harness/scripts/` 内实现，不发现、不依赖外部 skill。

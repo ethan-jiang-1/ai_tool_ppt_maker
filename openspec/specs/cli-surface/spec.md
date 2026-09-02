@@ -1250,8 +1250,9 @@ not exact `3_versions/v1` SHALL be `usage` with zero writes.
 - **THEN** the command writes the exact current deck-type seed, the init
   authoring-draft State, and a success `commandResult` whose effect states
   irreversible records were retained
-- **AND** later `paginate plan` of a new candidate against that v1 returns
-  `publication: "initial-draft"` and `target_run_version: "v1"`
+- **AND** later `paginate plan` of a new candidate against the unproduced
+  `3_versions/v1` returns `publication: "initial-draft"` and
+  `target_run_version: "v1"`
 
 ### Requirement: Narrative page plans publish through a dedicated paginate command
 

@@ -291,9 +291,12 @@ from production protocol identity. Structural notation remains valid only where
 the owning run-bundle/version contract uses it; it SHALL not become an exception
 for a production-role-coupled numeric identity. JavaScript `export` syntax,
 unrelated-domain compatibility language, and normative specification text that
-defines or forbids a residue category SHALL remain valid. The sweep is
-repository verification only and SHALL not be called by production startup,
-mutate a bundle, or contact a provider.
+defines or forbids a residue category SHALL remain valid. A numeric `vN` that is
+an internal fragment of a larger identifier token — for example the `-v1` inside
+a registered hyphenated command name — is code-token spelling, not a numeric
+protocol identity, and SHALL remain valid wherever that enclosing identifier is
+current. The sweep is repository verification only and SHALL not be called by
+production startup, mutate a bundle, or contact a provider.
 
 #### Scenario: A retired protocol category is planted in an active snapshot
 
@@ -329,6 +332,15 @@ mutate a bundle, or contact a provider.
   coverage failure
 - **AND** restoring the declared text/binary classification makes the same
   coverage checkpoint pass
+
+#### Scenario: An identifier-internal numeric fragment is not a protocol identity
+
+- **WHEN** active text couples a production role word with a registered
+  hyphenated command or identifier whose spelling contains `-v1`, and no bare
+  numeric `vN` token appears outside that identifier in the same occurrence
+- **THEN** the sweep accepts the line
+- **AND** the same line with a bare `v1` planted beside the identifier still
+  fails with `retired-numeric-protocol-identity`
 
 ### Requirement: Page Design System bindings remain schema-declared and workflow-symmetric
 

@@ -592,6 +592,16 @@ function isBareJavaScriptVersionReference(path, line, match) {
   return /[.(,\[]/.test(before) && /[,);}\]]/.test(after);
 }
 
+/**
+ * A numeric version that is an internal fragment of a larger identifier token
+ * (for example the `-v1` inside the registered `reset-unproduced-v1` command
+ * name) is code-token spelling, not a standalone numeric protocol identity.
+ */
+function isIdentifierInternalVersionFragment(line, match) {
+  const before = match.index > 0 ? line[match.index - 1] : "";
+  return /[\w-]/.test(before);
+}
+
 function isResidueDefinition(lines, index) {
   return ACTIVE_SURFACE_RESIDUE_DEFINITION.test(lines.slice(Math.max(0, index - 1), Math.min(lines.length, index + 2)).join("\n"));
 }
@@ -717,6 +727,7 @@ export function evaluateActiveSurfaceResidue(snapshot = {}) {
       if (!isStructuralVersionOccurrence(line) && ACTIVE_SURFACE_ROLE.test(line)) {
         for (const match of line.matchAll(ACTIVE_SURFACE_NUMERIC_VERSION)) {
           if (isBareJavaScriptVersionReference(entry.path, line, match)) continue;
+          if (isIdentifierInternalVersionFragment(line, match)) continue;
           issues.push(activeSurfaceIssue(
             "retired-numeric-protocol-identity",
             activeSurfaceLocation(entry.path, index + 1),

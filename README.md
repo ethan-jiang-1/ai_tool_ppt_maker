@@ -79,4 +79,6 @@ work changes only the named run bundle.
 
 ## Technology
 
-Node.js ESM (`.mjs`), `@napi-rs/canvas`, `pptxgenjs`, and `commander`.
+Node.js ESM (`.mjs`); runtime-core dependencies `@napi-rs/canvas`, `pptxgenjs`,
+`jszip`, `commander`, `yaml`, and `playwright`. The complete dependency list is
+owned solely by `package.json`.

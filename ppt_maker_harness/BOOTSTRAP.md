@@ -73,6 +73,10 @@ source 的 canonical backup 是可见 `vN` 与 Structural Versioning Path，不�
 
 ## Runtime check map
 
+运行时检查事实的唯一权威是 `ppt_flow doctor` 与 `environment-check` capability
+（`openspec/specs/environment-check/spec.md`）。以下索引与 env-check 发射的检查 id
+一一对应；本文件不复刻任何检查的判定细节，doctor 报告的准备与修复路径见上文 Step 1。
+
 ### nodejs
 ### npm
 ### @napi-rs/canvas

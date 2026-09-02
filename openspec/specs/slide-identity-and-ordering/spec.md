@@ -188,6 +188,7 @@ workflow, migration, or Controller-routing signal.
 - **AND** it does not retain, rewrite, or route the ID through another identity scheme
 
 ### Requirement: Page-plan publication reuses exact structural source protections
+
 When a confirmed narrative page plan creates, inserts, deletes, or reorders
 canonical page source, its publication SHALL use the existing structural
 preview and exact-plan path. The plan SHALL bind its Agent-authored
@@ -223,13 +224,14 @@ same source-byte and exact-plan checks; it is not a general in-place structural
 edit path.
 
 An owner-issued unproduced-v1 reset that restored that exact seed and cleared
-rebuildable local v1 evidence SHALL make the same initial-draft exception
+rebuildable local `3_versions/v1` evidence SHALL make the same initial-draft exception
 available again. It SHALL NOT create a general in-place edit path for non-seed
 source, SHALL NOT apply when irreversible provider or delivery records exist,
 and SHALL NOT replace the confirmed paginate exact-plan publication that
 follows the reset.
 
 #### Scenario: Confirmed page plan creates a clean source target
+
 - **WHEN** an exact confirmed narrative page plan has current matching inputs and target
   bindings
 - **THEN** publication creates the canonical target `slide-specifications.md`
@@ -238,6 +240,7 @@ follows the reset.
   or delivery acceptance inheritance
 
 #### Scenario: An untouched initial draft receives its first page source
+
 - **WHEN** the exact plan binds the exact current `v1` deck-type seed and the
   initial draft has no source receipt, source-bound target-evidence record,
   derived artifact, provider, review, final, or delivery fact
@@ -246,18 +249,20 @@ follows the reset.
   provider calls
 - **AND** a later structural publication cannot use this initial-draft path
   unless an owner-issued unproduced-v1 reset has restored that seed and cleared
-  rebuildable local v1 evidence
+  rebuildable local `3_versions/v1` evidence
 
 #### Scenario: Owner reset restores the initial-draft publication path
-- **WHEN** unique v1 has already received its first page source and source-bound
-  evidence, has no irreversible provider or delivery record, and the owner reset
-  has restored the exact current deck-type seed
-- **THEN** a later confirmed page plan MAY materialize in that same v1 with the
-  same exact-plan checks and zero provider calls
+
+- **WHEN** the unique `3_versions/v1` has already received its first page source
+  and source-bound evidence, has no irreversible provider or delivery record,
+  and the owner reset has restored the exact current deck-type seed
+- **THEN** a later confirmed page plan MAY materialize in that same
+  `3_versions/v1` with the same exact-plan checks and zero provider calls
 - **AND** the same command SHALL refuse and keep every byte when any
   irreversible record exists, leaving publication on the existing vNext path
 
 #### Scenario: Initial State binding is interrupted after source publication
+
 - **WHEN** an initial exact apply has already written its exact target source
   but has not created its source-bound target-evidence record
 - **THEN** retrying that same exact plan may finish only the existing State
@@ -266,6 +271,7 @@ follows the reset.
   than treating the current version as a fresh draft
 
 #### Scenario: A page-plan input drifts before apply
+
 - **WHEN** a Story Outline, Design Constraints, Visual Language registry, page-grouping
   candidate locator or bytes, source byte, target version, or plan hash differs
   from the previewed binding
