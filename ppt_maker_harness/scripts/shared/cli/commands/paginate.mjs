@@ -1,3 +1,8 @@
+/**
+ * paginate — Preview or publish one exact narrative page plan bound by its plan hash.
+ * Authority: openspec/specs/slide-identity-and-ordering/spec.md
+ */
+
 import { relative, resolve, sep } from "node:path";
 import { readFileSync, realpathSync } from "node:fs";
 import { CLI_ERROR_CODES, CLI_DIAGNOSTIC_SCHEMA, createCliNext, emitCliError, registerCliJsonReport } from "../cli_error.mjs";

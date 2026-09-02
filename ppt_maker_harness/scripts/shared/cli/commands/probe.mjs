@@ -68,6 +68,8 @@ function selectedStyleMaster(route, callShape) {
 /**
  * probe — one live confirmed-Call-Shape connectivity submit bound to the exact
  * run. Success is connectivity only. Does not read `_lab/`.
+  * Authority: openspec/specs/image-generation/spec.md
+ * Authority: openspec/specs/environment-check/spec.md
  */
 export async function commandProbe(runDir) {
   const route = await resolveRunAdapter(runDir, "ppt_flow.probe.identity");

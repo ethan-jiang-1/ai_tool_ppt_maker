@@ -1,3 +1,9 @@
+/**
+ * artifacts — Rebuild the current Human Navigation Path index for an exact run (read-only).
+ * Authority: openspec/specs/delivery/spec.md
+ * Authority: openspec/specs/image-generation/spec.md
+ */
+
 import { emitCliError } from "../cli_error.mjs";
 import { commandReport } from "../command_result.mjs";
 import { rebuildTargetPageImageArtifactView } from "../cli_artifact_view.mjs";

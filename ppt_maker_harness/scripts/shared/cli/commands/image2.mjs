@@ -5,7 +5,8 @@ import { emitUsage, progressiveUnsupportedOption, requiredPageImageHash, require
 import { targetPageImageGenerateCredentials, targetPageImageSubmitFactory } from "../cli_image2_response.mjs";
 import { PAGE_IMAGE_OPERATIONS, resolveRunAdapter } from "../command_support.mjs";
 
-/** Execute the fixed progressive raw lifecycle through the marker-selected owner. */
+/** Execute the fixed progressive raw lifecycle through the marker-selected owner.  * Authority: openspec/specs/image-generation/spec.md
+ */
 async function commandTargetPageImageImage2(operation, route, opts = {}) {
   if (operation === "artifact-view") {
     return emitUsage("ppt_flow.image2.artifact-view", "artifact-view moved to the artifacts command", "Use artifacts <run-dir> to rebuild the Human Navigation Path.");

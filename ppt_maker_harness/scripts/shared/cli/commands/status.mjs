@@ -13,6 +13,8 @@ import { PAGE_IMAGE_WORKFLOW_PIPELINE, PAGE_IMAGE_WORKFLOW_SELECTION_REQUIRED_ME
  * status — Show gates, artifacts, playbook breakpoint, and next action.
  * @param {string} runDir
  * @param {{json: boolean}} opts
+  * Authority: openspec/specs/node-specification/spec.md
+ * Authority: openspec/specs/workflow-inspection/spec.md
  */
 export async function commandStatus(runDir, { json: asJson }) {
   const route = await resolveRunAdapter(runDir, "ppt_flow.status.identity");

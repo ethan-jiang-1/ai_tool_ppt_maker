@@ -157,7 +157,9 @@ async function parseTargetStructuralReceipt(context, sourceText) {
   });
 }
 
-/** Bind a current same-workflow structural vNext to the existing exact preview. */
+/** Bind a current same-workflow structural vNext to the existing exact preview.  * Authority: openspec/specs/slide-identity-and-ordering/spec.md
+ * Authority: openspec/specs/node-specification/spec.md
+ */
 async function enrichTargetPageImageStructuralPlan(context, transaction, applied, targetBranch) {
   if (targetBranch !== PAGE_IMAGE_WORKFLOW_PIPELINE || transaction.publication.mode !== "next-version") return null;
   const marker = probeProductionMarker(applied.text, { source: context.document.source });

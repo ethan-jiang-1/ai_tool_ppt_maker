@@ -25,6 +25,8 @@ function renderNewVersionText(result) {
  *
  * @param {string} runDir
  * @param {string|null} name - e.g. "v3".
+  * Authority: openspec/specs/run-bundle-management/spec.md
+ * Authority: openspec/specs/node-specification/spec.md
  */
 export async function commandNewVersion(runDir, { name }) {
   const binding = resolveRunHarnessBinding(runDir, "ppt_flow.new-version.binding");

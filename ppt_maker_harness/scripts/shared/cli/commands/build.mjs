@@ -74,6 +74,8 @@ async function commandPageImageBuild(route) {
  * Executes the receipt-bound Page Image delivery lifecycle.
  *
  * @param {string} runDir
+  * Authority: openspec/specs/pipeline-orchestration/spec.md
+ * Authority: openspec/specs/cli-surface/spec.md
  */
 export async function commandBuild(runDir) {
   const route = await resolveRunAdapter(runDir, "ppt_flow.build.identity");

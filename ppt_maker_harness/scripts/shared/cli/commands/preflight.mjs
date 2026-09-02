@@ -9,6 +9,7 @@ const OPERATIONS = new Set(["framed-local-refresh", "raw-generation", "full-buil
 
 /**
  * preflight — Exact-run operation readiness, zero network and zero write.
+  * Authority: openspec/specs/environment-check/spec.md
  */
 export async function commandPreflight(runDir, { operation }) {
   if (!OPERATIONS.has(operation)) return 1;

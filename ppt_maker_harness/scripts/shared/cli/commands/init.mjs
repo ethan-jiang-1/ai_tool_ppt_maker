@@ -23,6 +23,7 @@ function renderInitText(result) {
  * init — Create a conformant run bundle.
  * @param {string} deckDir
  * @param {{deckType: string, style: string}} opts
+  * Authority: openspec/specs/run-bundle-management/spec.md
  */
 export function commandInit(deckDir, { deckType, style }) {
   const resolved = resolve(deckDir);

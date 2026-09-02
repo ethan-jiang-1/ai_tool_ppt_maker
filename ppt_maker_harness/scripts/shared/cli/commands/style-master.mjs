@@ -1,3 +1,8 @@
+/**
+ * style-master — Style Master candidate lifecycle owner operations for the exact run.
+ * Authority: openspec/specs/style-master-generation/spec.md
+ */
+
 import { emitCliError, registerCliJsonReport } from "../cli_error.mjs";
 import { commandReport } from "../command_result.mjs";
 import { targetImage2Operations } from "../cli_artifact_view.mjs";

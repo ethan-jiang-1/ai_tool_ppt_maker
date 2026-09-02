@@ -92,6 +92,8 @@ async function commandPageImageRefresh(route, {
  *
  * @param {string} runDir
  * @param {{kind: string, only: string|null, all: boolean}} opts
+  * Authority: openspec/specs/pipeline-orchestration/spec.md
+ * Authority: openspec/specs/cli-surface/spec.md
  */
 export async function commandRefresh(runDir, { kind, only, all }) {
   const route = await resolveRunAdapter(runDir, "ppt_flow.refresh.identity");

@@ -1,3 +1,8 @@
+/**
+ * reset-unproduced-v1 — Abandon an unpublished unique v1 structure and restore the authoring draft.
+ * Authority: openspec/specs/run-bundle-management/spec.md
+ */
+
 import { CLI_ERROR_CODES, CLI_DIAGNOSTIC_SCHEMA, createCliNext, emitCliError, registerCliJsonReport } from "../cli_error.mjs";
 import { commandResult, renderCommandJson } from "../command_result.mjs";
 import { emitUsage } from "../cli_diagnostics.mjs";

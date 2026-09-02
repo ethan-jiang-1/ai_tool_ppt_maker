@@ -1,3 +1,8 @@
+/**
+ * state — Show the current Page Image state facts for the exact run.
+ * Authority: openspec/specs/node-specification/spec.md
+ */
+
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import {

@@ -40,7 +40,8 @@ export async function commandValidate(runDir) {
   }
 }
 
-/** Project a source-only parse failure through the Change 1 problem-fact envelope. */
+/** Project a source-only parse failure through the Change 1 problem-fact envelope.  * Authority: openspec/specs/content-parsing/spec.md
+ */
 function emitSourceValidationFailure(where, error) {
   const diagnostic = projectProblemFactsDiagnostic({
     error,

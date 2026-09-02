@@ -10,6 +10,7 @@ import { HARNESS_DIR, runNode } from "../command_support.mjs";
 
 /**
  * test — Run the bounded core verification tier via npm test.
+  * Authority: openspec/specs/cli-surface/spec.md
  */
 export async function commandTest() {
   const result = spawnSync("npm", ["test"], {
