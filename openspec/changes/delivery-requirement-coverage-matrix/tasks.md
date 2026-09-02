@@ -37,6 +37,6 @@
 
 ## 3. 全量验证
 
-- [ ] 3.1 `npm run test:focused -- tests/05-delivery/test_delivery.mjs` 全绿（18+新增）
-- [ ] 3.2 `npm test`（core）全绿；`npm run test:sweep` 全绿
-- [ ] 3.3 `openspec validate --all --strict` 通过；`git diff --check` 干净；`source-test-ownership.json` 无需变更（无新文件）复核
+- [x] 3.1 focused 档按设计排除视觉渲染类测试（"rejects visual-engine closures"），本文件经 `npx vitest run --config vitest.config.mjs tests/05-delivery/test_delivery.mjs` 直跑全绿（21/21 = 18 既有 + 3 新增）
+- [x] 3.2 `npm test`（core）全绿；`npm run test:sweep` 全绿（709/709，含 3 个新增用例）
+- [x] 3.3 `openspec validate --all --strict` 通过（26/26）；`git diff --check` 干净；`source-test-ownership.json` 复核无需变更（`05-delivery` unit 测试仍为 `test_delivery.mjs` 一个文件）
