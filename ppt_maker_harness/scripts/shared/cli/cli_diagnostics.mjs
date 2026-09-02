@@ -2,6 +2,7 @@
  * cli_diagnostics.mjs — CLI error/usage envelope emission, gate diagnostics,
  * and target Page Image / progressive failure mapping.
  * Mechanical move from command_support.mjs; no behavior changes.
+  * Authority: openspec/specs/cli-surface/spec.md
  */
 import { join, resolve } from "node:path";
 import {

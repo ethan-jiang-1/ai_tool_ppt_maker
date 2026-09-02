@@ -24,7 +24,9 @@ function sourceSample(value, depth) {
   return depth === 16 ? value >>> 8 : value;
 }
 
-/** Normalize a decoded fast-png result for a rebuildable raster projection. */
+/** Normalize a decoded fast-png result for a rebuildable raster projection.  * Authority: openspec/specs/harness-script-layout/spec.md
+ * Authority: openspec/specs/delivery/spec.md
+ */
 export function normalizeDecodedPngForProjection(decoded) {
   if (!decoded || typeof decoded !== "object") {
     fail("PNG raster projection requires decoded PNG data");

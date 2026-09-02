@@ -1,3 +1,8 @@
+/**
+ * page_image_source_receipt — Normalized, immutable Page Source Receipt construction and validation.
+ * Authority: openspec/specs/content-parsing/spec.md
+ */
+
 export const PAGE_IMAGE_WORKFLOW_SOURCE_RECEIPT_SCHEMA = "page-source-receipt";
 export const PAGE_IMAGE_WORKFLOW_SOURCE_RECEIPT_ARTIFACT_ROLE = "parsed-source";
 export const PAGE_IMAGE_WORKFLOW_PIPELINE = "page-image-workflow";

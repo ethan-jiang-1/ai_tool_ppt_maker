@@ -1,4 +1,5 @@
-/** Typed direct-fact failure for a present record outside the current contract. */
+/** Typed direct-fact failure for a present record outside the current contract.  * Authority: openspec/specs/node-specification/spec.md
+ */
 export const CURRENT_PROTOCOL_INVALID = "current_protocol_invalid";
 
 export class CurrentProtocolInvalidError extends Error {

@@ -5,6 +5,7 @@
  * resolve presentation, compile provider prose, render headers, or consult a
  * former derived tree. The published tree is therefore an inspection
  * projection, never an input or lifecycle owner.
+  * Authority: openspec/specs/image-generation/spec.md
  */
 import { randomBytes } from "node:crypto";
 import {

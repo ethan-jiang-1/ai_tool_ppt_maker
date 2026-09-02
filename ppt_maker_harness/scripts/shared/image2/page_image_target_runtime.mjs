@@ -5,6 +5,7 @@
  * mechanics, and bindings between already-selected workflow artifacts.  It
  * deliberately receives workflow-specific compilation and finalization from
  * the selected adapter rather than interpreting Framed/Pure semantics here.
+  * Authority: openspec/specs/image-generation/spec.md
  */
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";

@@ -1,6 +1,7 @@
 /**
  * Shared CLI diagnostic producer. The authoritative contract is
  * openspec/specs/cli-surface/spec.md plus any active cli-surface delta.
+  * Authority: openspec/specs/cli-surface/spec.md
  */
 import { EXECUTABLE_INVENTORY } from "../../contracts/executable_inventory.mjs";
 import { problemFactsFromError } from "../diagnostic/problem_fact.mjs";

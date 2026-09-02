@@ -104,6 +104,8 @@ function assertBudget(promptBudget) {
 /**
  * Canonical page-image Call Shape value. Unknown keys, vendor product names as
  * keys, unregistered dialects, and illegal pairings fail closed.
+  * Authority: openspec/specs/image-generation/spec.md
+ * Authority: openspec/specs/cli-surface/spec.md
  */
 export function canonicalizeCallShapeValue(input) {
   if (!input || typeof input !== "object" || Array.isArray(input)) {

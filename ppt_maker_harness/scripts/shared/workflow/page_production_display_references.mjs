@@ -3,6 +3,7 @@
  *
  * This module formats already-authoritative full digests only. It deliberately
  * exposes no reverse lookup, selector parsing, or lifecycle operation.
+  * Authority: openspec/specs/workflow-inspection/spec.md
  */
 const SHA256_RE = /^[0-9a-f]{64}$/;
 

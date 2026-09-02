@@ -11,6 +11,7 @@
  * CLI diagnostic consumer authority: openspec/specs/node-specification/spec.md
  * plus active node-specification deltas from `openspec status`; do not duplicate
  * the producer schema owned by cli-surface in this module.
+  * Authority: openspec/specs/node-specification/spec.md
  */
 import {
   appendFileSync,

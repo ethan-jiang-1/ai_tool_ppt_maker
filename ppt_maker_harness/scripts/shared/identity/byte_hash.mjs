@@ -1,3 +1,8 @@
+/**
+ * byte_hash — Exact byte hashing (SHA-256) for lineage and identity facts.
+ * Authority: openspec/specs/production-schema-conformance/spec.md
+ */
+
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 

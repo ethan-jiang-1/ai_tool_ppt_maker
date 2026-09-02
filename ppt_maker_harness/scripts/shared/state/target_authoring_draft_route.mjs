@@ -25,6 +25,7 @@ const DEFAULT_PLAYBOOK_DIR = join(dirname(fileURLToPath(import.meta.url)), "../.
  * Resolve the narrowly permitted unbound Page Image authoring route.
  * This is observation-only and deliberately does not parse or materialize a
  * selected workflow source receipt.
+  * Authority: openspec/specs/node-specification/spec.md
  */
 export function resolveTargetAuthoringDraftRoute(runDir, { playbookDir = DEFAULT_PLAYBOOK_DIR } = {}) {
   const resolvedRunDir = resolve(runDir || "");

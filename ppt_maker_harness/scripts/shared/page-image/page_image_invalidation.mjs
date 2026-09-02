@@ -124,6 +124,8 @@ function hasCurrentAcceptedEvidence({ evidence, acceptedPlan, previousPlan, prev
 /**
  * Classify Page Image refreshes from current compiled/evidence bindings.
  * The evaluator is pure: it neither creates a plan nor reads/writes artifacts.
+  * Authority: openspec/specs/node-specification/spec.md
+ * Authority: openspec/specs/image-generation/spec.md
  */
 export function evaluatePageImageInvalidation({
   previousReceipt,

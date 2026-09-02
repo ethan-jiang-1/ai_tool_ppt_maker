@@ -1,3 +1,9 @@
+/**
+ * image2/provider_profile — Confined provider-profile resolution for Page Image operations.
+ * Authority: openspec/specs/harness-script-layout/spec.md
+ * Authority: openspec/specs/image-generation/spec.md
+ */
+
 import { lstatSync, readFileSync, realpathSync } from "node:fs";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 import { TextDecoder } from "node:util";

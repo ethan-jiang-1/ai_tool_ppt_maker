@@ -296,7 +296,8 @@ function compactProviderBriefSummary(styleContext) {
   });
 }
 
-/** Deterministically compile the bounded provider brief without provider or page-raw work. */
+/** Deterministically compile the bounded provider brief without provider or page-raw work.  * Authority: openspec/specs/style-master-generation/spec.md
+ */
 export function compileStyleMasterProviderPrompt({ styleIntent, styleContext } = {}) {
   if (typeof styleIntent !== "string" || !styleIntent) {
     fail("style_master_prompt_invalid", "Style Master prompt compilation requires nonempty authored intent");

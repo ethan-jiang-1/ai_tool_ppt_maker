@@ -37,7 +37,9 @@ function requireCurrentEvidence({ rawWorkPlan, acceptedRawEvidence }) {
   return { plan, evidence };
 }
 
-/** Publish a final manifest only from exact current accepted raw evidence. */
+/** Publish a final manifest only from exact current accepted raw evidence.  * Authority: openspec/specs/image-generation/spec.md
+ * Authority: openspec/specs/delivery/spec.md
+ */
 export function publishCurrentFinalSlideManifest({ rawWorkPlan, acceptedRawEvidence, ownerWorkflow, finalBytesBySlide } = {}) {
   requireCurrentEvidence({ rawWorkPlan, acceptedRawEvidence });
   const finalDimensionsBySlide = {};

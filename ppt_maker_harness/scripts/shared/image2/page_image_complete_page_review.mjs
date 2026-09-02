@@ -4,6 +4,7 @@
  * The selected adapter supplies already-rendered review bytes and opaque
  * binding facts. This module only persists and verifies those bytes; it does
  * not compile Framed/Pure prompts or render workflow-specific semantics.
+  * Authority: openspec/specs/image-generation/spec.md
  */
 import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, renameSync, rmdirSync, writeFileSync } from "node:fs";

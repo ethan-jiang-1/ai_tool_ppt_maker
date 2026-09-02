@@ -1,6 +1,7 @@
 import { isMap, isScalar, parseDocument } from "yaml";
 
-/** The exact Page Image Workflow marker is the only current protocol. */
+/** The exact Page Image Workflow marker is the only current protocol.  * Authority: openspec/specs/run-bundle-management/spec.md
+ */
 export const PAGE_IMAGE_WORKFLOW_PIPELINE = "page-image-workflow";
 export const SUPPORTED_PRODUCTION_PIPELINES = Object.freeze([
   PAGE_IMAGE_WORKFLOW_PIPELINE,

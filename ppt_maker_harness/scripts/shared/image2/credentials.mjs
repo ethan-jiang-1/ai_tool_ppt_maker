@@ -2,6 +2,8 @@
  * Import-safe Image2 credential resolution shared by Image2 production
  * owners. Loading this module never reads files or
  * mutates process state; callers choose when the remote boundary is reached.
+  * Authority: openspec/specs/environment-check/spec.md
+ * Authority: openspec/specs/cli-surface/spec.md
  */
 import { requireMatchingImage2RuntimeProfileId } from "./runtime_profile_id.mjs";
 

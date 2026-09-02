@@ -132,6 +132,7 @@ function taskMandateRecoveryAction(snapshot) {
  * Adapter-owned runtime calls always pass the State inspection result. The
  * undefined form is used only by low-level immutable-record readers and their
  * focused fixtures; it is never used by the public CLI.
+  * Authority: openspec/specs/image-generation/spec.md
  */
 function taskMandateAction(snapshot, taskMandate) {
   if (taskMandate === undefined) return null;

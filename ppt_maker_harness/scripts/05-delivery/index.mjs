@@ -88,7 +88,8 @@ function writeAtomic(path, bytes) {
   renameSync(temporary, path);
 }
 
-/** Resolve only source-authored notes in final-manifest order. */
+/** Resolve only source-authored notes in final-manifest order.  * Authority: openspec/specs/delivery/spec.md
+ */
 export function sourceOwnedNotesBySlide(sourcePath, orderedSlideIds) {
   if (typeof sourcePath !== "string" || !sourcePath) {
     throw new PageImageDeliveryError("source_notes_unavailable", "the canonical source path is required for notes delivery");

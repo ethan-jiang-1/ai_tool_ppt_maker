@@ -59,6 +59,8 @@
  *
  * Node.js ESM port — zero external dependencies. Zero external dependencies
  * bundle_layout.mjs. All constants, functions, and CLI modes preserved identically.
+  * Authority: openspec/specs/run-bundle-layout/spec.md
+ * Authority: openspec/specs/run-bundle-management/spec.md
  */
 
 import "../cli/cli_bootstrap.mjs?entry=shared/run-bundle/bundle_layout.mjs";

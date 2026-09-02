@@ -2,6 +2,7 @@
  * Rebuildable collaboration projection for the progressive Page Image
  * lifecycle. It intentionally consumes only workflow inspection and narrow
  * state handoffs; it is never a source of lifecycle truth.
+  * Authority: openspec/specs/workflow-inspection/spec.md
  */
 import { randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";

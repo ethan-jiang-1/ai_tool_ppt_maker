@@ -67,7 +67,8 @@ function assertOrderedIds(ids) {
   }
 }
 
-/** Format the current human-facing Page Image ordinal without changing stable identity. */
+/** Format the current human-facing Page Image ordinal without changing stable identity.  * Authority: openspec/specs/image-generation/spec.md
+ */
 export function formatPageImageOrdinal(position) {
   if (!Number.isInteger(position) || position < 1) {
     throw new PageImageArtifactError("invalid_position", "position must be a positive integer");

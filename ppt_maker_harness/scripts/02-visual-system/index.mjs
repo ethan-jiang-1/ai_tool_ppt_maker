@@ -1,3 +1,9 @@
+/**
+ * 02-visual-system — Visual system configuration and reference material facade.
+ * Authority: openspec/specs/visual-config/spec.md
+ * Authority: openspec/specs/visual-asset-management/spec.md
+ */
+
 export {
   PAGE_IMAGE_VISUAL_CLAUSE_DIGEST,
   PAGE_IMAGE_VISUAL_CLAUSE_FORBIDDEN_CONTENT_TOKENS,

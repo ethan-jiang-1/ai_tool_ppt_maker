@@ -16,6 +16,7 @@
  *
  * This is a dependency-free leaf (no state/run-bundle writer imports), like
  * page_image_paths.mjs.
+  * Authority: openspec/specs/image-generation/spec.md
  */
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";

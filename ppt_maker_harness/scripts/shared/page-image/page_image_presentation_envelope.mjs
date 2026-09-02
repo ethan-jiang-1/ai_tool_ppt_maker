@@ -1,3 +1,8 @@
+/**
+ * page_image_presentation_envelope — Bound presentation-profile inputs into the Page Image compile envelope.
+ * Authority: openspec/specs/image-generation/spec.md
+ */
+
 export const PAGE_IMAGE_PRESENTATION_SCHEMA = "page-layout";
 export const PAGE_IMAGE_PRESENTATION_ARTIFACT_ROLE = "resolved-presentation";
 

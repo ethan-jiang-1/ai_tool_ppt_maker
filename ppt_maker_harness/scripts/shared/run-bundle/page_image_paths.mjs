@@ -78,7 +78,9 @@ export function isPageImageVersionDir(runDir) {
   return parentName === VERSIONS_DIR && /^v\d+$/.test(path.basename(root)) && path.basename(deckRoot).startsWith("deck_");
 }
 
-/** Canonical rebuildable Page Image derived-artifact locations. */
+/** Canonical rebuildable Page Image derived-artifact locations.  * Authority: openspec/specs/run-bundle-layout/spec.md
+ * Authority: openspec/specs/image-generation/spec.md
+ */
 export function pageImageWorkflowPaths(runDir) {
   const root = path.resolve(runDir);
   if (!isPageImageVersionDir(root)) throw new Error(`Page Image paths require a version directory (got ${root})`);

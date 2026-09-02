@@ -4,6 +4,7 @@
  * Pure re-export layer.  Every public name delegates to its internal module.
  * Only the workflow-owned constants, class, and the shared receipt parser are
  * defined here.
+  * Authority: openspec/specs/image-generation/spec.md
  */
 
 import {

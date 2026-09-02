@@ -2,6 +2,7 @@
  * command_result.mjs — structured owner result + dual renderers for the
  * direct CLI. The owner result carries business facts; text and JSON are
  * renderers that consume it and own no facts.
+  * Authority: openspec/specs/cli-surface/spec.md
  */
 export const COMMAND_RESULT_SCHEMA = "pptmaker-command-result";
 export const COMMAND_RESULT_VERSION = 1;

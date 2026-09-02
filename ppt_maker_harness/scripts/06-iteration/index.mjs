@@ -58,6 +58,7 @@ function route({ workflow, kind, owner, providerRequired, nextAction, reason = n
  * Select one legal target refresh path from source-owned change classification
  * and exact workflow evidence. This router never submits provider work or
  * creates derived artifacts; the selected owner performs its own operation.
+  * Authority: openspec/specs/harness-charter/spec.md
  */
 export function classifyTargetRefresh({
   workflow,

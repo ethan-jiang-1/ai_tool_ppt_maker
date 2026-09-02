@@ -4,6 +4,7 @@
  * CLI command seam and the bounded cli_* modules. Bounded concerns live in
  * cli_diagnostics, cli_image2_response, cli_style_master, cli_status,
  * cli_deadline, and cli_artifact_view (refactor-harness-core).
+  * Authority: openspec/specs/cli-surface/spec.md
  */
 import { spawn } from "node:child_process";
 import { existsSync, readFileSync, mkdirSync, writeFileSync } from "node:fs";

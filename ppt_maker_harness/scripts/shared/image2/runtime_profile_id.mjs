@@ -1,3 +1,9 @@
+/**
+ * image2/runtime_profile_id — Import-safe runtime profile-id grammar helper for pre-install checks.
+ * Authority: openspec/specs/harness-script-layout/spec.md
+ * Authority: openspec/specs/environment-check/spec.md
+ */
+
 const PROFILE_ID_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 export function isImage2ProviderProfileId(value) {

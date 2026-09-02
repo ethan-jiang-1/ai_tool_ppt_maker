@@ -68,7 +68,8 @@ function report({ runDir, posture, rootCause, primaryAction, evidenceSummary, so
   return inspection;
 }
 
-/** Return the source-readiness fact from this exact read-only inspection checkpoint. */
+/** Return the source-readiness fact from this exact read-only inspection checkpoint.  * Authority: openspec/specs/workflow-inspection/spec.md
+ */
 export function isWorkflowInspectionSourceReady(inspection) {
   return sourceReadyByInspection.get(inspection) === true;
 }

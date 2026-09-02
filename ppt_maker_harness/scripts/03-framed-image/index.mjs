@@ -1,3 +1,8 @@
+/**
+ * 03-framed-image — Framed workflow semantics, deterministic local header overlay, and raw compilation facade.
+ * Authority: openspec/specs/image-generation/spec.md
+ */
+
 // Pure re-export layer for the 03-framed-image workflow owner.
 // The Framed adapter compiles through the shared Page Image render contract
 // ("./internal/framed_render_contract.mjs"), the canonical render profile

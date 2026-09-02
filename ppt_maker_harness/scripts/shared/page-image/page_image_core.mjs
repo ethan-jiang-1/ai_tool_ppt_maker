@@ -86,7 +86,9 @@ function normalizeHeaderValues(value, field, { requireTitle = false } = {}) {
   return normalized;
 }
 
-/** Normalize the closed Provider Content Schema independently of YAML parsing. */
+/** Normalize the closed Provider Content Schema independently of YAML parsing.  * Authority: openspec/specs/harness-script-layout/spec.md
+ * Authority: openspec/specs/image-generation/spec.md
+ */
 export function normalizePageImageProviderContent(value) {
   if (!hasExactKeys(value, ["items"]) || !Array.isArray(value.items)) {
     throw new PageImageCoreError("page_image_core_provider_content_invalid", "Provider Content Schema must be an object with one items array");

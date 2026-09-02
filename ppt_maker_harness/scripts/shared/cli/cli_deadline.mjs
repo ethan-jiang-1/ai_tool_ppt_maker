@@ -1,6 +1,7 @@
 /**
  * cli_deadline.mjs — Image2 provider operation timing and deadline tools.
  * Mechanical move from command_support.mjs; no behavior changes.
+  * Authority: openspec/specs/cli-surface/spec.md
  */
 
 export const IMAGE2_PROVIDER_OPERATION_TIMEOUT_MS = 600_000;

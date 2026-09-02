@@ -116,6 +116,8 @@ function buildSubmitCall({ credentials, providerIdempotencyKey, callShape, promp
  * Stateless Image2 page-image executor. No runDir, profile YAML, or State.
  * Callers supply credentials, a validated Call Shape value, prompt/reference
  * bytes, and injectable fetch/clock/deadline.
+  * Authority: openspec/specs/harness-script-layout/spec.md
+ * Authority: openspec/specs/image-generation/spec.md
  */
 export async function executePageImageProviderCall({
   credentials,

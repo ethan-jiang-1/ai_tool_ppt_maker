@@ -1,3 +1,8 @@
+/**
+ * cli_bootstrap — Install process-level CLI failure envelope handling for a direct entry.
+ * Authority: openspec/specs/cli-surface/spec.md
+ */
+
 import { writeSync } from "node:fs";
 import { CLI_DIAGNOSTIC_SCHEMA } from "./cli_error.mjs";
 

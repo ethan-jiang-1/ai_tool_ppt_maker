@@ -12,6 +12,8 @@
  * Import-safe: depends only on node:fs / node:path (no npm packages, no
  * production adapter, no YAML parsing), so the pre-install `00-setup` entry
  * can statically import it.
+  * Authority: openspec/specs/environment-check/spec.md
+ * Authority: openspec/specs/cli-surface/spec.md
  */
 import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { join, resolve } from "node:path";

@@ -3,6 +3,7 @@
  *
  * Public CLI: ppt_flow reset-unproduced-v1. This module owns admission and
  * mutation; it does not invent a second in-place structural publication path.
+  * Authority: openspec/specs/run-bundle-management/spec.md
  */
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";

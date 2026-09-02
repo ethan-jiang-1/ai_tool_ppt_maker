@@ -4,6 +4,7 @@
  * The cross-owner adapter supplies only already-validated current artifact
  * facts. This module never reads lifecycle records, discovers currentness, or
  * resolves a display reference or navigation path back into a control selector.
+  * Authority: openspec/specs/delivery/spec.md
  */
 import { randomBytes } from "node:crypto";
 import {

@@ -32,7 +32,8 @@ function expectedPng(value) {
   return value;
 }
 
-/** Return the exact final media contract owned by one selected workflow. */
+/** Return the exact final media contract owned by one selected workflow.  * Authority: openspec/specs/delivery/spec.md
+ */
 export function pageImageFinalPngForWorkflow(workflow) {
   const contract = FINAL_MEDIA_BY_WORKFLOW[workflow];
   if (!contract) throw new TypeError("Page Image workflow has no final PNG contract");

@@ -1,3 +1,8 @@
+/**
+ * 00-setup — Operation-scoped readiness: environment checking and runtime setup facade.
+ * Authority: openspec/specs/environment-check/spec.md
+ */
+
 export async function inspectBaseEnvironment(options = {}) {
   const module = await import("./internal/application.mjs");
   return module.inspectBaseEnvironment(options);

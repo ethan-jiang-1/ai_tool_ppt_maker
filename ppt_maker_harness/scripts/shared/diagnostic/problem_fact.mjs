@@ -63,7 +63,8 @@ function freezeFact(fact) {
   });
 }
 
-/** Build one frozen problem fact. `reason` is required; unknown owner stays null. */
+/** Build one frozen problem fact. `reason` is required; unknown owner stays null.  * Authority: openspec/specs/diagnostic-facts/spec.md
+ */
 export function createProblemFact(fact = {}) {
   if (!fact || typeof fact !== "object" || typeof fact.reason !== "string" || fact.reason.length === 0) {
     throw new TypeError("problem fact requires a non-empty reason");

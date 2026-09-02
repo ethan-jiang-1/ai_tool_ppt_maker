@@ -1,3 +1,10 @@
+/**
+ * 01-content — Page Image source authoring: narrative sources, slide documents, and source receipts.
+ * Authority: openspec/specs/content-parsing/spec.md
+ * Authority: openspec/specs/narrative-authoring/spec.md
+ * Authority: openspec/specs/slide-identity-and-ordering/spec.md
+ */
+
 export {
   IDENTITY_SCHEME_MNEMONIC,
   SlideDocumentError,

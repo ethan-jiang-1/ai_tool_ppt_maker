@@ -34,7 +34,8 @@ function currentAuthorization({ deckDir, runVersion, runDir, rawWorkPlan }) {
   return authorization;
 }
 
-/** Submit opaque typed-plan items only after the state owner confirms scope. */
+/** Submit opaque typed-plan items only after the state owner confirms scope.  * Authority: openspec/specs/image-generation/spec.md
+ */
 export async function submitAuthorizedRawWorkPlan({ deckDir, runVersion, runDir, rawWorkPlan, submit } = {}) {
   checkedPlan(rawWorkPlan);
   if (typeof submit !== "function") throw new PageImageRawMechanicsError("provider_submit_required", "a provider submit function is required");

@@ -59,6 +59,7 @@ function scopeContextResult({ runDir, deckDir, runVersion, workflow, draft }) {
  * route or an exact current source/state pair. The selected workflow's public
  * interface supplies the read-only candidate source separately, avoiding a
  * shared-module workflow branch or a materializing resolveSource call.
+  * Authority: openspec/specs/style-master-generation/spec.md
  */
 export function resolveStyleMasterScopeContext(runDir, { sourceCandidate = null } = {}) {
   const resolvedRunDir = resolve(runDir || "");

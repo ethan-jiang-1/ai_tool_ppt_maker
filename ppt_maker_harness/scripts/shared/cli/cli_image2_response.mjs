@@ -2,6 +2,8 @@
  * cli_image2_response.mjs — Image2/Page Image provider response parsing,
  * known-failure construction, and plan-bound submit factories.
  * Mechanical move from command_support.mjs; no behavior changes.
+  * Authority: openspec/specs/cli-surface/spec.md
+ * Authority: openspec/specs/image-generation/spec.md
  */
 import { readFileSync } from "node:fs";
 import { sha256Bytes } from "../identity/byte_hash.mjs";

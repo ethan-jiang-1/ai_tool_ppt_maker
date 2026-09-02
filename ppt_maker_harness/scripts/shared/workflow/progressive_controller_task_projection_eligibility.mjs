@@ -2,6 +2,7 @@
  * Read-only eligibility for the rebuildable progressive collaboration card.
  * It deliberately consumes already-owned inspection and state facts; it never
  * reads the card, mutates authority, or invokes a provider.
+  * Authority: openspec/specs/workflow-inspection/spec.md
  */
 import { basename, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
