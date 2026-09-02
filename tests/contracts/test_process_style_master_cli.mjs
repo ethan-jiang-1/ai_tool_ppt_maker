@@ -1,3 +1,8 @@
+// Tests: openspec/specs/cli-surface/spec.md
+// Tests: openspec/specs/harness-charter/spec.md
+// Tests: openspec/specs/harness-script-layout/spec.md
+// Tests: openspec/specs/production-schema-conformance/spec.md
+// Tests: openspec/specs/harness-directory-layout/spec.md
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";

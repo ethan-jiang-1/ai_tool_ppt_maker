@@ -77,6 +77,7 @@ Agent 探索/理解 Harness 时只看上面 4 个源码目录。**做具体 deck
 - 页面 `slide_id` 是跨版本身份，`position` 只属于当前快照；结构编辑必须 preview + exact plan hash，提交/materialization 零远端调用，`needs_render` 另行授权
 - 新 deck 使用 `identity.scheme: mnemonic`；Agent 编写 5–8 字母、恰好两块 BlockCase 的可口述 ID，优先 5–6
 - `_generated/` 内一切都可以重跑管线重新生成, 绝不手动编辑
+- **新文件超过 600 行时考虑拆分**；已有文件超过 1500 行应计划拆分。运行 `node ppt_maker_harness/scripts/shared/quality/file_size_gate.mjs` 检查超限文件
 - 新 deck 使用 `page-image-workflow`；版本级 `framed`/`pure` 选择、State 绑定与
   current-protocol hard-stop 语义的唯一权威是
   `ppt_maker_harness/charter/NODE-SPEC.md` 与 `openspec/specs/node-specification/spec.md`

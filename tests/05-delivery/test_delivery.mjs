@@ -1,3 +1,4 @@
+// Tests: openspec/specs/delivery/spec.md
 import { createHash } from "node:crypto";
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";

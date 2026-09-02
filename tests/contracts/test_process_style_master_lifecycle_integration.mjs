@@ -1,3 +1,8 @@
+// Tests: openspec/specs/cli-surface/spec.md
+// Tests: openspec/specs/harness-charter/spec.md
+// Tests: openspec/specs/harness-script-layout/spec.md
+// Tests: openspec/specs/production-schema-conformance/spec.md
+// Tests: openspec/specs/harness-directory-layout/spec.md
 import { createServer } from "node:http";
 import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";

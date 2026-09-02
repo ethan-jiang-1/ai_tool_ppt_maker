@@ -1,3 +1,7 @@
+// Tests: openspec/specs/image-generation/spec.md
+// Tests: openspec/specs/style-master-generation/spec.md
+// Tests: openspec/specs/image2-lab/spec.md
+// Tests: openspec/specs/pipeline-orchestration/spec.md
 import { describe, expect, it } from "vitest";
 import { createHash } from "node:crypto";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";

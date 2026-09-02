@@ -1,3 +1,4 @@
+// Tests: openspec/specs/image-generation/spec.md
 import { describe, expect, it } from "vitest";
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";

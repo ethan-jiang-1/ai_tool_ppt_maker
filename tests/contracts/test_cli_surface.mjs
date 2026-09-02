@@ -1,3 +1,8 @@
+// Tests: openspec/specs/cli-surface/spec.md
+// Tests: openspec/specs/harness-charter/spec.md
+// Tests: openspec/specs/harness-script-layout/spec.md
+// Tests: openspec/specs/production-schema-conformance/spec.md
+// Tests: openspec/specs/harness-directory-layout/spec.md
 import { describe, expect, it } from "vitest";
 import { createHash } from "node:crypto";
 import { mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";

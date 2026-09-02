@@ -1,3 +1,5 @@
+// Tests: openspec/specs/workflow-inspection/spec.md
+// Tests: openspec/specs/pipeline-orchestration/spec.md
 import { createHash } from "node:crypto";
 import { mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";

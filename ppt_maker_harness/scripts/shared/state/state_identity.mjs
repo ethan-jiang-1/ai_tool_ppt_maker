@@ -3,15 +3,12 @@
  * selection, task mandate lifecycle, and target source-state inspection.
  *
  * Part of the state module split. Imports core I/O from state.mjs and shared
- * private helpers from state_evidence.mjs/state_execution.mjs. ESM circular
- * imports are accepted here: every module is function-declaration-only with
- * no top-level side effects that consume the imported bindings, so the cycle
- * resolves safely at call time.
+ * private helpers from state_evidence.mjs/state_execution.mjs. The dependency
+ * graph is a DAG: state.mjs (base) ← state_identity ← state_evidence ← state_execution.
  */
 import { existsSync, readFileSync, readdirSync, realpathSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createHash } from "node:crypto";
 import {
   buildPlaybookIndex,
   controllerDraftRouteNodes,
@@ -25,8 +22,10 @@ import {
   normalizeRunVersion,
   pipelineFromSourceMarker,
 } from "../run-bundle/production_identity.mjs";
-import { PAGE_IMAGE_WORKFLOW_PIPELINE, PAGE_IMAGE_WORKFLOWS, probeProductionMarker } from "../run-bundle/production_marker.mjs";
+import { PAGE_IMAGE_WORKFLOW_PIPELINE } from "../run-bundle/production_marker.mjs";
 import { validateStyleMasterSelectionRecord } from "../image2/style_master_schema.mjs";
+import { deepClone, nowIso, stableStringify } from "../util/state_helpers.mjs";
+import { sha256 } from "../identity/byte_hash.mjs";
 import {
   resolveExactExecution,
   writeState,
@@ -35,6 +34,12 @@ import {
   statePath,
   executionLeasePath,
   EXECUTION_LEASE_SCHEMA,
+  inspectRunProductionIdentity,
+  styleMasterSelectionRecord,
+  styleMasterSourceWorkflow,
+  styleMasterSelectionExpectedWorkflow,
+  ensureProductionIdentityContainer,
+  probeSourceMarkerForVersion,
 } from "./state.mjs";
 import { createDefaultState, startPlaybook } from "./state_execution.mjs";
 import {
@@ -57,9 +62,6 @@ const SHA256_RE = /^[0-9a-f]{64}$/;
 const VERSION_RE = /^v[1-9][0-9]*$/;
 
 // ---- Private helpers duplicated per domain ----
-function nowIso() { return new Date().toISOString(); }
-function sha256(bytes) { return createHash("sha256").update(bytes).digest("hex"); }
-function deepClone(value) { return value == null ? value : structuredClone(value); }
 function deepFreeze(value) {
   if (!value || typeof value !== "object" || Object.isFrozen(value)) return value;
   for (const child of Object.values(value)) deepFreeze(child);
@@ -68,11 +70,6 @@ function deepFreeze(value) {
 function isPlainObject(value) { return Boolean(value && typeof value === "object" && !Array.isArray(value)); }
 function hasExactKeys(value, keys) {
   return isPlainObject(value) && Object.keys(value).length === keys.length && keys.every((key) => Object.hasOwn(value, key));
-}
-function stableStringify(value) {
-  if (value === null || typeof value !== "object") return JSON.stringify(value);
-  if (Array.isArray(value)) return `[${value.map(stableStringify).join(",")}]`;
-  return `{${Object.keys(value).sort().map((k) => `${JSON.stringify(k)}:${stableStringify(value[k])}`).join(",")}}`;
 }
 function validIsoTimestamp(value) {
   return typeof value === "string" && value.length > 0 && !Number.isNaN(Date.parse(value));
@@ -91,36 +88,8 @@ function sameExistingPath(left, right) {
   }
 }
 
-// ---- Source marker probe ----
-/** @private exported for state_evidence */
-export function probeSourceMarkerForVersion(deckDir, runVersion) {
-  const source = join(deckDir, "3_versions", runVersion, "slide-specifications.md");
-  if (!existsSync(source)) return { ok: false, code: "MARKER_MISSING", issues: [] };
-  try {
-    return probeProductionMarker(readFileSync(source), { source: "slide-specifications.md" });
-  } catch (error) {
-    return { ok: false, code: "MARKER_INVALID", issues: [error.message || String(error)] };
-  }
-}
-
 // ---- Style Master helpers ----
-function styleMasterSourceWorkflow(deckDir, runVersion) {
-  const marker = probeSourceMarkerForVersion(deckDir, runVersion);
-  if (marker?.branch !== PAGE_IMAGE_WORKFLOW_PIPELINE || !PAGE_IMAGE_WORKFLOWS.includes(marker?.frontmatter?.metadata?.production?.workflow)) {
-    return Object.freeze({ ok: false, code: marker?.code || "STYLE_MASTER_SOURCE_UNAVAILABLE" });
-  }
-  return Object.freeze({ ok: true, workflow: marker.frontmatter.metadata.production.workflow });
-}
-
-function styleMasterSelectionExpectedWorkflow(state, runVersion) {
-  const identity = state?.production_identity?.by_version?.[canonicalVersionKey(runVersion)];
-  return isProductionIdentityRecord(identity) ? identity.workflow : null;
-}
-
-/** @private exported for state_evidence */
-export function styleMasterSelectionRecord(state, runVersion) {
-  return state?.page_image_style_master?.by_version?.[canonicalVersionKey(runVersion)] || null;
-}
+// (styleMasterSourceWorkflow and styleMasterSelectionExpectedWorkflow moved to state.mjs)
 
 function ensureStyleMasterSelectionContainer(state) {
   if (!isPlainObject(state.page_image_style_master) || !isPlainObject(state.page_image_style_master.by_version)) {
@@ -209,14 +178,7 @@ export function validatePageImageTaskMandateStructure(state, errors) {
 }
 
 // ---- Production identity structure validation ----
-/** @private exported for state_evidence */
-export function ensureProductionIdentityContainer(state) {
-  const prior = isPlainObject(state.production_identity) && isPlainObject(state.production_identity.by_version)
-    ? state.production_identity.by_version
-    : {};
-  state.production_identity = { by_version: prior };
-  return state.production_identity.by_version;
-}
+// (ensureProductionIdentityContainer moved to state.mjs)
 
 /** @private exported for state.mjs validateState */
 export function validateProductionIdentityStructure(state, errors) {
@@ -286,68 +248,7 @@ function targetEvidenceFailure(code, nextAction) {
 }
 
 // ===== Public API functions =====
-
-/**
- * State-owned exact-run production-identity inspection. It combines canonical
- * state with the exact source marker and short-circuits before any
- * generated/provider check. It never reads a project-metadata mirror.
- */
-export function inspectRunProductionIdentity(deckDir, { runVersion, runDir, purpose = "observe" } = {}) {
-  const exactVersion = normalizeRunVersion(runVersion ?? runDir);
-  if (!exactVersion) return Object.freeze({ ok: false, code: "RUN_VERSION_INVALID", runDir, runVersion });
-  const execution = resolveExactExecution(deckDir, { runVersion: exactVersion, purpose });
-  if (!execution.ok) return execution;
-  const { state, source_marker: sourceMarker } = execution;
-  const inspection = inspectProductionIdentity({ state, runVersion: exactVersion, sourceMarker });
-  if (!inspection.ok) return Object.freeze({ ...inspection, run_version: exactVersion });
-  const stateDrift = typeof state.pipeline === "string" && state.pipeline && state.pipeline !== PAGE_IMAGE_WORKFLOW_PIPELINE
-    ? Object.freeze({ kind: "pipeline-projection", expected: PAGE_IMAGE_WORKFLOW_PIPELINE, actual: state.pipeline })
-    : null;
-  return Object.freeze({
-    ok: true,
-    run_version: exactVersion,
-    version_key: inspection.version_key,
-    workflow: inspection.workflow,
-    source_epoch: inspection.source_epoch,
-    source_branch: inspection.source_branch,
-    source_pipeline: inspection.source_pipeline,
-    consistent: true,
-    state_drift: stateDrift,
-  });
-}
-
-/**
- * Read one exact selection record without treating an unrelated file,
- * candidate history, or Controller checkbox as selection authority.
- */
-export function resolveEffectiveStyleMasterSelection(deckDir, { runVersion, runDir, state = null } = {}) {
-  const exactVersion = normalizeRunVersion(runVersion ?? runDir);
-  if (!exactVersion) return Object.freeze({ ok: false, code: "RUN_VERSION_INVALID" });
-  const currentState = state || readState(deckDir, { purpose: "observe", heal: false });
-  if (currentState?.replacement_required || currentState?.corrupted) {
-    return Object.freeze({ ok: false, code: "STATE_UNAVAILABLE", current: false });
-  }
-  const record = styleMasterSelectionRecord(currentState, exactVersion);
-  if (!record) return Object.freeze({ ok: false, code: "STYLE_MASTER_SELECTION_MISSING", current: false });
-  const source = styleMasterSourceWorkflow(deckDir, exactVersion);
-  if (!source.ok) return Object.freeze({ ok: false, code: source.code, current: false });
-  const expectedWorkflow = styleMasterSelectionExpectedWorkflow(currentState, exactVersion) || source.workflow;
-  const checked = validateStyleMasterSelectionRecord(record, {
-    expectedRunVersion: exactVersion,
-    expectedWorkflow,
-  });
-  if (!checked.ok || record.candidate_media_type !== "image/png" || source.workflow !== record.workflow) {
-    return Object.freeze({ ok: false, code: "STYLE_MASTER_SELECTION_STALE", current: false });
-  }
-  return Object.freeze({
-    ok: true,
-    current: true,
-    run_version: exactVersion,
-    workflow: record.workflow,
-    selection_sha256: checked.selection_sha256,
-    record: Object.freeze(structuredClone(record)),
-  });
-}
+// (inspectRunProductionIdentity and resolveEffectiveStyleMasterSelection moved to state.mjs)
 
 /**
  * Persist the one capability-owned selection record. Candidate lifecycle code

@@ -33,7 +33,7 @@
     },
     {
       "id": "page-image-state-integrity",
-      "source": "scripts/shared/state/state_identity.mjs:inspectRunProductionIdentity",
+      "source": "scripts/shared/state/state.mjs:inspectRunProductionIdentity",
       "invariant": "One exact run version has one Page Image state and evidence graph.",
       "failure_story": "Conflicting records could select a different authorization or delivery lineage for the same version.",
       "owner": "shared-state",

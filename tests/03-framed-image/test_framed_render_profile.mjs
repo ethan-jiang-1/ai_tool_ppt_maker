@@ -1,3 +1,4 @@
+// Tests: openspec/specs/image-generation/spec.md
 import { describe, expect, it } from 'vitest';
 
 import { HTML_RUNTIME_PROFILE } from '../../ppt_maker_harness/scripts/00-setup/internal/html_runtime_profile.mjs';

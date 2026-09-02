@@ -91,7 +91,7 @@ current_state_shape:
     owner: scripts/shared/state/state.mjs
     anchors:
       - scripts/shared/run-bundle/production_identity.mjs#inspectProductionIdentity
-      - scripts/shared/state/state_identity.mjs#inspectRunProductionIdentity
+      - scripts/shared/state/state.mjs#inspectRunProductionIdentity
     record_fields:
       - workflow
       - source_epoch

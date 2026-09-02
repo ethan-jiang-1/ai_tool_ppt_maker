@@ -1,3 +1,5 @@
+// Tests: openspec/specs/environment-check/spec.md
+// Tests: openspec/specs/html-render-runtime/spec.md
 import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';

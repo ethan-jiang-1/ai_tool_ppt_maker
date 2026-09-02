@@ -1,3 +1,5 @@
+// Tests: openspec/specs/cli-surface/spec.md
+// Tests: openspec/specs/diagnostic-facts/spec.md
 import { afterEach, describe, expect, it } from "vitest";
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";

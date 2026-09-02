@@ -1,3 +1,6 @@
+// Tests: openspec/specs/narrative-authoring/spec.md
+// Tests: openspec/specs/content-parsing/spec.md
+// Tests: openspec/specs/slide-identity-and-ordering/spec.md
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";

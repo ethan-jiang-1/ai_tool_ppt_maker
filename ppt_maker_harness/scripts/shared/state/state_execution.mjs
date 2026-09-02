@@ -2,14 +2,13 @@
  * state_execution.mjs — MD Controller playbook lifecycle, node/gate operations,
  * entry/exit gate evaluation, and resume-card projection.
  *
- * Part of the state module split. It imports core I/O (writeState/readState,
- * resolveExactExecution, etc.) from state.mjs. ESM circular imports are accepted
- * here: every module is function-declaration-only with no top-level side effects
- * that consume the imported bindings, so the cycle resolves safely at call time.
+ * Part of the state module split. It imports core I/O from state.mjs and
+ * evidence helpers from state_evidence.mjs. The dependency graph is a DAG:
+ * state.mjs (base) → state_identity → state_evidence ← state_execution.
  */
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import {
   buildPlaybookIndex,
   controllerActiveNodeIds,
@@ -25,24 +24,20 @@ import {
 } from "../run-bundle/production_identity.mjs";
 import { PAGE_IMAGE_WORKFLOW_PIPELINE, PAGE_IMAGE_WORKFLOWS } from "../run-bundle/production_marker.mjs";
 import { STYLE_MASTER_IMAGE, styleMasterLocalSourcePath } from "../run-bundle/style_master_media.mjs";
-import { resolveEffectiveStyleMasterSelection } from "./state_identity.mjs";
+import { resolveEffectiveStyleMasterSelection, RESERVED_NODE_IDS, deepClone, isReservedNode, reservedEntries, preserveReservedNodes } from "./state.mjs";
 import { targetEvidenceRecord, validTargetEvidenceRecord } from "./state_evidence.mjs";
+import { nowIso } from "../util/state_helpers.mjs";
+import { sha256 } from "../identity/byte_hash.mjs";
 
 export const NODE_STATUSES = Object.freeze(["pending", "in_progress", "completed", "skipped", "failed"]);
 export const GATE_STATUSES = Object.freeze(["pending", "approved", "waived"]);
-export const RESERVED_NODE_IDS = Object.freeze([]);
 
 const SHA256_RE = /^[0-9a-f]{64}$/;
 const VERSION_RE = /^v[1-9][0-9]*$/;
 
-function nowIso() { return new Date().toISOString(); }
 function newExecutionId() { return `exec-${randomUUID()}`; }
-function sha256(bytes) { return createHash("sha256").update(bytes).digest("hex"); }
-function deepClone(value) { return value == null ? value : structuredClone(value); }
 function isPlainObject(value) { return Boolean(value && typeof value === "object" && !Array.isArray(value)); }
-function isReservedNode(id) { return RESERVED_NODE_IDS.includes(id); }
 function controllerEntries(nodes = {}) { return Object.entries(nodes).filter(([id]) => !isReservedNode(id)); }
-function reservedEntries(nodes = {}) { return Object.entries(nodes).filter(([id]) => isReservedNode(id)); }
 function isoOr(value, fallback) {
   if (typeof value !== "string" || Number.isNaN(Date.parse(value))) return fallback;
   return value;
@@ -352,8 +347,8 @@ export function setNodeDecision(state, nodeId, value, { kind, note } = {}, playb
   return state;
 }
 
-/** @private exported for state_evidence */
-export function preserveReservedNodes(nodes = {}) { return Object.fromEntries(reservedEntries(nodes).map(([id, rec]) => [id, deepClone(rec)])); }
+// (preserveReservedNodes moved to state.mjs)
+
 function activeExecutionIncomplete(state) {
   return controllerEntries(state?.nodes).some(([, rec]) => !["completed", "skipped"].includes(rec?.status));
 }

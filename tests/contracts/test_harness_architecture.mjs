@@ -1,3 +1,8 @@
+// Tests: openspec/specs/cli-surface/spec.md
+// Tests: openspec/specs/harness-charter/spec.md
+// Tests: openspec/specs/harness-script-layout/spec.md
+// Tests: openspec/specs/production-schema-conformance/spec.md
+// Tests: openspec/specs/harness-directory-layout/spec.md
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { describe, expect, it } from "vitest";

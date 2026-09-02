@@ -1,3 +1,4 @@
+// Tests: openspec/specs/diagnostic-facts/spec.md
 import { describe, expect, it } from "vitest";
 
 import {

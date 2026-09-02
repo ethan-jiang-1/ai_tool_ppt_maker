@@ -1,3 +1,5 @@
+// Tests: openspec/specs/cli-surface/spec.md
+// Tests: openspec/specs/diagnostic-facts/spec.md
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";

@@ -8,7 +8,6 @@
  * every module is function-declaration-only with no top-level side effects
  * that consume the imported bindings, so the cycle resolves safely at call time.
  */
-import { createHash } from "node:crypto";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -36,6 +35,8 @@ import {
 import { writeState, appendHistory } from "./state.mjs";
 import { setNodeEvidence, setNodeStatus, activeRecord, startPlaybook, createDefaultState } from "./state_execution.mjs";
 import { taskMandateRecord, currentTaskMandateMatches, taskMandateReference } from "./state_identity.mjs";
+import { deepClone, nowIso, stableStringify } from "../util/state_helpers.mjs";
+import { sha256 } from "../identity/byte_hash.mjs";
 
 // ---- Public exports ----
 export const PAGE_IMAGE_PROGRESSIVE_HANDOFF_SCHEMA = "page-image-workflow-handoff";
@@ -45,17 +46,9 @@ export const STYLE_MASTER_AUTHORIZE_CLI_EVIDENCE_KEY = "style-master-grant-recor
 const SHA256_RE = /^[0-9a-f]{64}$/;
 const DEFAULT_PLAYBOOK_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "playbook");
 
-function nowIso() { return new Date().toISOString(); }
-function sha256(bytes) { return createHash("sha256").update(bytes).digest("hex"); }
-function deepClone(value) { return value == null ? value : structuredClone(value); }
 function isPlainObject(value) { return Boolean(value && typeof value === "object" && !Array.isArray(value)); }
 function hasExactKeys(value, keys) {
   return isPlainObject(value) && Object.keys(value).length === keys.length && keys.every((key) => Object.hasOwn(value, key));
-}
-function stableStringify(value) {
-  if (value === null || typeof value !== "object") return JSON.stringify(value);
-  if (Array.isArray(value)) return `[${value.map(stableStringify).join(",")}]`;
-  return `{${Object.keys(value).sort().map((k) => `${JSON.stringify(k)}:${stableStringify(value[k])}`).join(",")}}`;
 }
 function validIsoTimestamp(value) {
   return typeof value === "string" && value.length > 0 && !Number.isNaN(Date.parse(value));

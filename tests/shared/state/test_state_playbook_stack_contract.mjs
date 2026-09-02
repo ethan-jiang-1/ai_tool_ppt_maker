@@ -1,3 +1,5 @@
+// Tests: openspec/specs/node-specification/spec.md
+// Tests: openspec/specs/playbook-execution/spec.md
 import { describe, expect, it } from "vitest";
 
 import {

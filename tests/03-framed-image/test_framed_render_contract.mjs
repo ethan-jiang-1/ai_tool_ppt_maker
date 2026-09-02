@@ -1,3 +1,4 @@
+// Tests: openspec/specs/image-generation/spec.md
 import { describe, expect, it } from 'vitest';
 import { createHash } from 'node:crypto';
 

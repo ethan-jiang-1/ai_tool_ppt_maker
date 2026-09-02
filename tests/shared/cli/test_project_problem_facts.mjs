@@ -1,3 +1,5 @@
+// Tests: openspec/specs/cli-surface/spec.md
+// Tests: openspec/specs/diagnostic-facts/spec.md
 import { describe, expect, it } from "vitest";
 
 import {

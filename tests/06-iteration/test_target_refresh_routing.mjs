@@ -1,3 +1,4 @@
+// Tests: openspec/specs/workflow-inspection/spec.md
 import { describe, expect, it } from "vitest";
 
 import {

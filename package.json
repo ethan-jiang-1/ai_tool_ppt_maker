@@ -9,6 +9,7 @@
     "test": "node tests/contracts/run_development_verification.mjs",
     "test:sweep": "vitest run",
     "test:focused": "node tests/contracts/run_selected_verification.mjs focused",
+    "test:process": "node tests/contracts/run_selected_verification.mjs process",
     "test:mock-e2e": "node tests/contracts/run_selected_verification.mjs journey",
     "test:real-e2e": "node tests/contracts/run_selected_verification.mjs real-e2e",
     "setup:chromium": "playwright install chromium",

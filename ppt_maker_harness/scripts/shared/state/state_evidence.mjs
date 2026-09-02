@@ -9,7 +9,6 @@
  */
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { createHash } from "node:crypto";
 import {
   validateAcceptedRawEvidence,
   validateFinalSlideManifest,
@@ -22,10 +21,10 @@ import {
 import { canonicalVersionKey, initialProductionIdentityRecord, inspectProductionIdentity, isProductionIdentityRecord, normalizeRunVersion, pipelineFromSourceMarker } from "../run-bundle/production_identity.mjs";
 import { PAGE_IMAGE_WORKFLOW_PIPELINE, probeProductionMarker } from "../run-bundle/production_marker.mjs";
 import { hasCurrentPageImageSourceReceiptEnvelope } from "../page-image/page_image_source_receipt.mjs";
-import { resolveExactExecution, readState, writeState, appendHistory } from "./state.mjs";
-import { inspectRunProductionIdentity, probeSourceMarkerForVersion, ensureProductionIdentityContainer, styleMasterSelectionRecord } from "./state_identity.mjs";
-import { preserveReservedNodes } from "./state_execution.mjs";
+import { resolveExactExecution, readState, writeState, appendHistory, inspectRunProductionIdentity, probeSourceMarkerForVersion, ensureProductionIdentityContainer, styleMasterSelectionRecord, preserveReservedNodes } from "./state.mjs";
 import { validateStyleMasterSelectionRecord } from "../image2/style_master_schema.mjs";
+import { deepClone, nowIso, stableStringify } from "../util/state_helpers.mjs";
+import { sha256 } from "../identity/byte_hash.mjs";
 
 /** @private shared exact-execution gate (moved from state.mjs; not part of the
  * public state.mjs surface — imported by state_identity and state.mjs core). */
@@ -47,17 +46,9 @@ export const PAGE_IMAGE_TARGET_STATE_SCHEMA = "page-image-workflow-target-state"
 const SHA256_RE = /^[0-9a-f]{64}$/;
 const VERSION_RE = /^v[1-9][0-9]*$/;
 
-function nowIso() { return new Date().toISOString(); }
-function sha256(bytes) { return createHash("sha256").update(bytes).digest("hex"); }
-function deepClone(value) { return value == null ? value : structuredClone(value); }
 function isPlainObject(value) { return Boolean(value && typeof value === "object" && !Array.isArray(value)); }
 function hasExactKeys(value, keys) {
   return isPlainObject(value) && Object.keys(value).length === keys.length && keys.every((key) => Object.hasOwn(value, key));
-}
-function stableStringify(value) {
-  if (value === null || typeof value !== "object") return JSON.stringify(value);
-  if (Array.isArray(value)) return `[${value.map(stableStringify).join(",")}]`;
-  return `{${Object.keys(value).sort().map((k) => `${JSON.stringify(k)}:${stableStringify(value[k])}`).join(",")}}`;
 }
 function validIsoTimestamp(value) {
   return typeof value === "string" && value.length > 0 && !Number.isNaN(Date.parse(value));

@@ -1,3 +1,5 @@
+// Tests: openspec/specs/node-specification/spec.md
+// Tests: openspec/specs/playbook-execution/spec.md
 import { describe, it, expect } from "vitest";
 import { mkdirSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";

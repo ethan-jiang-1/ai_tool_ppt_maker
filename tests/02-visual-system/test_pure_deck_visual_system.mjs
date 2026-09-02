@@ -1,3 +1,5 @@
+// Tests: openspec/specs/visual-config/spec.md
+// Tests: openspec/specs/visual-asset-management/spec.md
 import { describe, expect, it } from "vitest";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";

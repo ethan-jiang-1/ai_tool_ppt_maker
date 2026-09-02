@@ -1,3 +1,6 @@
+// Tests: openspec/specs/run-bundle-layout/spec.md
+// Tests: openspec/specs/run-bundle-management/spec.md
+// Tests: openspec/specs/lessons-management/spec.md
 import { afterEach, describe, expect, it } from "vitest";
 import { spawnSync } from "node:child_process";
 import {

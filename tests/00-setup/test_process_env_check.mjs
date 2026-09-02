@@ -1,3 +1,5 @@
+// Tests: openspec/specs/environment-check/spec.md
+// Tests: openspec/specs/html-render-runtime/spec.md
 import { describe, it, expect, vi } from 'vitest';
 import { execFileSync, execSync } from 'node:child_process';
 import { chmodSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, mkdtempSync, writeFileSync } from 'node:fs';

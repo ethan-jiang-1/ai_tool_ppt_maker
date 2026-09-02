@@ -4,6 +4,7 @@ export const EXECUTABLE_INVENTORY = Object.freeze([
   "00-setup/env-check.mjs",
   "shared/image2/lab_cli.mjs",
   "shared/run-bundle/bundle_layout.mjs",
+  "shared/run-bundle/bundle_cli.mjs",
   "shared/run-bundle/lessons.mjs",
 ]);
 

@@ -1,3 +1,5 @@
+// Tests: openspec/specs/visual-config/spec.md
+// Tests: openspec/specs/visual-asset-management/spec.md
 import { createHash } from "node:crypto";
 import { lstatSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";

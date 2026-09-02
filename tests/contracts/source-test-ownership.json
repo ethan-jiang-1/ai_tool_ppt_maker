@@ -284,12 +284,14 @@
   {
    "owner": "shared/run-bundle",
    "interfaces": [
+    "shared/run-bundle/bundle_cli.mjs",
     "shared/run-bundle/bundle_layout.mjs",
     "shared/run-bundle/page_image_paths.mjs",
     "shared/run-bundle/production_marker.mjs",
     "shared/run-bundle/reset_unproduced_v1.mjs"
    ],
    "executables": [
+    "shared/run-bundle/bundle_cli.mjs",
     "shared/run-bundle/bundle_layout.mjs",
     "shared/run-bundle/lessons.mjs"
    ],

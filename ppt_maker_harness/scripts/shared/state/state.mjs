@@ -1,9 +1,11 @@
 /**
  * state.mjs — persisted MD Controller execution state.
  *
- * Core I/O, validation, and re-export layer for the state module split. All
- * playbook-lifecycle, identity, evidence, and progressive-handoff exports are
- * re-exported from the four sibling state_*.mjs modules.
+ * Core I/O, validation, and re-export layer for the state module split.
+ * Playbook-lifecycle, identity, evidence, and progressive-handoff helpers are
+ * defined in sibling state_*.mjs modules and re-exported here. Some functions
+ * that were part of the identity/execution cycle are defined directly in this
+ * module to keep the dependency graph acyclic (DAG).
  *
  * MD Controllers remain the workflow source of truth. This module stores the
  * active execution pointer/evidence and evaluates gates from declarations read
@@ -25,7 +27,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
-import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { parseDocument, stringify } from "yaml";
 import {
@@ -34,7 +36,7 @@ import {
   validatePlaybookIndex,
 } from "./md_controller_reader.mjs";
 import { canonicalVersionKey, normalizeRunVersion, inspectProductionIdentity, isProductionIdentityRecord, pipelineFromSourceMarker } from "../run-bundle/production_identity.mjs";
-import { PAGE_IMAGE_WORKFLOW_PIPELINE, isPageImageWorkflowSelectionPending, probeProductionMarker } from "../run-bundle/production_marker.mjs";
+import { PAGE_IMAGE_WORKFLOW_PIPELINE, PAGE_IMAGE_WORKFLOWS, isPageImageWorkflowSelectionPending, probeProductionMarker } from "../run-bundle/production_marker.mjs";
 import {
   validateProductionIdentityStructure,
   validateStyleMasterSelectionStructure,
@@ -45,6 +47,10 @@ import {
   validateTargetEvidenceStructure,
   validateProgressiveHandoffStructure,
 } from "./state_evidence.mjs";
+import { validateStyleMasterSelectionRecord } from "../image2/style_master_schema.mjs";
+import { deepClone, nowIso } from "../util/state_helpers.mjs";
+import { sha256 } from "../identity/byte_hash.mjs";
+export { deepClone };
 
 // ---- Core constants ----
 export const STATE_DIR = "_state";
@@ -85,16 +91,14 @@ const DEFAULT_PLAYBOOK_DIR = resolve(dirname(fileURLToPath(import.meta.url)), ".
 const GATE_JOURNAL_FILE = "gate-approval-journal.json";
 const SHA256_RE = /^[0-9a-f]{64}$/;
 const VERSION_RE = /^v[1-9][0-9]*$/;
-const RESERVED_NODE_IDS = Object.freeze([]);
 
-function nowIso() { return new Date().toISOString(); }
+export const RESERVED_NODE_IDS = Object.freeze([]);
+
 function newExecutionId() { return `exec-${randomUUID()}`; }
-function sha256(bytes) { return createHash("sha256").update(bytes).digest("hex"); }
-function deepClone(value) { return value == null ? value : structuredClone(value); }
 function isPlainObject(value) { return Boolean(value && typeof value === "object" && !Array.isArray(value)); }
-function isReservedNode(id) { return RESERVED_NODE_IDS.includes(id); }
+export function isReservedNode(id) { return RESERVED_NODE_IDS.includes(id); }
 function controllerEntries(nodes = {}) { return Object.entries(nodes).filter(([id]) => !isReservedNode(id)); }
-function reservedEntries(nodes = {}) { return Object.entries(nodes).filter(([id]) => isReservedNode(id)); }
+export function reservedEntries(nodes = {}) { return Object.entries(nodes).filter(([id]) => isReservedNode(id)); }
 function isoOr(value, fallback) {
   if (typeof value !== "string" || Number.isNaN(Date.parse(value))) return fallback;
   return value;
@@ -196,7 +200,7 @@ function markDurableStatePresent(state) {
   });
   return state;
 }
-function probeSourceMarkerForVersion(deckDir, runVersion) {
+export function probeSourceMarkerForVersion(deckDir, runVersion) {
   const source = join(deckDir, "3_versions", runVersion, "slide-specifications.md");
   if (!existsSync(source)) return { ok: false, code: "MARKER_MISSING", issues: [] };
   try {
@@ -204,6 +208,92 @@ function probeSourceMarkerForVersion(deckDir, runVersion) {
   } catch (error) {
     return { ok: false, code: "MARKER_INVALID", issues: [error.message || String(error)] };
   }
+}
+
+// ---- Helpers moved from state_identity.mjs for cycle-breaking ----
+/** @package shared with state_identity.mjs */
+export function styleMasterSourceWorkflow(deckDir, runVersion) {
+  const marker = probeSourceMarkerForVersion(deckDir, runVersion);
+  if (marker?.branch !== PAGE_IMAGE_WORKFLOW_PIPELINE || !PAGE_IMAGE_WORKFLOWS.includes(marker?.frontmatter?.metadata?.production?.workflow)) {
+    return Object.freeze({ ok: false, code: marker?.code || "STYLE_MASTER_SOURCE_UNAVAILABLE" });
+  }
+  return Object.freeze({ ok: true, workflow: marker.frontmatter.metadata.production.workflow });
+}
+
+/** @package shared with state_identity.mjs */
+export function styleMasterSelectionExpectedWorkflow(state, runVersion) {
+  const identity = state?.production_identity?.by_version?.[canonicalVersionKey(runVersion)];
+  return isProductionIdentityRecord(identity) ? identity.workflow : null;
+}
+
+/** @private styleMasterSelectionRecord — read-only accessor for the current selection record. */
+export function styleMasterSelectionRecord(state, runVersion) {
+  return state?.page_image_style_master?.by_version?.[canonicalVersionKey(runVersion)] || null;
+}
+
+/** @private ensureProductionIdentityContainer — ensure the by_version container exists. */
+export function ensureProductionIdentityContainer(state) {
+  const prior = isPlainObject(state.production_identity) && isPlainObject(state.production_identity.by_version)
+    ? state.production_identity.by_version
+    : {};
+  state.production_identity = { by_version: prior };
+  return state.production_identity.by_version;
+}
+
+export function preserveReservedNodes(nodes = {}) { return Object.fromEntries(reservedEntries(nodes).map(([id, rec]) => [id, deepClone(rec)])); }
+
+// ---- Production identity inspection (moved from state_identity.mjs) ----
+export function inspectRunProductionIdentity(deckDir, { runVersion, runDir, purpose = "observe" } = {}) {
+  const exactVersion = normalizeRunVersion(runVersion ?? runDir);
+  if (!exactVersion) return Object.freeze({ ok: false, code: "RUN_VERSION_INVALID", runDir, runVersion });
+  const execution = resolveExactExecution(deckDir, { runVersion: exactVersion, purpose });
+  if (!execution.ok) return execution;
+  const { state, source_marker: sourceMarker } = execution;
+  const inspection = inspectProductionIdentity({ state, runVersion: exactVersion, sourceMarker });
+  if (!inspection.ok) return Object.freeze({ ...inspection, run_version: exactVersion });
+  const stateDrift = typeof state.pipeline === "string" && state.pipeline && state.pipeline !== PAGE_IMAGE_WORKFLOW_PIPELINE
+    ? Object.freeze({ kind: "pipeline-projection", expected: PAGE_IMAGE_WORKFLOW_PIPELINE, actual: state.pipeline })
+    : null;
+  return Object.freeze({
+    ok: true,
+    run_version: exactVersion,
+    version_key: inspection.version_key,
+    workflow: inspection.workflow,
+    source_epoch: inspection.source_epoch,
+    source_branch: inspection.source_branch,
+    source_pipeline: inspection.source_pipeline,
+    consistent: true,
+    state_drift: stateDrift,
+  });
+}
+
+export function resolveEffectiveStyleMasterSelection(deckDir, { runVersion, runDir, state = null } = {}) {
+  const exactVersion = normalizeRunVersion(runVersion ?? runDir);
+  if (!exactVersion) return Object.freeze({ ok: false, code: "RUN_VERSION_INVALID" });
+  const currentState = state || readState(deckDir, { purpose: "observe", heal: false });
+  if (currentState?.replacement_required || currentState?.corrupted) {
+    return Object.freeze({ ok: false, code: "STATE_UNAVAILABLE", current: false });
+  }
+  const record = styleMasterSelectionRecord(currentState, exactVersion);
+  if (!record) return Object.freeze({ ok: false, code: "STYLE_MASTER_SELECTION_MISSING", current: false });
+  const source = styleMasterSourceWorkflow(deckDir, exactVersion);
+  if (!source.ok) return Object.freeze({ ok: false, code: source.code, current: false });
+  const expectedWorkflow = styleMasterSelectionExpectedWorkflow(currentState, exactVersion) || source.workflow;
+  const checked = validateStyleMasterSelectionRecord(record, {
+    expectedRunVersion: exactVersion,
+    expectedWorkflow,
+  });
+  if (!checked.ok || record.candidate_media_type !== "image/png" || source.workflow !== record.workflow) {
+    return Object.freeze({ ok: false, code: "STYLE_MASTER_SELECTION_STALE", current: false });
+  }
+  return Object.freeze({
+    ok: true,
+    current: true,
+    run_version: exactVersion,
+    workflow: record.workflow,
+    selection_sha256: checked.selection_sha256,
+    record: Object.freeze(structuredClone(record)),
+  });
 }
 
 // ---- Execution binding helpers (used by healState/validateState/readState) ----
@@ -762,7 +852,6 @@ export function validateStateReadOnly(deckDir, { runDir = null } = {}) {
 export {
   NODE_STATUSES,
   GATE_STATUSES,
-  RESERVED_NODE_IDS,
   resolveContinuationTargetVersion,
   getNodeStatus,
   getCurrentNode,
@@ -797,9 +886,7 @@ export {
 export {
   PAGE_IMAGE_TASK_MANDATE_SCHEMA,
   PAGE_IMAGE_TASK_MANDATE_SCOPE,
-  inspectRunProductionIdentity,
   resolveRunProductionAdapter,
-  resolveEffectiveStyleMasterSelection,
   recordEffectiveStyleMasterSelection,
   activateCleanPageImageTargetDraft,
   inspectCurrentPageImageTaskMandate,

@@ -1,3 +1,5 @@
+// Tests: openspec/specs/workflow-inspection/spec.md
+// Tests: openspec/specs/pipeline-orchestration/spec.md
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";

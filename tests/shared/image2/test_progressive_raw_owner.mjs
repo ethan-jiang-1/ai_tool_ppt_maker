@@ -1,3 +1,7 @@
+// Tests: openspec/specs/image-generation/spec.md
+// Tests: openspec/specs/style-master-generation/spec.md
+// Tests: openspec/specs/image2-lab/spec.md
+// Tests: openspec/specs/pipeline-orchestration/spec.md
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";

@@ -1,3 +1,4 @@
+// Tests: openspec/specs/visual-config/spec.md
 import { describe, expect, it } from "vitest";
 
 import {

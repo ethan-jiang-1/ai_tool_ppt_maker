@@ -1,3 +1,5 @@
+// Tests: openspec/specs/environment-check/spec.md
+// Tests: openspec/specs/html-render-runtime/spec.md
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { describe, expect, it } from 'vitest';

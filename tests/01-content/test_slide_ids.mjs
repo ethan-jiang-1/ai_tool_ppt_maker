@@ -1,3 +1,6 @@
+// Tests: openspec/specs/narrative-authoring/spec.md
+// Tests: openspec/specs/content-parsing/spec.md
+// Tests: openspec/specs/slide-identity-and-ordering/spec.md
 import { describe, it, expect } from 'vitest';
 import {
   findNearConfusions,
