@@ -35,7 +35,7 @@ import {
 import { writeState, appendHistory } from "./state.mjs";
 import { setNodeEvidence, setNodeStatus, activeRecord, startPlaybook, createDefaultState } from "./state_execution.mjs";
 import { taskMandateRecord, currentTaskMandateMatches, taskMandateReference } from "./state_identity.mjs";
-import { deepClone, nowIso, stableStringify } from "../util/state_helpers.mjs";
+import { deepClone, nowIso, stableStringify, isPlainObject, hasExactKeys, validIsoTimestamp } from "../util/state_helpers.mjs";
 import { sha256 } from "../identity/byte_hash.mjs";
 
 // ---- Public exports ----
@@ -46,13 +46,7 @@ export const STYLE_MASTER_AUTHORIZE_CLI_EVIDENCE_KEY = "style-master-grant-recor
 const SHA256_RE = /^[0-9a-f]{64}$/;
 const DEFAULT_PLAYBOOK_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "playbook");
 
-function isPlainObject(value) { return Boolean(value && typeof value === "object" && !Array.isArray(value)); }
-function hasExactKeys(value, keys) {
-  return isPlainObject(value) && Object.keys(value).length === keys.length && keys.every((key) => Object.hasOwn(value, key));
-}
-function validIsoTimestamp(value) {
-  return typeof value === "string" && value.length > 0 && !Number.isNaN(Date.parse(value));
-}
+// (isPlainObject, hasExactKeys, validIsoTimestamp moved to shared/util/state_helpers.mjs)
 
 // ---- Progressive plan facts ----
 function progressivePlanFacts(progressiveRawWorkPlan) {

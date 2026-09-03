@@ -26,7 +26,7 @@ import { PAGE_IMAGE_WORKFLOW_PIPELINE, PAGE_IMAGE_WORKFLOWS } from "../run-bundl
 import { STYLE_MASTER_IMAGE, styleMasterLocalSourcePath } from "../run-bundle/style_master_media.mjs";
 import { resolveEffectiveStyleMasterSelection, RESERVED_NODE_IDS, deepClone, isReservedNode, reservedEntries, preserveReservedNodes } from "./state.mjs";
 import { targetEvidenceRecord, validTargetEvidenceRecord } from "./state_evidence.mjs";
-import { nowIso } from "../util/state_helpers.mjs";
+import { nowIso, isPlainObject } from "../util/state_helpers.mjs";
 import { sha256 } from "../identity/byte_hash.mjs";
 
 export const NODE_STATUSES = Object.freeze(["pending", "in_progress", "completed", "skipped", "failed"]);
@@ -36,7 +36,6 @@ const SHA256_RE = /^[0-9a-f]{64}$/;
 const VERSION_RE = /^v[1-9][0-9]*$/;
 
 function newExecutionId() { return `exec-${randomUUID()}`; }
-function isPlainObject(value) { return Boolean(value && typeof value === "object" && !Array.isArray(value)); }
 function controllerEntries(nodes = {}) { return Object.entries(nodes).filter(([id]) => !isReservedNode(id)); }
 function isoOr(value, fallback) {
   if (typeof value !== "string" || Number.isNaN(Date.parse(value))) return fallback;

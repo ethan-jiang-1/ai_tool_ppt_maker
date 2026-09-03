@@ -24,7 +24,7 @@ import {
 } from "../run-bundle/production_identity.mjs";
 import { PAGE_IMAGE_WORKFLOW_PIPELINE } from "../run-bundle/production_marker.mjs";
 import { validateStyleMasterSelectionRecord } from "../image2/style_master_schema.mjs";
-import { deepClone, nowIso, stableStringify } from "../util/state_helpers.mjs";
+import { deepClone, nowIso, stableStringify, isPlainObject, hasExactKeys, validIsoTimestamp, versionFromReservedKey, deepFreeze } from "../util/state_helpers.mjs";
 import { sha256 } from "../identity/byte_hash.mjs";
 import {
   resolveExactExecution,
@@ -61,22 +61,7 @@ export const PAGE_IMAGE_TASK_MANDATE_SCOPE = "normal-page-image-production";
 const SHA256_RE = /^[0-9a-f]{64}$/;
 const VERSION_RE = /^v[1-9][0-9]*$/;
 
-// ---- Private helpers duplicated per domain ----
-function deepFreeze(value) {
-  if (!value || typeof value !== "object" || Object.isFrozen(value)) return value;
-  for (const child of Object.values(value)) deepFreeze(child);
-  return Object.freeze(value);
-}
-function isPlainObject(value) { return Boolean(value && typeof value === "object" && !Array.isArray(value)); }
-function hasExactKeys(value, keys) {
-  return isPlainObject(value) && Object.keys(value).length === keys.length && keys.every((key) => Object.hasOwn(value, key));
-}
-function validIsoTimestamp(value) {
-  return typeof value === "string" && value.length > 0 && !Number.isNaN(Date.parse(value));
-}
-function versionFromReservedKey(key) {
-  return /^3_versions\/(v[1-9][0-9]*)$/.exec(key)?.[1] || null;
-}
+// ---- Private helpers (deepFreeze, isPlainObject, hasExactKeys, validIsoTimestamp, versionFromReservedKey moved to shared/util/state_helpers.mjs) ----
 
 const DEFAULT_PLAYBOOK_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "playbook");
 

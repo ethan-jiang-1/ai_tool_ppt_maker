@@ -48,7 +48,7 @@ import {
   validateProgressiveHandoffStructure,
 } from "./state_evidence.mjs";
 import { validateStyleMasterSelectionRecord } from "../image2/style_master_schema.mjs";
-import { deepClone, nowIso } from "../util/state_helpers.mjs";
+import { deepClone, nowIso, isPlainObject, hasExactKeys, validIsoTimestamp, versionFromReservedKey, deepFreeze } from "../util/state_helpers.mjs";
 import { sha256 } from "../identity/byte_hash.mjs";
 export { deepClone };
 
@@ -95,7 +95,6 @@ const VERSION_RE = /^v[1-9][0-9]*$/;
 export const RESERVED_NODE_IDS = Object.freeze([]);
 
 function newExecutionId() { return `exec-${randomUUID()}`; }
-function isPlainObject(value) { return Boolean(value && typeof value === "object" && !Array.isArray(value)); }
 export function isReservedNode(id) { return RESERVED_NODE_IDS.includes(id); }
 function controllerEntries(nodes = {}) { return Object.entries(nodes).filter(([id]) => !isReservedNode(id)); }
 export function reservedEntries(nodes = {}) { return Object.entries(nodes).filter(([id]) => isReservedNode(id)); }
@@ -417,15 +416,6 @@ function stateIssue(path, expected, actual, kind = "state", next_action = "repai
     kind, next_action,
   });
 }
-function hasExactKeys(value, keys) {
-  return isPlainObject(value) && Object.keys(value).length === keys.length && keys.every((key) => Object.hasOwn(value, key));
-}
-function versionFromReservedKey(key) {
-  return /^3_versions\/(v[1-9][0-9]*)$/.exec(key)?.[1] || null;
-}
-function validIsoTimestamp(value) {
-  return typeof value === "string" && value.length > 0 && !Number.isNaN(Date.parse(value));
-}
 function validateProductionIdentityReadOnly(state, issues) {
   const pm = state.production_identity;
   if (pm == null) return;
@@ -580,12 +570,6 @@ export function resolveExactExecution(deckDir, { runVersion, runDir, purpose = "
     source_identity: sourceMarker.identity ? deepFreeze(deepClone(sourceMarker.identity)) : null,
     source_marker: deepFreeze(deepClone(sourceMarker)),
   });
-}
-
-function deepFreeze(value) {
-  if (!value || typeof value !== "object" || Object.isFrozen(value)) return value;
-  for (const child of Object.values(value)) deepFreeze(child);
-  return Object.freeze(value);
 }
 
 /** Direct workflow-owner boundary for exported run-scoped mutation APIs. */

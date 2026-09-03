@@ -23,7 +23,7 @@ import { PAGE_IMAGE_WORKFLOW_PIPELINE, probeProductionMarker } from "../run-bund
 import { hasCurrentPageImageSourceReceiptEnvelope } from "../page-image/page_image_source_receipt.mjs";
 import { resolveExactExecution, readState, writeState, appendHistory, inspectRunProductionIdentity, probeSourceMarkerForVersion, ensureProductionIdentityContainer, styleMasterSelectionRecord, preserveReservedNodes } from "./state.mjs";
 import { validateStyleMasterSelectionRecord } from "../image2/style_master_schema.mjs";
-import { deepClone, nowIso, stableStringify } from "../util/state_helpers.mjs";
+import { deepClone, nowIso, stableStringify, isPlainObject, hasExactKeys, validIsoTimestamp, versionFromReservedKey } from "../util/state_helpers.mjs";
 import { sha256 } from "../identity/byte_hash.mjs";
 
 /** @private shared exact-execution gate (moved from state.mjs; not part of the
@@ -46,16 +46,7 @@ export const PAGE_IMAGE_TARGET_STATE_SCHEMA = "page-image-workflow-target-state"
 const SHA256_RE = /^[0-9a-f]{64}$/;
 const VERSION_RE = /^v[1-9][0-9]*$/;
 
-function isPlainObject(value) { return Boolean(value && typeof value === "object" && !Array.isArray(value)); }
-function hasExactKeys(value, keys) {
-  return isPlainObject(value) && Object.keys(value).length === keys.length && keys.every((key) => Object.hasOwn(value, key));
-}
-function validIsoTimestamp(value) {
-  return typeof value === "string" && value.length > 0 && !Number.isNaN(Date.parse(value));
-}
-function versionFromReservedKey(key) {
-  return /^3_versions\/(v[1-9][0-9]*)$/.exec(key)?.[1] || null;
-}
+// (isPlainObject, hasExactKeys, validIsoTimestamp, versionFromReservedKey moved to shared/util/state_helpers.mjs)
 
 // ---- Target evidence helpers ----
 

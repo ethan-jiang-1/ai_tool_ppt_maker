@@ -515,21 +515,21 @@ export const VISUAL_STYLE_OPTIONAL = new Set([
     'style_master.image-task.json',
 ]);
 
-const _ALLOWED_IN_BACKBONE = new Set([
+export const _ALLOWED_IN_BACKBONE = new Set([
     ...Object.keys(BACKBONE_FILE_SEEDS),
     ...BACKBONE_SUBDIRS,
     ...BACKBONE_OPTIONAL,
     'README.md',
 ]);
 
-const _ALLOWED_IN_VISUAL_STYLE = new Set([
+export const _ALLOWED_IN_VISUAL_STYLE = new Set([
     ...VISUAL_STYLE_FILES,
     ...VISUAL_STYLE_OPTIONAL,
     BACKBONE_ASSETS_SUBDIR,
     'README.md',
 ]);
 
-const _ALLOWED_IN_ASSETS = new Set([
+export const _ALLOWED_IN_ASSETS = new Set([
     ASSET_MANIFEST_FILE,
     ASSET_SVG_SUBDIR,
     ASSET_REFERENCE_SUBDIR,
@@ -537,7 +537,7 @@ const _ALLOWED_IN_ASSETS = new Set([
     'README.md',
 ]);
 
-const _ALLOWED_IN_PAGE_IMAGE_PRESENTATION = new Set([
+export const _ALLOWED_IN_PAGE_IMAGE_PRESENTATION = new Set([
     ...PAGE_IMAGE_PRESENTATION_FILES,
     'README.md',
 ]);
