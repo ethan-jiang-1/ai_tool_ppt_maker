@@ -88,9 +88,9 @@ with contradictory no-text constraints.
 ### 4. Agent identity is reference doctrine with one provider-safe derivative
 
 The Amber Agent five-pose model sheet is promoted from
-`deck_ai_sdlc_keynote/3_versions/v1/_scratch/agent_reference_sheet.png`
+`deck_ai_sdlc_bpm_keynote/3_versions/v1/_scratch/agent_reference_sheet.png`
 (`f71a7ed8ec8f69e10ffbe2997e81f123d46515b5608de61afc155d6b3ed6c756`) into
-`deck_ai_sdlc_keynote/2_backbone/visual-style/assets/reference/amber-agent/model-sheet.png` as
+`deck_ai_sdlc_bpm_keynote/2_backbone/visual-style/assets/reference/amber-agent/model-sheet.png` as
 human-reviewed visual doctrine. It never becomes a provider reference. `visual-asset-management`
 resolves only a registered, single-pose, label-free role derivative with an expected SHA-256 and a
 text-guarded role clause. A selected identity requires exactly one identity subject and is included in

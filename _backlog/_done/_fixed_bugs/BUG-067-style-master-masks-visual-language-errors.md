@@ -4,7 +4,7 @@
 
 ## 症状
 
-在 `deck_ai_sdlc_keynote/3_versions/v8` 的 Pure 调优中，为开场/转场/结束页新增
+在 `deck_ai_sdlc_bpm_keynote/3_versions/v8` 的 Pure 调优中，为开场/转场/结束页新增
 `compositions.title-pause` 后，provider clause 曾包含以下内容片段：
 
 ```text

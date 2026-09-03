@@ -4,7 +4,7 @@ title: Image2 出图 vendor 切换体验极差——key 不互通、单 vendor �
 severity: medium
 status: open
 found_at: 2026-07-13
-found_in: deck_ai_sdlc_keynote, Phase 3 production
+found_in: deck_ai_sdlc_bpm_keynote, Phase 3 production
 reproduced: yes (全程)
 ---
 

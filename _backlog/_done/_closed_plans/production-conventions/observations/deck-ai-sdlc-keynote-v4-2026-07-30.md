@@ -1,4 +1,4 @@
-# `deck_ai_sdlc_keynote` v4 历史观察
+# `deck_ai_sdlc_bpm_keynote` v4 历史观察
 
 > 记录日期：2026-07-30。
 > 性质：从旧 production task 草稿迁出的 run-specific historical observation（具体 run 历史观察）。

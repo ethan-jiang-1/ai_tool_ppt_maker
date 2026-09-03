@@ -169,7 +169,7 @@ BUG-040 与 BUG-045，并持续保护 BUG-043 已实现的 final 命名。
 **目的：** 让 `new-version` 创建的 clean Page Authority target 立即成为其已选 workflow
 的 `create-deck` authoring draft，而不继承 source 的 production 或 paid-work lineage。
 
-**验收中发现与完成：** 2026-08-03 在 `deck_ai_sdlc_keynote` 从 v5 创建 v7 时发现，旧路径
+**验收中发现与完成：** 2026-08-03 在 `deck_ai_sdlc_bpm_keynote` 从 v5 创建 v7 时发现，旧路径
 会让 target 在 provider-free validation 前卡在 `MODE_MISSING`。该 change 已覆盖 active / inactive
 source、target lineage conflict 和 public CLI routing；主规格已同步，并归档为
 `openspec/changes/archive/2026-08-03-activate-clean-page-authority-versions/`。
@@ -249,7 +249,7 @@ profile 重编译 v7 plan，完成 Pilot、25/25 generate、review 和 delivery�
 1. [x] **建立 baseline（非 change）**：运行与 Page Authority 相关的无远端 fixture 回归，
    记录 BUG-036/041/043/044 的当前契约结果；不修改 `_generated/`，不提交 provider 请求。
 2. [x] **完成语义线验收（非 change）**：在用户指定的
-   `deck_ai_sdlc_keynote/3_versions/v7` 中，官方 `validate` 通过 25 页；结构化
+   `deck_ai_sdlc_bpm_keynote/3_versions/v7` 中，官方 `validate` 通过 25 页；结构化
    source receipt 显示 `BODY` 25/25、`VISUAL SCENE` 25/25，且所有 slide ID 唯一。逐页
    人工语义复核确认 scene 承载各页的结构或隐喻，Pure 所需正文也已存在。这是 source-side
    readiness，不替代 provider 真实出图验收。

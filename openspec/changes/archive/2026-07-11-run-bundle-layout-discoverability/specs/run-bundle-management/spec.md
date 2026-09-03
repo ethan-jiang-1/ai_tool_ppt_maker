@@ -77,9 +77,9 @@ Init-seeded `_DIR_READMES` SHALL surface `run-bundle-layout` placement tokens be
 
 ### Requirement: Golden sample first-look READMEs match current seeds
 
-`deck_ai_sdlc_keynote/README.md` and `deck_ai_sdlc_keynote/3_versions/v1/README.md` SHALL be refreshed to match current init-seed placement maps (including `_scratch/`), because `_writeIfAbsent` does not update stale READMEs.
+`deck_ai_sdlc_bpm_keynote/README.md` and `deck_ai_sdlc_bpm_keynote/3_versions/v1/README.md` SHALL be refreshed to match current init-seed placement maps (including `_scratch/`), because `_writeIfAbsent` does not update stale READMEs.
 
 #### Scenario: Keynote root README mentions _scratch
 
-- **WHEN** Agent opens `deck_ai_sdlc_keynote/README.md`
+- **WHEN** Agent opens `deck_ai_sdlc_bpm_keynote/README.md`
 - **THEN** the file mentions `_scratch` as the version temp outlet

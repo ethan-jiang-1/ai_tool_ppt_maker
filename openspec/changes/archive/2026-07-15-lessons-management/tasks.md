@@ -33,10 +33,10 @@
 
 ## 6. Validation
 
-- [x] 6.1 Run `node PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/lessons.mjs list deck_ai_sdlc_keynote/3_versions/v1` — verify it shows 2 lessons with summaries.
+- [x] 6.1 Run `node PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/lessons.mjs list deck_ai_sdlc_bpm_keynote/3_versions/v1` — verify it shows 2 lessons with summaries.
 - [x] 6.2 Run `node PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/lessons.mjs add <test_runDir> --title "test-lesson"` — should create file with template; verify content.
-- [x] 6.3 Run `node PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/lessons.mjs search deck_ai_sdlc_keynote/3_versions/v1 vendor` — verify it finds `vendor-reliability.md`.
-- [x] 6.4 Run `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs status deck_ai_sdlc_keynote/3_versions/v1` — verify the `Lessons: 2` line appears.
-- [x] 6.5 Run `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs status deck_ai_sdlc_keynote/3_versions/v1 --json` — verify `lessons_count: 2` in JSON output.
+- [x] 6.3 Run `node PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/lessons.mjs search deck_ai_sdlc_bpm_keynote/3_versions/v1 vendor` — verify it finds `vendor-reliability.md`.
+- [x] 6.4 Run `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs status deck_ai_sdlc_bpm_keynote/3_versions/v1` — verify the `Lessons: 2` line appears.
+- [x] 6.5 Run `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs status deck_ai_sdlc_bpm_keynote/3_versions/v1 --json` — verify `lessons_count: 2` in JSON output.
 - [x] 6.6 Run `npm test` — verify all existing tests pass.
 - [x] 6.7 Run `node PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs --self-check` — verify SSOT consistency.

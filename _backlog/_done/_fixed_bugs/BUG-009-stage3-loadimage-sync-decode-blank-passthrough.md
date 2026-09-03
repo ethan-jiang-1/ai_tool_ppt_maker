@@ -4,7 +4,7 @@
 
 ## 症状
 
-`build`（Stage 3 → Stage 4）产出的 `ppt/ai_sdlc_keynote.pptx` 只有 **75 KB**，用 Keynote/PowerPoint 打开是 **25 页白板**（无任何 slide 内容）。
+`build`（Stage 3 → Stage 4）产出的 `ppt/ai_sdlc_bpm_keynote.pptx` 只有 **75 KB**，用 Keynote/PowerPoint 打开是 **25 页白板**（无任何 slide 内容）。
 
 拆包证据：
 - `ppt/media/` 里 25 张内嵌图 **MD5 完全相同**、每张 **6221 字节**、尺寸 1672×941 RGBA——是同一张**近乎空白**的图。
@@ -35,9 +35,9 @@ function _loadImageToCanvas(imgPath, targetSize) {
 ## 复现
 
 ```bash
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs build deck_ai_sdlc_keynote/3_versions/v1
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs build deck_ai_sdlc_bpm_keynote/3_versions/v1
 # 检查产物
-unzip -o -q deck_ai_sdlc_keynote/3_versions/v1/_generated/ppt/ai_sdlc_keynote.pptx -d /tmp/probe
+unzip -o -q deck_ai_sdlc_bpm_keynote/3_versions/v1/_generated/ppt/ai_sdlc_bpm_keynote.pptx -d /tmp/probe
 du -sh /tmp/probe/ppt/media/     # 应几十 MB，实际 ~200 KB
 md5 /tmp/probe/ppt/media/image-*-1.png | sort | uniq -c   # 25 张同一 MD5
 ```
@@ -48,9 +48,9 @@ md5 /tmp/probe/ppt/media/image-*-1.png | sort | uniq -c   # 25 张同一 MD5
 
 ```bash
 node PPTMAKER_FRAMEWORK/scripts/stage4_build_pptx.mjs \
-  --images deck_ai_sdlc_keynote/3_versions/v1/_generated/page_images_full \
-  --slide-plan deck_ai_sdlc_keynote/3_versions/v1/_generated/slide_plan.json \
-  --out deck_ai_sdlc_keynote/3_versions/v1/_generated/ppt/ai_sdlc_keynote.pptx \
+  --images deck_ai_sdlc_bpm_keynote/3_versions/v1/_generated/page_images_full \
+  --slide-plan deck_ai_sdlc_bpm_keynote/3_versions/v1/_generated/slide_plan.json \
+  --out deck_ai_sdlc_bpm_keynote/3_versions/v1/_generated/ppt/ai_sdlc_bpm_keynote.pptx \
   --title "AI SDLC Keynote"
 ```
 
@@ -64,4 +64,4 @@ node PPTMAKER_FRAMEWORK/scripts/stage4_build_pptx.mjs \
 
 ## 修复关联
 
-待开 OpenSpec change（framework 生产管线，非 run-bundle 结构）。发现时 run bundle：`deck_ai_sdlc_keynote`。
+待开 OpenSpec change（framework 生产管线，非 run-bundle 结构）。发现时 run bundle：`deck_ai_sdlc_bpm_keynote`。

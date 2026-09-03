@@ -1,7 +1,7 @@
-# ai_sdlc_keynote — project metadata (static config + pipeline gates)
+# ai_sdlc_bpm_keynote — project metadata (static config + pipeline gates)
 # Playbook execution progress / playbook gates live in _state/state.yaml — see _state/README.md
 # production identity (workflow/source_epoch) is NOT mirrored here — SSOT is _state/state.yaml production_identity.by_version
-deck_name: ai_sdlc_keynote
+deck_name: ai_sdlc_bpm_keynote
 deck_type: keynote
 duration_minutes: 40
 topic: "AI 时代的信息加工变革：软件（SDLC）先被 AI 重构，传统企业（BPM）同构跟进，组织结构不可逆重塑"

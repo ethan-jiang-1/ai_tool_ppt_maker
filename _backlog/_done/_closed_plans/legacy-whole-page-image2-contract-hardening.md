@@ -8,7 +8,7 @@
 
 ## Background / Current State
 
-`deck_ai_sdlc_keynote` shows two linked reliability gaps.
+`deck_ai_sdlc_bpm_keynote` shows two linked reliability gaps.
 
 First, v3 uses `body+header-lock` for 21 of 25 slides. The generated prompt correctly begins by reserving an empty header band, but the same prompt later retains L3 and deck-wide text rules that tell Image2 to render the title and Kicker. The `RomPyr` final page visibly has the provider's duplicate/garbled header beneath the local deterministic header. v1 and v3 otherwise share `gpt-image-2`, 2K 16:9 output, and the same style-master hash, so this is a contract-composition defect, not a provider configuration change.
 

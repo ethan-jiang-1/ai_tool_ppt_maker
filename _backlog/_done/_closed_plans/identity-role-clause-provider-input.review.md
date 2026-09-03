@@ -6,7 +6,7 @@
 
 ## 结论先行
 
-这不是 `deck_ai_sdlc_keynote` 的偶发 prompt 调参问题，而是 PPT Maker Harness 的 provider-input contract 回归：
+这不是 `deck_ai_sdlc_bpm_keynote` 的偶发 prompt 调参问题，而是 PPT Maker Harness 的 provider-input contract 回归：
 
 1. identity registry 已经给出经校验的 reference bytes、`role_clause` 正文和 digest。
 2. Page Source Receipt 与 adapter raw contract 都保留了正文和 digest。
@@ -26,7 +26,7 @@
 
 ### 1. `v8` 是有效的当前 Pure run
 
-对精确 run dir `deck_ai_sdlc_keynote/3_versions/v8` 的只读检查通过：
+对精确 run dir `deck_ai_sdlc_bpm_keynote/3_versions/v8` 的只读检查通过：
 
 - layout: structure + pipeline readiness 均通过；
 - pipeline: `page-image-workflow`；
@@ -41,17 +41,17 @@
 
 `NewPart` 选择 `amber-agent/guide`：
 
-- `deck_ai_sdlc_keynote/3_versions/v8/slide-specifications.md:153`
+- `deck_ai_sdlc_bpm_keynote/3_versions/v8/slide-specifications.md:153`
 - `VISUAL IDENTITY` 在 `:158`
 
 `FramAut` 选择 `amber-agent/collaborating`：
 
-- `deck_ai_sdlc_keynote/3_versions/v8/slide-specifications.md:642`
+- `deck_ai_sdlc_bpm_keynote/3_versions/v8/slide-specifications.md:642`
 - `VISUAL IDENTITY` 在 `:647`
 
 registry 中两个 role 的 reference SHA 与 `role_clause` 均存在：
 
-- `deck_ai_sdlc_keynote/2_backbone/visual-style/assets/reference/amber-agent/image2-reference-material.yaml:9`
+- `deck_ai_sdlc_bpm_keynote/2_backbone/visual-style/assets/reference/amber-agent/image2-reference-material.yaml:9`
 - `guide.role_clause` 在 `:12`
 - `collaborating.role_clause` 在 `:16`
 
@@ -255,7 +255,7 @@ Pure Page Image Core 测试会检查 compiled input 的 presentation / Framed is
 
 当前 `guide` / `collaborating` clauses 主要描述姿态；稳定形态中的“无具体五官、内部节点网络、透明人形”等更强 invariant 主要存在于：
 
-- `deck_ai_sdlc_keynote/2_backbone/visual-style/style-master-prompt.md:7`
+- `deck_ai_sdlc_bpm_keynote/2_backbone/visual-style/style-master-prompt.md:7`
 - reference image bytes；
 - 上游 `agent-portrayal.md`。
 

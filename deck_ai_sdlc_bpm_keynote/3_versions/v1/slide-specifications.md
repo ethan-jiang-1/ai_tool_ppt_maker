@@ -3,7 +3,7 @@ title: Slide Specifications — AI 时代的信息加工变革 (v1)
 stage: workflow/02-content
 position: downstream
 type: slide-specifications
-summary: 本 deck 的每页四层规格 + Block Map + render policy。管线入口(Stage 1 解析 `## Slide N` 块)。从 deck_ai_sdlc_keynote 迁移重建 25 页。v1 是 markerless legacy Image2 历史版本，只读保留。
+summary: 本 deck 的每页四层规格 + Block Map + render policy。管线入口(Stage 1 解析 `## Slide N` 块)。从 deck_ai_sdlc_bpm_keynote 迁移重建 25 页。v1 是 markerless legacy Image2 历史版本，只读保留。
 depends_on:
 - workflow/02-content/03-specify-slides-multi-layer.md
 - workflow/02-content/02-build-narrative-arc-blocks.md
@@ -1079,6 +1079,6 @@ Design a finished 16:9 keynote CLOSER slide, sketch/etching aesthetic but MINIMA
 | 2026-07-12 | Case Restructure | 20-21 | Slide 21 从「中国三家合并页」重写为 Maersk 深度案例（130 年航运巨头，边端 AI+报关智能化，$300M+ 年省）；Block Map 证据列更新为「Allianz + Maersk」；Allianz/Maersk 各含 source material 深度研究（38KB/40KB） | 中国公司无深度研究支撑（每家仅 2-3 行指标），三家合并页信息密度不足；Maersk 有 40KB 独立研究文件，与 Allianz 形成「直建 agentic vs 情报先行」路径对照，均为非科技传统企业 |
 | 2026-07-12 | Visual Polish | 14, 15, 20, 21 | 四页公司案例 IMAGE PROMPT 增加手绘 sketch logo：Block（方块立方体）、Cloudflare（云形辐射线）、Allianz（鹰形徽章）、Maersk（七角星），均为 faded sepia ink，右上角盖章式低调呈现 | 统一公司案例页的视觉标识，增强品牌辨识度，保持 sketch/etching 整体美学 |
 | 2026-07-12 | Framework Sync | All | 加入全册 render policy；移除 25 个冗余逐页 mode；逐页剥离 IMAGE PROMPT 中重复的结构化 header 文案/位置；规范 cover/bridge hero 类型 | 对齐 Stage 1 header contract、policy source、provenance/header-review 新流程，避免双重文字指令 |
-| 2026-07-11 | Initial (migrated) | All | 从 deck_ai_sdlc_keynote 迁移重建 22 页四层规格 | 把已完成的中文 keynote 逐页规格从旧框架格式重建为新框架 slide-specifications.md,供 Stage 1 解析;L3 IMAGE PROMPT 逐字照抄 page_prompts.json |
+| 2026-07-11 | Initial (migrated) | All | 从 deck_ai_sdlc_bpm_keynote 迁移重建 22 页四层规格 | 把已完成的中文 keynote 逐页规格从旧框架格式重建为新框架 slide-specifications.md,供 Stage 1 解析;L3 IMAGE PROMPT 逐字照抄 page_prompts.json |
 | 2026-07-11 | Note | All | RENDER MODE 全部设为 full-page | 该 deck 中文 KICKER + 大标题已内嵌于每页 IMAGE PROMPT(烤进图),故全部走 full-page 渲染、不使用 body+header-lock 叠字(header-lock 是给 Latin 字体叠标题用的,会与图内已有中文标题冲突) |
 | 2026-07-11 | Note | All | 21↔22 页数对齐:outline.md frontmatter 标 total_slides:21,但其 Slide Map 与 Block 结构实际枚举 22 页 | "21" 为 outline 陈旧元数据;Slide Map 22 行与 page_prompts.json 22 页 1:1 对齐,无孤立/多余 slide,全部按主题一一对应 |

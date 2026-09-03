@@ -9,7 +9,7 @@
 ## 决策摘要
 
 这是一个 **Harness provider-facing semantic contract regression**，不是
-`deck_ai_sdlc_keynote` 的局部 prompt 调参问题。
+`deck_ai_sdlc_bpm_keynote` 的局部 prompt 调参问题。
 
 Visual Asset Management resolver、Page Source Receipt 和 Pure / Framed raw contract
 都已经保留 registered identity role 的 reference bytes、`role_clause` 正文和 digest；
@@ -31,7 +31,7 @@ Visual Asset Management resolver、Page Source Receipt 和 Pure / Framed raw con
 
 ## 背景与已确认事实
 
-`deck_ai_sdlc_keynote/3_versions/v8` 是当前有效的 Pure run：
+`deck_ai_sdlc_bpm_keynote/3_versions/v8` 是当前有效的 Pure run：
 
 - workflow: `page-image-workflow` / `pure`
 - `source_epoch: 1`
@@ -211,7 +211,7 @@ sha256(registered role clause)
 - `page_image_target_runtime.mjs`
 - `ppt_flow.mjs` submit factory
 - `page_image_core.mjs`
-- `deck_ai_sdlc_keynote` 的 registry role-clause 文案
+- `deck_ai_sdlc_bpm_keynote` 的 registry role-clause 文案
 - `v8/_generated/` 下的任何文件
 
 ---
@@ -333,4 +333,4 @@ Harness change 的未完成项。
 ### 交接边界
 
 - [x] Harness source、OpenSpec main specs 和测试的变更已经完成；没有待实现的 Harness code item。
-- [ ] 新 Deck Agent 只对 `deck_ai_sdlc_keynote/3_versions/v8` 的当前 State 与后续 visual review 负责，不应修改 Harness 来追逐单个 deck 的视觉结果。
+- [ ] 新 Deck Agent 只对 `deck_ai_sdlc_bpm_keynote/3_versions/v8` 的当前 State 与后续 visual review 负责，不应修改 Harness 来追逐单个 deck 的视觉结果。

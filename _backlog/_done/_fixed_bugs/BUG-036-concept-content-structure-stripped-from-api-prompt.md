@@ -15,7 +15,7 @@ guard 的 `VISUAL SCENE`。v7 source receipt 为 25/25 非空 `VISUAL SCENE` 与
 当前 parser 仍刻意不把自由 `CONCEPT` prose 送入 provider；已归档的
 `fix-provider-clauses-and-visual-scene` 以受 guard 的显式 `VISUAL SCENE` 承载每页
 要画的关系和布局。2026-08-03 对指定的
-`deck_ai_sdlc_keynote/3_versions/v7` 执行官方 validation，结构化 receipt 为 25/25 页
+`deck_ai_sdlc_bpm_keynote/3_versions/v7` 执行官方 validation，结构化 receipt 为 25/25 页
 记录了非空 `VISUAL SCENE` 与 `BODY`，逐页复核也确认 scene 是页面内容结构而非通用风格
 标签。
 

@@ -22,7 +22,7 @@
 
 ## 三、已决定
 
-- **`todo-deck-ai-sdlc-keynote-v5-production.md`** — 已归档为 DONE-002，保留原始生产与 follow-up 记录。
+- **`todo-deck-ai-sdlc-bpm-keynote-v5-production.md`** — 已归档为 DONE-002，保留原始生产与 follow-up 记录。
 - **`_suspeded_plans/` / `_suspened_bugs/`** — 已分别更名为 `_suspended_plans/` / `_suspended_bugs/`，并更新所有索引和链接。
 
 ## 四、已排除（不是残留）

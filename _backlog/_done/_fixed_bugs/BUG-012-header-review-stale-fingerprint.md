@@ -4,7 +4,7 @@ title: Header review gate 在纯 full-page deck + 迭代修改场景下全面锁
 severity: high
 status: open
 found_at: 2026-07-12
-found_in: deck_ai_sdlc_keynote, iterate-style → Phase 3 production
+found_in: deck_ai_sdlc_bpm_keynote, iterate-style → Phase 3 production
 reproduced: yes (多次)
 ---
 
@@ -22,7 +22,7 @@ reproduced: yes (多次)
 
 ## 场景
 
-deck_ai_sdlc_keynote：25 页全部 `render_mode: full-page`。用户改了 5 页内容（s05 改名、s07 更新、s14/s15 公司案例更新、s21 改名）。重跑后 gate 锁死所有 Stage 2 和 Stage 4 操作。
+deck_ai_sdlc_bpm_keynote：25 页全部 `render_mode: full-page`。用户改了 5 页内容（s05 改名、s07 更新、s14/s15 公司案例更新、s21 改名）。重跑后 gate 锁死所有 Stage 2 和 Stage 4 操作。
 
 尝试过的修复路径（全部失败）：
 1. 删 `_manifest.json` → gate 报 "manifest entry missing"

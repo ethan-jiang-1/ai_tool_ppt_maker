@@ -30,7 +30,7 @@ gates:
   content: pending
   visual: pending
 deck:
-  name: ai_sdlc_keynote
+  name: ai_sdlc_bpm_keynote
   type: keynote
   style: warm-editorial
 playbook_stack: []

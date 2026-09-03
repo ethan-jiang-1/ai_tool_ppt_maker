@@ -28,7 +28,7 @@ entry 顺序。整页 final PNG、stable `slide_id`、raw evidence 与 delivery 
 
 ### 症状
 
-`ppt_flow build` 产出的 PPTX 每页**没有任何页码**。以 `deck_ai_sdlc_keynote/3_versions/v5/_generated/page_authority_image2/final/deck.pptx` 为例，解包 slide XML 无任何 `<a:t>` 文本、无 `<fld>`/`sldNum` 页码域。观众翻页时无法定位页码。
+`ppt_flow build` 产出的 PPTX 每页**没有任何页码**。以 `deck_ai_sdlc_bpm_keynote/3_versions/v5/_generated/page_authority_image2/final/deck.pptx` 为例，解包 slide XML 无任何 `<a:t>` 文本、无 `<fld>`/`sldNum` 页码域。观众翻页时无法定位页码。
 
 ### 根因
 

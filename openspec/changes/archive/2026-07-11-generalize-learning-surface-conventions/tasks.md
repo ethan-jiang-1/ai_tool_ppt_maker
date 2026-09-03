@@ -12,6 +12,6 @@
 
 ## 3. Deck 迁移 + 测试
 
-- [x] 3.1 `deck_ai_sdlc_keynote`：`_learning/` → `_lessons/`；README = `LESSONS_DIR_README`
+- [x] 3.1 `deck_ai_sdlc_bpm_keynote`：`_learning/` → `_lessons/`；README = `LESSONS_DIR_README`
 - [x] 3.2 测试断言改 `_lessons` + 规矩/闭环句；`npm test`
 - [x] 3.3 archive 时 sync：`run-bundle-management`、`framework-charter`、`image-generation`

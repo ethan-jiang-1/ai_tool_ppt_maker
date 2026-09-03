@@ -8,7 +8,7 @@ Consequently, a deck cannot apply one authored design system consistently to
 both Pure and Framed provider pages without abusing slide content or changing
 the Harness for that individual deck.
 
-This is a reusable Harness gap, not a `deck_ai_sdlc_keynote/v8` exception.
+This is a reusable Harness gap, not a `deck_ai_sdlc_bpm_keynote/v8` exception.
 The Harness needs one confined, optional, deck-level prose source that binds
 the same exact text into every current Pure and Framed provider request while
 retaining the existing workflow-specific boundaries, lifecycle evidence, and
@@ -129,7 +129,7 @@ None.
   lineage; no stored record is converted or field-patched and no former plan is
   admitted as a current provider-work plan.
   Production `deck_*` directories, including
-  `deck_ai_sdlc_keynote/3_versions/v8`, are not modified, migrated, or used as
+  `deck_ai_sdlc_bpm_keynote/3_versions/v8`, are not modified, migrated, or used as
   test fixtures.
 - **Dependencies and runtime:** no new dependency, outer provider
   transport-envelope field, retry path, or external runtime. The only

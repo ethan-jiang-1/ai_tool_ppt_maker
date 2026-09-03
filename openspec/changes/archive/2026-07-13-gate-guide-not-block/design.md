@@ -1,6 +1,6 @@
 ## Context
 
-`deck_ai_sdlc_keynote` 25 页全量生产暴露了 gate 系统姿态问题：守门员（拒绝→报错），不是向导（检查→给 MD 指令→继续）。BUG-003 记录 7 种 workaround 全失败。管线的核心消费者是 MD Controller——gate 应该返回 MD 可直接执行的动作。
+`deck_ai_sdlc_bpm_keynote` 25 页全量生产暴露了 gate 系统姿态问题：守门员（拒绝→报错），不是向导（检查→给 MD 指令→继续）。BUG-003 记录 7 种 workaround 全失败。管线的核心消费者是 MD Controller——gate 应该返回 MD 可直接执行的动作。
 
 ## MD Controller 视角（第一人称）
 

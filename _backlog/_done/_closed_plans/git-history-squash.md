@@ -62,11 +62,11 @@ master 主线是小步迭代开发，425 条提交、~5 周、0 merge。提交"�
 | 19 | feat: CLI failure-receipt + BUG-003/004/005/006 | 65..68 | 4 | e47d5d5..faab6aa |
 | 20 | feat: exploration playbooks + guard-offpath UX | 69..70 | 2 | 888f92d..78d94e3 |
 | 21 | fix: BUG-007 state.yaml array roundtrip | 71..72 | 2 | 4fcc9a3..ad6e7fa |
-| 22 | feat: add deck_ai_sdlc_keynote run bundle | 73..75 | 3 | b2ceafe..d085508 |
+| 22 | feat: add deck_ai_sdlc_bpm_keynote run bundle | 73..75 | 3 | b2ceafe..d085508 |
 | 23 | fix: BUG-008 image API credential contract | 76..76 | 1 | 63a1180..63a1180 |
 | 24 | feat: generalize learning surface conventions | 77..80 | 4 | 58c94c5..1b2cb5b |
 | 25 | feat: image2 multi-vendor failover | 81..85 | 5 | 13c3c98..fbfda4c |
-| 26 | chore: advance deck_ai_sdlc_keynote (image2 pilot) | 86..86 | 1 | 8e149a1..8e149a1 |
+| 26 | chore: advance deck_ai_sdlc_bpm_keynote (image2 pilot) | 86..86 | 1 | 8e149a1..8e149a1 |
 | 27 | feat: recoverable-session-resume | 87..94 | 8 | b9e16dc..70a1e74 |
 | 28 | feat: version _scratch outlet + run-bundle-layout discoverability | 95..104 | 10 | 43884d1..75ee459 |
 | 29 | feat: default full-page header gate + fix BUG-009 | 105..111 | 7 | 4875ccf..71ee809 |

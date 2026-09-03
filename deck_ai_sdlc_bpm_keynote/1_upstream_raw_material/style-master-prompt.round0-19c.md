@@ -1,6 +1,6 @@
 # Style Master Prompt
 
-> 生成风格母版图 `style_master.jpg` 的原始 prompt（源文件，别丢）。迁移自 `deck_ai_sdlc_keynote/v1/style/style_master.image-task.json`。
+> 生成风格母版图 `style_master.jpg` 的原始 prompt（源文件，别丢）。迁移自 `deck_ai_sdlc_bpm_keynote/v1/style/style_master.image-task.json`。
 
 ```
 Design a visual style guide for a keynote slide deck. This is a reference image, not a slide itself. The deck uses etching and sketch illustration as its primary visual language — like 19th-century scientific notebooks or Da Vinci sketchbooks.

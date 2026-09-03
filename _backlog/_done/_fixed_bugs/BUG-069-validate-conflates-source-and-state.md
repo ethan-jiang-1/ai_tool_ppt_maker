@@ -9,7 +9,7 @@ V8 在合法修改 visual-language / slide source 后仍保留 epoch 6 的历史
 成功解析 25 页 Pure receipt，但公开命令：
 
 ```bash
-node ppt_maker_harness/scripts/ppt_flow.mjs validate deck_ai_sdlc_keynote/3_versions/v8
+node ppt_maker_harness/scripts/ppt_flow.mjs validate deck_ai_sdlc_bpm_keynote/3_versions/v8
 ```
 
 exit 1 并只输出：

@@ -1,4 +1,4 @@
-# ai_sdlc_keynote — 这个 PPT 项目
+# ai_sdlc_bpm_keynote — 这个 PPT 项目
 
 先读 **deck-guide.md**（进来先看那个）。
 

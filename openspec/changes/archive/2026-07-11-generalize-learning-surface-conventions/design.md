@@ -91,7 +91,7 @@ CONSTITUTION **独立小节**（标题约「Run bundle 自留教训面 `_lessons
 1. `bundle_layout` 常量/树/init/selfCheck  
 2. CONSTITUTION / AGENTS / BOOTSTRAP / 03-tool-selection / template-deck-guide / state README 指针  
 3. main/delta 口径；测试断言  
-4. `deck_ai_sdlc_keynote`：`_learning`→`_lessons` + README  
+4. `deck_ai_sdlc_bpm_keynote`：`_learning`→`_lessons` + README  
 5. archive sync 三 capability
 
 ## Risks

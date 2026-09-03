@@ -8,7 +8,7 @@
 
 ```bash
 node ppt_maker_harness/scripts/ppt_flow.mjs doctor \
-  --run-dir deck_ai_sdlc_keynote/3_versions/v8 \
+  --run-dir deck_ai_sdlc_bpm_keynote/3_versions/v8 \
   --operation raw-generation
 ```
 
@@ -17,7 +17,7 @@ node ppt_maker_harness/scripts/ppt_flow.mjs doctor \
 
 ```bash
 node ppt_maker_harness/scripts/ppt_flow.mjs image2 authorize \
-  deck_ai_sdlc_keynote/3_versions/v8 \
+  deck_ai_sdlc_bpm_keynote/3_versions/v8 \
   --plan-hash 7a21eb82208281a30c9dfd430163d8f4f011cf7db40080e3a838d3edd57f5a41 \
   --batch-hash c271fe02f8b82de43e05baf2d93e80cbf8e7007738f5a39529259c3a06e709b2
 ```

@@ -10,7 +10,7 @@ _state (指针) ──┐
 status (产物) ──┘
 ```
 
-真机锚点：`deck_ai_sdlc_keynote`（`iterate-style` @ `review-gate`，`waiting_for: user:review-style-master`，gates waived，页图部分就绪）。
+真机锚点：`deck_ai_sdlc_bpm_keynote`（`iterate-style` @ `review-gate`，`waiting_for: user:review-style-master`，gates waived，页图部分就绪）。
 
 约束：Node ESM；**12** 命令；不新建 Phase 状态文件；不把 API 任务塞进 `_state`。
 
@@ -155,7 +155,7 @@ status (产物) ──┘
 
 Playbook 注记范围（控制 apply 面）：`create-deck`、`iterate-style` 正文加一句「进出节点 writeState；等人写 waiting_for」即可；其它 playbook 不强制本 change 逐个改完。
 
-### D6 — 真机冒烟期望（`deck_ai_sdlc_keynote`）
+### D6 — 真机冒烟期望（`deck_ai_sdlc_bpm_keynote`）
 
 在当前 truth-aligned 状态下，`state --json` 应近似满足：
 

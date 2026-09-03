@@ -90,9 +90,9 @@ The `_lessons/` mechanism is well-designed as a convention (directory, README, w
 
 ### Manual verification
 
-- Run `lessons.mjs list deck_ai_sdlc_keynote/3_versions/v1` — should show 2 lessons
+- Run `lessons.mjs list deck_ai_sdlc_bpm_keynote/3_versions/v1` — should show 2 lessons
 - Run `lessons.mjs add <test_runDir> --title "test"` — should create file
-- Run `ppt_flow.mjs status deck_ai_sdlc_keynote/3_versions/v1` — should show "Lessons: 2"
+- Run `ppt_flow.mjs status deck_ai_sdlc_bpm_keynote/3_versions/v1` — should show "Lessons: 2"
 
 ## Risks / Trade-offs
 

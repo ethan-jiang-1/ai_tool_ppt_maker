@@ -1,7 +1,7 @@
 # BUG-003: 实验脚本占用 style_master.jpg 作为 style reference
 
 **发现时间**: 2026-07-13
-**发现位置**: `deck_ai_sdlc_keynote/3_versions/v1/_scratch/_gen_model_sheet.mjs`
+**发现位置**: `deck_ai_sdlc_bpm_keynote/3_versions/v1/_scratch/_gen_model_sheet.mjs`
 **严重程度**: 中 — 不会损坏 style_master.jpg 本身，但会污染生成结果、混淆实验与正式资产的边界
 
 ## 症状

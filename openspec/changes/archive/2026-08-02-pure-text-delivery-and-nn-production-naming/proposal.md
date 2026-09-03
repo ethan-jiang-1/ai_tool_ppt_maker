@@ -1,6 +1,6 @@
 ## Why
 
-Two production-quality gaps surfaced while delivering a Pure deck (`deck_ai_sdlc_keynote` v5):
+Two production-quality gaps surfaced while delivering a Pure deck (`deck_ai_sdlc_bpm_keynote` v5):
 
 - **BODY text never reaches the model (BUG-044).** The Pure raw contract carries only
   `display` (KICKER/TITLE/SUBTITLE/CALLOUT). `BODY` is a registered Page Authority

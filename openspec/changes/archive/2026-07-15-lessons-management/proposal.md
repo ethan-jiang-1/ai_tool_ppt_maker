@@ -2,7 +2,7 @@
 
 The purpose of `_lessons/` is simple: **don't make the agent suffer through the same dead ends twice.** An agent wrestles with something — the user finally says "太难了，好不容易修好，记住这个" — or the agent itself, after 2+ attempts, finally figures it out. Either way, that hard-won insight should land in `_lessons/` so the next session picks it up and walks a straight line instead of repeating the same painful trial-and-error.
 
-This already works when it happens. `deck_ai_sdlc_keynote/_lessons/` has two real lessons: one about which image vendor actually stays up, another about which Image2 endpoint worked. Those lessons were captured after real struggle — and they save real time when an agent reads them before guessing endpoints or picking vendors. But that only happens if the agent *remembers* to look.
+This already works when it happens. `deck_ai_sdlc_bpm_keynote/_lessons/` has two real lessons: one about which image vendor actually stays up, another about which Image2 endpoint worked. Those lessons were captured after real struggle — and they save real time when an agent reads them before guessing endpoints or picking vendors. But that only happens if the agent *remembers* to look.
 
 The gap is that `_lessons/` is **passive infrastructure** — a directory with a README. The agent has to remember to check it, remember to write to it. Nothing structural prompts retrieval at session start, nothing prompts capture at the moment of triumph. The design is right; the operational loop is broken. This change closes that loop.
 

@@ -39,7 +39,7 @@ body{font-family:Arial,sans-serif}.slide{...background:#111;color:#fff}
 ### 历史复现
 
 ```bash
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs build deck_ai_sdlc_keynote/3_versions/v4
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs build deck_ai_sdlc_bpm_keynote/3_versions/v4
 # 检查 final/*.png — 顶部和底部有深色面板
 ```
 

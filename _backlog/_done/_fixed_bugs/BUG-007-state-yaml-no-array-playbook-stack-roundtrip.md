@@ -13,7 +13,7 @@ readState(deckDir).playbook_stack           → {}                  ← 空数�
 switchPlaybook(state, "iterate-style")      → ✗ TypeError: state.playbook_stack.push is not a function
 ```
 
-直接命中本仓库当前 deck（`deck_tmp_ai_sdlc_keynote`，playbook=`migrate-import`）的**必经路径**：`migrate-import` 的 `reaffirm-gates` step 4 = 「视觉不满意 → `switchPlaybook(iterate-style)`」；`create-deck` 中途进 `iterate-style` 走同一套栈机制。用户一旦说"视觉再调一版"，就会在这里崩。
+直接命中本仓库当前 deck（`deck_tmp_ai_sdlc_bpm_keynote`，playbook=`migrate-import`）的**必经路径**：`migrate-import` 的 `reaffirm-gates` step 4 = 「视觉不满意 → `switchPlaybook(iterate-style)`」；`create-deck` 中途进 `iterate-style` 走同一套栈机制。用户一旦说"视觉再调一版"，就会在这里崩。
 
 ## 根因
 

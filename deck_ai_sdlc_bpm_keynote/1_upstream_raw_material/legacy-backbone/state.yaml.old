@@ -28,7 +28,7 @@ production_mode:
 started_at: 2026-07-20T00:00:00.000Z
 updated_at: 2026-08-03T16:31:40.502Z
 deck:
-  name: ai_sdlc_keynote
+  name: ai_sdlc_bpm_keynote
   type: keynote
   style: warm-editorial
 nodes: {}

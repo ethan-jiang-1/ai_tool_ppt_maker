@@ -1,4 +1,4 @@
-# deck_ai_sdlc_keynote — 迁移说明（人写 · 不在 `_generated/`）
+# deck_ai_sdlc_bpm_keynote — 迁移说明（人写 · 不在 `_generated/`）
 
 ## 2026-07-30: page-authority-image2-v2 migration — first production deck on new pipeline
 

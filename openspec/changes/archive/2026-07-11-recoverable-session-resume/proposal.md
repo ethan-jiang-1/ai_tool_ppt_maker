@@ -40,7 +40,7 @@
 
 - `ppt_flow.mjs`、`lib/state.mjs`（`buildResumeCard`）、NODE-SPEC / STATE README
 - BOOTSTRAP、COMMANDS、AGENT_CONTRACT、template-deck-guide、轻量 playbook 注记（`create-deck` / `iterate-style` 为主）
-- 验收锚点：`deck_ai_sdlc_keynote`
+- 验收锚点：`deck_ai_sdlc_bpm_keynote`
 
 ## Apply-ready acceptance
 
@@ -48,5 +48,5 @@
 2. `status`（人读 + `--json`）露出 `playbook` / `current_node`（同源 `_state`）
 3. `approve` 后 metadata ≡ `_state.gates`
 4. COMMANDS 有「续跑 / 做到哪了」；Agent 路由不再写死「从第一个 node 开始」
-5. 真机冒烟：只给 `deck_ai_sdlc_keynote` → 卡能表达「iterate-style / review-gate / 等人审 style master」类信息；`suggested_next` 含 `user:review-style-master`（或等价 waiting 前缀）
+5. 真机冒烟：只给 `deck_ai_sdlc_bpm_keynote` → 卡能表达「iterate-style / review-gate / 等人审 style master」类信息；`suggested_next` 含 `user:review-style-master`（或等价 waiting 前缀）
 6. `npm test` 绿；命令数仍为 12

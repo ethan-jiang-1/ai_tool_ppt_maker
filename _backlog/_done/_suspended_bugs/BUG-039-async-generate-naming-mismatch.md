@@ -36,10 +36,10 @@ return join(paths.raw_root, `${slideId}.png`);
 ```bash
 export IMAGE2_API_KEY=$(grep '^IMAGE2_API_KEY=' .env | cut -d= -f2)
 export IMAGE2_BASE_URL=$(grep '^IMAGE2_BASE_URL=' .env | cut -d= -f2)
-node deck_ai_sdlc_keynote/3_versions/v4/_scratch/async-generate.mjs --only=GoRev
+node deck_ai_sdlc_bpm_keynote/3_versions/v4/_scratch/async-generate.mjs --only=GoRev
 # 产出 raw/01-GoRev.png
 
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs build deck_ai_sdlc_keynote/3_versions/v4
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs build deck_ai_sdlc_bpm_keynote/3_versions/v4
 # 期望 raw/GoRev.png → 失败
 ```
 

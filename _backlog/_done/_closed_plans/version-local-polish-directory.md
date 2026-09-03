@@ -40,7 +40,7 @@ A version holds only: slide-specifications.md, overrides/, _generated/, _scratch
 
 ## 背景 / 现状
 
-- **触发场景**：`deck_ai_sdlc_keynote` v8 由另一 Agent 长期打磨（source_epoch 已到 5、style master 重选 10 次）。owner 想给这段打磨过程留一条人读轨迹，但发现无处安放。
+- **触发场景**：`deck_ai_sdlc_bpm_keynote` v8 由另一 Agent 长期打磨（source_epoch 已到 5、style master 重选 10 次）。owner 想给这段打磨过程留一条人读轨迹，但发现无处安放。
 - **机器权威**：run-bundle 目录结构由 `ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs` 定义：
   - `VERSION_SUBDIRS = [overrides, _generated, _scratch]`（~L363-371）
   - `checkBundle()` 的 version root 白名单校验（~L1000-1010）——五样之外一律 `unexpected ... at version root`
@@ -103,4 +103,4 @@ A version holds only: slide-specifications.md, overrides/, _generated/, _scratch
 3. `--new-version v8 → v9` 时，`_polish/` 内容**不**被拷贝（版本私有），`_scratch/` 行为保持不变。
 4. version root 白名单仍拒绝 `_tmp/` / `backup/` / `_bak/` / 任意新目录（负例回归）。
 5. `renderTree()` 树文本 + `reference/glossary.md` Where Map 都新增该目录的 canonical 条目，且语义写明"版本私有 / 人读 / 非管线 / 不跨版本"。
-6. 不修改任何 `deck_*` 生产数据；`deck_ai_sdlc_keynote/v8` 仅作为验证样本。
+6. 不修改任何 `deck_*` 生产数据；`deck_ai_sdlc_bpm_keynote/v8` 仅作为验证样本。

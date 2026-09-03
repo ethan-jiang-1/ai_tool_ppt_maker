@@ -4,7 +4,7 @@ title: Stage 3 passthrough 对某些 vendor 的 full-page 图抛 "Invalid SVG im
 severity: medium
 status: open
 found_at: 2026-07-13
-found_in: deck_ai_sdlc_keynote, Phase 3 production
+found_in: deck_ai_sdlc_bpm_keynote, Phase 3 production
 reproduced: once
 ---
 

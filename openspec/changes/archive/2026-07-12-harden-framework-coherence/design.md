@@ -238,7 +238,7 @@ The normalized registry therefore contains nine ordered controllers, one shared 
 ## Risks / Trade-offs
 
 - [Risk] Enabling validation reveals many invalid playbook conditions at once. → Land parser fixtures first, normalize the complete registered set in one change, then make zero validator errors a hard test gate.
-- [Risk] Node renames or execution scoping break in-progress decks. → Use versioned, playbook-scoped, idempotent state migration, preserve the active recoverable working set, block rather than guess for ambiguous legacy stack records, and audit `deck_ai_sdlc_keynote` as a real resume fixture.
+- [Risk] Node renames or execution scoping break in-progress decks. → Use versioned, playbook-scoped, idempotent state migration, preserve the active recoverable working set, block rather than guess for ambiguous legacy stack records, and audit `deck_ai_sdlc_bpm_keynote` as a real resume fixture.
 - [Risk] State heal silently hides invalid data. → Normalize to blocking `pending`, preserve a diagnostic note, and test both healed disk output and API return values.
 - [Risk] Same-directory temp files remain after a process crash. → Use a recognizable `.state.yaml.tmp-*` name and clean stale temp siblings opportunistically after a successful read/write; never treat them as state truth.
 - [Risk] Capturing child stderr hides live failures. → Continue streaming stdout; retain at most one candidate stderr line; relay the previous line as soon as the next delimiter proves it is not final; cover fragmented/no-newline output.

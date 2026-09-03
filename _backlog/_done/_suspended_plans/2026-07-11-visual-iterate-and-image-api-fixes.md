@@ -2,7 +2,7 @@
 
 Date: 2026-07-11
 
-> 场景：把 `deck_ai_sdlc_keynote` 的人物从"旧时代"改成现代——重生成 style master + 出 3 页 pilot 小样。过程中连环踩到 image-API 客户端/管道的 bug，并区分了"外部 relay 故障"与"我们的代码 bug"。（注：截至写此 retro，3 页小样仍在渲染中、尚未肉眼确认视觉效果——本文只记已证实的经验。）
+> 场景：把 `deck_ai_sdlc_bpm_keynote` 的人物从"旧时代"改成现代——重生成 style master + 出 3 页 pilot 小样。过程中连环踩到 image-API 客户端/管道的 bug，并区分了"外部 relay 故障"与"我们的代码 bug"。（注：截至写此 retro，3 页小样仍在渲染中、尚未肉眼确认视觉效果——本文只记已证实的经验。）
 
 ## What Went Well
 

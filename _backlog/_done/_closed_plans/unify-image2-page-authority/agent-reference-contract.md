@@ -5,7 +5,7 @@
 The inspected v1 model sheet is approved visual doctrine:
 
 ```text
-source: deck_ai_sdlc_keynote/3_versions/v1/_scratch/agent_reference_sheet.png
+source: deck_ai_sdlc_bpm_keynote/3_versions/v1/_scratch/agent_reference_sheet.png
 size:   1672 x 941 PNG
 sha256: f71a7ed8ec8f69e10ffbe2997e81f123d46515b5608de61afc155d6b3ed6c756
 ```

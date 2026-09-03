@@ -6,7 +6,7 @@
 
 ## 一句话
 
-新 harness 的每页 provider prompt 只有「硬编码的通用 instruction + 闭集短标签」，而 V1 靠的是「每页注入一段 deck 专属的富设计系统文本」（宋体硬规则、文图比、CJK 可读性、禁用清单）。要复现这类效果，需要给 harness 加一个 **deck 可配置、注入每页 provider input 的共享设计系统文本**。该能力必须同时适用于 Pure 与 Framed，并可被未来任意 deck 使用；`deck_ai_sdlc_keynote/v8` 只作为验证样本，不是默认内容、运行时分支或特殊协议。
+新 harness 的每页 provider prompt 只有「硬编码的通用 instruction + 闭集短标签」，而 V1 靠的是「每页注入一段 deck 专属的富设计系统文本」（宋体硬规则、文图比、CJK 可读性、禁用清单）。要复现这类效果，需要给 harness 加一个 **deck 可配置、注入每页 provider input 的共享设计系统文本**。该能力必须同时适用于 Pure 与 Framed，并可被未来任意 deck 使用；`deck_ai_sdlc_bpm_keynote/v8` 只作为验证样本，不是默认内容、运行时分支或特殊协议。
 
 ---
 
@@ -14,7 +14,7 @@
 
 ### 触发问题
 
-`deck_ai_sdlc_keynote` v8（新 harness `page-image-workflow` + pure）出图与 V1 的最终画面仍有明显距离。V1 的每页 IMAGE PROMPT 在 `3_versions/v1/_generated/page_prompts/*.prompt.md`（如 `05--s05_partner_not_tools.prompt.md`、`01--s01_cover.prompt.md`）。
+`deck_ai_sdlc_bpm_keynote` v8（新 harness `page-image-workflow` + pure）出图与 V1 的最终画面仍有明显距离。V1 的每页 IMAGE PROMPT 在 `3_versions/v1/_generated/page_prompts/*.prompt.md`（如 `05--s05_partner_not_tools.prompt.md`、`01--s01_cover.prompt.md`）。
 
 ### V1 每页 prompt 里那段「共享设计系统」（就是它让 V1 一致、好看，逐字摘录）
 
@@ -177,7 +177,7 @@ function compilePureProviderInput({ slideId, rawContract, generationProfile } = 
 
 ### 总体验证
 
-- 新增测试使用 temporary synthetic bundles，不使用 `deck_ai_sdlc_keynote/v8`。
+- 新增测试使用 temporary synthetic bundles，不使用 `deck_ai_sdlc_bpm_keynote/v8`。
 - 执行针对性 Vitest、完整 `npm test`、serial sweep、`openspec validate --strict`、`node .../bundle_layout.mjs --check` 的 fixture coverage，以及 `git diff --check`。
 
 ---
@@ -186,7 +186,7 @@ function compilePureProviderInput({ slideId, rawContract, generationProfile } = 
 
 - 每页自由 scene / composition prose 的新 source 槽位。这是后续独立 change，不能借共享设计系统入口绕过 slide-level source contract。
 - `FramAut` 的 provider `known_failure` 诊断。它需要独立复现和根因判断，不能被当作本 feature 的验收条件或静默修复。
-- 对 `deck_ai_sdlc_keynote/v8` 的继续生成、重规划、授权或 source 修改；该 run bundle 交由其 Deck Agent。
+- 对 `deck_ai_sdlc_bpm_keynote/v8` 的继续生成、重规划、授权或 source 修改；该 run bundle 交由其 Deck Agent。
 - 扩大 visual-language registry、改变 Provider Content Schema、改写 `_generated/`、或引入新 provider transport field。
 
 ---

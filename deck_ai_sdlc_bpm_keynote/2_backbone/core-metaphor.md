@@ -1,6 +1,6 @@
 # 核心隐喻 — 信息加工链（The ITO Chain）
 
-> deck 的身份 DNA 之一。全版本共享，极少变。迁移自 `deck_ai_sdlc_keynote`。
+> deck 的身份 DNA 之一。全版本共享，极少变。迁移自 `deck_ai_sdlc_bpm_keynote`。
 
 ## 核心隐喻
 

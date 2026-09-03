@@ -15,7 +15,7 @@
 用户明确划定的判断边界：
 
 1. **归档 change 是过去式**——`openspec/changes/archive/` 下 70+ 个已归档 change 的内容不读、不评、不动；旧痕迹留在归档里没问题。
-2. **「新的一层」里不该再有旧痕迹**——审计对象是当前层：`openspec/specs/` 的 27 个 main specs（审计时**无任何 active change**，changes 下只有 archive）+ `ppt_maker_harness/` 现行文档/playbook/schema/代码 + `tests/` + `tests_e2e/` + 当前 deck bundle `deck_ai_sdlc_keynote`。
+2. **「新的一层」里不该再有旧痕迹**——审计对象是当前层：`openspec/specs/` 的 27 个 main specs（审计时**无任何 active change**，changes 下只有 archive）+ `ppt_maker_harness/` 现行文档/playbook/schema/代码 + `tests/` + `tests_e2e/` + 当前 deck bundle `deck_ai_sdlc_bpm_keynote`。
 
 因此本次审计**不是找「提到历史的地方」**，而是找「**新层仍把退役的东西当现行用**」——这种残留会误导后续 Agent/人走到不存在的东西或错误的分支。审计本身零写入，纯盘点。
 
@@ -65,7 +65,7 @@
 | code | `ppt_maker_harness/scripts/**/*.mjs` | ~42k 行 | 10 |
 | schema | `ppt_maker_harness/schema/**/*.yaml` | ~1.8k 行 | 11 |
 | tests | `tests/` + `tests_e2e/` | ~33k 行 | 3 |
-| deck | `deck_ai_sdlc_keynote` 文本文件（md/yaml/json） | — | 13 |
+| deck | `deck_ai_sdlc_bpm_keynote` 文本文件（md/yaml/json） | — | 13 |
 
 ---
 
@@ -144,7 +144,7 @@
   同一时间一个 active change，每个独立终态 + 验证 + 防回归，archive 后才启动下一个）即可
   全部解决。3 个是当前质量不下降的最小数量：文字面（术语）、代码面（死代码+探测器）、
   声明面（schema mirror）各有独立验证面，进一步合并会让单个 change 过大。
-- **Wave 5 不能**——H-3 / L-4 / L-5 是 deck 生产数据（`deck_ai_sdlc_keynote`），不在 OpenSpec
+- **Wave 5 不能**——H-3 / L-4 / L-5 是 deck 生产数据（`deck_ai_sdlc_bpm_keynote`），不在 OpenSpec
   的 Harness maintenance 范围：H-3 是 Deck Author 的内容决策（摘除具名人格 vs 改声明），
   Agent 只能提选项；L-4 / L-5 是需 deck owner 授权范围的机械清理。
 
@@ -173,7 +173,7 @@
 
 ### H-3 [P0] 当前 deck v8 的 README 声明与源内容自相矛盾（具名 Agent 人格）
 
-- **位置**：`deck_ai_sdlc_keynote/3_versions/v8/README.md:10` vs `3_versions/v8/slide-specifications.md:717`、`2_backbone/design-constraints.md:30`、`2_backbone/visual-style/assets/reference/amber-agent/image2-reference-material.yaml:17-40`
+- **位置**：`deck_ai_sdlc_bpm_keynote/3_versions/v8/README.md:10` vs `3_versions/v8/slide-specifications.md:717`、`2_backbone/design-constraints.md:30`、`2_backbone/visual-style/assets/reference/amber-agent/image2-reference-material.yaml:17-40`
 - **证据**：
   - README 声称：`不使用具名 Agent 人格（砚/铸/舵/核/察/算）…backbone 里 agent-portrayal.md / design-constraints.md 的具名人格规范在本版不生效`
   - 但当前源仍有：`slide-specifications.md:717` `**VISUAL IDENTITY**: amber-agent/duo`（舵）
@@ -319,7 +319,7 @@
 
 ### L-5 [P2] deck 孤儿产物
 
-- `deck_ai_sdlc_keynote/MIGRATION.md`：停在 2026-07-30 的 page-authority-image2-v2 迁移，缺 v8/page-image-workflow（2026-08-14）条目；正文仍含退役词 `production_mode`（:10,11,30,31）、`--reuse-images`（:67）、`html-first-v1`。建议归档（补 v8 条目或改名 `.archived`），不当现行说明。
+- `deck_ai_sdlc_bpm_keynote/MIGRATION.md`：停在 2026-07-30 的 page-authority-image2-v2 迁移，缺 v8/page-image-workflow（2026-08-14）条目；正文仍含退役词 `production_mode`（:10,11,30,31）、`--reuse-images`（:67）、`html-first-v1`。建议归档（补 v8 条目或改名 `.archived`），不当现行说明。
 - `1_upstream_raw_material/` 根散落：`style_master_legacy.jpg`、`style_master.round0-19c.jpg`、`style-master-prompt.round0-19c.md`（全库零引用；当前 style master 在 `2_backbone/visual-style/`）。建议移入 legacy-backbone/ 或归档区。
 - **澄清（不报）**：`legacy-backbone/` 已自归档（README 自述「迁移前快照 2026-08-14」），保留即可。
 

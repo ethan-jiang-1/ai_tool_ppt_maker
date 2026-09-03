@@ -56,7 +56,7 @@ COMMANDS.md SHALL also include a **续跑 / 做到哪了** section (or equivalen
 
 When the user points at an existing `deck_*`, asks where they left off, or returns after disconnect/clear-context, the agent SHALL run the **session resume ritual** **before** greenfield intake or restarting a playbook from its first node: (1) `ppt_flow state` and `ppt_flow status` (pointer + artifacts/gates), (2) read playbook pointer plus optional `waiting_for`, (3) explain **whole-workflow position** in plain language — prefer the resume card’s `workflow_summary` / `suggested_next` (execution point + artifact/gate situation — not playbook filename alone), (4) load `playbook/<name>.md` and continue at `current_node` after `checkEntry`, (5) confirm continuation. This ritual is **not** a new playbook. Conversation context alone SHALL NOT be treated as progress truth. Explicit user confirmation is required before discarding in-progress state to restart from scratch.
 
-A known truth-aligned example for manual verification is `deck_ai_sdlc_keynote` (playbook `iterate-style`, node `review-gate`, `waiting_for: user:review-style-master`) — agents SHALL treat such a deck as session resume, not greenfield intake; after ritual the next human step is typically open style master → LOCK / RETRY / BACK.
+A known truth-aligned example for manual verification is `deck_ai_sdlc_bpm_keynote` (playbook `iterate-style`, node `review-gate`, `waiting_for: user:review-style-master`) — agents SHALL treat such a deck as session resume, not greenfield intake; after ritual the next human step is typically open style master → LOCK / RETRY / BACK.
 
 #### Scenario: Cleared chat resumes from current_node
 
@@ -79,6 +79,6 @@ A known truth-aligned example for manual verification is `deck_ai_sdlc_keynote` 
 
 #### Scenario: Truth-aligned keynote deck resumes at review-gate
 
-- **WHEN** Agent opens `deck_ai_sdlc_keynote` after a cleared session and `_state` points at `iterate-style` / `review-gate`
+- **WHEN** Agent opens `deck_ai_sdlc_bpm_keynote` after a cleared session and `_state` points at `iterate-style` / `review-gate`
 - **THEN** the agent continues that playbook/node (e.g. open style master / LOCK path)
 - **AND** does not restart `migrate-import` or `create-deck` from the first node

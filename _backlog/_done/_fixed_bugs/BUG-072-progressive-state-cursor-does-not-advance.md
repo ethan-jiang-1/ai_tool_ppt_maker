@@ -4,12 +4,12 @@
 
 ## 症状
 
-在 exact run `deck_ai_sdlc_keynote/3_versions/v8` 的 Pure pilot 已全部 materialize、并且
+在 exact run `deck_ai_sdlc_bpm_keynote/3_versions/v8` 的 Pure pilot 已全部 materialize、并且
 `image2 pilot-review` 已成功写入 current pilot evidence 后，执行：
 
 ```bash
 node ppt_maker_harness/scripts/ppt_flow.mjs state --json \
-  deck_ai_sdlc_keynote/3_versions/v8
+  deck_ai_sdlc_bpm_keynote/3_versions/v8
 ```
 
 同一个 JSON 返回了互相矛盾的两组进度事实：
@@ -40,7 +40,7 @@ projection 无法重建的下游结果。
 
 ```bash
 node ppt_maker_harness/scripts/ppt_flow.mjs status \
-  deck_ai_sdlc_keynote/3_versions/v8 --json
+  deck_ai_sdlc_bpm_keynote/3_versions/v8 --json
 ```
 
 它返回 `current_node: author-target-page-image-content`、`visual_gate: approved` 和
@@ -58,7 +58,7 @@ node ppt_maker_harness/scripts/ppt_flow.mjs status \
 不是泛化地断言“命令失败”：
 
 ```bash
-node --input-type=module -e 'import { spawnSync } from "node:child_process"; const r = spawnSync(process.execPath, ["ppt_maker_harness/scripts/ppt_flow.mjs", "state", "--json", "deck_ai_sdlc_keynote/3_versions/v8"], { encoding: "utf8" }); const s = JSON.parse(r.stdout); const bad = s.current_node === "author-target-page-image-content" && s.eligible_candidates?.includes("author-target-narrative-sources") && s.workflow_inspection?.primary_action?.action_id === "accept_progressive_pilot"; console.log(JSON.stringify({ current_node: s.current_node, eligible_candidates: s.eligible_candidates, primary_action: s.workflow_inspection?.primary_action?.action_id })); process.exit(bad ? 1 : 0);'
+node --input-type=module -e 'import { spawnSync } from "node:child_process"; const r = spawnSync(process.execPath, ["ppt_maker_harness/scripts/ppt_flow.mjs", "state", "--json", "deck_ai_sdlc_bpm_keynote/3_versions/v8"], { encoding: "utf8" }); const s = JSON.parse(r.stdout); const bad = s.current_node === "author-target-page-image-content" && s.eligible_candidates?.includes("author-target-narrative-sources") && s.workflow_inspection?.primary_action?.action_id === "accept_progressive_pilot"; console.log(JSON.stringify({ current_node: s.current_node, eligible_candidates: s.eligible_candidates, primary_action: s.workflow_inspection?.primary_action?.action_id })); process.exit(bad ? 1 : 0);'
 ```
 
 实际输出：

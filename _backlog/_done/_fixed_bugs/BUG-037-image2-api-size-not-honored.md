@@ -50,7 +50,7 @@ if (png.width !== 2000 || png.height !== 1125) throw new Error("Framed raw PNG m
 ```bash
 export IMAGE2_API_KEY=$(grep '^IMAGE2_API_KEY=' .env | cut -d= -f2)
 export IMAGE2_BASE_URL=$(grep '^IMAGE2_BASE_URL=' .env | cut -d= -f2)
-node deck_ai_sdlc_keynote/3_versions/v4/_scratch/async-generate.mjs --only=TriYear
+node deck_ai_sdlc_bpm_keynote/3_versions/v4/_scratch/async-generate.mjs --only=TriYear
 # 检查 raw/TriYear.png 尺寸
 ```
 

@@ -71,7 +71,7 @@
 
 **目的：** 在一份完整 provider-free raw plan 上，用 exact Pilot 和 Expansion batches 完成长程生产、恢复、完整审查与交付。
 
-**Scope 来源：** [渐进生产设计](production-conventions/pilot-run-plan.md)、[slide identity](production-conventions/slide-naming.md)、[Pilot tasks](production-conventions/tasks/pilot-run-tasks.md)、[Expansion/Reviews tasks](production-conventions/tasks/expansion-and-reviews-tasks.md)、[历史 negative case](production-conventions/observations/deck-ai-sdlc-keynote-v4-2026-07-30.md)、[proposal](../../../openspec/changes/archive/2026-08-02-introduce-progressive-page-production/proposal.md)、[design](../../../openspec/changes/archive/2026-08-02-introduce-progressive-page-production/design.md)、[49 项 tasks](../../../openspec/changes/archive/2026-08-02-introduce-progressive-page-production/tasks.md)。
+**Scope 来源：** [渐进生产设计](production-conventions/pilot-run-plan.md)、[slide identity](production-conventions/slide-naming.md)、[Pilot tasks](production-conventions/tasks/pilot-run-tasks.md)、[Expansion/Reviews tasks](production-conventions/tasks/expansion-and-reviews-tasks.md)、[历史 negative case](production-conventions/observations/deck-ai-sdlc-bpm-keynote-v4-2026-07-30.md)、[proposal](../../../openspec/changes/archive/2026-08-02-introduce-progressive-page-production/proposal.md)、[design](../../../openspec/changes/archive/2026-08-02-introduce-progressive-page-production/design.md)、[49 项 tasks](../../../openspec/changes/archive/2026-08-02-introduce-progressive-page-production/tasks.md)。
 
 **Scope checklist：**
 
@@ -115,7 +115,7 @@
 | [旧 Phase 8-9](framed-image2-status/progressive-plan.md)、[Style Master 设计](production-conventions/pilot-run-plan.md)与 [tasks](production-conventions/tasks/style-master-tasks.md) | Change 2 |
 | [旧 Phase 10-13](framed-image2-status/progressive-plan.md)、[Pilot/Expansion/recovery 设计](production-conventions/pilot-run-plan.md)与 [tasks](production-conventions/tasks-overview.md) | Change 3 |
 | [slide naming](production-conventions/slide-naming.md) | Accepted baseline，由 Change 3 复用，不单开 change |
-| [历史 observation](production-conventions/observations/deck-ai-sdlc-keynote-v4-2026-07-30.md) | 只作为 Change 3 negative test 输入，不读取或迁移 production run |
+| [历史 observation](production-conventions/observations/deck-ai-sdlc-bpm-keynote-v4-2026-07-30.md) | 只作为 Change 3 negative test 输入，不读取或迁移 production run |
 
 ## 不变边界
 

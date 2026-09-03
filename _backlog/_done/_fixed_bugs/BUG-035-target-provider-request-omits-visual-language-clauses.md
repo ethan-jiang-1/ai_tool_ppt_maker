@@ -50,7 +50,7 @@ API 收到的 `visual_language.recipe` 是 `{ id: "editorial-systems", provider_
 ```bash
 export IMAGE2_API_KEY=$(grep '^IMAGE2_API_KEY=' .env | cut -d= -f2)
 export IMAGE2_BASE_URL=$(grep '^IMAGE2_BASE_URL=' .env | cut -d= -f2)
-node deck_ai_sdlc_keynote/3_versions/v4/_scratch/async-generate.mjs --only=GoRev
+node deck_ai_sdlc_bpm_keynote/3_versions/v4/_scratch/async-generate.mjs --only=GoRev
 # 检查 raw/01-GoRev.png — 观察是否缺乏暖编辑风格指导
 ```
 

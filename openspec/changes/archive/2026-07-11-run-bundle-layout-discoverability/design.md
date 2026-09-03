@@ -2,7 +2,7 @@
 
 Phase A already shipped `_scratch/` enforcement (`checkBundle`, init/new-version, charter deep text). **Enforcement alone is not enough.**
 
-**Recurrence proof (in-scope, not optional):** `deck_ai_sdlc_keynote/_slidespec.bak-split` appeared again at deck root while older baks already lived under `v1/_scratch/`. `checkBundle --structure-only` correctly fails with 上严下松 + “Version temp/bak → `…/_scratch/`”. So the drawer and the police exist; the agent still **does not discover** them before writing. This change must close that loop.
+**Recurrence proof (in-scope, not optional):** `deck_ai_sdlc_bpm_keynote/_slidespec.bak-split` appeared again at deck root while older baks already lived under `v1/_scratch/`. `checkBundle --structure-only` correctly fails with 上严下松 + “Version temp/bak → `…/_scratch/`”. So the drawer and the police exist; the agent still **does not discover** them before writing. This change must close that loop.
 
 Remaining problem = **spec ownership + GREP discoverability**:
 

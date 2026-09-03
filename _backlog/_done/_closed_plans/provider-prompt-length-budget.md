@@ -12,7 +12,7 @@
 
 ## 背景 / 现状（触发问题）
 
-`deck_ai_sdlc_keynote` v8（新 harness `page-image-workflow` + `pure`）出图质量离 V1 有明显距离。根因已定位：V1 每页 prompt 带一段 ~3200 字符的 deck 专属共享设计系统文本（字体硬规则、CJK 可读性、文图比、色系/禁用清单、调性等），新 harness 丢掉这层。于是做了两个 harness change 把它补回来：
+`deck_ai_sdlc_bpm_keynote` v8（新 harness `page-image-workflow` + `pure`）出图质量离 V1 有明显距离。根因已定位：V1 每页 prompt 带一段 ~3200 字符的 deck 专属共享设计系统文本（字体硬规则、CJK 可读性、文图比、色系/禁用清单、调性等），新 harness 丢掉这层。于是做了两个 harness change 把它补回来：
 
 1. `restore-identity-role-clause-provider-input`（已合入，`9004e98`）——把 agent 页的 `identity role_clause` 完整正文注入 provider input。
 2. `add-page-design-system-provider-input`（已合入，`a8ecfab`）——新增 deck 级 `page-design-system.md` 源，解析成 `design_system` 字段逐字注入每页 provider input。
@@ -117,11 +117,11 @@ FramAut 4014  (+14)
 **验收标准（可执行）**：
 
 1. 同一份已授权 compiled input，派生出的 compact provider prompt **不含** `generation_profile`、`page_presentation.provenance`、`page_presentation.binding_sha256`、任何 sha256/digest/path/origin。
-2. 以 `deck_ai_sdlc_keynote` v8 为验证样本：**全部 25 页**的 compact prompt ≤ 4000 字符（含完整 `design_system` + `identity role_clause`），且 `generate` 真实返回 200 出图。
+2. 以 `deck_ai_sdlc_bpm_keynote` v8 为验证样本：**全部 25 页**的 compact prompt ≤ 4000 字符（含完整 `design_system` + `identity role_clause`），且 `generate` 真实返回 200 出图。
 3. `compiled_provider_input` 的字节与 sha256 不变；authorization scope / raw-plan / invalidation 的既有测试全部通过。
 4. Framed 的 `instruction` 逐字等于 `FRAMED_EXCLUSIVE_HEADER_RESERVATION_INSTRUCTION`；`design_system` 与 raw contract 逐字相等。
 5. 超过 4000 字符的 compact prompt 在 provider call 前 fail-closed（不截断、不回退），走现有 `image2` 诊断 envelope。
-6. 不修改任何 `deck_*` 生产数据；`deck_ai_sdlc_keynote/v8` 仅作为验证样本，不作为测试 fixture。
+6. 不修改任何 `deck_*` 生产数据；`deck_ai_sdlc_bpm_keynote/v8` 仅作为验证样本，不作为测试 fixture。
 
 ---
 
@@ -274,7 +274,7 @@ Harness 修好后，Deck Agent（本 deck）需要做的后续是：
 
 另一个 Deck Agent 只需要做正常生产操作：
 
-1. 为 `deck_ai_sdlc_keynote` 选择并记录 owner 已确认的 capability profile；不得从
+1. 为 `deck_ai_sdlc_bpm_keynote` 选择并记录 owner 已确认的 capability profile；不得从
    `gpt-image-2` alias 自动猜测。当前完整 v8 prompt 应选择能够容纳它的已确认 profile。
 2. 重跑一次 `image2 plan`，然后按现有流程执行
    pilot → authorize → generate → review → expansion → accept → build。

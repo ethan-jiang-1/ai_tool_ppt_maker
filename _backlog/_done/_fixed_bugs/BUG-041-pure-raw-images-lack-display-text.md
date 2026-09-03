@@ -22,7 +22,7 @@ selection 或 provider authorization。真实生成、raw review 与人类对文
 
 ## 症状
 
-pure workflow 生成的图**只有场景、没有任何文字**（标题/副标题没画进图）。以 `deck_ai_sdlc_keynote/3_versions/v5` 的 final PNG（`InfoRev.png` 等）为例：封面只有奶油纸+琥珀点缀，`AI 时代的信息加工革命` 标题没有出现在画面里。
+pure workflow 生成的图**只有场景、没有任何文字**（标题/副标题没画进图）。以 `deck_ai_sdlc_bpm_keynote/3_versions/v5` 的 final PNG（`InfoRev.png` 等）为例：封面只有奶油纸+琥珀点缀，`AI 时代的信息加工革命` 标题没有出现在画面里。
 
 **意图澄清（用户 2026-08-02）**：pure 的本意是**整页（含 display 标题/副标题文字）由 Image2 画进图**——图有文；framed 才是 title/subtitle/kicker 固定在 Text Frame 本地排版、仅 Body/underlay 由图画。当前 pure 实现把文字丢了，只有场景。
 

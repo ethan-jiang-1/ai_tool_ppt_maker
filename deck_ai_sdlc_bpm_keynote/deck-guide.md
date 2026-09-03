@@ -1,4 +1,4 @@
-# ai_sdlc_keynote — PPT 项目指南
+# ai_sdlc_bpm_keynote — PPT 项目指南
 
 > 定位入口：`RUN_BUNDLE.md`（deck/harness 路径）。执行进度在 `_state/state.yaml`，不在此文件。
 >
@@ -22,8 +22,8 @@
 ## 看进度
 
 ```bash
-node ppt_maker_harness/scripts/ppt_flow.mjs state deck_ai_sdlc_keynote/3_versions/v8 --json
-node ppt_maker_harness/scripts/ppt_flow.mjs status deck_ai_sdlc_keynote/3_versions/v8
+node ppt_maker_harness/scripts/ppt_flow.mjs state deck_ai_sdlc_bpm_keynote/3_versions/v8 --json
+node ppt_maker_harness/scripts/ppt_flow.mjs status deck_ai_sdlc_bpm_keynote/3_versions/v8
 ```
 
 ## 生产模式与管线
@@ -57,17 +57,17 @@ Generated outputs 在 `3_versions/v8/_generated/page_image_workflow/`（receipts
 
 ```bash
 # 验证 source
-node ppt_maker_harness/scripts/ppt_flow.mjs validate deck_ai_sdlc_keynote/3_versions/v8
+node ppt_maker_harness/scripts/ppt_flow.mjs validate deck_ai_sdlc_bpm_keynote/3_versions/v8
 
 # Style Master（先 inspect，再用现有 style_master.png zero-cost adopt，或重新生成候选）
-node ppt_maker_harness/scripts/ppt_flow.mjs style-master inspect deck_ai_sdlc_keynote/3_versions/v8
-node ppt_maker_harness/scripts/ppt_flow.mjs style-master plan deck_ai_sdlc_keynote/3_versions/v8 --candidate-count 0
+node ppt_maker_harness/scripts/ppt_flow.mjs style-master inspect deck_ai_sdlc_bpm_keynote/3_versions/v8
+node ppt_maker_harness/scripts/ppt_flow.mjs style-master plan deck_ai_sdlc_bpm_keynote/3_versions/v8 --candidate-count 0
 
 # 渐进式 raw 生成（receipt-bound，需显式授权）
-node ppt_maker_harness/scripts/ppt_flow.mjs image2 plan deck_ai_sdlc_keynote/3_versions/v8
+node ppt_maker_harness/scripts/ppt_flow.mjs image2 plan deck_ai_sdlc_bpm_keynote/3_versions/v8
 
 # 构建 PPTX
-node ppt_maker_harness/scripts/ppt_flow.mjs build deck_ai_sdlc_keynote/3_versions/v8
+node ppt_maker_harness/scripts/ppt_flow.mjs build deck_ai_sdlc_bpm_keynote/3_versions/v8
 ```
 
 CLI 非零退出时，只消费 stderr 最后一个有效 failure envelope。`requires_human: true` 必须停下取得决定；不要猜 path/hash/token，也不要手修 `_state`、journal、lock 或 `_generated/`。

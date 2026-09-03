@@ -1,11 +1,11 @@
-# TODO: deck_ai_sdlc_keynote v5 production
+# TODO: deck_ai_sdlc_bpm_keynote v5 production
 
 > 状态: 实施中 | 优先级: 高 | 更新: 2026-08-02
 > 上游: BUG-035/036/041/043/044 | 下游: v5 交付 + 框架 BUG-040/042 后续
 
 ## Why
 
-把 `deck_ai_sdlc_keynote` 在框架 v0.23.x 上重做到 v5：V1 内容 + pure workflow + 图字双主（文字入图、图为隐喻）。用户逐项打磨，需要一个可见的 to-do 追踪生产进度。
+把 `deck_ai_sdlc_bpm_keynote` 在框架 v0.23.x 上重做到 v5：V1 内容 + pure workflow + 图字双主（文字入图、图为隐喻）。用户逐项打磨，需要一个可见的 to-do 追踪生产进度。
 
 ## 现状对齐
 

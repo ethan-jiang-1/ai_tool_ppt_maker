@@ -20,6 +20,6 @@ todo 完成后从 `_backlog/todos/` 通过 `git mv` 移入本目录：
 | ID | Date | File | Summary |
 |----|------|------|---------|
 | [DONE-001](todo-optional-git-safety-and-startup-guidance.md) | 2026-07-17 | `todo-optional-git-safety-and-startup-guidance.md` | 可选 Git 安全检测与启动引导；由 `add-optional-git-safety-guidance` change 吸收 |
-| [DONE-002](todo-deck-ai-sdlc-keynote-v5-production.md) | 2026-08-13 | `todo-deck-ai-sdlc-keynote-v5-production.md` | `deck_ai_sdlc_keynote` v5 pure workflow 生产和交付；历史卡保留原始验收与 follow-up 记录 |
+| [DONE-002](todo-deck-ai-sdlc-bpm-keynote-v5-production.md) | 2026-08-13 | `todo-deck-ai-sdlc-bpm-keynote-v5-production.md` | `deck_ai_sdlc_bpm_keynote` v5 pure workflow 生产和交付；历史卡保留原始验收与 follow-up 记录 |
 
 **Next available DONE ID: DONE-003**

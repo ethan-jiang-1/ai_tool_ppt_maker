@@ -226,7 +226,7 @@ authorization, generation, and Complete Page Review. Source and State remain
 unchanged unless a separate owner-authorized source edit occurs; a Harness
 compiler fix alone does not advance `source_epoch`.
 
-The observed `deck_ai_sdlc_keynote/3_versions/v8` pilot is migration evidence,
+The observed `deck_ai_sdlc_bpm_keynote/3_versions/v8` pilot is migration evidence,
 not a test fixture or apply target. After implementation, its four-page pilot
 may be rerun operationally through the normal run-bundle workflow, preserving
 the two no-identity controls and current registry wording so contract recovery

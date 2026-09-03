@@ -33,13 +33,13 @@
 - [x] 4.1 `bundle_layout.mjs` `_DIR_READMES['.']`：根 README 种子写出版本临时在 `3_versions/v{n}/_scratch/` + 上严下松/根最严 + 不知放哪点 glossary Where Map — 行 602–664
 - [x] 4.2 `_DIR_READMES[3_versions]`：`--new-version` 说明「不复制 `_generated/` **与** `_scratch/` 内容」
 - [x] 4.3 `workflow/00-setup/template-deck-guide.md` 已含 `_scratch` 树行 + new-version 不拷 `_scratch`（行 95/98，与种子对齐）
-- [x] 4.4 **覆盖**（非 `_writeIfAbsent`）金甲板 `deck_ai_sdlc_keynote/README.md` 与 `3_versions/v1/README.md`，正文出现 `_scratch`，与现行种子一致
+- [x] 4.4 **覆盖**（非 `_writeIfAbsent`）金甲板 `deck_ai_sdlc_bpm_keynote/README.md` 与 `3_versions/v1/README.md`，正文出现 `_scratch`，与现行种子一致
 - [x] 4.5 charter 运行时文档镜像（Phase A `43884d1`）：`CONSTITUTION.md` 严格度表 + 树含 `_scratch`（行 86–142）；`AGENT_CONTRACT.md` 上严下松 + bak 只进 `_scratch`（行 33/39）
 - [x] 4.6 `tests/test_docs_consistency.mjs` 断言 glossary `## Where Map`/`### _scratch/`/`### --run-dir`/`### style_master.jpg`/`contact_sheet`；BOOTSTRAP `Where Map`+`GREP`+`_scratch`；AGENTS `_scratch/`；`bundle_layout.mjs` 种子含 `v{n}/_scratch`；金甲板两 README 含 `_scratch`（行 92–117）
 
 ## 5. 待办 — 验证 · Sync（逐 capability · D5）· Archive
 
-- [x] 5.1 验证闸门（2026-07-11 实测）：`npm test` **16 files / 103 tests 全绿**；`bundle_layout.mjs --check deck_ai_sdlc_keynote/3_versions/v1 --structure-only` **exit 0**（archive 前建议再跑一次确认）
+- [x] 5.1 验证闸门（2026-07-11 实测）：`npm test` **16 files / 103 tests 全绿**；`bundle_layout.mjs --check deck_ai_sdlc_bpm_keynote/3_versions/v1 --structure-only` **exit 0**（archive 前建议再跑一次确认）
 - [x] 5.2 `openspec/config.yaml` capability 注册表两处改（与 sync 同批）：**(a)** 新增 `run-bundle-layout` 行（描述 = deck 树 folder ontology + Where Map 拥有者；脚本 `bundle_layout.mjs` `renderTree()`）；**(b)** 改写 `run-bundle-management` 行——删「目录结构宪法」→ ops（init/check/new-version **enforce** run-bundle-layout）。否则注册表自相矛盾
 
 **Sync deltas → main specs**（D5：delta 只用 ADDED/MODIFIED/REMOVED/RENAMED 头；main 只存 `## Purpose` + `## Requirements`。`/opsx:sync` 或 archive 时执行）：

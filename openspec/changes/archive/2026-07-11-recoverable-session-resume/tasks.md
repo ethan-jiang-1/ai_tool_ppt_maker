@@ -25,4 +25,4 @@
 ## 5. Regression + 小白场景冒烟
 
 - [x] 5.1 `npm test` 绿
-- [x] 5.2 手动：只给 `deck_ai_sdlc_keynote` → `state --json` 满足 design D6（iterate-style / review-gate / waiting token）；`approve` 后门闩一致（若测双写可用临时 copy，勿弄脏金甲板意图时可 `--waive` 后再对齐回 waived）
+- [x] 5.2 手动：只给 `deck_ai_sdlc_bpm_keynote` → `state --json` 满足 design D6（iterate-style / review-gate / waiting token）；`approve` 后门闩一致（若测双写可用临时 copy，勿弄脏金甲板意图时可 `--waive` 后再对齐回 waived）

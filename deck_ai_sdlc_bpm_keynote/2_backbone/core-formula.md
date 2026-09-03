@@ -1,6 +1,6 @@
 # 核心公式
 
-> deck 的身份 DNA 之一——一个可证伪的命题，整个 deck 存在就是为了论证它。迁移自 `deck_ai_sdlc_keynote`。
+> deck 的身份 DNA 之一——一个可证伪的命题，整个 deck 存在就是为了论证它。迁移自 `deck_ai_sdlc_bpm_keynote`。
 
 ## 核心公式
 

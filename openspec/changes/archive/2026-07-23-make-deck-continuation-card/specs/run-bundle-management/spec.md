@@ -110,7 +110,7 @@ carry the same essentials and retain its operating-guide role so the manual/Expe
 
 The producer SHALL be the durable fix. Tests SHALL initialize a fresh temporary deck and assert
 all generated files and structure validity. Existing golden or user run bundles, including
-`deck_ai_sdlc_keynote`, SHALL NOT be hand-edited as part of this change. This change SHALL NOT
+`deck_ai_sdlc_bpm_keynote`, SHALL NOT be hand-edited as part of this change. This change SHALL NOT
 alter the root/version README placement-map seeds except for the concise handoff route above.
 Because scaffold writes are create-if-absent, legacy bundles MAY gain the new control only through
 an explicit future migration/repair operation, not an incidental pipeline run.
@@ -134,5 +134,5 @@ an explicit future migration/repair operation, not an incidental pipeline run.
 #### Scenario: This producer change does not refresh the golden deck
 
 - **WHEN** this change is implemented and its diff is reviewed
-- **THEN** no file under `deck_ai_sdlc_keynote/` is changed
+- **THEN** no file under `deck_ai_sdlc_bpm_keynote/` is changed
 - **AND** fresh-scaffold tests, not a hand-patched generated deck, prove the new control behavior

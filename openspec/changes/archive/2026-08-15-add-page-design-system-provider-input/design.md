@@ -58,7 +58,7 @@ second Page Source, registry, Style Master, controller, or lifecycle record.
 - Change the outer provider transport envelope, public CLI command/routing or
   diagnostic-envelope schema, MD Controller order, State workflow identity,
   local Framed overlay rendering, or existing deck data such as
-  `deck_ai_sdlc_keynote/3_versions/v8`.
+  `deck_ai_sdlc_bpm_keynote/3_versions/v8`.
 
 ## Decisions
 

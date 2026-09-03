@@ -85,7 +85,7 @@ checks rather than layering new fallbacks.
 
 This is framework repository maintenance in `PPTMAKER_FRAMEWORK/`, `openspec/`, `tests/`, and
 `tests_e2e/`, plus the explicitly user-designated backbone doctrine asset at
-`deck_ai_sdlc_keynote/2_backbone/visual-style/assets/reference/amber-agent/`. It does not modify a
+`deck_ai_sdlc_bpm_keynote/2_backbone/visual-style/assets/reference/amber-agent/`. It does not modify a
 version's `_generated/` output. The change touches source parsing, state and generated-artifact lineage,
 the Image2 provider boundary, the local browser capture runtime, public CLI/Controller guidance, and
 tests. It introduces no new production dependency and preserves legacy execution behavior only until

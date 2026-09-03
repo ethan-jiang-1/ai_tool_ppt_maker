@@ -2,7 +2,7 @@
 
 小现象（**反复出现，不是偶发**）：Agent 把 version 临时文件丢到 `deck_*` 根。
 
-金甲板刚又冒出 `deck_ai_sdlc_keynote/_slidespec.bak-split`——`checkBundle` **能拦**（上严下松已执法），但拦在**事后**：说明抽屉 `_scratch/` 机制在，**落盘前 Agent 仍不知道往哪放**。本 change 圈子必须覆盖这件事，不能只当文档打磨。
+金甲板刚又冒出 `deck_ai_sdlc_bpm_keynote/_slidespec.bak-split`——`checkBundle` **能拦**（上严下松已执法），但拦在**事后**：说明抽屉 `_scratch/` 机制在，**落盘前 Agent 仍不知道往哪放**。本 change 圈子必须覆盖这件事，不能只当文档打磨。
 
 根因：
 
